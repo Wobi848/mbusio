@@ -6,6 +6,11 @@ const TEXT = {
   de: {
     print: "Drucken / Als PDF speichern",
     with_details: "Alle Messwerte anhängen",
+    changes: "Durchgeführte Änderungen",
+    clear_changes: "Änderungen leeren",
+    confirm_clear_changes: "Liste der durchgeführten Änderungen leeren?",
+    th_time: "Zeitpunkt",
+    th_change: "Änderung",
     close: "Schliessen",
     title: "M-Bus Zählerprotokoll",
     subtitle: "Erstellt mit mbusio",
@@ -50,6 +55,11 @@ const TEXT = {
   en: {
     print: "Print / save as PDF",
     with_details: "Attach all readings",
+    changes: "Changes made",
+    clear_changes: "Clear changes",
+    confirm_clear_changes: "Clear the list of changes made?",
+    th_time: "Time",
+    th_change: "Change",
     close: "Close",
     title: "M-Bus meter report",
     subtitle: "Created with mbusio",
@@ -251,6 +261,25 @@ function renderDetails(meters, readings) {
   );
 }
 
+/// Änderungen am Bus, von mbusio im Browser gemerkt (PA, Baudrate)
+function loadChanges() {
+  try {
+    return JSON.parse(get("report_changes") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function renderChanges() {
+  const list = loadChanges();
+  $("clear-changes").hidden = list.length === 0;
+  if (!list.length) return "";
+  return `<h2>${t("changes")}</h2><table>
+    <thead><tr><th>${t("th_time")}</th><th>${t("th_change")}</th></tr></thead>
+    <tbody>${list.map((c) => `<tr><td class="mono">${esc(c.time)}</td><td>${esc(c.text)}</td></tr>`).join("")}</tbody>
+  </table>`;
+}
+
 function render() {
   const { status: s, meters, readings } = data;
   const ok = meters.filter((m) => m.last_read && !m.last_error).length;
@@ -263,6 +292,7 @@ function render() {
   ].filter(Boolean);
   $("meta").innerHTML = meta.map(([k, v]) => `<span>${esc(k)}: <b>${esc(v)}</b></span>`).join("");
   $("table").innerHTML = renderTable(meters);
+  $("changes").innerHTML = renderChanges();
   $("details-out").innerHTML = $("details").checked && meters.length ? renderDetails(meters, readings) : "";
   $("foot").textContent = t("foot", s.version);
 }
@@ -279,6 +309,11 @@ async function main() {
   };
   $("print").onclick = () => window.print();
   $("close").onclick = () => window.close();
+  $("clear-changes").onclick = () => {
+    if (!confirm(t("confirm_clear_changes"))) return;
+    put("report_changes", "[]");
+    if (data) render();
+  };
   try {
     const [status, meters, readings, l] = await Promise.all([
       api("status"),

@@ -781,3 +781,18 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 .why p:last-child { margin-bottom: 0; }
 .why-label { color: var(--muted); font-weight: 600; }
 .why-raw code { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+
+/* Alle beheben: Plan zum Abhaken */
+.fix-plan { margin: 10px 0; padding: 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--surface); }
+.fix-plan h3 { margin: 0 0 4px; font-size: 15px; }
+.fix-plan ul { list-style: none; margin: 10px 0; padding: 0; }
+.fix-plan li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.fix-plan li label { display: flex; flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 13px; }
+.fix-plan ul.manual li { color: var(--muted); }
+.plan-st { flex: none; font-weight: 600; white-space: normal; text-align: right; }
+.plan-st.ok { color: var(--ok); }
+.plan-st.err { color: var(--err); font-weight: 500; }
+.fix-plan .row { margin: 8px 0 0; }
+.fix-plan li label { flex: 1 1 auto; min-width: 0; }
+.fix-plan li input[type="checkbox"] { width: 16px; height: 16px; flex: none; margin: 0; accent-color: var(--accent); }
+.plan-st { font-size: 14px; }

@@ -70,6 +70,24 @@ const UI = {
     warn_collision_id: (id) => `ID ${id}: mehrere Zähler mit derselben ID – mit dem Primärscan einzeln finden`,
     warn_no_data: (n) => `${n} Zähler antworten, liefern aber keine brauchbaren Daten – „Warum?“ in der Zeile zeigt die Ursache`,
     why: "Warum?",
+    fix_all: "Alle beheben",
+    plan_title: (n) => `Plan: ${n} Änderung${n === 1 ? "" : "en"}`,
+    plan_hint: "Häkchen entfernen bei allem, was nicht geändert werden soll. Jede Änderung wird am Zähler kontrolliert.",
+    plan_manual: "Von Hand zu erledigen:",
+    plan_manual_collision: (pa, b) => `PA ${pa} (${b} Bd): Kollision – zuerst Sekundärscan, dann sind die Zähler einzeln sichtbar`,
+    plan_manual_nodata: (x) => `${x}: liefert keine Daten – „Warum?“ zeigt die Ursache`,
+    plan_manual_sameid: (id) => `ID ${id}: gleiche ID und Hersteller – vom Hersteller umprogrammieren lassen`,
+    plan_manual_id_collision: (id) => `ID ${id}: mehrere Zähler mit dieser ID – Primärscan zeigt sie einzeln (bei gleichem Hersteller: umprogrammieren lassen)`,
+    plan_none: "Nichts lässt sich automatisch beheben.",
+    plan_run: (n) => `Ausführen (${n})`,
+    plan_close: "Schliessen",
+    plan_busy_free: "Suche freie Primäradressen …",
+    plan_running: (k, n) => `Behebe ${k}/${n} …`,
+    plan_done: (ok, n) => `${ok} von ${n} Änderungen erledigt`,
+    plan_baud: (id, a, b) => `${id}: Baudrate ${a} → ${b} Bd`,
+    plan_pa: (id, a, b) => `${id}: Primäradresse ${a} → ${b}`,
+    change_pa: (id, a, b) => `${id}: Primäradresse ${a} → ${b}`,
+    change_baud: (id, a, b) => `${id}: Baudrate ${a} → ${b} Bd`,
     why_tip: "Was tun:",
     why_raw: "Empfangen",
     why_unknown: ["Keine genauere Ursache bekannt.", "Telegramm-Log öffnen und die Zeilen zu diesem Zähler ansehen."],
@@ -290,6 +308,24 @@ const UI = {
     warn_collision_id: (id) => `ID ${id}: several meters with the same ID – find them one by one with the primary scan`,
     warn_no_data: (n) => `${n} meter(s) answer but deliver no usable data – “Why?” in the row shows the cause`,
     why: "Why?",
+    fix_all: "Fix all",
+    plan_title: (n) => `Plan: ${n} change${n === 1 ? "" : "s"}`,
+    plan_hint: "Untick everything that should not be changed. Every change is verified on the meter.",
+    plan_manual: "To do by hand:",
+    plan_manual_collision: (pa, b) => `PA ${pa} (${b} Bd): collision – run a secondary scan first to see the meters one by one`,
+    plan_manual_nodata: (x) => `${x}: delivers no data – “Why?” shows the cause`,
+    plan_manual_sameid: (id) => `ID ${id}: same ID and manufacturer – have the manufacturer reprogram them`,
+    plan_manual_id_collision: (id) => `ID ${id}: several meters with this ID – the primary scan shows them one by one (same manufacturer: have them reprogrammed)`,
+    plan_none: "Nothing can be fixed automatically.",
+    plan_run: (n) => `Run (${n})`,
+    plan_close: "Close",
+    plan_busy_free: "Looking for free primary addresses …",
+    plan_running: (k, n) => `Fixing ${k}/${n} …`,
+    plan_done: (ok, n) => `${ok} of ${n} changes done`,
+    plan_baud: (id, a, b) => `${id}: baud rate ${a} → ${b} Bd`,
+    plan_pa: (id, a, b) => `${id}: primary address ${a} → ${b}`,
+    change_pa: (id, a, b) => `${id}: primary address ${a} → ${b}`,
+    change_baud: (id, a, b) => `${id}: baud rate ${a} → ${b} Bd`,
     why_tip: "What to do:",
     why_raw: "Received",
     why_unknown: ["No more specific cause known.", "Open the telegram log and look at the lines for this meter."],
@@ -534,7 +570,8 @@ const BUS_ACTIONS = [
 ];
 
 async function api(path, options = {}) {
-  const busy = options.method === "POST" && BUS_ACTIONS.find(([re]) => re.test(path));
+  // "Alle beheben" zeigt seinen eigenen Fortschritt in der Leiste
+  const busy = !planRunning && options.method === "POST" && BUS_ACTIONS.find(([re]) => re.test(path));
   if (!busy) return request(path, options);
   busbar({ text: t(busy[1]), link: busy[2] });
   try {
@@ -854,6 +891,9 @@ function renderHitsWarn(hits, a) {
   el.innerHTML = items.length
     ? `<b>⚠ ${esc(t("warn_title"))}</b><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` +
       (a.dupPa.size ? `<p class="hint">${esc(t("warn_fix_hint"))}</p>` : "") +
+      (planSteps(hits, a).steps.length
+        ? `<button class="small cta needs-conn" data-fix-all>${esc(t("fix_all"))}</button> `
+        : "") +
       // Kollision im Primärscan: der Sekundärscan findet die Zähler einzeln
       (collisions.some((h) => h.primary_address != null)
         ? `<button class="small cta needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>`
@@ -980,7 +1020,144 @@ function meterFromHit(h) {
 
 $("hits-warn").addEventListener("click", (ev) => {
   if (ev.target.closest("[data-start-secondary]")) $("scan-secondary").click();
+  if (ev.target.closest("[data-fix-all]")) guarded(ev.target.closest("button"), openPlan);
 });
+
+// ------------------------------------------------------------ Alle beheben
+
+let plan = null;
+let planRunning = false;
+
+/// Was sich automatisch beheben lässt (Schritte) und was von Hand (Texte)
+function planSteps(hits, a) {
+  const steps = [];
+  const manual = [];
+  const name = (h) => h.id || h.secondary_address || `PA ${h.primary_address}`;
+  // eindeutig ansprechbar nur über die volle Sekundäradresse, sofern sie nicht mehrfach vorkommt
+  const target = (h) =>
+    h.secondary_address && hits.filter((x) => x.secondary_address === h.secondary_address).length === 1
+      ? h.secondary_address
+      : null;
+  for (const h of hits) {
+    if (h.status === "ok" && h.baud && h.baud !== connBaud && target(h)) {
+      steps.push({ kind: "baud", target: target(h), name: name(h), from: h.baud, to: connBaud });
+    }
+  }
+  for (const [k, list] of a.dupPa) {
+    const pa = Number(k.split(":")[1]);
+    const members = list.map((i) => hits[i]).sort((x, y) => String(x.id).localeCompare(String(y.id)));
+    // PA 0 ist der Werkszustand: alle umziehen; sonst darf der erste bleiben
+    for (const h of pa === 0 ? members : members.slice(1)) {
+      if (!target(h)) continue;
+      steps.push({ kind: "pa", target: target(h), name: name(h), from: pa, to: null, fromBaud: h.baud !== connBaud ? h.baud : null });
+    }
+  }
+  for (const h of hits) {
+    if (h.status === "collision" && h.primary_address != null) manual.push(t("plan_manual_collision", h.primary_address, h.baud));
+    // Sekundärscan: gleiche ID, über die ID allein nicht trennbar
+    if (h.status === "collision" && h.primary_address == null && h.id) manual.push(t("plan_manual_id_collision", h.id));
+    if (h.status === "no_data") manual.push(t("plan_manual_nodata", name(h)));
+  }
+  for (const id of a.dupIdSame.keys()) manual.push(t("plan_manual_sameid", id));
+  return { steps, manual };
+}
+
+async function openPlan() {
+  const hits = lastJob.hits;
+  plan = planSteps(hits, analyzeHits(hits));
+  // freie Adressen vorher suchen, damit der Plan konkrete Zahlen zeigt
+  const skip = new Set(hits.map((h) => h.primary_address).filter((x) => x != null && x > 0));
+  const paSteps = plan.steps.filter((s) => s.kind === "pa");
+  if (paSteps.length) busbar({ text: t("plan_busy_free"), link: "#fix-plan" });
+  try {
+    for (const s of paSteps) {
+      const r = await request("free-address", { method: "POST", body: { from: 1, skip: [...skip] } });
+      s.to = r.address;
+      skip.add(r.address);
+    }
+  } finally {
+    if (paSteps.length) busbar(null);
+  }
+  renderPlan();
+  $("fix-plan").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function renderPlan() {
+  const el = $("fix-plan");
+  if (!plan) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  const text = (s) => (s.kind === "baud" ? t("plan_baud", s.name, s.from, s.to) : t("plan_pa", s.name, s.from, s.to));
+  const checked = plan.steps.filter((s) => !s.skip).length;
+  // fertig erst, wenn die Ausführung durch ist (nicht schon beim ersten laufenden Schritt)
+  const finished = !planRunning && plan.steps.some((s) => s.state);
+  el.innerHTML = `
+    <h3>${esc(plan.steps.length ? t("plan_title", plan.steps.length) : t("plan_none"))}</h3>
+    ${plan.steps.length && !finished ? `<p class="hint">${esc(t("plan_hint"))}</p>` : ""}
+    <ul>${plan.steps
+      .map(
+        (s, k) => `<li><label><input type="checkbox" data-step="${k}" ${s.skip ? "" : "checked"} ${planRunning || finished ? "disabled" : ""}> ${esc(text(s))}</label>
+        <span class="plan-st ${s.state === "ok" ? "ok" : s.state === "err" ? "err" : ""}">${
+          s.state === "ok" ? "✓" : s.state === "err" ? "✗ " + esc(s.error) : s.state === "run" ? "…" : ""
+        }</span></li>`
+      )
+      .join("")}</ul>
+    ${plan.manual.length ? `<p class="hint"><b>${esc(t("plan_manual"))}</b></p><ul class="manual">${plan.manual.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}
+    <div class="row">
+      ${!finished && !planRunning && plan.steps.length ? `<button class="cta needs-conn" data-plan-run ${checked ? "" : "disabled"}>${esc(t("plan_run", checked))}</button>` : ""}
+      ${finished ? `<span class="hint result">${esc(t("plan_done", plan.steps.filter((s) => s.state === "ok").length, plan.steps.filter((s) => s.state).length))}</span>` : ""}
+      <button class="quiet" data-plan-close ${planRunning ? "disabled" : ""}>${esc(t(finished ? "plan_close" : "cancel"))}</button>
+    </div>`;
+  updateButtons();
+}
+
+$("fix-plan").addEventListener("change", (ev) => {
+  const k = ev.target.dataset.step;
+  if (k === undefined) return;
+  plan.steps[Number(k)].skip = !ev.target.checked;
+  renderPlan();
+});
+
+$("fix-plan").addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-plan-close]")) {
+    plan = null;
+    renderPlan();
+  } else if (ev.target.closest("[data-plan-run]")) {
+    runPlan();
+  }
+});
+
+async function runPlan() {
+  const todo = plan.steps.filter((s) => !s.skip);
+  planRunning = true;
+  renderPlan();
+  // Baudraten zuerst: danach läuft der Zähler mit der Bus-Baudrate, auch für die Adressänderung
+  todo.sort((x, y) => (x.kind === "baud" ? 0 : 1) - (y.kind === "baud" ? 0 : 1));
+  const switched = new Set();
+  for (const [k, s] of todo.entries()) {
+    busbar({ text: t("plan_running", k + 1, todo.length), frac: k / todo.length, link: "#fix-plan" });
+    s.state = "run";
+    renderPlan();
+    try {
+      if (s.kind === "baud") {
+        await doSwitchBaud(s.target, s.to, s.from);
+        switched.add(s.target);
+      } else {
+        await doSetAddress(s.target, s.to, switched.has(s.target) ? null : s.fromBaud);
+      }
+      s.state = "ok";
+    } catch (e) {
+      s.state = "err";
+      s.error = e.message;
+    }
+  }
+  planRunning = false;
+  const ok = todo.filter((s) => s.state === "ok").length;
+  busbar({ text: t("plan_done", ok, todo.length), frac: 1, link: "#fix-plan", done: true, error: ok < todo.length });
+  renderPlan();
+}
 
 $("remember-all").onclick = () =>
   guarded($("remember-all"), async () => {
@@ -1308,39 +1485,68 @@ $("set-addr").onclick = () =>
     const newAddr = $("set-new").value;
     if (!address || newAddr === "") throw new Error(t("enter_both"));
     if (!confirm(t("confirm_set", address, newAddr))) return;
-    await api("set-address", { method: "POST", body: { address, new_address: Number(newAddr), from_baud: configBaud } });
+    await doSetAddress(address, Number(newAddr), configBaud);
     toast(t("address_set", newAddr));
     spotlightDone(t("spot_done_pa", address, newAddr));
-    // Trefferliste nachführen, damit die Warnung "PA doppelt" ohne neuen Scan verschwindet
-    const hit = hitFor(address);
-    if (hit) {
-      hit.primary_address = Number(newAddr);
-      renderJob(lastJob);
-    }
   });
+
+/// Primäradresse setzen und überall nachführen: Trefferliste, Zählerliste, Änderungsprotokoll
+async function doSetAddress(address, newAddr, fromBaud) {
+  const hit = hitFor(address);
+  const old = hit?.primary_address ?? address;
+  await api("set-address", { method: "POST", body: { address, new_address: newAddr, from_baud: fromBaud } });
+  logChange(t("change_pa", hit?.id || address, old, newAddr));
+  // Trefferliste nachführen, damit die Warnung "PA doppelt" ohne neuen Scan verschwindet
+  if (hit) {
+    hit.primary_address = newAddr;
+    renderJob(lastJob);
+  }
+  // steht der Zähler mit seiner Primäradresse in der Liste, die neue eintragen
+  const m = listedMeter(String(address));
+  if (m && /^\d+$/.test(m.address)) {
+    await api("meters/" + m.id, { method: "PUT", body: { ...m, address: String(newAddr) } });
+    await loadMeters();
+  }
+}
+
+/// Baudrate umstellen und überall nachführen; true, wenn die Zählerliste angepasst wurde
+async function doSwitchBaud(address, baud, fromBaud) {
+  const hit = hitFor(address);
+  await api("switch-baud", { method: "POST", body: { address, baud, from_baud: fromBaud } });
+  logChange(t("change_baud", hit?.id || address, fromBaud || connBaud, baud));
+  if (hit) {
+    hit.baud = baud;
+    renderJob(lastJob);
+  }
+  const m = listedMeter(address);
+  if (!m) return false;
+  // eigene Baudrate nur speichern, wenn sie vom Bus abweicht
+  await api("meters/" + m.id, { method: "PUT", body: { ...m, baud: baud === connBaud ? null : baud } });
+  await loadMeters();
+  return true;
+}
+
+/// Änderungen am Bus für den Bericht merken
+function logChange(text) {
+  let list = [];
+  try {
+    list = JSON.parse(storageGet("report_changes") || "[]");
+  } catch {
+    /* kaputt: neu anfangen */
+  }
+  list.push({ time: new Date().toLocaleString(lang === "de" ? "de-CH" : "en-GB"), text });
+  storageSet("report_changes", JSON.stringify(list));
+}
 
 $("switch-baud").onclick = () =>
   guarded($("switch-baud"), async () => {
     const address = configTarget();
     const baud = Number($("new-baud").value);
     if (!confirm(t("confirm_switch", address, baud))) return;
-    await api("switch-baud", { method: "POST", body: { address, baud, from_baud: configBaud } });
+    const listed = await doSwitchBaud(address, baud, configBaud);
     setConfigBaud(baud);
     spotlightDone(t("spot_done_baud", address, baud));
-    const hit = hitFor(address);
-    if (hit) {
-      hit.baud = baud;
-      renderJob(lastJob);
-    }
-    const m = listedMeter(address);
-    if (m) {
-      // eigene Baudrate nur speichern, wenn sie vom Bus abweicht
-      await api("meters/" + m.id, { method: "PUT", body: { ...m, baud: baud === connBaud ? null : baud } });
-      await loadMeters();
-      toast(t("baud_switched_list", baud));
-    } else {
-      toast(t("baud_switched", baud));
-    }
+    toast(t(listed ? "baud_switched_list" : "baud_switched", baud));
   });
 
 $("detect-baud").onclick = () =>
