@@ -16,14 +16,23 @@ const UI = {
     disconnect: "Trennen",
     connection_hint: "8 Datenbits, gerade Parität, 1 Stopbit. „SIMULATOR“ startet einen virtuellen Bus zum Testen.",
     scan: "Scan",
-    from: "Von",
-    to: "Bis",
+    from: "Von Adresse",
+    to: "Bis Adresse",
     retries: "Wiederholungen",
-    scan_primary: "Primärscan",
-    scan_secondary: "Sekundärscan",
+    scan_primary: "Primärscan (PA)",
+    scan_secondary: "Sekundärscan (SA)",
+    scan_primary_start: "Primärscan starten",
+    scan_secondary_start: "Sekundärscan starten",
+    scan_primary_hint:
+      "Fragt jede Primäradresse im Bereich einzeln ab. Schnell, aber Zähler mit gleicher Adresse (z.B. alle auf 0) erscheinen nur als Kollision.",
+    scan_secondary_hint:
+      "Sucht über die ID der Zähler, unabhängig von der Primäradresse. Findet auch Zähler, die sich eine Adresse teilen. Dauert länger, kein Bereich nötig.",
     cancel: "Abbrechen",
-    col_primary: "Primär",
+    col_primary: "PA",
     col_secondary: "Sekundäradresse",
+    col_id: "ID",
+    col_version: "Version",
+    sa_raw: "Sekundäradresse als Hex (16-stellig)",
     col_manufacturer: "Hersteller",
     col_medium: "Medium",
     col_status: "Status",
@@ -88,14 +97,23 @@ const UI = {
     disconnect: "Disconnect",
     connection_hint: "8 data bits, even parity, 1 stop bit. “SIMULATOR” starts a virtual bus for testing.",
     scan: "Scan",
-    from: "From",
-    to: "To",
+    from: "From address",
+    to: "To address",
     retries: "Retries",
-    scan_primary: "Primary scan",
-    scan_secondary: "Secondary scan",
+    scan_primary: "Primary scan (PA)",
+    scan_secondary: "Secondary scan (SA)",
+    scan_primary_start: "Start primary scan",
+    scan_secondary_start: "Start secondary scan",
+    scan_primary_hint:
+      "Polls every primary address in the range. Fast, but meters sharing an address (e.g. all on 0) only show up as a collision.",
+    scan_secondary_hint:
+      "Searches by meter ID, independent of the primary address. Also finds meters that share an address. Takes longer, no range needed.",
     cancel: "Cancel",
-    col_primary: "Primary",
+    col_primary: "PA",
     col_secondary: "Secondary address",
+    col_id: "ID",
+    col_version: "Version",
+    sa_raw: "Secondary address as hex (16 digits)",
     col_manufacturer: "Manufacturer",
     col_medium: "Medium",
     col_status: "Status",
@@ -350,13 +368,25 @@ function renderJob(job) {
   $("job-msg").textContent = `${t("job_" + job.kind)}: ${job.message} · ${t("found", job.hits.length)}`;
   const table = $("hits");
   table.hidden = job.hits.length === 0;
+  document.querySelector(".hits-opt").hidden = table.hidden;
+  // Sekundäradresse lesbar zerlegt (ID, Version) oder roh als 16 Hex-Zeichen
+  const raw = $("sa-raw").checked;
+  const cols = raw
+    ? ["col_primary", "col_secondary", "col_manufacturer", "col_medium", "col_status", ""]
+    : ["col_primary", "col_id", "col_manufacturer", "col_version", "col_medium", "col_status", ""];
+  table.querySelector("thead").innerHTML = `<tr>${cols.map((c) => `<th>${c && t(c)}</th>`).join("")}</tr>`;
   table.querySelector("tbody").innerHTML = job.hits
     .map((h) => {
       const target = h.status === "ok" ? h.secondary_address || h.primary_address : "";
+      const sa = raw
+        ? `<td class="mono">${esc(h.secondary_address ?? "–")}</td>
+        <td>${esc(h.manufacturer ?? "")}</td>`
+        : `<td class="mono">${esc(h.id ?? "–")}</td>
+        <td>${esc(h.manufacturer ?? "")}</td>
+        <td class="num">${h.version ?? ""}</td>`;
       return `<tr>
         <td class="num">${h.primary_address ?? "–"}</td>
-        <td class="mono">${esc(h.secondary_address ?? "–")}</td>
-        <td>${esc(h.manufacturer ?? "")}</td>
+        ${sa}
         <td>${esc(label(h.medium))}</td>
         <td class="st-${h.status}">${t("st_" + h.status)}</td>
         <td>${target !== "" ? `<button class="small ghost needs-conn" data-read="${esc(target)}">${t("read")}</button>` : ""}</td>
@@ -365,6 +395,12 @@ function renderJob(job) {
     .join("");
   updateButtons();
 }
+
+$("sa-raw").checked = storageGet("sa_raw") === "1";
+$("sa-raw").onchange = () => {
+  storageSet("sa_raw", $("sa-raw").checked ? "1" : "0");
+  if (lastJob) renderJob(lastJob);
+};
 
 $("hits").addEventListener("click", (ev) => {
   const addr = ev.target.dataset?.read;
@@ -384,9 +420,10 @@ async function startScan(path, body) {
 $("scan-primary").onclick = () =>
   guarded($("scan-primary"), () =>
     startScan("scan/primary", {
-      from: Number($("scan-from").value),
-      to: Number($("scan-to").value),
-      retries: Number($("scan-retries").value),
+      // leere Felder: Standardwerte statt 0
+      from: Number($("scan-from").value || 0),
+      to: Number($("scan-to").value || 250),
+      retries: Number($("scan-retries").value || 1),
     })
   );
 

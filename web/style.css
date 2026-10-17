@@ -120,6 +120,27 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 
 .hint { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
 
+.scan-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.scan-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.scan-mode h3 { margin: 0; font-size: 15px; }
+.scan-mode .hint { margin: 0; flex: 1; }
+.scan-mode .row { width: 100%; margin: 0; }
+
 .badge {
   font-size: 13px;
   font-weight: 600;
@@ -206,3 +227,6 @@ details[open] summary { margin-bottom: 12px; }
 .lang-switch button:first-child { border-radius: 6px 0 0 6px; }
 .lang-switch button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
 .lang-switch button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+
+[hidden] { display: none !important; }
+.hits-opt { margin: 6px 0; }

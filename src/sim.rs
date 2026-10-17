@@ -482,4 +482,33 @@ mod tests {
         let r = m.read_meter(&Target::Primary(0)).unwrap();
         assert_eq!(r.header.unwrap().id, "55500011");
     }
+
+    #[test]
+    fn set_address_refuses_collision() {
+        let mut m = master();
+        let e = m.set_primary(&Target::Primary(0), 9).unwrap_err().to_string();
+        assert!(e.contains("Mehrere Zähler"), "{e}");
+        // keiner der beiden wurde umgestellt
+        assert!(m.read_meter(&Target::Primary(9)).is_err());
+        let r = m.read_meter(&Target::parse("55500011").unwrap()).unwrap();
+        assert_eq!(r.primary_address, 0);
+    }
+
+    #[test]
+    fn set_address_refuses_occupied() {
+        let mut m = master();
+        let e = m.set_primary(&Target::Primary(1), 2).unwrap_err().to_string();
+        assert!(e.contains("schon belegt"), "{e}");
+        let r = m.read_meter(&Target::Primary(1)).unwrap();
+        assert_eq!(r.header.unwrap().id, "12345678");
+        let r = m.read_meter(&Target::Primary(2)).unwrap();
+        assert_eq!(r.header.unwrap().id, "87654321");
+    }
+
+    #[test]
+    fn set_address_to_own_address_is_ok() {
+        let mut m = master();
+        m.set_primary(&Target::Primary(1), 1).unwrap();
+        m.set_primary(&Target::parse("87654321").unwrap(), 2).unwrap();
+    }
 }

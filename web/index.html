@@ -49,26 +49,34 @@
 
   <section class="card">
     <h2 data-i18n="scan"></h2>
-    <div class="row">
-      <label><span data-i18n="from"></span> <input id="scan-from" type="number" min="0" max="250" value="0"></label>
-      <label><span data-i18n="to"></span> <input id="scan-to" type="number" min="0" max="250" value="250"></label>
-      <label><span data-i18n="retries"></span> <input id="scan-retries" type="number" min="0" max="5" value="1"></label>
+    <div class="scan-modes">
+      <div class="scan-mode">
+        <h3 data-i18n="scan_primary"></h3>
+        <p class="hint" data-i18n="scan_primary_hint"></p>
+        <div class="row">
+          <label><span data-i18n="from"></span> <input id="scan-from" type="number" min="0" max="250" value="0"></label>
+          <label><span data-i18n="to"></span> <input id="scan-to" type="number" min="0" max="250" value="250"></label>
+          <label><span data-i18n="retries"></span> <input id="scan-retries" type="number" min="0" max="5" value="1"></label>
+        </div>
+        <button id="scan-primary" class="needs-conn" data-i18n="scan_primary_start"></button>
+      </div>
+      <div class="scan-mode">
+        <h3 data-i18n="scan_secondary"></h3>
+        <p class="hint" data-i18n="scan_secondary_hint"></p>
+        <button id="scan-secondary" class="needs-conn" data-i18n="scan_secondary_start"></button>
+      </div>
     </div>
     <div class="row">
-      <button id="scan-primary" class="needs-conn" data-i18n="scan_primary"></button>
-      <button id="scan-secondary" class="needs-conn" data-i18n="scan_secondary"></button>
       <button id="scan-cancel" class="ghost" hidden data-i18n="cancel"></button>
     </div>
     <div id="job" hidden>
       <progress id="job-progress" max="1" value="0"></progress>
       <div id="job-msg" class="hint"></div>
     </div>
+    <label class="inline hits-opt" hidden><input id="sa-raw" type="checkbox"> <span data-i18n="sa_raw"></span></label>
     <div class="table-wrap">
       <table id="hits" hidden>
-        <thead><tr>
-          <th data-i18n="col_primary"></th><th data-i18n="col_secondary"></th><th data-i18n="col_manufacturer"></th>
-          <th data-i18n="col_medium"></th><th data-i18n="col_status"></th><th></th>
-        </tr></thead>
+        <thead></thead>
         <tbody></tbody>
       </table>
     </div>

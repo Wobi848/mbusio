@@ -412,6 +412,47 @@ impl Master {
                 "New primary address must be 0..250"
             ));
         }
+        // Neue Adresse muss frei sein, sonst stehen danach zwei Zähler darauf
+        if !matches!(self.ping(new)?, Reply::None) {
+            if let Target::Secondary(mask) = target {
+                // Steht der Zähler selbst schon dort, ist nichts zu tun
+                if let (_, Some(h), _) = self.probe_header(new)? {
+                    if mask_matches(mask, &h.secondary_address) {
+                        return Ok(());
+                    }
+                }
+            } else if *target == Target::Primary(new) {
+                return Ok(());
+            }
+            bail!(
+                "{}: {new}",
+                tr(
+                    "Neue Primäradresse ist schon belegt",
+                    "New primary address is already in use"
+                )
+            );
+        }
+        // Mehrere Zähler auf derselben Primäradresse würden alle umgestellt
+        if let Target::Primary(a) = target {
+            match self.ping(*a)? {
+                Reply::Frame(_) => {}
+                Reply::None => bail!(
+                    "{} {a}",
+                    tr("Keine Antwort von Adresse", "No reply from address")
+                ),
+                Reply::Collision(_) => bail!(
+                    "{} {a}: {}",
+                    tr(
+                        "Mehrere Zähler auf Adresse",
+                        "Several meters on address"
+                    ),
+                    tr(
+                        "bitte über Sekundäradresse oder ID ändern",
+                        "please use the secondary address or ID"
+                    )
+                ),
+            }
+        }
         let address = self.address(target)?;
         match self.transact(&Frame::snd_ud(address, CI_DATA_SEND, vec![0x01, 0x7A, new]))? {
             Reply::Frame(Frame::Ack) => {}
@@ -585,6 +626,15 @@ fn data_has_more(ci: u8, data: &[u8]) -> bool {
     decode_rsp_ud(ci, data)
         .map(|t| t.more_follow)
         .unwrap_or(false)
+}
+
+/// Passt die Sekundäradresse auf die Maske (`F` = Platzhalter)?
+fn mask_matches(mask: &str, secondary: &str) -> bool {
+    mask.len() == secondary.len()
+        && mask
+            .chars()
+            .zip(secondary.chars())
+            .all(|(m, s)| m.eq_ignore_ascii_case(&'F') || m.eq_ignore_ascii_case(&s))
 }
 
 /// Selektionsdaten: ID (BCD, LSB zuerst), Hersteller, Version, Medium; `F` = Platzhalter.
