@@ -311,7 +311,7 @@ Aufbau:
 - `src/mbus/master.rs`: Scan, Auslesen, Adressierung, Baudrate, Ursachen von Störungen
 - `src/mbus/analyze.rs`: Telegramm-Analyse Byte für Byte
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim.rs`: Simulator, alle hinter demselben `Link`-Trait
-- `src/db.rs`: Datenbank (Projekte, Gateways, Linien, Zähler, Auslesungen, Änderungen)
+- `src/db/`: Datenbank, nach Bereichen (schema mit Migrationen, projects, meters, readings, schedule, report)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
 - `src/datapoint.rs`: Datenpunkte, Qualität, Plausibilität, Zählertausch, Vorlagen, CSV
 - `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export

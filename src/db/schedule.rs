@@ -1,0 +1,221 @@
+//! Ausleseplan: Pläne setzen, Zustand je Zähler, Übersicht je Linie
+
+use super::*;
+
+impl Db {
+    pub fn set_project_plan(&mut self, id: i64, plan: &str) -> Result<()> {
+        let key = Plan::parse(plan)?.key();
+        if self.conn.execute(
+            "UPDATE projects SET plan = ?2 WHERE id = ?1",
+            params![id, key],
+        )? == 0
+        {
+            return Err(not_found(&tr("Projekt", "Project"), id));
+        }
+        Ok(())
+    }
+
+    /// None = wie Projekt
+    pub fn set_line_plan(&mut self, id: i64, plan: Option<&str>) -> Result<()> {
+        let key = plan.map(|p| Plan::parse(p).map(|p| p.key())).transpose()?;
+        if self
+            .conn
+            .execute("UPDATE lines SET plan = ?2 WHERE id = ?1", params![id, key])?
+            == 0
+        {
+            return Err(not_found(&tr("Linie", "Line"), id));
+        }
+        Ok(())
+    }
+
+    /// None = wie Linie
+    pub fn set_meter_plan(&mut self, id: i64, plan: Option<&str>) -> Result<()> {
+        let key = plan.map(|p| Plan::parse(p).map(|p| p.key())).transpose()?;
+        if self.conn.execute(
+            "UPDATE meters SET plan = ?2 WHERE id = ?1",
+            params![id, key],
+        )? == 0
+        {
+            return Err(anyhow!(
+                "{} {id}",
+                tr("Zähler nicht in der Liste:", "Meter not in list:")
+            ));
+        }
+        Ok(())
+    }
+
+    /// Vorgabe des Projekts, zu dem die Linie gehört
+    pub fn project_plan_of_line(&self, line_id: i64) -> Result<String> {
+        Ok(self.conn.query_row(
+            "SELECT projects.plan FROM lines JOIN gateways ON gateways.id = lines.gateway_id
+             JOIN projects ON projects.id = gateways.project_id WHERE lines.id = ?1",
+            [line_id],
+            |r| r.get(0),
+        )?)
+    }
+
+    /// Alle Linien aller Projekte mit dem gültigen Plan je Zähler (für den Zeitplan)
+    pub fn planned(&self) -> Result<Vec<PlannedLine>> {
+        let mut st = self.conn.prepare(
+            "SELECT lines.*, projects.plan AS project_plan, gateways.name AS gateway_name
+             FROM lines JOIN gateways ON gateways.id = lines.gateway_id
+             JOIN projects ON projects.id = gateways.project_id ORDER BY lines.id",
+        )?;
+        let rows: Vec<(Line, String, String)> = st
+            .query_map([], |r| {
+                Ok((line_of(r)?, r.get("project_plan")?, r.get("gateway_name")?))
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut out = Vec::new();
+        for (line, project_plan, gateway) in rows {
+            let meters = self
+                .meters(line.id)?
+                .into_iter()
+                .map(|m| {
+                    let (p, _) =
+                        plan::effective(m.plan.as_deref(), line.plan.as_deref(), &project_plan);
+                    (m, p)
+                })
+                .collect();
+            out.push(PlannedLine {
+                label: format!("{gateway} › {}", line.name),
+                line,
+                meters,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Plan neu (oder Uhr weit zurück): auf diesen Termin setzen, ohne auszulesen
+    pub fn plan_start(&mut self, meter_id: i64, key: &str, slot: &str) -> Result<()> {
+        self.conn.execute(
+            "UPDATE meters SET plan_key = ?2, plan_slot = ?3, plan_pause = NULL, plan_fails = 0 WHERE id = ?1",
+            params![meter_id, key, slot],
+        )?;
+        Ok(())
+    }
+
+    /// Plan aus: Zustand vergessen
+    pub fn plan_reset(&mut self, meter_id: i64) -> Result<()> {
+        self.conn.execute(
+            "UPDATE meters SET plan_key = NULL, plan_slot = NULL, plan_pause = NULL, plan_fails = 0 WHERE id = ?1",
+            [meter_id],
+        )?;
+        Ok(())
+    }
+
+    /// Termin erledigt; liefert die Anzahl verpasster Termine nacheinander
+    pub fn plan_done(&mut self, meter_id: i64, slot: &str, outcome: PlanOutcome) -> Result<i64> {
+        match outcome {
+            PlanOutcome::Read { ms } => self.conn.execute(
+                "UPDATE meters SET plan_slot = ?2, plan_fails = 0, plan_pause = NULL,
+                   plan_ms = CASE WHEN plan_ms IS NULL THEN ?3 ELSE plan_ms * 0.7 + ?3 * 0.3 END
+                 WHERE id = ?1",
+                params![meter_id, slot, ms],
+            )?,
+            PlanOutcome::Failed => self.conn.execute(
+                "UPDATE meters SET plan_slot = ?2, plan_fails = plan_fails + 1 WHERE id = ?1",
+                params![meter_id, slot],
+            )?,
+            PlanOutcome::Refused { until } => self.conn.execute(
+                "UPDATE meters SET plan_slot = ?2, plan_pause = ?3 WHERE id = ?1",
+                params![meter_id, slot, until],
+            )?,
+        };
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT plan_fails FROM meters WHERE id = ?1",
+                [meter_id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .unwrap_or(0))
+    }
+
+    /// Ergebnis des letzten Termins einer Linie: {"time", "ok", "total", "error"}
+    pub fn set_plan_result(&mut self, line_id: i64, result: &Value) -> Result<()> {
+        self.conn.execute(
+            "UPDATE lines SET plan_result = ?2 WHERE id = ?1",
+            params![line_id, result.to_string()],
+        )?;
+        Ok(())
+    }
+
+    /// Plan eines Zählers für die Oberfläche: gültiger Plan, woher, nächster Termin, Zustand
+    pub fn meter_plan_info(
+        m: &Meter,
+        line_plan: Option<&str>,
+        project_plan: &str,
+        now: chrono::NaiveDateTime,
+    ) -> Value {
+        let (p, source) = plan::effective(m.plan.as_deref(), line_plan, project_plan);
+        let pause = m
+            .plan_pause
+            .as_deref()
+            .and_then(plan::parse_time)
+            .filter(|t| *t > now);
+        let next = p.next_slot(now).map(|n| match pause {
+            Some(t) => p
+                .next_slot(t - chrono::Duration::seconds(1))
+                .unwrap_or(n)
+                .max(n),
+            None => n,
+        });
+        json!({
+            "effective": p.key(),
+            "source": source,
+            "next": next.map(|t| t.format(plan::SLOT_FORMAT).to_string()),
+            "paused_until": pause.map(|t| t.format(plan::SLOT_FORMAT).to_string()),
+            "fails": m.plan_fails,
+            "disturbed": p != Plan::Off && m.plan_fails >= DISTURBED_AFTER,
+        })
+    }
+
+    /// Plan einer Linie für die Projekt-Karte: eigener bzw. geerbter Plan, nächster Termin,
+    /// Ergebnis des letzten Termins, gestörte und ausgesetzte Zähler, Buslast
+    pub(super) fn line_plan_info(
+        &self,
+        line: &Line,
+        project_plan: &str,
+        result: Value,
+    ) -> Result<Value> {
+        let now = crate::clock::now();
+        let (own, source) = plan::effective(None, line.plan.as_deref(), project_plan);
+        let mut planned = 0;
+        let mut disturbed = 0;
+        let mut paused = 0;
+        let mut next: Option<String> = None;
+        let mut items = Vec::new();
+        for m in self.meters(line.id)? {
+            let info = Self::meter_plan_info(&m, line.plan.as_deref(), project_plan, now);
+            let p = Plan::parse(info["effective"].as_str().unwrap_or("off")).unwrap_or(Plan::Off);
+            if p == Plan::Off {
+                continue;
+            }
+            planned += 1;
+            disturbed += info["disturbed"].as_bool().unwrap_or(false) as i64;
+            paused += !info["paused_until"].is_null() as i64;
+            if let Some(n) = info["next"].as_str() {
+                if next.as_deref().is_none_or(|x| n < x) {
+                    next = Some(n.to_string());
+                }
+            }
+            let baud = m.baud.unwrap_or(line.baud);
+            items.push((p, m.plan_ms.unwrap_or_else(|| plan::estimate_ms(baud))));
+        }
+        let load = plan::bus_load(items);
+        Ok(json!({
+            "own": line.plan,
+            "effective": own.key(),
+            "source": source,
+            "meters": planned,
+            "next": next,
+            "result": result,
+            "disturbed": disturbed,
+            "paused": paused,
+            "load": load,
+            "load_warn": load > plan::LOAD_WARN,
+        }))
+    }
+}
