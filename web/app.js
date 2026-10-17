@@ -44,6 +44,11 @@ const UI = {
     fix_baud: "Baudrate ändern",
     config_baud_note: (b) => `Zähler läuft mit ${b} Bd – Befehle werden mit ${b} Bd gesendet.`,
     remember_all: "Alle merken",
+    spot_pa: (id, a) => `Zähler ${id} bekommt die freie Adresse ${a}. Jetzt „Setzen“ drücken.`,
+    spot_baud: (id, from, to) => `Zähler ${id} läuft mit ${from} Bd. Jetzt „Umstellen“ drücken, dann läuft er mit ${to} Bd wie der Bus.`,
+    spot_done_pa: (id, a) => `✓ Erledigt: Zähler ${id} hat jetzt Adresse ${a}.`,
+    spot_done_baud: (id, b) => `✓ Erledigt: Zähler ${id} läuft jetzt mit ${b} Bd.`,
+    back_to_hits: "← zurück zur Trefferliste",
     remembered_all: (n, skipped) => `${n} Zähler übernommen` + (skipped ? `, ${skipped} schon in der Liste` : ""),
     dup_id: "ID doppelt",
     dup_pa_title: (pa, n) => `${n} Zähler stehen auf PA ${pa}. Über die ID neu adressieren.`,
@@ -230,6 +235,11 @@ const UI = {
     fix_baud: "Change baud rate",
     config_baud_note: (b) => `Meter runs at ${b} Bd – commands are sent at ${b} Bd.`,
     remember_all: "Remember all",
+    spot_pa: (id, a) => `Meter ${id} gets the free address ${a}. Now press “Set”.`,
+    spot_baud: (id, from, to) => `Meter ${id} runs at ${from} Bd. Now press “Switch”, then it runs at ${to} Bd like the bus.`,
+    spot_done_pa: (id, a) => `✓ Done: meter ${id} now has address ${a}.`,
+    spot_done_baud: (id, b) => `✓ Done: meter ${id} now runs at ${b} Bd.`,
+    back_to_hits: "← back to the hit list",
     remembered_all: (n, skipped) => `${n} meters added` + (skipped ? `, ${skipped} already in the list` : ""),
     dup_id: "Duplicate ID",
     dup_pa_title: (pa, n) => `${n} meters are on PA ${pa}. Readdress them by ID.`,
@@ -838,7 +848,7 @@ $("hits").addEventListener("click", (ev) => {
     // Zähler unter "Zähler einstellen" eintragen, Ziel = Baudrate des Busses
     setConfigTarget(d.fixbaud, Number(d.from));
     $("new-baud").value = connBaud;
-    document.getElementById("sec-config").scrollIntoView({ behavior: "smooth", block: "start" });
+    spotlight("tile-baud", "switch-baud", t("spot_baud", d.fixbaud, d.from, connBaud));
     $("switch-baud").focus({ preventScroll: true });
     return;
   }
@@ -851,9 +861,8 @@ $("hits").addEventListener("click", (ev) => {
       const skip = [...new Set(lastJob.hits.map((h) => h.primary_address).filter((a) => a != null && a > 0))];
       const r = await api("free-address", { method: "POST", body: { from: 1, skip } });
       $("set-new").value = r.address;
-      document.getElementById("sec-config").scrollIntoView({ behavior: "smooth", block: "start" });
-      $("set-new").focus({ preventScroll: true });
-      $("set-new").select();
+      spotlight("tile-pa", "set-addr", t("spot_pa", d.fix, r.address));
+      $("set-addr").focus({ preventScroll: true });
     });
     return;
   }
@@ -1058,6 +1067,39 @@ $("read-addr").addEventListener("keydown", (e) => e.key === "Enter" && readMeter
 
 // ------------------------------------------------------------ Zähler einstellen
 
+// ------------------------------------------------------------ Hervorheben, was zu tun ist
+
+/// Kachel hervorheben, die anderen abblenden, Knopf einfärben und in einem Satz sagen, was zu tun ist
+function spotlight(tileId, buttonId, text) {
+  clearSpotlight();
+  $(tileId).closest(".tiles").classList.add("has-spotlight");
+  $(tileId).classList.add("spotlight");
+  $(buttonId).classList.add("cta");
+  const c = document.createElement("div");
+  c.id = "callout";
+  c.className = "callout";
+  c.innerHTML = `<p>${esc(text)}</p><a href="#hits">${esc(t("back_to_hits"))}</a>`;
+  $(tileId).querySelector("h3").after(c);
+  $(tileId).scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/// Nach Erfolg: grüne Bestätigung stehen lassen, Hervorhebung aufheben
+function spotlightDone(text) {
+  const c = $("callout");
+  if (!c) return;
+  c.classList.add("done");
+  c.querySelector("p").textContent = text;
+  document.querySelectorAll(".has-spotlight").forEach((e) => e.classList.remove("has-spotlight"));
+  document.querySelectorAll(".cta").forEach((e) => e.classList.remove("cta"));
+}
+
+function clearSpotlight() {
+  $("callout")?.remove();
+  document.querySelectorAll(".has-spotlight").forEach((e) => e.classList.remove("has-spotlight"));
+  document.querySelectorAll(".spotlight").forEach((e) => e.classList.remove("spotlight"));
+  document.querySelectorAll(".cta").forEach((e) => e.classList.remove("cta"));
+}
+
 /// Baudrate, mit der der eingetragene Zähler läuft (null = wie der Bus)
 let configBaud = null;
 
@@ -1074,7 +1116,10 @@ function setConfigBaud(baud) {
 }
 
 // Wer selbst eine andere Adresse eintippt, meint einen Zähler auf der Bus-Baudrate
-$("set-old").addEventListener("input", () => setConfigBaud(null));
+$("set-old").addEventListener("input", () => {
+  setConfigBaud(null);
+  clearSpotlight();
+});
 
 /// Treffer der letzten Suche zu einer eingegebenen Adresse
 function hitFor(address) {
@@ -1103,6 +1148,7 @@ $("set-addr").onclick = () =>
     if (!confirm(t("confirm_set", address, newAddr))) return;
     await api("set-address", { method: "POST", body: { address, new_address: Number(newAddr), from_baud: configBaud } });
     toast(t("address_set", newAddr));
+    spotlightDone(t("spot_done_pa", address, newAddr));
     // Trefferliste nachführen, damit die Warnung "PA doppelt" ohne neuen Scan verschwindet
     const hit = hitFor(address);
     if (hit) {
@@ -1118,6 +1164,7 @@ $("switch-baud").onclick = () =>
     if (!confirm(t("confirm_switch", address, baud))) return;
     await api("switch-baud", { method: "POST", body: { address, baud, from_baud: configBaud } });
     setConfigBaud(baud);
+    spotlightDone(t("spot_done_baud", address, baud));
     const hit = hitFor(address);
     if (hit) {
       hit.baud = baud;

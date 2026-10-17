@@ -741,3 +741,13 @@ td .chip + .chip { margin-left: 4px; }
 
 .hits-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
 #config-baud-note { margin-top: 6px; }
+
+/* Nach "PA ändern" / "Baudrate ändern": zeigen, was jetzt zu tun ist */
+.tiles.has-spotlight .tile:not(.spotlight) { opacity: .4; transition: opacity .2s; }
+.tile.spotlight { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: spotPulse 1s var(--ease) 3; }
+@keyframes spotPulse { 50% { box-shadow: 0 0 0 8px var(--accent-soft); } }
+button.cta { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--accent-ink) !important; }
+.callout { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: 13px; font-weight: 540; line-height: 1.45; }
+.callout p { margin: 0 0 6px; }
+.callout.done { background: var(--ok-soft); color: var(--ok); }
+.callout a { font-weight: 600; text-decoration: none; }
