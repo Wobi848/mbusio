@@ -327,9 +327,14 @@ mod tests {
                 s.submit(w);
             }
         }
+        // ein geplanter Auftrag ganz am Schluss meldet, wenn alles durch ist
+        let (done_tx, done_rx) = mpsc::channel::<()>();
+        s.submit_planned(Box::new(move |_| {
+            done_tx.send(()).unwrap();
+            true
+        }));
         go_tx.send(()).unwrap();
-        // ein Auftrag aus der Bedienung, der nach allem kommt
-        s.run(Lang::De, |_| Ok(())).unwrap();
+        done_rx.recv_timeout(Duration::from_secs(10)).unwrap();
         assert_eq!(*order.lock().unwrap(), vec!["m1", "p1", "p2"]);
         s.stop();
     }
@@ -341,6 +346,11 @@ mod tests {
             .run(Lang::De, |m| m.read_meter(&crate::mbus::master::Target::Primary(1)))
             .unwrap();
         assert_eq!(r.header.unwrap().id, "12345678");
+        // "arbeitet" geht erst kurz nach dem Ergebnis aus
+        let until = Instant::now() + Duration::from_secs(5);
+        while s.status().busy && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(5));
+        }
         let st = s.status();
         assert!(st.connected && !st.busy);
         s.stop();
