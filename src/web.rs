@@ -188,6 +188,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/meters/{id}", put(meters_update).delete(meters_remove))
         .route("/api/meters/read-all", post(meters_read_all))
         .route("/api/meters/{id}/read", post(meters_read_one))
+        .route("/api/meters/{id}/history", get(meter_history))
         .route("/api/meters/export", get(meters_export))
         .route("/api/meters/import", post(meters_import))
         .route("/api/readings", get(readings).delete(clear_readings))
@@ -876,6 +877,36 @@ async fn meters_read_one(
             Err(e)
         }
     }
+}
+
+/// Verlauf eines Zählers: je Auslesung die aktuellen Zahlenwerte (Speicher 0), als Reihen nach
+/// Messgrösse, Einheit und Tarif, damit die Oberfläche eine davon als Linie zeichnen kann
+async fn meter_history(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    let db = st.db.lock().unwrap();
+    let meter = db.meter(id).map_err(bad_request)?;
+    let points: Vec<serde_json::Value> = db
+        .meter_history(id, 2000)?
+        .into_iter()
+        .map(|r| {
+            let values: Vec<serde_json::Value> = r
+                .records
+                .iter()
+                .filter(|x| x.storage == 0 && x.function == "instantaneous" && x.value.is_number())
+                .map(|x| {
+                    json!({
+                        "key": format!("{}|{}|{}", x.quantity, x.unit, x.tariff),
+                        "quantity": x.quantity,
+                        "unit": x.unit,
+                        "tariff": x.tariff,
+                        "value": x.value,
+                        "text": x.value_text,
+                    })
+                })
+                .collect();
+            json!({ "timestamp": r.timestamp, "values": values })
+        })
+        .collect();
+    Ok(Json(json!({ "meter": meter, "points": points })))
 }
 
 async fn meters_read_all(

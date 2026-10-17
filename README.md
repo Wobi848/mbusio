@@ -25,6 +25,9 @@ Eine einzige Binärdatei für Windows, Linux und Raspberry Pi, die Oberfläche i
   (auch mit unterschiedlichen Baudraten auf einem Bus)
 - **Alles wird gespeichert** (SQLite, eine Datei `mbusio.db`): Auslesungen mit Verlauf, letzter Scan,
   Änderungsprotokoll
+- **Verlauf** je Zähler: Zählerstand (oder jeder andere Wert) über die Zeit als Diagramm oder Tabelle,
+  mit Differenz und Verbrauch pro Tag, als CSV
+- Trefferliste **sortierbar** (Klick auf die Spaltenüberschrift)
 - **Telegramm senden** (Experten): beliebige Bytes senden, Antwort wird decodiert
 - **Prüfung der Trefferliste**: doppelte Primäradressen und IDs sowie Zähler auf fremder
   Baudrate werden markiert, mit Knopf zum Beheben („PA ändern“, „Baudrate ändern“)

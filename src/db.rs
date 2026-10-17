@@ -858,6 +858,20 @@ impl Db {
         Ok(self.conn.execute("DELETE FROM readings WHERE line_id = ?1", [line_id])?)
     }
 
+    /// Verlauf eines Zählers: seine Auslesungen, älteste zuerst (höchstens `limit` neueste)
+    pub fn meter_history(&self, meter_id: i64, limit: usize) -> Result<Vec<MeterReading>> {
+        let mut st = self.conn.prepare(
+            "SELECT data FROM (SELECT id, data FROM readings WHERE meter = ?1 ORDER BY id DESC LIMIT ?2)
+             ORDER BY id",
+        )?;
+        let rows = st.query_map(params![meter_id, limit as i64], |r| r.get::<_, String>(0))?;
+        let mut out = Vec::new();
+        for text in rows {
+            out.push(serde_json::from_str(&text?)?);
+        }
+        Ok(out)
+    }
+
     /// Neueste Auslesung eines Zählers der Liste
     pub fn latest_reading(&self, meter_id: i64) -> Result<Option<MeterReading>> {
         let text: Option<String> = self
