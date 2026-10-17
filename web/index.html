@@ -49,6 +49,12 @@
 
   <section class="card">
     <h2 data-i18n="scan"></h2>
+    <div class="row baud-check">
+      <label class="inline"><input id="scan-all-bauds" type="checkbox"> <span data-i18n="scan_all_bauds"></span></label>
+      <button id="bus-bauds" class="small ghost needs-conn" data-i18n="bus_bauds"></button>
+      <span id="bus-bauds-result" class="hint"></span>
+    </div>
+    <p class="hint baud-check-hint" data-i18n="scan_all_bauds_hint"></p>
     <div class="scan-modes">
       <div class="scan-mode">
         <h3 data-i18n="scan_primary"></h3>

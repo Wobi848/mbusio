@@ -165,6 +165,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/set-address", post(set_address))
         .route("/api/switch-baud", post(switch_baud))
         .route("/api/detect-baud", post(detect_baud))
+        .route("/api/bus-bauds", post(bus_bauds))
         .route("/api/reset", post(app_reset))
         .route("/api/raw", post(raw_send))
         .route("/api/meters", get(meters_list).post(meters_add))
@@ -374,6 +375,14 @@ struct PrimaryScanReq {
     to: u8,
     #[serde(default = "default_retries")]
     retries: u32,
+    #[serde(default)]
+    all_bauds: bool,
+}
+
+#[derive(Deserialize)]
+struct SecondaryScanReq {
+    #[serde(default)]
+    all_bauds: bool,
 }
 
 fn default_to() -> u8 {
@@ -401,14 +410,25 @@ async fn scan_primary(
     }
     let retries = req.retries.min(5);
     start_job(&st, "primary", lang_of(&headers), move |m, p| {
-        m.scan_primary(from, to, retries, p)
+        m.scan_maybe_all_bauds(req.all_bauds, p, &mut |m, p| {
+            m.scan_primary(from, to, retries, p)
+        })
     })
 }
 
-async fn scan_secondary(State(st): State<AppState>, headers: HeaderMap) -> ApiResult<JobStatus> {
-    start_job(&st, "secondary", lang_of(&headers), |m, p| {
-        m.scan_secondary(p)
+async fn scan_secondary(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<SecondaryScanReq>,
+) -> ApiResult<JobStatus> {
+    start_job(&st, "secondary", lang_of(&headers), move |m, p| {
+        m.scan_maybe_all_bauds(req.all_bauds, p, &mut |m, p| m.scan_secondary(p))
     })
+}
+
+async fn bus_bauds(State(st): State<AppState>, headers: HeaderMap) -> ApiResult<serde_json::Value> {
+    let bauds = with_bus(&st, lang_of(&headers), |m| m.bus_bauds()).await?;
+    Ok(Json(json!({ "bauds": bauds })))
 }
 
 async fn job(State(st): State<AppState>) -> Json<JobStatus> {
@@ -423,6 +443,9 @@ async fn cancel(State(st): State<AppState>) -> Json<serde_json::Value> {
 #[derive(Deserialize)]
 struct ReadReq {
     address: String,
+    /// Mit anderer Baudrate als der Bus lesen (Treffer aus dem Scan über alle Baudraten)
+    #[serde(default)]
+    baud: Option<u32>,
 }
 
 async fn read(
@@ -432,7 +455,15 @@ async fn read(
 ) -> ApiResult<MeterReading> {
     let target = parse_target(&req.address)?;
     let t = target.clone();
-    let result = with_bus(&st, lang_of(&headers), move |m| m.read_meter(&t)).await;
+    let baud = req.baud;
+    let result = with_bus(&st, lang_of(&headers), move |m| {
+        let home = m.baud();
+        m.set_baud(baud.unwrap_or(home))?;
+        let r = m.read_meter(&t);
+        m.set_baud(home)?;
+        r
+    })
+    .await;
     // Ergebnis auch in der Zählerliste vermerken, falls der Zähler dort steht
     match &result {
         Ok(r) => {

@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use super::decode::{decode_rsp_ud, Header, Record};
 use super::frame::{
-    self, hex, Frame, Parse, ADDR_BROADCAST, ADDR_SELECTED, CI_APP_RESET, CI_DATA_SEND,
+    self, hex, Frame, Parse, ADDR_BROADCAST, ADDR_BROADCAST_REPLY, ADDR_SELECTED, CI_APP_RESET, CI_DATA_SEND,
     CI_SELECT,
 };
 use crate::i18n::tr;
@@ -135,6 +135,8 @@ pub struct ScanHit {
     pub version: Option<u8>,
     /// "ok", "collision", "no_data"
     pub status: &'static str,
+    /// Baudrate, auf der der Zähler gefunden wurde
+    pub baud: Option<u32>,
 }
 
 impl ScanHit {
@@ -147,6 +149,7 @@ impl ScanHit {
             medium: h.map(|h| h.medium.clone()),
             version: h.map(|h| h.version),
             status,
+            baud: None,
         }
     }
 }
@@ -587,6 +590,120 @@ impl Master {
             }
         }
         Ok(found)
+    }
+
+    /// Auf welchen Baudraten antworten überhaupt Geräte? Je Baudrate ein Broadcast-Ping
+    /// (alle Zähler quittieren) und eine Sekundär-Selektion mit lauter Platzhaltern.
+    pub fn bus_bauds(&mut self) -> Result<Vec<u32>> {
+        let old = self.baud;
+        self.link.set_baud(old)?;
+        let result = self.probe_bus_bauds();
+        self.set_baud(old)?;
+        result
+    }
+
+    fn probe_bus_bauds(&mut self) -> Result<Vec<u32>> {
+        let mut found = Vec::new();
+        for baud in BAUD_RATES {
+            self.set_baud(baud)?;
+            let any = !matches!(self.ping(ADDR_BROADCAST_REPLY)?, Reply::None)
+                || !matches!(self.select("FFFFFFFFFFFFFFFF")?, Reply::None);
+            // Selektion wieder aufheben
+            self.send(&Frame::snd_nke(ADDR_BROADCAST))?;
+            std::thread::sleep(self.inter_byte);
+            if any {
+                found.push(baud);
+            }
+        }
+        Ok(found)
+    }
+
+    /// Führt `scan` nacheinander auf mehreren Baudraten aus. Treffer tragen ihre Baudrate,
+    /// der Fortschritt läuft über alle Baudraten; danach gilt wieder die alte Baudrate.
+    pub fn scan_bauds(
+        &mut self,
+        bauds: &[u32],
+        progress: ProgressFn,
+        scan: &mut dyn FnMut(&mut Master, ProgressFn) -> Result<()>,
+    ) -> Result<()> {
+        let home = self.baud;
+        let n = bauds.len() as u32;
+        let mut result = Ok(());
+        for (k, &baud) in bauds.iter().enumerate() {
+            if let Err(e) = self.set_baud(baud) {
+                result = Err(e);
+                break;
+            }
+            let mut cancelled = false;
+            let mut wrapped = |p: Progress| {
+                let p = match p {
+                    Progress::Step {
+                        done,
+                        total,
+                        message,
+                    } => Progress::Step {
+                        done: k as u32 * total + done,
+                        total: total * n,
+                        message: if n > 1 {
+                            format!("{baud} Bd · {message}")
+                        } else {
+                            message
+                        },
+                    },
+                    Progress::Hit(mut h) => {
+                        h.baud = Some(baud);
+                        Progress::Hit(h)
+                    }
+                };
+                let go = progress(p);
+                cancelled |= !go;
+                go
+            };
+            result = scan(self, &mut wrapped);
+            if result.is_err() || cancelled {
+                break;
+            }
+        }
+        let restore = self.set_baud(home);
+        result.and(restore)
+    }
+
+    /// Scan auf der aktuellen Baudrate, oder mit `all_bauds` auf allen Baudraten,
+    /// auf denen Geräte antworten (für Busse mit gemischten Baudraten).
+    pub fn scan_maybe_all_bauds(
+        &mut self,
+        all_bauds: bool,
+        progress: ProgressFn,
+        scan: &mut dyn FnMut(&mut Master, ProgressFn) -> Result<()>,
+    ) -> Result<()> {
+        let bauds = if all_bauds {
+            if !progress(Progress::Step {
+                done: 0,
+                total: 1,
+                message: tr(
+                    "Prüfe, auf welchen Baudraten Geräte antworten",
+                    "Checking which baud rates have devices",
+                ),
+            }) {
+                return Ok(());
+            }
+            let found = self.bus_bauds()?;
+            if found.is_empty() {
+                progress(Progress::Step {
+                    done: 1,
+                    total: 1,
+                    message: tr(
+                        "Auf keiner Baudrate antwortet ein Gerät",
+                        "No device answers at any baud rate",
+                    ),
+                });
+                return Ok(());
+            }
+            found
+        } else {
+            vec![self.baud]
+        };
+        self.scan_bauds(&bauds, progress, scan)
     }
 
     /// Application Reset (CI 50), optional mit Subcode.

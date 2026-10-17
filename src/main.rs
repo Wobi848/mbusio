@@ -12,7 +12,7 @@ use std::sync::Arc;
 use anyhow::{bail, Context};
 use clap::{Parser, Subcommand};
 
-use mbus::master::{FrameLog, Master, Progress, Reply, Target};
+use mbus::master::{FrameLog, Master, Progress, Reply, ScanHit, Target};
 
 /// M-Bus Master mit Weboberfläche
 #[derive(Parser)]
@@ -60,9 +60,18 @@ enum Cmd {
         to: u8,
         #[arg(long, default_value_t = 1)]
         retries: u32,
+        /// Auf allen Baudraten scannen, auf denen Geräte antworten
+        #[arg(long)]
+        all_bauds: bool,
     },
     /// Sekundärscan (Wildcard-Suche über die ID)
-    ScanSecondary,
+    ScanSecondary {
+        /// Auf allen Baudraten scannen, auf denen Geräte antworten
+        #[arg(long)]
+        all_bauds: bool,
+    },
+    /// Prüfen, auf welchen Baudraten Geräte am Bus antworten
+    BusBauds,
     /// Zähler auslesen: Primäradresse, ID oder Sekundäradresse
     Read { address: String },
     /// Primäradresse setzen
@@ -81,6 +90,17 @@ enum Cmd {
     Raw { hex: String },
 }
 
+/// Treffer sammeln, Fortschritt auf stderr
+fn collect(hits: &mut Vec<ScanHit>) -> impl FnMut(Progress) -> bool + '_ {
+    |p| {
+        match p {
+            Progress::Hit(h) => hits.push(h),
+            Progress::Step { message, .. } => eprintln!("{message}"),
+        }
+        true
+    }
+}
+
 fn run_command(args: &Args, cmd: &Cmd) -> anyhow::Result<()> {
     let Some(port) = &args.port else {
         bail!("--port fehlt / missing");
@@ -90,26 +110,26 @@ fn run_command(args: &Args, cmd: &Cmd) -> anyhow::Result<()> {
     let mut m = Master::new(link, args.baud, args.timeout_ms, log.clone());
     let target = |a: &str| Target::parse(a);
     let out = match cmd {
-        Cmd::Scan { from, to, retries } => {
+        Cmd::Scan {
+            from,
+            to,
+            retries,
+            all_bauds,
+        } => {
             let mut hits = Vec::new();
-            m.scan_primary(*from, *to, *retries, &mut |p| {
-                if let Progress::Hit(h) = p {
-                    hits.push(h);
-                }
-                true
+            m.scan_maybe_all_bauds(*all_bauds, &mut collect(&mut hits), &mut |m, p| {
+                m.scan_primary(*from, *to, *retries, p)
             })?;
             serde_json::to_value(hits)?
         }
-        Cmd::ScanSecondary => {
+        Cmd::ScanSecondary { all_bauds } => {
             let mut hits = Vec::new();
-            m.scan_secondary(&mut |p| {
-                if let Progress::Hit(h) = p {
-                    hits.push(h);
-                }
-                true
+            m.scan_maybe_all_bauds(*all_bauds, &mut collect(&mut hits), &mut |m, p| {
+                m.scan_secondary(p)
             })?;
             serde_json::to_value(hits)?
         }
+        Cmd::BusBauds => serde_json::json!({ "bauds": m.bus_bauds()? }),
         Cmd::Read { address } => serde_json::to_value(m.read_meter(&target(address)?)?)?,
         Cmd::SetAddress {
             address,

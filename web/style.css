@@ -267,3 +267,6 @@ details h3 { margin-top: 16px; }
   #meters-table td:last-child { grid-column: 1 / -1; margin-top: 6px; }
   #meters-table .actions { justify-content: flex-start; }
 }
+
+.baud-check { align-items: center; margin-bottom: 0; }
+.baud-check-hint { margin: 2px 0 12px; }

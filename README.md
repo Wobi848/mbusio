@@ -15,6 +15,8 @@ Eine einzige Binärdatei für Windows, Linux und Raspberry Pi, die Oberfläche i
 - **Primäradresse setzen** über Primär- oder Sekundäradresse, mit anschliessender Kontrolle;
   bricht ab, wenn die neue Adresse belegt ist oder mehrere Zähler auf der alten stehen
 - **Baudrate** eines Zählers suchen (300–38400 Bd durchprobieren) und am Zähler umstellen
+- **Gemischte Baudraten auf einem Bus**: prüfen, auf welchen Baudraten Geräte antworten, und
+  Primär- oder Sekundärscan auf allen diesen Baudraten
 - **Application Reset** senden
 - **Zählerliste**: Zähler merken, mit Name, Ort und Notiz versehen, gesammelt auslesen
   (auch mit unterschiedlichen Baudraten auf einem Bus), als JSON exportieren und importieren
@@ -72,6 +74,8 @@ Wie die Tools von libmbus, aber ein Programm. Ergebnis als JSON auf stdout, Tele
 ```sh
 mbusio --port /dev/ttyUSB0 scan --from 1 --to 50
 mbusio --port /dev/ttyUSB0 scan-secondary
+mbusio --port /dev/ttyUSB0 bus-bauds              # auf welchen Baudraten antworten Geräte?
+mbusio --port /dev/ttyUSB0 scan --all-bauds       # Scan auf allen diesen Baudraten
 mbusio --port /dev/ttyUSB0 read 12345678          # Primäradresse, ID oder Sekundäradresse
 mbusio --port /dev/ttyUSB0 set-address 12345678 5
 mbusio --port /dev/ttyUSB0 detect-baud 5
@@ -167,6 +171,7 @@ One binary for Windows, Linux and Raspberry Pi.
 - Read all values with units, manufacturer and medium; multi-telegram responses are merged
 - Set the primary address (via primary or secondary address), verified afterwards
 - Detect and switch a meter's baud rate, application reset, raw telegrams
+- Buses with mixed baud rates: check which baud rates have devices, scan on all of them
 - Meter list with names and locations, read all at once (mixed baud rates supported)
 - Serial port or network gateway (`tcp://host:port`), command line with JSON output
 - CSV/JSON export, telegram log, built-in simulator, UI in German and English

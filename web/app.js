@@ -29,6 +29,14 @@ const UI = {
     scan_secondary_hint:
       "Sucht über die ID der Zähler, unabhängig von der Primäradresse. Findet auch Zähler, die sich eine Adresse teilen. Dauert länger, kein Bereich nötig.",
     cancel: "Abbrechen",
+    scan_all_bauds: "Alle Baudraten scannen",
+    scan_all_bauds_hint:
+      "Für Busse mit gemischten Baudraten: prüft zuerst kurz 300 bis 38400 Bd und scannt dann auf jeder Baudrate, auf der etwas antwortet.",
+    bus_bauds: "Nur prüfen",
+    bus_bauds_busy: "Prüfe 300 bis 38400 Bd …",
+    bus_bauds_none: "Auf keiner Baudrate antwortet ein Gerät",
+    bus_bauds_found: (l, b) => `Geräte antworten auf: ${l} Bd` + (l.split(", ").some((x) => Number(x) !== b) ? " – Achtung, nicht nur auf der eingestellten Baudrate!" : ""),
+    col_baud: "Baud",
     col_primary: "PA",
     col_secondary: "Sekundäradresse",
     col_id: "ID",
@@ -161,6 +169,14 @@ const UI = {
     scan_secondary_hint:
       "Searches by meter ID, independent of the primary address. Also finds meters that share an address. Takes longer, no range needed.",
     cancel: "Cancel",
+    scan_all_bauds: "Scan all baud rates",
+    scan_all_bauds_hint:
+      "For buses with mixed baud rates: quickly checks 300 to 38400 Bd first, then scans at every baud rate where something answers.",
+    bus_bauds: "Check only",
+    bus_bauds_busy: "Checking 300 to 38400 Bd …",
+    bus_bauds_none: "No device answers at any baud rate",
+    bus_bauds_found: (l, b) => `Devices answer at: ${l} Bd` + (l.split(", ").some((x) => Number(x) !== b) ? " – note: not only at the configured baud rate!" : ""),
+    col_baud: "Baud",
     col_primary: "PA",
     col_secondary: "Secondary address",
     col_id: "ID",
@@ -329,6 +345,7 @@ let jobRunning = false;
 let logSeq = 0;
 let lastReading = null;
 let lastJob = null;
+let connBaud = null;
 
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", "X-Lang": lang };
@@ -377,6 +394,8 @@ async function guarded(button, fn) {
   } catch (e) {
     toast(e.message, true);
   } finally {
+    // Knöpfe ohne Verbindungsbedarf wieder freigeben; die anderen regelt updateButtons
+    button.disabled = false;
     updateButtons();
   }
 }
@@ -401,6 +420,7 @@ async function loadPorts() {
 async function refreshStatus() {
   const s = await api("status");
   connected = s.connected;
+  connBaud = s.connection?.baud ?? null;
   jobRunning = s.job_running;
   const badge = $("conn-badge");
   if (connected) {
@@ -488,9 +508,12 @@ function renderJob(job) {
   document.querySelector(".hits-opt").hidden = table.hidden;
   // Sekundäradresse lesbar zerlegt (ID, Version) oder roh als 16 Hex-Zeichen
   const raw = $("sa-raw").checked;
+  // Baud-Spalte nur, wenn Treffer nicht alle auf der eingestellten Baudrate liegen
+  const showBaud = job.hits.some((h) => h.baud && h.baud !== connBaud);
   const cols = raw
     ? ["col_primary", "col_secondary", "col_manufacturer", "col_medium", "col_status", ""]
     : ["col_primary", "col_id", "col_manufacturer", "col_version", "col_medium", "col_status", ""];
+  if (showBaud) cols.splice(1, 0, "col_baud");
   table.querySelector("thead").innerHTML = `<tr>${cols.map((c) => `<th>${c && t(c)}</th>`).join("")}</tr>`;
   table.querySelector("tbody").innerHTML = job.hits
     .map((h, i) => {
@@ -501,14 +524,16 @@ function renderJob(job) {
         : `<td class="mono">${esc(h.id ?? "–")}</td>
         <td>${esc(h.manufacturer ?? "")}</td>
         <td class="num">${h.version ?? ""}</td>`;
+      const other = h.baud && h.baud !== connBaud;
       return `<tr>
         <td class="num">${h.primary_address ?? "–"}</td>
+        ${showBaud ? `<td class="num${other ? " st-collision" : ""}">${h.baud ?? ""}</td>` : ""}
         ${sa}
         <td>${esc(label(h.medium))}</td>
         <td class="st-${h.status}">${t("st_" + h.status)}</td>
         <td><div class="actions">${
           target !== ""
-            ? `<button class="small ghost needs-conn" data-read="${esc(target)}">${t("read")}</button>
+            ? `<button class="small ghost needs-conn" data-read="${esc(target)}" data-baud="${h.baud ?? ""}">${t("read")}</button>
                <button class="small ghost" data-remember="${i}">${t("remember")}</button>`
             : ""
         }</div></td>
@@ -533,6 +558,8 @@ $("hits").addEventListener("click", (ev) => {
         method: "POST",
         body: {
           address: h.secondary_address || String(h.primary_address),
+          // eigene Baudrate nur merken, wenn sie vom Bus abweicht
+          baud: h.baud && h.baud !== connBaud ? h.baud : null,
           meter_id: h.id,
           manufacturer: h.manufacturer || null,
           medium: h.medium,
@@ -546,7 +573,7 @@ $("hits").addEventListener("click", (ev) => {
   if (!d.read) return;
   $("read-addr").value = d.read;
   $("set-old").value = d.read;
-  readMeter();
+  readMeter(Number(d.baud) || null);
 });
 
 async function startScan(path, body) {
@@ -563,10 +590,27 @@ $("scan-primary").onclick = () =>
       from: Number($("scan-from").value || 0),
       to: Number($("scan-to").value || 250),
       retries: Number($("scan-retries").value || 1),
+      all_bauds: $("scan-all-bauds").checked,
     })
   );
 
-$("scan-secondary").onclick = () => guarded($("scan-secondary"), () => startScan("scan/secondary", {}));
+$("scan-secondary").onclick = () =>
+  guarded($("scan-secondary"), () => startScan("scan/secondary", { all_bauds: $("scan-all-bauds").checked }));
+
+$("bus-bauds").onclick = () =>
+  guarded($("bus-bauds"), async () => {
+    const out = $("bus-bauds-result");
+    out.textContent = t("bus_bauds_busy");
+    try {
+      const r = await api("bus-bauds", { method: "POST" });
+      out.textContent = r.bauds.length ? t("bus_bauds_found", r.bauds.join(", "), connBaud) : t("bus_bauds_none");
+      // mehr als eine Baudrate: Scan über alle Baudraten gleich vorschlagen
+      if (r.bauds.length > 1) $("scan-all-bauds").checked = true;
+    } catch (e) {
+      out.textContent = "";
+      throw e;
+    }
+  });
 
 $("scan-cancel").onclick = () => api("job/cancel", { method: "POST" }).catch((e) => toast(e.message, true));
 
@@ -614,14 +658,15 @@ function renderReading(r) {
     </table></div>`;
 }
 
-async function readMeter() {
+/// `baud`: Treffer aus dem Scan über alle Baudraten mit dessen Baudrate lesen
+async function readMeter(baud = null) {
   await guarded($("read"), async () => {
     const address = $("read-addr").value.trim();
     if (!address) throw new Error(t("enter_address"));
     lastReading = null;
     $("reading").innerHTML = `<p class="hint">${t("reading_busy")}</p>`;
     try {
-      renderReading(await api("read", { method: "POST", body: { address } }));
+      renderReading(await api("read", { method: "POST", body: { address, baud } }));
       await refreshStatus();
     } catch (e) {
       $("reading").innerHTML = "";
@@ -630,7 +675,7 @@ async function readMeter() {
   });
 }
 
-$("read").onclick = readMeter;
+$("read").onclick = () => readMeter();
 $("read-addr").addEventListener("keydown", (e) => e.key === "Enter" && readMeter());
 
 // ------------------------------------------------------------ Zähler einstellen

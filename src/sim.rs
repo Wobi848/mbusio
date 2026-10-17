@@ -632,4 +632,47 @@ mod tests {
         let none = m.raw_send(&[0x10, 0x40, 0x63, 0xA3, 0x16]).unwrap();
         assert!(matches!(none, crate::mbus::master::Reply::None));
     }
+
+    #[test]
+    fn bus_bauds_finds_mixed_bus() {
+        let mut m = master();
+        assert_eq!(m.bus_bauds().unwrap(), vec![2400, 9600]);
+        assert_eq!(m.baud(), 9600);
+    }
+
+    #[test]
+    fn primary_scan_on_all_bauds() {
+        let mut m = master();
+        let mut hits = Vec::new();
+        m.scan_maybe_all_bauds(
+            true,
+            &mut |p| {
+                if let Progress::Hit(h) = p {
+                    hits.push((h.primary_address.unwrap(), h.baud.unwrap(), h.status));
+                }
+                true
+            },
+            &mut |m, p| m.scan_primary(5, 7, 0, p),
+        )
+        .unwrap();
+        assert_eq!(
+            hits,
+            vec![(6, 2400, "ok"), (5, 9600, "no_data"), (7, 9600, "ok")]
+        );
+        assert_eq!(m.baud(), 9600);
+        // ohne all_bauds bleibt Zähler 6 unsichtbar, Treffer tragen trotzdem die Baudrate
+        let mut bauds = Vec::new();
+        m.scan_maybe_all_bauds(
+            false,
+            &mut |p| {
+                if let Progress::Hit(h) = p {
+                    bauds.push((h.primary_address.unwrap(), h.baud.unwrap()));
+                }
+                true
+            },
+            &mut |m, p| m.scan_primary(5, 7, 0, p),
+        )
+        .unwrap();
+        assert_eq!(bauds, vec![(5, 9600), (7, 9600)]);
+    }
 }
