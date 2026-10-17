@@ -194,3 +194,15 @@ details[open] summary { margin-bottom: 12px; }
   .reading-table th:nth-child(6), .reading-table td:nth-child(6) { display: none; }
   .reading-table td:nth-child(2), .reading-table td:nth-child(5) { white-space: normal; }
 }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+.lang-switch { display: flex; }
+.lang-switch button {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
+  border-radius: 0;
+}
+.lang-switch button:first-child { border-radius: 6px 0 0 6px; }
+.lang-switch button:last-child { border-radius: 0 6px 6px 0; border-left: 0; }
+.lang-switch button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }

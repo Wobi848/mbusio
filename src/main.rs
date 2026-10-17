@@ -47,7 +47,9 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let state: web::AppState = Arc::new(web::Shared::new(args.token.clone().filter(|t| !t.is_empty())));
+    let state: web::AppState = Arc::new(web::Shared::new(
+        args.token.clone().filter(|t| !t.is_empty()),
+    ));
     if let Some(port) = &args.port {
         web::connect_blocking(&state, port, args.baud, args.timeout_ms)?;
         println!("Verbunden mit {port} ({} Bd)", args.baud);
@@ -58,7 +60,10 @@ async fn main() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("Cannot listen on {host}:{}", args.http_port))?;
     let port = listener.local_addr()?.port();
-    println!("mbusio {}: http://localhost:{port}", env!("CARGO_PKG_VERSION"));
+    println!(
+        "mbusio {}: http://localhost:{port}",
+        env!("CARGO_PKG_VERSION")
+    );
     if args.lan {
         println!("LAN: http://<IP>:{port}");
         if args.token.is_none() {

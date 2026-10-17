@@ -39,9 +39,9 @@ pub fn manufacturer(code: u16) -> String {
 }
 
 pub fn manufacturer_code(name: &str) -> u16 {
-    name.bytes()
-        .take(3)
-        .fold(0u16, |acc, c| (acc << 5) | (c.to_ascii_uppercase().saturating_sub(64) as u16 & 0x1F))
+    name.bytes().take(3).fold(0u16, |acc, c| {
+        (acc << 5) | (c.to_ascii_uppercase().saturating_sub(64) as u16 & 0x1F)
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,7 +66,13 @@ pub struct VifInfo {
 }
 
 fn info(quantity: &'static str, unit: &str, exponent: i32, kind: Kind) -> VifInfo {
-    VifInfo { quantity, unit: unit.into(), exponent, kind, notes: Vec::new() }
+    VifInfo {
+        quantity,
+        unit: unit.into(),
+        exponent,
+        kind,
+        notes: Vec::new(),
+    }
 }
 
 fn time_unit(n: u8) -> &'static str {

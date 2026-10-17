@@ -3,8 +3,8 @@
 use std::io::{self, Read, Write};
 use std::time::Duration;
 
-use anyhow::{Context, Result};
 use crate::i18n::tr;
+use anyhow::{Context, Result};
 use serialport::{ClearBuffer, DataBits, FlowControl, Parity, SerialPort, StopBits};
 
 pub trait Link: Send {
@@ -29,7 +29,12 @@ impl SerialLink {
             .flow_control(FlowControl::None)
             .timeout(Duration::from_millis(100))
             .open()
-            .with_context(|| format!("{} {name}", tr("Port konnte nicht geöffnet werden:", "Could not open port")))?;
+            .with_context(|| {
+                format!(
+                    "{} {name}",
+                    tr("Port konnte nicht geöffnet werden:", "Could not open port")
+                )
+            })?;
         Ok(Self { port })
     }
 }
@@ -52,7 +57,9 @@ impl Link for SerialLink {
     }
 
     fn clear(&mut self) -> io::Result<()> {
-        self.port.clear(ClearBuffer::Input).map_err(io::Error::other)
+        self.port
+            .clear(ClearBuffer::Input)
+            .map_err(io::Error::other)
     }
 }
 

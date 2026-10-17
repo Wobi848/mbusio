@@ -9,49 +9,55 @@
 <body>
 <header>
   <h1>mbusio</h1>
-  <span id="conn-badge" class="badge off">Getrennt</span>
+  <div class="header-right">
+    <span id="conn-badge" class="badge off" data-i18n="disconnected"></span>
+    <div class="lang-switch" role="group" aria-label="Language">
+      <button class="small" data-lang="de">DE</button>
+      <button class="small" data-lang="en">EN</button>
+    </div>
+  </div>
 </header>
 
 <main>
   <section class="card">
-    <h2>Verbindung</h2>
+    <h2 data-i18n="connection"></h2>
     <div class="row">
-      <label>Port
+      <label><span data-i18n="port"></span>
         <select id="port"></select>
       </label>
-      <button id="refresh-ports" class="ghost" title="Ports neu laden">↻</button>
+      <button id="refresh-ports" class="ghost" data-i18n-title="reload_ports">↻</button>
     </div>
     <div class="row">
-      <label>Oder manuell <input id="port-manual" placeholder="/dev/ttyUSB0, COM3 …"></label>
+      <label><span data-i18n="port_manual"></span> <input id="port-manual" placeholder="/dev/ttyUSB0, COM3 …"></label>
     </div>
     <div class="row">
-      <label>Baudrate
+      <label><span data-i18n="baud"></span>
         <select id="baud">
           <option>300</option><option>600</option><option>1200</option>
           <option selected>2400</option><option>4800</option><option>9600</option>
           <option>19200</option><option>38400</option>
         </select>
       </label>
-      <label>Timeout ms <input id="timeout" type="number" min="0" value="0" title="0 = automatisch"></label>
+      <label><span data-i18n="timeout"></span> <input id="timeout" type="number" min="0" value="0" data-i18n-title="timeout_hint"></label>
     </div>
     <div class="row">
-      <button id="connect">Verbinden</button>
-      <button id="disconnect" class="ghost" disabled>Trennen</button>
+      <button id="connect" data-i18n="connect"></button>
+      <button id="disconnect" class="ghost" disabled data-i18n="disconnect"></button>
     </div>
-    <p class="hint">8 Datenbits, gerade Parität, 1 Stopbit. „SIMULATOR“ startet einen virtuellen Bus zum Testen.</p>
+    <p class="hint" data-i18n="connection_hint"></p>
   </section>
 
   <section class="card">
-    <h2>Scan</h2>
+    <h2 data-i18n="scan"></h2>
     <div class="row">
-      <label>Von <input id="scan-from" type="number" min="0" max="250" value="0"></label>
-      <label>Bis <input id="scan-to" type="number" min="0" max="250" value="250"></label>
-      <label>Wiederholungen <input id="scan-retries" type="number" min="0" max="5" value="1"></label>
+      <label><span data-i18n="from"></span> <input id="scan-from" type="number" min="0" max="250" value="0"></label>
+      <label><span data-i18n="to"></span> <input id="scan-to" type="number" min="0" max="250" value="250"></label>
+      <label><span data-i18n="retries"></span> <input id="scan-retries" type="number" min="0" max="5" value="1"></label>
     </div>
     <div class="row">
-      <button id="scan-primary" class="needs-conn">Primärscan</button>
-      <button id="scan-secondary" class="needs-conn">Sekundärscan</button>
-      <button id="scan-cancel" class="ghost" hidden>Abbrechen</button>
+      <button id="scan-primary" class="needs-conn" data-i18n="scan_primary"></button>
+      <button id="scan-secondary" class="needs-conn" data-i18n="scan_secondary"></button>
+      <button id="scan-cancel" class="ghost" hidden data-i18n="cancel"></button>
     </div>
     <div id="job" hidden>
       <progress id="job-progress" max="1" value="0"></progress>
@@ -59,47 +65,50 @@
     </div>
     <div class="table-wrap">
       <table id="hits" hidden>
-        <thead><tr><th>Primär</th><th>Sekundäradresse</th><th>Hersteller</th><th>Medium</th><th>Status</th><th></th></tr></thead>
+        <thead><tr>
+          <th data-i18n="col_primary"></th><th data-i18n="col_secondary"></th><th data-i18n="col_manufacturer"></th>
+          <th data-i18n="col_medium"></th><th data-i18n="col_status"></th><th></th>
+        </tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </section>
 
   <section class="card">
-    <h2>Zähler auslesen</h2>
+    <h2 data-i18n="read_meter"></h2>
     <div class="row">
-      <label>Adresse <input id="read-addr" placeholder="Primär (0–250), ID (8) oder Sekundär (16)"></label>
-      <button id="read" class="needs-conn">Auslesen</button>
+      <label><span data-i18n="address"></span> <input id="read-addr" data-i18n-ph="address_ph"></label>
+      <button id="read" class="needs-conn" data-i18n="read"></button>
     </div>
     <div id="reading"></div>
   </section>
 
   <section class="card">
-    <h2>Primäradresse setzen</h2>
+    <h2 data-i18n="set_primary"></h2>
     <div class="row">
-      <label>Aktuelle Adresse <input id="set-old" placeholder="Primär, ID oder Sekundär"></label>
-      <label>Neue Primäradresse <input id="set-new" type="number" min="0" max="250"></label>
-      <button id="set-addr" class="needs-conn">Setzen</button>
+      <label><span data-i18n="current_address"></span> <input id="set-old" data-i18n-ph="address_ph_short"></label>
+      <label><span data-i18n="new_primary"></span> <input id="set-new" type="number" min="0" max="250"></label>
+      <button id="set-addr" class="needs-conn" data-i18n="set"></button>
     </div>
-    <p class="hint">Bei mehreren Zählern auf derselben Adresse (z.B. 0) die Sekundäradresse oder ID verwenden.</p>
+    <p class="hint" data-i18n="set_hint"></p>
   </section>
 
   <section class="card">
-    <h2>Messwerte &amp; Export</h2>
-    <p id="readings-count" class="hint">0 Auslesungen gespeichert</p>
+    <h2 data-i18n="readings_export"></h2>
+    <p id="readings-count" class="hint"></p>
     <div class="row">
-      <a class="button" href="api/export?format=csv">CSV</a>
-      <a class="button" href="api/export?format=json">JSON</a>
-      <button id="clear-readings" class="ghost">Löschen</button>
+      <a id="export-csv" class="button" href="api/export?format=csv">CSV</a>
+      <a id="export-json" class="button" href="api/export?format=json">JSON</a>
+      <button id="clear-readings" class="ghost" data-i18n="delete"></button>
     </div>
   </section>
 
   <section class="card">
     <details id="log-box">
-      <summary><h2>Telegramm-Log</h2></summary>
+      <summary><h2 data-i18n="telegram_log"></h2></summary>
       <div class="row">
-        <button id="clear-log" class="ghost">Log leeren</button>
-        <label class="inline"><input id="log-follow" type="checkbox" checked> mitscrollen</label>
+        <button id="clear-log" class="ghost" data-i18n="clear_log"></button>
+        <label class="inline"><input id="log-follow" type="checkbox" checked> <span data-i18n="follow"></span></label>
       </div>
       <pre id="log"></pre>
     </details>

@@ -8,11 +8,16 @@ use anyhow::{anyhow, bail, Result};
 use serde::Serialize;
 
 use super::decode::{decode_rsp_ud, Header, Record};
-use super::frame::{self, hex, Frame, Parse, ADDR_BROADCAST, ADDR_SELECTED, CI_DATA_SEND, CI_SELECT};
+use super::frame::{
+    self, hex, Frame, Parse, ADDR_BROADCAST, ADDR_SELECTED, CI_DATA_SEND, CI_SELECT,
+};
 use crate::i18n::tr;
 use crate::link::Link;
 
 const MAX_TELEGRAMS: usize = 16;
+
+/// Empfangenes Datentelegramm: CI-Feld, Nutzdaten, komplettes Telegramm
+type RawTelegram = (u8, Vec<u8>, Vec<u8>);
 
 // ---------------------------------------------------------------- Frame-Log
 
@@ -34,14 +39,26 @@ impl FrameLog {
         let mut g = self.inner.lock().unwrap();
         g.0 += 1;
         let seq = g.0;
-        g.1.push_back(LogEntry { seq, time: chrono::Local::now().format("%H:%M:%S%.3f").to_string(), dir, text });
+        g.1.push_back(LogEntry {
+            seq,
+            time: chrono::Local::now().format("%H:%M:%S%.3f").to_string(),
+            dir,
+            text,
+        });
         while g.1.len() > 1000 {
             g.1.pop_front();
         }
     }
 
     pub fn since(&self, seq: u64) -> Vec<LogEntry> {
-        self.inner.lock().unwrap().1.iter().filter(|e| e.seq > seq).cloned().collect()
+        self.inner
+            .lock()
+            .unwrap()
+            .1
+            .iter()
+            .filter(|e| e.seq > seq)
+            .cloned()
+            .collect()
     }
 
     pub fn clear(&self) {
@@ -67,9 +84,14 @@ impl Target {
                 Ok(Target::Secondary(format!("{s:F<16}")))
             }
             _ => {
-                let a: u8 = s.parse().map_err(|_| anyhow!("{}: {s}", tr("Ungültige Adresse", "Invalid address")))?;
+                let a: u8 = s
+                    .parse()
+                    .map_err(|_| anyhow!("{}: {s}", tr("Ungültige Adresse", "Invalid address")))?;
                 if a > 250 {
-                    bail!(tr("Primäradresse muss 0..250 sein", "Primary address must be 0..250"));
+                    bail!(tr(
+                        "Primäradresse muss 0..250 sein",
+                        "Primary address must be 0..250"
+                    ));
                 }
                 Ok(Target::Primary(a))
             }
@@ -129,7 +151,11 @@ impl ScanHit {
 }
 
 pub enum Progress {
-    Step { done: u32, total: u32, message: String },
+    Step {
+        done: u32,
+        total: u32,
+        message: String,
+    },
     Hit(ScanHit),
 }
 
@@ -157,7 +183,12 @@ impl Master {
             Duration::from_millis(timeout_ms)
         };
         let inter_byte = Duration::from_secs_f64((40.0 * 11.0 * bit).max(0.06));
-        Self { link, log, timeout, inter_byte }
+        Self {
+            link,
+            log,
+            timeout,
+            inter_byte,
+        }
     }
 
     fn send(&mut self, f: &Frame) -> Result<()> {
@@ -197,7 +228,13 @@ impl Master {
                     buf.extend_from_slice(&tmp[..extra]);
                     self.log.push("RX", hex(&buf));
                     if used < buf.len() {
-                        self.log.push("INFO", tr("Zusätzliche Bytes empfangen: Kollision", "Extra bytes received: collision"));
+                        self.log.push(
+                            "INFO",
+                            tr(
+                                "Zusätzliche Bytes empfangen: Kollision",
+                                "Extra bytes received: collision",
+                            ),
+                        );
                         return Ok(Reply::Collision(buf));
                     }
                     return Ok(Reply::Frame(f));
@@ -206,17 +243,36 @@ impl Master {
                     // Rest abwarten, damit der nächste Request sauber startet
                     while self.link.recv(&mut tmp, self.inter_byte)? > 0 {}
                     self.log.push("RX", hex(&buf));
-                    self.log.push("INFO", format!("{} ({why})", tr("Ungültiges Telegramm: Kollision oder Störung", "Invalid telegram: collision or noise")));
+                    self.log.push(
+                        "INFO",
+                        format!(
+                            "{} ({why})",
+                            tr(
+                                "Ungültiges Telegramm: Kollision oder Störung",
+                                "Invalid telegram: collision or noise"
+                            )
+                        ),
+                    );
                     return Ok(Reply::Collision(buf));
                 }
             }
         }
         if buf.is_empty() {
-            self.log.push("INFO", format!("{} ({} ms)", tr("Keine Antwort", "No reply"), self.timeout.as_millis()));
+            self.log.push(
+                "INFO",
+                format!(
+                    "{} ({} ms)",
+                    tr("Keine Antwort", "No reply"),
+                    self.timeout.as_millis()
+                ),
+            );
             Ok(Reply::None)
         } else {
             self.log.push("RX", hex(&buf));
-            self.log.push("INFO", tr("Unvollständiges Telegramm", "Incomplete telegram"));
+            self.log.push(
+                "INFO",
+                tr("Unvollständiges Telegramm", "Incomplete telegram"),
+            );
             Ok(Reply::Collision(buf))
         }
     }
@@ -242,15 +298,30 @@ impl Master {
             Target::Primary(a) => Ok(*a),
             Target::Secondary(mask) => match self.select(mask)? {
                 Reply::Frame(Frame::Ack) => Ok(ADDR_SELECTED),
-                Reply::None => bail!("{} {mask}", tr("Kein Zähler mit Sekundäradresse", "No meter with secondary address")),
-                Reply::Collision(_) => bail!("{} {mask}", tr("Mehrere Zähler passen auf", "Several meters match")),
-                Reply::Frame(f) => bail!("{}: {f:?}", tr("Unerwartete Antwort auf Selektion", "Unexpected reply to selection")),
+                Reply::None => bail!(
+                    "{} {mask}",
+                    tr(
+                        "Kein Zähler mit Sekundäradresse",
+                        "No meter with secondary address"
+                    )
+                ),
+                Reply::Collision(_) => bail!(
+                    "{} {mask}",
+                    tr("Mehrere Zähler passen auf", "Several meters match")
+                ),
+                Reply::Frame(f) => bail!(
+                    "{}: {f:?}",
+                    tr(
+                        "Unerwartete Antwort auf Selektion",
+                        "Unexpected reply to selection"
+                    )
+                ),
             },
         }
     }
 
     /// REQ_UD2, bei "weitere Daten folgen" mit wechselndem FCB nachfragen.
-    fn request_data(&mut self, address: u8, all: bool) -> Result<(u8, Vec<(u8, Vec<u8>, Vec<u8>)>)> {
+    fn request_data(&mut self, address: u8, all: bool) -> Result<(u8, Vec<RawTelegram>)> {
         let mut frames = Vec::new();
         let mut fcb = true;
         let mut primary = address;
@@ -262,14 +333,37 @@ impl Master {
             }
             let f = match reply {
                 Reply::Frame(f) if f.is_rsp_ud() => f,
-                Reply::Frame(f) => bail!("{}: {f:?}", tr("Unerwartete Antwort", "Unexpected reply")),
-                Reply::None => bail!("{} {address}", tr("Keine Antwort von Adresse", "No reply from address")),
-                Reply::Collision(b) => bail!("{}: {}", tr("Gestörte Antwort (Kollision?)", "Corrupted reply (collision?)"), hex(&b)),
+                Reply::Frame(f) => {
+                    bail!("{}: {f:?}", tr("Unerwartete Antwort", "Unexpected reply"))
+                }
+                Reply::None => bail!(
+                    "{} {address}",
+                    tr("Keine Antwort von Adresse", "No reply from address")
+                ),
+                Reply::Collision(b) => bail!(
+                    "{}: {}",
+                    tr(
+                        "Gestörte Antwort (Kollision?)",
+                        "Corrupted reply (collision?)"
+                    ),
+                    hex(&b)
+                ),
             };
             let bytes = f.encode();
-            let Frame::Long { address: a, ci, data, .. } = f else { unreachable!() };
+            let Frame::Long {
+                address: a,
+                ci,
+                data,
+                ..
+            } = f
+            else {
+                unreachable!()
+            };
             if address <= 250 && a != address {
-                bail!("{} {a} ≠ {address}", tr("Antwort von falscher Adresse", "Reply from wrong address"));
+                bail!(
+                    "{} {a} ≠ {address}",
+                    tr("Antwort von falscher Adresse", "Reply from wrong address")
+                );
             }
             primary = a;
             let more = data_has_more(ci, &data);
@@ -294,7 +388,8 @@ impl Master {
         let mut raw_frames = Vec::new();
         for (ci, data, bytes) in frames {
             raw_frames.push(hex(&bytes));
-            let t = decode_rsp_ud(ci, &data).map_err(|e| anyhow!("{}: {e}", tr("Decodierfehler", "Decoding error")))?;
+            let t = decode_rsp_ud(ci, &data)
+                .map_err(|e| anyhow!("{}: {e}", tr("Decodierfehler", "Decoding error")))?;
             if header.is_none() {
                 header = t.header;
             }
@@ -312,34 +407,61 @@ impl Master {
 
     pub fn set_primary(&mut self, target: &Target, new: u8) -> Result<()> {
         if new > 250 {
-            bail!(tr("Neue Primäradresse muss 0..250 sein", "New primary address must be 0..250"));
+            bail!(tr(
+                "Neue Primäradresse muss 0..250 sein",
+                "New primary address must be 0..250"
+            ));
         }
         let address = self.address(target)?;
         match self.transact(&Frame::snd_ud(address, CI_DATA_SEND, vec![0x01, 0x7A, new]))? {
             Reply::Frame(Frame::Ack) => {}
-            Reply::None => bail!(tr("Zähler hat die Adressänderung nicht quittiert", "Meter did not acknowledge the address change")),
-            other => bail!("{}: {other:?}", tr("Unerwartete Antwort", "Unexpected reply")),
+            Reply::None => bail!(tr(
+                "Zähler hat die Adressänderung nicht quittiert",
+                "Meter did not acknowledge the address change"
+            )),
+            other => bail!(
+                "{}: {other:?}",
+                tr("Unerwartete Antwort", "Unexpected reply")
+            ),
         }
         match self.ping(new)? {
             Reply::Frame(Frame::Ack) => Ok(()),
-            _ => bail!("{} {new}", tr("Adresse gesetzt, aber Zähler antwortet nicht auf neuer Adresse", "Address set, but meter does not answer on new address")),
+            _ => bail!(
+                "{} {new}",
+                tr(
+                    "Adresse gesetzt, aber Zähler antwortet nicht auf neuer Adresse",
+                    "Address set, but meter does not answer on new address"
+                )
+            ),
         }
     }
 
     fn probe_header(&mut self, address: u8) -> Result<(Option<u8>, Option<Header>, bool)> {
         match self.request_data(address, false) {
             Ok((primary, frames)) => {
-                let header = frames.first().and_then(|(ci, data, _)| decode_rsp_ud(*ci, data).ok()?.header);
+                let header = frames
+                    .first()
+                    .and_then(|(ci, data, _)| decode_rsp_ud(*ci, data).ok()?.header);
                 Ok((Some(primary), header, true))
             }
             Err(_) => Ok((None, None, false)),
         }
     }
 
-    pub fn scan_primary(&mut self, from: u8, to: u8, retries: u32, progress: ProgressFn) -> Result<()> {
+    pub fn scan_primary(
+        &mut self,
+        from: u8,
+        to: u8,
+        retries: u32,
+        progress: ProgressFn,
+    ) -> Result<()> {
         let total = (to as u32).saturating_sub(from as u32) + 1;
         for (k, a) in (from..=to).enumerate() {
-            if !progress(Progress::Step { done: k as u32, total, message: format!("{} {a}", tr("Adresse", "Address")) }) {
+            if !progress(Progress::Step {
+                done: k as u32,
+                total,
+                message: format!("{} {a}", tr("Adresse", "Address")),
+            }) {
                 return Ok(());
             }
             let mut reply = Reply::None;
@@ -360,7 +482,11 @@ impl Master {
             };
             progress(Progress::Hit(hit));
         }
-        progress(Progress::Step { done: total, total, message: tr("Fertig", "Done") });
+        progress(Progress::Step {
+            done: total,
+            total,
+            message: tr("Fertig", "Done"),
+        });
         Ok(())
     }
 
@@ -373,7 +499,11 @@ impl Master {
         let mut cancelled = false;
         self.scan_secondary_pos(0, &mut mask, progress, &mut cancelled)?;
         if !cancelled {
-            progress(Progress::Step { done: 10, total: 10, message: tr("Fertig", "Done") });
+            progress(Progress::Step {
+                done: 10,
+                total: 10,
+                message: tr("Fertig", "Done"),
+            });
         }
         Ok(())
     }
@@ -388,8 +518,16 @@ impl Master {
         for digit in 0..=9u8 {
             mask[pos] = char::from(b'0' + digit);
             let m: String = mask.iter().collect();
-            let done = if pos == 0 { digit as u32 } else { u32::from(mask[0] as u8 - b'0') };
-            if !progress(Progress::Step { done, total: 10, message: format!("{} {m}", tr("Maske", "Mask")) }) {
+            let done = if pos == 0 {
+                digit as u32
+            } else {
+                u32::from(mask[0] as u8 - b'0')
+            };
+            if !progress(Progress::Step {
+                done,
+                total: 10,
+                message: format!("{} {m}", tr("Maske", "Mask")),
+            }) {
                 *cancelled = true;
                 return Ok(());
             }
@@ -400,12 +538,24 @@ impl Master {
                     // ACKs mehrerer Slaves überlagern sich oft fehlerfrei: Daten anfordern prüft das
                     match self.request_data(ADDR_SELECTED, false) {
                         Ok((primary, frames)) => {
-                            let header = frames.first().and_then(|(ci, d, _)| decode_rsp_ud(*ci, d).ok()?.header);
-                            let mut hit = ScanHit::from_header(Some(primary), header.as_ref(), "ok");
+                            let header = frames
+                                .first()
+                                .and_then(|(ci, d, _)| decode_rsp_ud(*ci, d).ok()?.header);
+                            let mut hit =
+                                ScanHit::from_header(Some(primary), header.as_ref(), "ok");
                             if hit.secondary_address.is_none() {
                                 hit.secondary_address = Some(m.clone());
                             }
                             progress(Progress::Hit(hit));
+                            false
+                        }
+                        // ID vollständig, aber Daten unbrauchbar: Zähler defekt statt Kollision
+                        Err(_) if pos == 7 => {
+                            progress(Progress::Hit(ScanHit {
+                                secondary_address: Some(m.clone()),
+                                id: Some(m[..8].to_string()),
+                                ..ScanHit::from_header(None, None, "no_data")
+                            }));
                             false
                         }
                         Err(_) => true,
@@ -432,16 +582,26 @@ impl Master {
 }
 
 fn data_has_more(ci: u8, data: &[u8]) -> bool {
-    decode_rsp_ud(ci, data).map(|t| t.more_follow).unwrap_or(false)
+    decode_rsp_ud(ci, data)
+        .map(|t| t.more_follow)
+        .unwrap_or(false)
 }
 
 /// Selektionsdaten: ID (BCD, LSB zuerst), Hersteller, Version, Medium; `F` = Platzhalter.
 pub fn select_data(mask: &str) -> Result<Vec<u8>> {
     let m = mask.trim().to_ascii_uppercase();
     if m.len() != 16 || !m.chars().all(|c| c.is_ascii_hexdigit()) {
-        bail!("{}: {mask}", tr("Sekundäradresse muss 16 Hex-Zeichen haben", "Secondary address must have 16 hex characters"));
+        bail!(
+            "{}: {mask}",
+            tr(
+                "Sekundäradresse muss 16 Hex-Zeichen haben",
+                "Secondary address must have 16 hex characters"
+            )
+        );
     }
-    let b: Vec<u8> = (0..8).map(|k| u8::from_str_radix(&m[2 * k..2 * k + 2], 16).unwrap()).collect();
+    let b: Vec<u8> = (0..8)
+        .map(|k| u8::from_str_radix(&m[2 * k..2 * k + 2], 16).unwrap())
+        .collect();
     Ok(vec![b[3], b[2], b[1], b[0], b[5], b[4], b[6], b[7]])
 }
 
@@ -452,7 +612,10 @@ mod tests {
     #[test]
     fn target_parsing() {
         assert_eq!(Target::parse("5").unwrap(), Target::Primary(5));
-        assert_eq!(Target::parse("12345678").unwrap(), Target::Secondary("12345678FFFFFFFF".into()));
+        assert_eq!(
+            Target::parse("12345678").unwrap(),
+            Target::Secondary("12345678FFFFFFFF".into())
+        );
         assert!(Target::parse("251").is_err());
     }
 

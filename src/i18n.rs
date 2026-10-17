@@ -56,21 +56,49 @@ const LABELS: &[(&str, &str, &str)] = &[
     ("volume_flow", "Durchfluss", "Volume flow"),
     ("mass_flow", "Massenstrom", "Mass flow"),
     ("flow_temperature", "Vorlauftemperatur", "Flow temperature"),
-    ("return_temperature", "Rücklauftemperatur", "Return temperature"),
-    ("temperature_difference", "Temperaturdifferenz", "Temperature difference"),
-    ("external_temperature", "Aussentemperatur", "External temperature"),
+    (
+        "return_temperature",
+        "Rücklauftemperatur",
+        "Return temperature",
+    ),
+    (
+        "temperature_difference",
+        "Temperaturdifferenz",
+        "Temperature difference",
+    ),
+    (
+        "external_temperature",
+        "Aussentemperatur",
+        "External temperature",
+    ),
     ("pressure", "Druck", "Pressure"),
     ("date", "Datum", "Date"),
     ("date_time", "Datum/Zeit", "Date/time"),
     ("hca_units", "HKV-Einheiten", "HCA units"),
-    ("averaging_duration", "Mittelungsdauer", "Averaging duration"),
-    ("actuality_duration", "Aktualitätsdauer", "Actuality duration"),
+    (
+        "averaging_duration",
+        "Mittelungsdauer",
+        "Averaging duration",
+    ),
+    (
+        "actuality_duration",
+        "Aktualitätsdauer",
+        "Actuality duration",
+    ),
     ("fabrication_no", "Fabrikationsnummer", "Fabrication number"),
-    ("enhanced_id", "Erweiterte Identifikation", "Enhanced identification"),
+    (
+        "enhanced_id",
+        "Erweiterte Identifikation",
+        "Enhanced identification",
+    ),
     ("bus_address", "Busadresse", "Bus address"),
     ("value", "Wert", "Value"),
     ("any_vif", "Beliebiger VIF", "Any VIF"),
-    ("manufacturer_specific", "Herstellerspezifisch", "Manufacturer specific"),
+    (
+        "manufacturer_specific",
+        "Herstellerspezifisch",
+        "Manufacturer specific",
+    ),
     ("unknown_vif", "Unbekannter VIF", "Unknown VIF"),
     ("access_no", "Zugriffsnummer", "Access number"),
     ("medium", "Medium", "Medium"),
@@ -91,8 +119,16 @@ const LABELS: &[(&str, &str, &str)] = &[
     ("voltage", "Spannung", "Voltage"),
     ("current", "Strom", "Current"),
     ("reset_counter", "Reset-Zähler", "Reset counter"),
-    ("cumulation_counter", "Kumulationszähler", "Cumulation counter"),
-    ("manufacturer_data", "Herstellerspezifische Daten", "Manufacturer specific data"),
+    (
+        "cumulation_counter",
+        "Kumulationszähler",
+        "Cumulation counter",
+    ),
+    (
+        "manufacturer_data",
+        "Herstellerspezifische Daten",
+        "Manufacturer specific data",
+    ),
     ("special_function", "Spezialfunktion", "Special function"),
     // Funktion
     ("instantaneous", "Momentanwert", "Instantaneous"),
@@ -101,9 +137,21 @@ const LABELS: &[(&str, &str, &str)] = &[
     ("error_value", "Fehlerwert", "Value during error"),
     // Hinweise aus VIF-Erweiterungen
     ("note_error_code", "Fehlercode", "Error code"),
-    ("note_only_positive", "nur positive Anteile", "positive contributions only"),
-    ("note_only_negative", "nur negative Anteile", "negative contributions only"),
-    ("note_manufacturer_specific", "herstellerspezifisch", "manufacturer specific"),
+    (
+        "note_only_positive",
+        "nur positive Anteile",
+        "positive contributions only",
+    ),
+    (
+        "note_only_negative",
+        "nur negative Anteile",
+        "negative contributions only",
+    ),
+    (
+        "note_manufacturer_specific",
+        "herstellerspezifisch",
+        "manufacturer specific",
+    ),
     ("note_vife", "VIFE", "VIFE"),
     // Medien
     ("medium_other", "Andere", "Other"),
@@ -116,7 +164,11 @@ const LABELS: &[(&str, &str, &str)] = &[
     ("medium_water", "Wasser", "Water"),
     ("medium_hca", "Heizkostenverteiler", "Heat cost allocator"),
     ("medium_compressed_air", "Druckluft", "Compressed air"),
-    ("medium_cooling_outlet", "Kälte (Rücklauf)", "Cooling (outlet)"),
+    (
+        "medium_cooling_outlet",
+        "Kälte (Rücklauf)",
+        "Cooling (outlet)",
+    ),
     ("medium_cooling_inlet", "Kälte (Vorlauf)", "Cooling (inlet)"),
     ("medium_heat_inlet", "Wärme (Vorlauf)", "Heat (inlet)"),
     ("medium_heat_cooling", "Wärme/Kälte", "Heat/cooling"),
@@ -151,7 +203,12 @@ pub fn label(key: &str, lang: Lang) -> String {
 pub fn labels(lang: Lang) -> serde_json::Map<String, serde_json::Value> {
     LABELS
         .iter()
-        .map(|(k, de, en)| (k.to_string(), serde_json::Value::from(if lang == Lang::En { *en } else { *de })))
+        .map(|(k, de, en)| {
+            (
+                k.to_string(),
+                serde_json::Value::from(if lang == Lang::En { *en } else { *de }),
+            )
+        })
         .collect()
 }
 

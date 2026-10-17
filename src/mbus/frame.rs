@@ -20,8 +20,16 @@ pub const CI_SELECT: u8 = 0x52;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Frame {
     Ack,
-    Short { control: u8, address: u8 },
-    Long { control: u8, address: u8, ci: u8, data: Vec<u8> },
+    Short {
+        control: u8,
+        address: u8,
+    },
+    Long {
+        control: u8,
+        address: u8,
+        ci: u8,
+        data: Vec<u8>,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -34,7 +42,10 @@ pub enum Parse {
 
 impl Frame {
     pub fn snd_nke(address: u8) -> Self {
-        Frame::Short { control: C_SND_NKE, address }
+        Frame::Short {
+            control: C_SND_NKE,
+            address,
+        }
     }
 
     pub fn req_ud2(address: u8, fcb: bool) -> Self {
@@ -43,16 +54,32 @@ impl Frame {
     }
 
     pub fn snd_ud(address: u8, ci: u8, data: Vec<u8>) -> Self {
-        Frame::Long { control: C_SND_UD, address, ci, data }
+        Frame::Long {
+            control: C_SND_UD,
+            address,
+            ci,
+            data,
+        }
     }
 
     pub fn encode(&self) -> Vec<u8> {
         match self {
             Frame::Ack => vec![ACK],
             Frame::Short { control, address } => {
-                vec![0x10, *control, *address, control.wrapping_add(*address), 0x16]
+                vec![
+                    0x10,
+                    *control,
+                    *address,
+                    control.wrapping_add(*address),
+                    0x16,
+                ]
             }
-            Frame::Long { control, address, ci, data } => {
+            Frame::Long {
+                control,
+                address,
+                ci,
+                data,
+            } => {
                 let l = (data.len() + 3) as u8;
                 let mut out = Vec::with_capacity(data.len() + 9);
                 out.extend_from_slice(&[0x68, l, l, 0x68, *control, *address, *ci]);
@@ -127,7 +154,11 @@ pub fn parse(buf: &[u8]) -> Parse {
 }
 
 pub fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join(" ")
+    bytes
+        .iter()
+        .map(|b| format!("{b:02X}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[cfg(test)]
@@ -145,13 +176,19 @@ mod tests {
     fn long_frame_roundtrip() {
         let f = Frame::snd_ud(1, CI_DATA_SEND, vec![0x01, 0x7A, 0x05]);
         let bytes = f.encode();
-        assert_eq!(bytes, vec![0x68, 0x06, 0x06, 0x68, 0x53, 0x01, 0x51, 0x01, 0x7A, 0x05, 0x25, 0x16]);
+        assert_eq!(
+            bytes,
+            vec![0x68, 0x06, 0x06, 0x68, 0x53, 0x01, 0x51, 0x01, 0x7A, 0x05, 0x25, 0x16]
+        );
         assert_eq!(parse(&bytes[..6]), Parse::Incomplete);
         assert_eq!(parse(&bytes), Parse::Complete(f, bytes.len()));
     }
 
     #[test]
     fn bad_checksum() {
-        assert!(matches!(parse(&[0x10, 0x40, 0x01, 0x00, 0x16]), Parse::Invalid(_)));
+        assert!(matches!(
+            parse(&[0x10, 0x40, 0x01, 0x00, 0x16]),
+            Parse::Invalid(_)
+        ));
     }
 }

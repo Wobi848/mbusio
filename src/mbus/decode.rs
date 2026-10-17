@@ -4,7 +4,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use super::frame::hex;
-use super::tables::{self, Kind, Vife, VifInfo};
+use super::tables::{self, Kind, VifInfo, Vife};
 use crate::i18n::tr;
 
 #[derive(Debug, Clone, Serialize)]
@@ -65,10 +65,19 @@ pub fn decode_rsp_ud(ci: u8, data: &[u8]) -> Result<Telegram, String> {
             (None, &data[4..])
         }
         0x78 => (None, data),
-        _ => return Err(format!("{} {ci:02X}", tr("Nicht unterstütztes CI-Feld", "Unsupported CI field"))),
+        _ => {
+            return Err(format!(
+                "{} {ci:02X}",
+                tr("Nicht unterstütztes CI-Feld", "Unsupported CI field")
+            ))
+        }
     };
     let (records, more_follow) = decode_records(body)?;
-    Ok(Telegram { header, records, more_follow })
+    Ok(Telegram {
+        header,
+        records,
+        more_follow,
+    })
 }
 
 fn long_header(d: &[u8]) -> Header {
@@ -90,7 +99,14 @@ fn long_header(d: &[u8]) -> Header {
 
 fn take<'a>(data: &'a [u8], i: &mut usize, n: usize) -> Result<&'a [u8], String> {
     if *i + n > data.len() {
-        return Err(format!("{} {}", tr("Datensatz abgeschnitten bei Byte", "Record truncated at byte"), *i));
+        return Err(format!(
+            "{} {}",
+            tr(
+                "Datensatz abgeschnitten bei Byte",
+                "Record truncated at byte"
+            ),
+            *i
+        ));
     }
     let s = &data[*i..*i + n];
     *i += n;
@@ -275,7 +291,9 @@ fn le_signed(raw: &[u8]) -> i64 {
 }
 
 fn le_unsigned(raw: &[u8]) -> u64 {
-    raw.iter().enumerate().fold(0u64, |acc, (k, b)| acc | ((*b as u64) << (8 * k)))
+    raw.iter()
+        .enumerate()
+        .fold(0u64, |acc, (k, b)| acc | ((*b as u64) << (8 * k)))
 }
 
 /// BCD, niederwertiges Byte zuerst. Oberstes Nibble 0xF = negativ.
@@ -307,7 +325,10 @@ pub fn scale(raw: i64, exp: i32) -> (Value, String) {
         let (int, frac) = digits.split_at(digits.len() - d);
         format!("{}{int}.{frac}", if raw < 0 { "-" } else { "" })
     };
-    let num = text.parse::<f64>().ok().and_then(serde_json::Number::from_f64);
+    let num = text
+        .parse::<f64>()
+        .ok()
+        .and_then(serde_json::Number::from_f64);
     (num.map(Value::Number).unwrap_or(Value::Null), text)
 }
 
@@ -319,7 +340,11 @@ fn date_g(raw: &[u8]) -> String {
 }
 
 fn datetime(raw: &[u8]) -> String {
-    let (sec, r) = if raw.len() == 6 { (Some(raw[0] & 0x3F), &raw[1..]) } else { (None, raw) };
+    let (sec, r) = if raw.len() == 6 {
+        (Some(raw[0] & 0x3F), &raw[1..])
+    } else {
+        (None, raw)
+    };
     let min = r[0] & 0x3F;
     let hour = r[1] & 0x1F;
     let invalid = r[0] & 0x80 != 0;
@@ -346,7 +371,11 @@ fn interpret(coding: u8, lvar: Option<u8>, raw: &[u8], vi: &VifInfo) -> (Value, 
         }
         _ => {}
     }
-    let exp = if vi.kind == Kind::Numeric { vi.exponent } else { 0 };
+    let exp = if vi.kind == Kind::Numeric {
+        vi.exponent
+    } else {
+        0
+    };
     let int = |v: i64| scale(v, exp);
     match coding {
         0x0 | 0x8 => (Value::Null, String::new()),
@@ -355,19 +384,31 @@ fn interpret(coding: u8, lvar: Option<u8>, raw: &[u8], vi: &VifInfo) -> (Value, 
         0x5 => {
             let f = f32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]) as f64 * 10f64.powi(exp);
             let text = format!("{f}");
-            (serde_json::Number::from_f64(f).map(Value::Number).unwrap_or(Value::Null), text)
+            (
+                serde_json::Number::from_f64(f)
+                    .map(Value::Number)
+                    .unwrap_or(Value::Null),
+                text,
+            )
         }
         0x9..=0xC | 0xE => match bcd(raw) {
             Some(v) => int(v),
-            None => (Value::String(hex(raw)), format!("{} (BCD {})", hex(raw), tr("ungültig", "invalid"))),
+            None => (
+                Value::String(hex(raw)),
+                format!("{} (BCD {})", hex(raw), tr("ungültig", "invalid")),
+            ),
         },
         0xD => match lvar.unwrap_or(0) {
             0x00..=0xBF => {
                 let s: String = raw.iter().rev().map(|b| *b as char).collect();
                 (Value::String(s.clone()), s)
             }
-            0xC0..=0xCF => bcd(raw).map(int).unwrap_or_else(|| (Value::String(hex(raw)), hex(raw))),
-            0xD0..=0xDF => bcd(raw).map(|v| int(-v)).unwrap_or_else(|| (Value::String(hex(raw)), hex(raw))),
+            0xC0..=0xCF => bcd(raw)
+                .map(int)
+                .unwrap_or_else(|| (Value::String(hex(raw)), hex(raw))),
+            0xD0..=0xDF => bcd(raw)
+                .map(|v| int(-v))
+                .unwrap_or_else(|| (Value::String(hex(raw)), hex(raw))),
             0xE0..=0xEF if raw.len() <= 8 => int(le_unsigned(raw) as i64),
             _ => (Value::String(hex(raw)), hex(raw)),
         },
@@ -388,7 +429,13 @@ mod tests {
             0x07, 0x55, 0x00, 0x00, 0x00, 0x03, 0x13, 0x15, 0x31, 0x00, 0xDA, 0x02, 0x3B, 0x13,
             0x01, 0x8B, 0x60, 0x04, 0x37, 0x18, 0x02, 0x18, 0x16,
         ];
-        let Parse::Complete(Frame::Long { ci, data, address, .. }, _) = parse(&bytes) else {
+        let Parse::Complete(
+            Frame::Long {
+                ci, data, address, ..
+            },
+            _,
+        ) = parse(&bytes)
+        else {
             panic!("Frame ungültig");
         };
         assert_eq!(address, 2);
@@ -401,7 +448,10 @@ mod tests {
         assert_eq!(t.records.len(), 3);
 
         let r = &t.records[0];
-        assert_eq!((r.quantity.as_str(), r.unit.as_str(), r.value_text.as_str()), ("volume", "m³", "12.565"));
+        assert_eq!(
+            (r.quantity.as_str(), r.unit.as_str(), r.value_text.as_str()),
+            ("volume", "m³", "12.565")
+        );
 
         let r = &t.records[1];
         assert_eq!(r.function, "maximum");
