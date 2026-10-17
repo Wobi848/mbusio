@@ -5,6 +5,10 @@
 const UI = {
   de: {
     disconnected: "Getrennt",
+    nav_read: "Auslesen",
+    nav_config: "Einstellen",
+    nav_export: "Export",
+    nav_log: "Log",
     connection: "Verbindung",
     port: "Port",
     reload_ports: "Ports neu laden",
@@ -107,7 +111,7 @@ const UI = {
     raw_collision: "Gestörte Antwort",
     raw_frame: "Telegramm",
     readings_export: "Messwerte & Export",
-    readings_count: (n) => `${n} Auslesung${n === 1 ? "" : "en"} gespeichert`,
+    readings_count: (n) => `Auslesung${n === 1 ? "" : "en"} gespeichert`,
     delete: "Löschen",
     telegram_log: "Telegramm-Log",
     clear_log: "Log leeren",
@@ -145,6 +149,10 @@ const UI = {
   },
   en: {
     disconnected: "Disconnected",
+    nav_read: "Read",
+    nav_config: "Configure",
+    nav_export: "Export",
+    nav_log: "Log",
     connection: "Connection",
     port: "Port",
     reload_ports: "Reload ports",
@@ -247,7 +255,7 @@ const UI = {
     raw_collision: "Corrupted reply",
     raw_frame: "Telegram",
     readings_export: "Readings & export",
-    readings_count: (n) => `${n} reading${n === 1 ? "" : "s"} stored`,
+    readings_count: (n) => `reading${n === 1 ? "" : "s"} stored`,
     delete: "Delete",
     telegram_log: "Telegram log",
     clear_log: "Clear log",
@@ -404,6 +412,8 @@ function updateButtons() {
   document.querySelectorAll(".needs-conn").forEach((b) => (b.disabled = !connected || jobRunning));
   $("connect").disabled = jobRunning;
   $("disconnect").disabled = !connected || jobRunning;
+  $("connect").hidden = connected;
+  $("disconnect").hidden = !connected;
   $("scan-cancel").hidden = !jobRunning;
 }
 
@@ -423,15 +433,10 @@ async function refreshStatus() {
   connBaud = s.connection?.baud ?? null;
   jobRunning = s.job_running;
   const badge = $("conn-badge");
-  if (connected) {
-    const c = s.connection;
-    badge.textContent = `${c.port} · ${c.baud} Bd`;
-    badge.className = "badge on";
-  } else {
-    badge.textContent = t("disconnected");
-    badge.className = "badge off";
-  }
-  $("readings-count").textContent = t("readings_count", s.readings);
+  const c = s.connection;
+  badge.className = connected ? "chip on" : "chip off";
+  badge.querySelector(".chip-text").textContent = connected ? `${c.port} · ${c.baud} Bd` : t("disconnected");
+  $("readings-count").innerHTML = `<b>${s.readings}</b>${esc(t("readings_count", s.readings))}`;
   $("meters-file").textContent = s.meters_file ? t("meters_file", s.meters_file) : "";
   updateButtons();
   if (jobRunning) pollJob();
@@ -459,6 +464,8 @@ $("refresh-ports").onclick = () => loadPorts().catch((e) => toast(e.message, tru
 // ------------------------------------------------------------ Scan
 
 let polling = false;
+let renderedJob = null;
+let renderedHits = 0;
 
 async function pollJob() {
   if (polling) return;
@@ -500,9 +507,15 @@ function renderJob(job) {
   }
   $("job").hidden = false;
   const p = $("job-progress");
-  p.max = Math.max(job.total, 1);
-  p.value = job.done;
-  $("job-msg").textContent = `${t("job_" + job.kind)}: ${job.message} · ${t("found", job.hits.length)}`;
+  const frac = job.total ? Math.min(job.done / job.total, 1) : 0;
+  p.querySelector(".bar-fill").style.transform = `scaleX(${job.running ? frac : 1})`;
+  p.classList.toggle("running", job.running);
+  p.setAttribute("aria-valuenow", Math.round(frac * 100));
+  $("job-msg").innerHTML = `<b>${esc(t("job_" + job.kind))}</b>${esc(job.message)} · ${esc(t("found", job.hits.length))}`;
+  // nur neu hinzugekommene Treffer einblenden, nicht bei jeder Abfrage alle
+  const fresh = job.kind === renderedJob && job.hits.length >= renderedHits ? renderedHits : 0;
+  renderedJob = job.kind;
+  renderedHits = job.hits.length;
   const table = $("hits");
   table.hidden = job.hits.length === 0;
   document.querySelector(".hits-opt").hidden = table.hidden;
@@ -512,7 +525,10 @@ function renderJob(job) {
     ? ["col_primary", "col_secondary", "col_manufacturer", "col_medium", "col_status", ""]
     : ["col_primary", "col_id", "col_manufacturer", "col_version", "col_medium", "col_status", ""];
   cols.splice(1, 0, "col_baud");
-  table.querySelector("thead").innerHTML = `<tr>${cols.map((c) => `<th>${c && t(c)}</th>`).join("")}</tr>`;
+  const numCols = ["col_primary", "col_baud", "col_version"];
+  table.querySelector("thead").innerHTML = `<tr>${cols
+    .map((c) => `<th${numCols.includes(c) ? ' class="num"' : ""}>${c && t(c)}</th>`)
+    .join("")}</tr>`;
   table.querySelector("tbody").innerHTML = job.hits
     .map((h, i) => {
       const target = h.status === "ok" ? h.secondary_address || h.primary_address : "";
@@ -521,17 +537,18 @@ function renderJob(job) {
         <td>${esc(h.manufacturer ?? "")}</td>`
         : `<td class="mono">${esc(h.id ?? "–")}</td>
         <td>${esc(h.manufacturer ?? "")}</td>
-        <td class="num">${h.version ?? ""}</td>`;
+        <td class="num mono">${h.version ?? ""}</td>`;
       const other = h.baud && h.baud !== connBaud;
-      return `<tr>
-        <td class="num">${h.primary_address ?? "–"}</td>
-        <td class="num${other ? " st-collision" : ""}">${h.baud ?? ""}</td>
+      const anim = i >= fresh ? ` class="new" style="animation-delay:${Math.min(i - fresh, 8) * 50}ms"` : "";
+      return `<tr${anim}>
+        <td class="num mono">${h.primary_address ?? "–"}</td>
+        <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
         ${sa}
         <td>${esc(label(h.medium))}</td>
-        <td class="st-${h.status}">${t("st_" + h.status)}</td>
+        <td><span class="chip st-${h.status}">${t("st_" + h.status)}</span></td>
         <td><div class="actions">${
           target !== ""
-            ? `<button class="small ghost needs-conn" data-read="${esc(target)}" data-baud="${h.baud ?? ""}">${t("read")}</button>
+            ? `<button class="small quiet needs-conn" data-read="${esc(target)}" data-baud="${h.baud ?? ""}">${t("read")}</button>
                <button class="small ghost" data-remember="${i}">${t("remember")}</button>`
             : ""
         }</div></td>
@@ -548,10 +565,12 @@ $("sa-raw").onchange = () => {
 };
 
 $("hits").addEventListener("click", (ev) => {
-  const d = ev.target.dataset || {};
+  const btn = ev.target.closest("button");
+  if (!btn) return;
+  const d = btn.dataset;
   if (d.remember !== undefined) {
     const h = lastJob.hits[Number(d.remember)];
-    guarded(ev.target, async () => {
+    guarded(btn, async () => {
       await api("meters", {
         method: "POST",
         body: {
@@ -631,6 +650,15 @@ function renderReading(r) {
     .filter(([, v]) => v !== undefined && v !== null)
     .map(([k, v]) => `<div><span>${t(k)}</span><span class="mono">${esc(v)}</span></div>`)
     .join("");
+  // erster Datensatz gross, meist der Hauptzählerstand
+  const first = r.records[0];
+  const hero = first
+    ? `<div class="hero">
+        <span class="hero-label">${esc(label(first.quantity))} · ${esc(label(first.function))}</span>
+        <div class="hero-value"><span class="mono">${esc(first.value_text)}</span><span class="unit">${esc(first.unit)}</span></div>
+        <span class="hero-sub">${esc([h.manufacturer, h.medium && label(h.medium), r.timestamp].filter(Boolean).join(" · "))}</span>
+      </div>`
+    : "";
   const rows = r.records
     .map((x, i) => {
       const extra = [];
@@ -639,19 +667,19 @@ function renderReading(r) {
       if (x.subunit) extra.push(`${t("subunit")} ${x.subunit}`);
       const notes = x.notes.length ? ` (${x.notes.map(label).join(", ")})` : "";
       return `<tr>
-        <td class="num">${i + 1}</td>
+        <td class="num mono dim">${i + 1}</td>
         <td>${esc(label(x.quantity) + notes)}</td>
-        <td class="num mono">${esc(x.value_text)}</td>
+        <td class="num mono strong">${esc(x.value_text)}</td>
         <td>${esc(x.unit)}</td>
-        <td>${esc(label(x.function))}${extra.length ? " · " + extra.join(", ") : ""}</td>
-        <td class="mono">${esc(x.dif)} | ${esc(x.vif)}</td>
+        <td class="dim">${esc(label(x.function))}${extra.length ? " · " + extra.join(", ") : ""}</td>
+        <td class="mono dim">${esc(x.dif)} | ${esc(x.vif)}</td>
       </tr>`;
     })
     .join("");
   $("reading").innerHTML = `
-    <div class="meta">${meta}</div>
+    <div class="${hero ? "reading-top" : ""}">${hero}<div class="meta">${meta}</div></div>
     <div class="table-wrap"><table class="reading-table">
-      <thead><tr><th>#</th><th>${t("th_desc")}</th><th>${t("th_value")}</th><th>${t("th_unit")}</th><th>${t("th_kind")}</th><th>DIF | VIF</th></tr></thead>
+      <thead><tr><th>#</th><th>${t("th_desc")}</th><th class="num">${t("th_value")}</th><th>${t("th_unit")}</th><th>${t("th_kind")}</th><th>DIF | VIF</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
 }
@@ -662,7 +690,7 @@ async function readMeter(baud = null) {
     const address = $("read-addr").value.trim();
     if (!address) throw new Error(t("enter_address"));
     lastReading = null;
-    $("reading").innerHTML = `<p class="hint">${t("reading_busy")}</p>`;
+    $("reading").innerHTML = `<p class="loading"><span class="spin"></span>${t("reading_busy")}</p>`;
     try {
       renderReading(await api("read", { method: "POST", body: { address, baud } }));
       await refreshStatus();
@@ -743,6 +771,12 @@ $("app-reset").onclick = () =>
 let meters = [];
 let editingId = null;
 
+const svg = (d) =>
+  `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON_EDIT = svg('<path d="M4 20h4L19 9l-4-4L4 16z"/>');
+const ICON_DEL = svg('<path d="M6 6l12 12M18 6L6 18"/>');
+const ICON_ALERT = svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/>');
+
 async function loadMeters() {
   meters = await api("meters");
   renderMeters();
@@ -758,18 +792,18 @@ function renderMeters() {
       const info = [m.meter_id !== m.address ? m.meter_id : null, m.manufacturer].filter(Boolean).join(" · ");
       const sub = (text) => (text ? `<span class="sub">${esc(text)}</span>` : "");
       return `<tr>
-        <td class="wrap">${esc(m.name || "–")}${sub(m.note)}</td>
+        <td class="wrap"><span class="name">${esc(m.name || "–")}</span>${sub(m.note)}</td>
         <td class="wrap">${esc(m.location)}</td>
         <td class="mono">${esc(m.address)}${sub(info)}</td>
         <td>${esc(label(m.medium))}</td>
-        <td class="num">${m.baud ?? ""}</td>
-        <td class="wrap">${esc(m.last_value ?? "")}${sub(
+        <td class="num mono">${m.baud ?? ""}</td>
+        <td class="wrap">${m.last_value ? `<span class="val">${esc(m.last_value)}</span>` : ""}${sub(
           [m.last_value ? label(m.last_quantity) : "", m.last_read].filter(Boolean).join(" · ")
-        )}${m.last_error ? `<span class="err">${esc(m.last_error)}</span>` : ""}</td>
+        )}${m.last_error ? `<span class="err">${ICON_ALERT}${esc(m.last_error)}</span>` : ""}</td>
         <td><div class="actions">
-          <button class="small ghost needs-conn" data-meter-read="${m.id}">${t("read")}</button>
-          <button class="small ghost" data-meter-edit="${m.id}">${t("edit")}</button>
-          <button class="small ghost" data-meter-del="${m.id}" title="${esc(t("delete"))}">✕</button>
+          <button class="small quiet needs-conn" data-meter-read="${m.id}">${t("read")}</button>
+          <button class="icon-btn" data-meter-edit="${m.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
+          <button class="icon-btn del" data-meter-del="${m.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>
         </div></td>
       </tr>`;
     })
@@ -812,13 +846,15 @@ $("meter-form").onsubmit = (ev) => {
 };
 
 $("meters-table").addEventListener("click", (ev) => {
-  const d = ev.target.dataset || {};
+  const btn = ev.target.closest("button");
+  if (!btn) return;
+  const d = btn.dataset;
   const m = meters.find((x) => String(x.id) === (d.meterRead ?? d.meterEdit ?? d.meterDel));
   if (!m) return;
   if (d.meterEdit) return openMeterForm(m);
   if (d.meterDel) {
     if (!confirm(t("confirm_delete_meter", m.name || m.address))) return;
-    guarded(ev.target, async () => {
+    guarded(btn, async () => {
       await api("meters/" + m.id, { method: "DELETE" });
       await loadMeters();
     });
@@ -827,8 +863,8 @@ $("meters-table").addEventListener("click", (ev) => {
   // Auslesen mit der Baudrate des Zählers, Ergebnis im Bereich "Zähler auslesen"
   $("read-addr").value = m.address;
   $("set-old").value = m.address;
-  guarded(ev.target, async () => {
-    $("reading").innerHTML = `<p class="hint">${t("reading_busy")}</p>`;
+  guarded(btn, async () => {
+    $("reading").innerHTML = `<p class="loading"><span class="spin"></span>${t("reading_busy")}</p>`;
     try {
       renderReading(await api(`meters/${m.id}/read`, { method: "POST" }));
     } catch (e) {
