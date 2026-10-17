@@ -197,6 +197,14 @@ impl Store {
         Ok(out)
     }
 
+    /// Alle Zähler entfernen. Liefert die Anzahl.
+    pub fn clear(&mut self) -> Result<usize> {
+        let n = self.meters.len();
+        self.meters.clear();
+        self.save()?;
+        Ok(n)
+    }
+
     pub fn remove(&mut self, id: u64) -> Result<()> {
         self.get_mut(id)?;
         self.meters.retain(|m| m.id != id);
@@ -296,6 +304,8 @@ mod tests {
         assert_eq!(b.id, 2);
         assert!(s.update(b.id, meter("12345678")).is_err());
         assert_eq!(s.import(vec![meter("5"), meter("6")]).unwrap(), 1);
+        assert_eq!(s.clear().unwrap(), 3);
+        assert!(s.list().is_empty());
     }
 
     #[test]

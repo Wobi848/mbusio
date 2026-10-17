@@ -113,6 +113,9 @@ const UI = {
     meters_empty: "Noch keine Zähler. In der Scan-Liste „Merken“ klicken oder „Zähler hinzufügen“.",
     meter_add: "Zähler hinzufügen",
     meters_read_all: "Alle auslesen",
+    meters_clear: "Liste leeren",
+    confirm_meters_clear: (n) => `Alle ${n} Zähler aus der Liste löschen?\n\nDas lässt sich nicht rückgängig machen. Tipp: vorher „Exportieren“.`,
+    meters_cleared: (n) => `${n} Zähler gelöscht`,
     export: "Exportieren",
     import: "Importieren",
     meter_name: "Name",
@@ -288,6 +291,9 @@ const UI = {
     meters_empty: "No meters yet. Click “Remember” in the scan list or “Add meter”.",
     meter_add: "Add meter",
     meters_read_all: "Read all",
+    meters_clear: "Clear list",
+    confirm_meters_clear: (n) => `Delete all ${n} meters from the list?\n\nThis cannot be undone. Tip: “Export” first.`,
+    meters_cleared: (n) => `${n} meters deleted`,
     export: "Export",
     import: "Import",
     meter_name: "Name",
@@ -1096,6 +1102,7 @@ async function loadMeters() {
 function renderMeters() {
   const table = $("meters-table");
   table.hidden = meters.length === 0;
+  $("meters-clear").hidden = meters.length === 0;
   $("meters-empty").hidden = meters.length > 0;
   table.querySelector("tbody").innerHTML = meters
     .map((m) => {
@@ -1187,6 +1194,16 @@ $("meters-table").addEventListener("click", (ev) => {
     }
   });
 });
+
+$("meters-clear").onclick = () => {
+  if (!confirm(t("confirm_meters_clear", meters.length))) return;
+  guarded($("meters-clear"), async () => {
+    const r = await api("meters", { method: "DELETE" });
+    $("meter-form").hidden = true;
+    toast(t("meters_cleared", r.removed));
+    await loadMeters();
+  });
+};
 
 $("meters-read-all").onclick = () =>
   guarded($("meters-read-all"), async () => {

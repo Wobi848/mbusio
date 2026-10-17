@@ -173,7 +173,10 @@ pub fn router(state: AppState) -> Router {
         .route("/api/free-address", post(free_address))
         .route("/api/reset", post(app_reset))
         .route("/api/raw", post(raw_send))
-        .route("/api/meters", get(meters_list).post(meters_add))
+        .route(
+            "/api/meters",
+            get(meters_list).post(meters_add).delete(meters_clear),
+        )
         .route("/api/meters/{id}", put(meters_update).delete(meters_remove))
         .route("/api/meters/read-all", post(meters_read_all))
         .route("/api/meters/{id}/read", post(meters_read_one))
@@ -649,6 +652,11 @@ async fn meters_update(
     Ok(Json(
         st.meters.lock().unwrap().update(id, m).map_err(bad_request)?,
     ))
+}
+
+async fn meters_clear(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let n = st.meters.lock().unwrap().clear().map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "removed": n })))
 }
 
 async fn meters_remove(
