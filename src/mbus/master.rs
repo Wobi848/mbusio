@@ -736,6 +736,23 @@ impl Master {
         self.scan_bauds(&list, progress, scan)
     }
 
+    /// Erste Primäradresse ab `from`, auf der niemand antwortet (zweimal gefragt).
+    /// `skip`: schon bekannte belegte Adressen, die gar nicht erst abgefragt werden.
+    pub fn free_primary(&mut self, from: u8, skip: &[u8]) -> Result<u8> {
+        for a in from.max(1)..=250 {
+            if skip.contains(&a) {
+                continue;
+            }
+            if matches!(self.ping(a)?, Reply::None) && matches!(self.ping(a)?, Reply::None) {
+                return Ok(a);
+            }
+        }
+        bail!(tr(
+            "Keine freie Primäradresse gefunden",
+            "No free primary address found"
+        ))
+    }
+
     /// Application Reset (CI 50), optional mit Subcode.
     pub fn application_reset(&mut self, target: &Target, subcode: Option<u8>) -> Result<()> {
         if let Target::Primary(a) = target {

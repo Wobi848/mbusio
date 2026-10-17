@@ -698,4 +698,12 @@ mod tests {
                 .scan_primary(6, 6, 0, p))
             .is_err());
     }
+
+    #[test]
+    fn free_primary_skips_meters_without_data() {
+        let mut m = master();
+        // 1..5 und 7 belegt (4 und 5 liefern keine Daten, antworten aber), 6 läuft mit anderer Baudrate
+        assert_eq!(m.free_primary(1, &[]).unwrap(), 6);
+        assert_eq!(m.free_primary(1, &[6]).unwrap(), 8);
+    }
 }

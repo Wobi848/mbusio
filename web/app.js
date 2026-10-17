@@ -38,6 +38,16 @@ const UI = {
       "„Prüfen“ fragt in wenigen Sekunden alle Baudraten ab und markiert die, auf denen Geräte antworten (●). Gescannt wird nur auf den markierten Baudraten.",
     bauds_all: "Alle",
     busbar_view: "Ansehen",
+    dup_pa: "PA doppelt",
+    dup_id: "ID doppelt",
+    dup_pa_title: (pa, n) => `${n} Zähler stehen auf PA ${pa}. Über die ID neu adressieren.`,
+    dup_id_title: "Mehrere Zähler mit dieser ID: über die volle Sekundäradresse ansprechen.",
+    fix_pa: "PA ändern",
+    warn_title: "Auffälligkeiten",
+    warn_dup_pa: (pa, b, ids) => `PA ${pa} (${b} Bd): ${ids.length} Zähler – ${ids.join(", ")}`,
+    warn_dup_id: (id, n) => `ID ${id}: ${n} Zähler`,
+    warn_other_baud: (n, b) => `${n} Zähler nicht auf der eingestellten Baudrate (${b} Bd)`,
+    warn_fix_hint: "„PA ändern“ sucht eine freie Adresse auf dem Bus und trägt sie mit der ID unter „Zähler einstellen“ ein.",
     job_done: (k, n) => `${k} fertig · ${n} Treffer`,
     job_cancelled: (k, n) => `${k} abgebrochen · ${n} Treffer`,
     busy_read: "Lese Zähler …",
@@ -46,6 +56,7 @@ const UI = {
     busy_detect: "Suche Baudrate …",
     busy_reset: "Sende Reset …",
     busy_raw: "Sende Telegramm …",
+    busy_free: "Suche freie Primäradresse …",
     bauds_none: "Keine",
     bus_bauds: "Prüfen",
     pick_baud: "Für den Scan mindestens eine Baudrate markieren",
@@ -202,6 +213,16 @@ const UI = {
       "“Check” polls all baud rates in a few seconds and selects those where devices answer (●). The scan only runs at the selected baud rates.",
     bauds_all: "All",
     busbar_view: "View",
+    dup_pa: "Duplicate PA",
+    dup_id: "Duplicate ID",
+    dup_pa_title: (pa, n) => `${n} meters are on PA ${pa}. Readdress them by ID.`,
+    dup_id_title: "Several meters with this ID: use the full secondary address.",
+    fix_pa: "Change PA",
+    warn_title: "Issues",
+    warn_dup_pa: (pa, b, ids) => `PA ${pa} (${b} Bd): ${ids.length} meters – ${ids.join(", ")}`,
+    warn_dup_id: (id, n) => `ID ${id}: ${n} meters`,
+    warn_other_baud: (n, b) => `${n} meters not at the configured baud rate (${b} Bd)`,
+    warn_fix_hint: "“Change PA” finds a free address on the bus and fills it in with the ID under “Configure meter”.",
     job_done: (k, n) => `${k} done · ${n} hits`,
     job_cancelled: (k, n) => `${k} cancelled · ${n} hits`,
     busy_read: "Reading meter …",
@@ -210,6 +231,7 @@ const UI = {
     busy_detect: "Detecting baud rate …",
     busy_reset: "Sending reset …",
     busy_raw: "Sending telegram …",
+    busy_free: "Looking for a free primary address …",
     bauds_none: "None",
     bus_bauds: "Check",
     pick_baud: "Select at least one baud rate for the scan",
@@ -417,6 +439,7 @@ const BUS_ACTIONS = [
   [/^detect-baud$/, "busy_detect", "#sec-config"],
   [/^reset$/, "busy_reset", "#sec-config"],
   [/^raw$/, "busy_raw", "#sec-log"],
+  [/^free-address$/, "busy_free", "#sec-config"],
 ];
 
 async function api(path, options = {}) {
@@ -619,9 +642,8 @@ async function pollJob() {
           done: true,
           error: !!job.error,
         });
+        // Erfolg meldet die Leiste unten, nur Fehler zusätzlich als Toast
         if (job.error) toast(job.error, true);
-        else if (job.kind === "read_all") toast(t("read_all_done"));
-        else toast(`${t("job_" + job.kind)}: ${t("hits", job.hits.length)}`);
         break;
       }
       await new Promise((r) => setTimeout(r, 600));
@@ -632,6 +654,41 @@ async function pollJob() {
     polling = false;
     refreshStatus().catch(() => {});
   }
+}
+
+/// Auffälligkeiten: doppelte Primäradressen (je Baudrate), doppelte IDs, fremde Baudraten
+function analyzeHits(hits) {
+  const group = (key) => {
+    const m = new Map();
+    hits.forEach((h, i) => {
+      const k = key(h);
+      if (k !== null) m.set(k, [...(m.get(k) || []), i]);
+    });
+    return new Map([...m].filter(([, list]) => list.length > 1));
+  };
+  // Kollisionen aus dem Primärscan sind schon eine Zeile für sich, die zählen nicht doppelt
+  const dupPa = group((h) => (h.primary_address == null || h.status === "collision" ? null : `${h.baud}:${h.primary_address}`));
+  const dupId = group((h) => (h.id && /^[0-9]{8}$/.test(h.id) ? h.id : null));
+  const rowDupPa = new Set([...dupPa.values()].flat());
+  const rowDupId = new Set([...dupId.values()].flat());
+  const otherBaud = hits.filter((h) => h.baud && h.baud !== connBaud).length;
+  return { dupPa, dupId, rowDupPa, rowDupId, otherBaud };
+}
+
+function renderHitsWarn(hits, a) {
+  const items = [];
+  for (const [k, list] of a.dupPa) {
+    const [baud, pa] = k.split(":");
+    items.push(t("warn_dup_pa", pa, baud, list.map((i) => hits[i].id || "?")));
+  }
+  for (const [id, list] of a.dupId) items.push(t("warn_dup_id", id, list.length));
+  if (a.otherBaud) items.push(t("warn_other_baud", a.otherBaud, connBaud));
+  const el = $("hits-warn");
+  el.hidden = items.length === 0;
+  el.innerHTML = items.length
+    ? `<b>⚠ ${esc(t("warn_title"))}</b><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` +
+      (a.dupPa.size ? `<p class="hint">${esc(t("warn_fix_hint"))}</p>` : "")
+    : "";
 }
 
 function renderJob(job) {
@@ -663,6 +720,8 @@ function renderJob(job) {
   renderedHits = job.hits.length;
   const table = $("hits");
   table.hidden = job.hits.length === 0;
+  const issues = analyzeHits(job.hits);
+  renderHitsWarn(job.hits, issues);
   document.querySelector(".hits-opt").hidden = table.hidden;
   // Sekundäradresse lesbar zerlegt (ID, Version) oder roh als 16 Hex-Zeichen
   const raw = $("sa-raw").checked;
@@ -685,13 +744,25 @@ function renderJob(job) {
         <td class="num mono">${h.version ?? ""}</td>`;
       const other = h.baud && h.baud !== connBaud;
       const anim = i >= fresh ? ` class="new" style="animation-delay:${Math.min(i - fresh, 8) * 50}ms"` : "";
+      const dupPa = issues.rowDupPa.has(i);
+      const dupId = issues.rowDupId.has(i);
+      const paCount = dupPa ? issues.dupPa.get(`${h.baud}:${h.primary_address}`).length : 0;
+      const warnChips =
+        (dupPa ? ` <span class="chip st-collision" title="${esc(t("dup_pa_title", h.primary_address, paCount))}">${t("dup_pa")}</span>` : "") +
+        (dupId ? ` <span class="chip st-collision" title="${esc(t("dup_id_title"))}">${t("dup_id")}</span>` : "");
+      // PA ändern: lieber über die ID, bei doppelter ID über die volle Sekundäradresse
+      const fixTarget = dupId ? h.secondary_address : h.id || h.secondary_address;
+      const fix =
+        dupPa && fixTarget
+          ? `<button class="small ghost needs-conn" data-fix="${esc(fixTarget)}">${t("fix_pa")}</button>`
+          : "";
       return `<tr${anim}>
-        <td class="num mono">${h.primary_address ?? "–"}</td>
+        <td class="num mono${dupPa ? " st-other" : ""}"${dupPa ? ` title="${esc(t("dup_pa_title", h.primary_address, paCount))}"` : ""}>${h.primary_address ?? "–"}${dupPa ? " ⚠" : ""}</td>
         <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
         ${sa}
         <td>${esc(label(h.medium))}</td>
-        <td><span class="chip st-${h.status}">${t("st_" + h.status)}</span></td>
-        <td><div class="actions">${
+        <td><span class="chip st-${h.status}">${t("st_" + h.status)}</span>${warnChips}</td>
+        <td><div class="actions">${fix}${
           target !== ""
             ? `<button class="small quiet needs-conn" data-read="${esc(target)}" data-baud="${h.baud ?? ""}">${t("read")}</button>
                <button class="small ghost" data-remember="${i}">${t("remember")}</button>`
@@ -713,6 +784,21 @@ $("hits").addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
   if (!btn) return;
   const d = btn.dataset;
+  if (d.fix) {
+    // Zähler unter "Zähler einstellen" eintragen; freie Adresse fragt der Bus, nicht die Trefferliste:
+    // Zähler ohne Daten haben dort keine PA, belegen sie aber trotzdem
+    guarded(btn, async () => {
+      $("set-old").value = d.fix;
+      $("set-new").value = "";
+      const skip = [...new Set(lastJob.hits.map((h) => h.primary_address).filter((a) => a != null && a > 0))];
+      const r = await api("free-address", { method: "POST", body: { from: 1, skip } });
+      $("set-new").value = r.address;
+      document.getElementById("sec-config").scrollIntoView({ behavior: "smooth", block: "start" });
+      $("set-new").focus({ preventScroll: true });
+      $("set-new").select();
+    });
+    return;
+  }
   if (d.remember !== undefined) {
     const h = lastJob.hits[Number(d.remember)];
     guarded(btn, async () => {
@@ -943,6 +1029,13 @@ $("set-addr").onclick = () =>
     if (!confirm(t("confirm_set", address, newAddr))) return;
     await api("set-address", { method: "POST", body: { address, new_address: Number(newAddr) } });
     toast(t("address_set", newAddr));
+    // Trefferliste nachführen, damit die Warnung "PA doppelt" ohne neuen Scan verschwindet
+    const key = address.toUpperCase();
+    const hit = lastJob?.hits.find((h) => h.id === key || h.secondary_address === key || String(h.primary_address) === key);
+    if (hit && lastJob.kind !== "read_all") {
+      hit.primary_address = Number(newAddr);
+      renderJob(lastJob);
+    }
   });
 
 $("switch-baud").onclick = () =>

@@ -724,3 +724,17 @@ body.has-busbar #toast { bottom: 76px; }
   body.has-busbar { padding-bottom: 96px; }
   body.has-busbar #toast { bottom: 108px; }
 }
+
+/* Auffälligkeiten in der Trefferliste */
+.hits-warn {
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+}
+.hits-warn b { font-weight: 650; }
+.hits-warn ul { margin: 4px 0 0; padding-left: 18px; }
+.hits-warn .hint { color: inherit; margin-top: 6px; }
+td .chip + .chip { margin-left: 4px; }

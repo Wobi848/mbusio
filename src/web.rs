@@ -170,6 +170,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/switch-baud", post(switch_baud))
         .route("/api/detect-baud", post(detect_baud))
         .route("/api/bus-bauds", post(bus_bauds))
+        .route("/api/free-address", post(free_address))
         .route("/api/reset", post(app_reset))
         .route("/api/raw", post(raw_send))
         .route("/api/meters", get(meters_list).post(meters_add))
@@ -438,6 +439,24 @@ async fn scan_secondary(
     start_job(&st, "secondary", lang_of(&headers), move |m, p| {
         m.scan_with(bauds_of(req.bauds), p, &mut |m, p| m.scan_secondary(p))
     })
+}
+
+#[derive(Deserialize)]
+struct FreeAddressReq {
+    #[serde(default)]
+    from: u8,
+    /// bekannte belegte Adressen
+    #[serde(default)]
+    skip: Vec<u8>,
+}
+
+async fn free_address(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<FreeAddressReq>,
+) -> ApiResult<serde_json::Value> {
+    let address = with_bus(&st, lang_of(&headers), move |m| m.free_primary(req.from, &req.skip)).await?;
+    Ok(Json(json!({ "address": address })))
 }
 
 #[derive(Deserialize, Default)]
