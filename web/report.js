@@ -6,6 +6,7 @@ const TEXT = {
   de: {
     print: "Drucken / Als PDF speichern",
     with_details: "Alle Messwerte anhängen",
+    with_issues: "Auffälligkeiten anzeigen",
     changes: "Durchgeführte Änderungen",
     open_issues: "Offene Auffälligkeiten",
     project: "Projekt",
@@ -59,6 +60,7 @@ const TEXT = {
   en: {
     print: "Print / save as PDF",
     with_details: "Attach all readings",
+    with_issues: "Show issues",
     changes: "Changes made",
     open_issues: "Open issues",
     project: "Project",
@@ -218,7 +220,7 @@ function renderTable() {
   let n = 0;
   return data.gateways
     .flatMap((g) => g.lines.map((l) => ({ g, l })))
-    .filter(({ l }) => l.meters.length || l.issues?.count)
+    .filter(({ l }) => l.meters.length || (issuesShown() && l.issues?.count))
     .map(({ g, l }) => {
       const rows = l.meters
         .map(({ meter: m }) => {
@@ -243,7 +245,7 @@ function renderTable() {
         l.line.connection ? ` <span class="small inline">${esc(l.line.connection)} · ${l.line.baud} Bd</span>` : ""
       }</h3>`;
       // Linie ohne Zähler, aber mit Auffälligkeiten: keine leere Tabelle
-      if (!l.meters.length) return head + issuesBlock(l.issues);
+      if (!l.meters.length) return issuesShown() ? head + issuesBlock(l.issues) : "";
       return `${head}
       <table>
         <thead><tr>
@@ -258,8 +260,11 @@ function renderTable() {
 }
 
 /// Offene Auffälligkeiten der Linie aus dem letzten Scan
+/// Auffälligkeiten im Bericht zeigen? (Häkchen in der Werkzeugleiste, Standard ja)
+const issuesShown = () => $("show-issues").checked;
+
 function issuesBlock(issues) {
-  if (!issues?.count) return "";
+  if (!issues?.count || !issuesShown()) return "";
   return `<div class="issues"><b>${t("open_issues")} (${issues.count})</b><ul>${issues.items
     .map((x) => `<li>${esc(x)}</li>`)
     .join("")}</ul></div>`;
@@ -319,8 +324,8 @@ function render() {
     [t("date"), new Date().toLocaleString(lang === "de" ? "de-CH" : "en-GB")],
     [t("lines"), `${data.gateways.length} Gateway · ${lines} ${t("lines")}`],
     [t("count"), `${list.length} · ${ok} ${t("ok_count")}` + (err ? ` · ${err} ${t("err_count")}` : "")],
-    [t("open_issues"), String(open)],
-  ];
+    issuesShown() ? [t("open_issues"), String(open)] : null,
+  ].filter(Boolean);
   $("meta").innerHTML = meta.map(([k, v]) => `<span>${esc(k)}: <b>${esc(v)}</b></span>`).join("");
   $("table").innerHTML = renderTable();
   $("changes").innerHTML = renderChanges();
@@ -333,6 +338,11 @@ async function main() {
   document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
   document.title = `mbusio – ${t("title")}`;
   $("details").checked = get("report_details") === "1";
+  $("show-issues").checked = get("report_issues") !== "0";
+  $("show-issues").onchange = () => {
+    put("report_issues", $("show-issues").checked ? "1" : "0");
+    render();
+  };
   $("details").onchange = () => {
     put("report_details", $("details").checked ? "1" : "0");
     render();
