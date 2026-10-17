@@ -1768,6 +1768,8 @@ const ICON_ALERT = svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v
 async function loadMeters() {
   meters = await api("meters");
   renderMeters();
+  // Anzahl Zähler und letzte Auslesung je Linie in der Projekt-Karte mitführen
+  if (tree) await loadTree().catch(() => {});
 }
 
 function renderMeters() {
