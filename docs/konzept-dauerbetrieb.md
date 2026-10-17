@@ -16,6 +16,19 @@ Projekts regelmässig aus, speichert die Werte und gibt ausgewählte Werte an ei
 Ausfälle (Zähler, Linie, Gateway, Netzwerk, Strom) dürfen weder Daten verfälschen noch den Betrieb
 anhalten, und jede Störung muss sichtbar sein.
 
+**Rolle:** mbusio ist das **Gateway**. Raspberry Pi (oder Rechner) plus M-Bus-Master auf der einen
+Seite, das Leitsystem (GLT) auf der anderen. Das Leitsystem spricht nie direkt mit dem M-Bus,
+sondern holt die Werte über MQTT, Modbus oder BACnet von mbusio.
+
+```
+ Zähler ── M-Bus ── M-Bus-Master ── mbusio (Pi) ── LAN ── Leitsystem
+                                        │
+                                        └── Browser: Inbetriebnahme, Service, Bericht
+```
+
+**Vorrang:** Die Arbeit vor Ort (Scan, Auslesen, Beheben, Bericht) bleibt die **Hauptaufgabe**.
+Der Dauerbetrieb darf sie nie behindern.
+
 **Nicht Ziel:**
 - mbusio ersetzt kein Leitsystem (keine Alarmierung per SMS, keine Abrechnung).
 - Keine Steuerung von Zählern im Dauerbetrieb: Adressen, Baudraten usw. ändert nur ein Mensch.
@@ -92,9 +105,16 @@ Phase 1 behebt die ersten vier Punkte; Phase 2 den letzten.
 - **„Aktive Linie“ in der Oberfläche** bleibt, bedeutet aber nur noch „diese Linie sehe ich gerade
   an“, nicht mehr „nur diese ist verbunden“.
 
-> **Wichtig für Netzwerk-Gateways:** Viele M-Bus-Gateways erlauben nur **einen** TCP-Client
-> gleichzeitig. Fragt auch ein Leitsystem dasselbe Gateway ab, können nicht beide verbunden sein.
-> Das muss je Anlage geklärt werden (siehe offene Fragen).
+> **Randfall fremde Netzwerk-Gateways:** Hängt mbusio über ein fremdes M-Bus-TCP-Gateway am Bus
+> und fragt das Leitsystem dasselbe Gateway direkt ab, geht das oft nicht: viele dieser Gateways
+> erlauben nur einen TCP-Client. Im Normalfall (mbusio ist das Gateway) tritt das nicht auf.
+
+**Mengen:** mbusio setzt **keine künstlichen Grenzen** für Linien, Zähler oder Datenpunkte. Die
+echten Grenzen setzt die Physik: ein M-Bus-Master versorgt je nach Modell 3–250 Zähler, und eine
+Linie kann pro Tag nur so viele Auslesungen schaffen, wie Buszeit da ist (siehe Buslast-Prüfung).
+Mehrere Linien laufen parallel. Getestet wird gegen ein Referenzszenario von **20 Linien mit
+zusammen 2000 Zählern** auf einem Raspberry Pi 4; darüber hinaus soll es weiter funktionieren,
+nur ungetestet.
 
 ### 4.2 Wie oft auslesen?
 
@@ -181,17 +201,42 @@ Heute wird jede Auslesung vollständig als JSON abgelegt. Für den Dauerbetrieb:
 - Das bisherige JSON je Auslesung entfällt für geplante Auslesungen; manuelle Auslesungen
   speichern weiterhin vollständig (wenige, für Fehlersuche wertvoll).
 
-### 4.6 Zeitstempel
+### 4.6 Zeit
 
-- Massgeblich ist die **Zeit der Antwort** (Systemzeit), in UTC gespeichert.
+**Das Problem:** Ein Raspberry Pi hat keine eigene Uhr mit Batterie. Nach einem Stromausfall
+startet er mit der zuletzt gespeicherten Zeit weiter. Diese Zeit ist **plausibel, aber falsch**
+(um die Dauer des Ausfalls zu spät) – gefährlicher als eine offensichtlich falsche Zeit, weil man
+es den Werten nicht ansieht.
+
+**Zeitquellen** (eine oder mehrere, in dieser Reihenfolge bevorzugt):
+
+| Quelle | Wie | Bemerkung |
+| --- | --- | --- |
+| Zeitserver (NTP) im Anlagennetz | Leitsystem, Router oder Server liefert NTP | übliche Lösung in GLT-Netzen, kein Internet nötig |
+| **Leitsystem über das Protokoll** | BACnet TimeSynchronization/UTCTimeSynchronization; Modbus: Leitsystem schreibt Zeit in ein Register; MQTT: Zeit-Topic | kommt mit Phase 3–5 |
+| Echtzeituhr-Modul am Pi | RTC-Modul mit Knopfzelle (wenige Franken) | empfohlen, wenn keine andere Quelle zuverlässig ist |
+| Browser | „Uhrzeit vom Gerät übernehmen“ in der Oberfläche (Laptop/Handy des Technikers) | für Inbetriebnahme und Service |
+
+**Regeln:**
+- mbusio merkt sich, **woher und wann** die Uhrzeit zuletzt bestätigt wurde. Nach jedem Neustart
+  gilt die Zeit als **unsicher**, bis eine Quelle sie bestätigt (NTP, Leitsystem, RTC-Modul).
+- Geplante Auslesungen laufen auch bei unsicherer Zeit (die Zählerstände selbst sind richtig), aber
+  jeder Wert trägt dann das Merkmal **„Zeit unsicher“**, sichtbar in Oberfläche, Bericht und
+  Weitergabe. Wird die Zeit später bestätigt und lag sie daneben, werden die betroffenen Werte
+  nicht umgeschrieben, sondern bleiben markiert (Grundsatz 2).
+- Ohne jede Zeitquelle zeigt die Oberfläche dauerhaft „Uhrzeit nicht bestätigt“ mit den Optionen
+  oben.
+- Gespeichert wird in UTC, angezeigt in Ortszeit.
 - Zusätzlich wird die **Uhrzeit des Zählers** (falls im Telegramm) gespeichert. Weicht sie mehr als
-  15 Minuten ab, ist das eine Auffälligkeit („Uhr des Zählers falsch“) – wichtig bei
-  Stichtagswerten.
-- Ohne gültige Systemzeit (Pi ohne Netz und ohne Echtzeituhr startet z.B. im Jahr 1970) liest
-  mbusio **nicht zyklisch**, sondern meldet „Systemzeit ungültig“. Lieber keine Werte als Werte mit
-  falscher Zeit (Grundsatz 2).
+  15 Minuten von einer bestätigten Systemzeit ab, ist das eine Auffälligkeit („Uhr des Zählers
+  falsch“) – wichtig für Stichtagswerte. Umgekehrt kann eine stark abweichende Zählerzeit ein
+  Hinweis auf eine falsche Systemzeit sein.
 
 ## 5. Phase 1: Zyklisches Auslesen – Umfang
+
+**Zeit in Phase 1:** Erkennen, ob die Systemzeit von NTP/RTC bestätigt ist, „Uhrzeit vom Gerät
+übernehmen“ im Browser, Kennzeichnung „Zeit unsicher“. Zeit vom Leitsystem folgt mit dem
+jeweiligen Protokoll (Phase 3–5).
 
 **Einstellungen:** je Linie ein Standardplan (Aus · Monatlich · Täglich · Stündlich · 15 min, mit
 Uhrzeit bzw. Tag); je Zähler „wie Linie“ oder eigener Plan. Neue Linien: Plan „Aus“, damit nichts
@@ -222,11 +267,40 @@ ungewollt startet.
    nachgelesen, mit echtem Zeitstempel.
 8. Uhr springt (Zeit von Hand verstellen): Protokolleintrag, Termine richten sich neu aus,
    keine doppelten Zeitstempel.
+9. Neustart ohne Zeitquelle: Werte werden gelesen und als „Zeit unsicher“ gekennzeichnet; nach
+   „Uhrzeit vom Gerät übernehmen“ sind neue Werte wieder unmarkiert.
+10. Referenzszenario 20 Linien / 2000 Zähler (Simulator) auf einem Raspberry Pi 4: Oberfläche
+    bleibt bedienbar, alle täglichen Termine werden innerhalb einer Stunde erledigt.
 
 ## 6. Phase 2: Datenpunkte (was weitergegeben wird)
 
 Weitergegeben werden nicht „Zähler“, sondern **Datenpunkte**: ein bestimmter Wert eines bestimmten
-Zählers, z.B. „Whg. 3 Wärme – Energie aktuell (kWh)“.
+Zählers, z.B. „Whg. 3 Wärme – Energie aktuell (kWh)“. Was weitergegeben wird und wohin, muss
+**frei wählbar** sein – pro Datenpunkt, ohne Programmieren, und für grosse Anlagen schnell.
+
+### 6.1 Zuordnung (was geht wohin)
+
+Kern ist eine **Zuordnungstabelle**: Zeilen sind Datenpunkte, Spalten die Ausgänge.
+
+| Datenpunkt | Einheit | MQTT | Modbus | BACnet |
+| --- | --- | --- | --- | --- |
+| Whg 1 Wärme · Energie | kWh | ✓ | ✓ Reg. 100 | ✓ AI 1 |
+| Whg 1 Wärme · Vorlauftemperatur | °C | ✓ | – | ✓ AI 2 |
+| Allgemeinstrom · Energie Tarif 1 | kWh | – | ✓ Reg. 104 | – |
+
+- Ein Datenpunkt kann an **keinen, einen oder mehrere** Ausgänge gehen.
+- **Vorlagen** für schnelles Arbeiten: „bei allen Wärmezählern dieser Linie: Energie, Volumen,
+  Vorlauf, Rücklauf weitergeben“ – angewendet auf alle passenden Zähler, auch auf später
+  hinzukommende (einstellbar).
+- **Massenbearbeitung:** mehrere Datenpunkte markieren und gemeinsam einem Ausgang zuordnen.
+- **Als CSV exportieren und wieder importieren:** Für grosse Anlagen wird die Zuordnung in Excel
+  bearbeitet und zurückgespielt. Beim Import zeigt mbusio vorher, was sich ändert, und übernimmt
+  erst nach Bestätigung.
+- Adressen in den Protokollen (Modbus-Register, BACnet-Objektnummer, MQTT-Topic) vergibt mbusio
+  automatisch und **stabil**; sie können überschrieben werden.
+- Die Zuordnung gehört zum Projekt und wird mit exportiert.
+
+### 6.2 Eigenschaften eines Datenpunkts
 
 - **Auswahl** je Zähler aus seinen Werten (Liste wie in der Verlaufsansicht), mit Name und
   optionaler Umrechnung (z.B. Wh → kWh). Vorlage: Hauptwert automatisch vorgeschlagen.
@@ -293,19 +367,23 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 - Automatische Tests für jede Regel aus Abschnitt 4 (Überlappen, Nachholen, Wiederholen,
   „gestört nach 3“, Aufbewahrung).
 
-## 10. Offene Fragen (vor Phase 1 zu klären)
+## 10. Entscheidungen und offene Fragen
 
-1. **Standardplan:** täglich um 00:05 für alle neuen Linien, oder lieber „Aus“ bis man ihn
-   bewusst einschaltet? (Vorschlag: neue Linien „Aus“, beim Einschalten „täglich 00:05“ vorgeschlagen)
-2. **Wie viele Linien und Zähler** maximal pro Pi? (Planung: bis 10 Linien, bis 250 Zähler)
-3. **Teilen sich mbusio und ein Leitsystem ein Gateway?** Wenn ja, welches Gateway-Modell
-   (mehrere TCP-Clients möglich?)
-4. **Hat der Pi Internet bzw. einen Zeitserver**, oder braucht es eine Echtzeituhr (RTC-Modul)?
-5. **Aufbewahrung:** Bei häufigen Plänen 90 Tage alle Werte, danach Tageswerte – passt das?
-6. Sollen **manuelle Auslesungen** während eines geplanten Laufs erlaubt sein (Vorschlag: ja,
-   mit Vorrang)?
-7. Kennst du **Herstellergrenzen** für Auslesungen bei deinen Zählern? Damit liessen sich die
-   Hinweise genauer machen (z.B. je Hersteller eine Empfehlung).
+**Entschieden** (17.10.2026):
+- mbusio ist das Gateway; das Leitsystem holt die Werte bei mbusio.
+- Keine künstlichen Mengengrenzen; Referenztest 20 Linien / 2000 Zähler.
+- Pi ohne Internet und Zeitserver muss funktionieren; Zeit bevorzugt vom Leitsystem bzw. NTP im
+  Anlagennetz, sonst RTC-Modul oder Browser; unsichere Zeit wird gekennzeichnet.
+- Manuelle Arbeit hat immer Vorrang vor geplanten Auslesungen.
+- Weitergabe frei wählbar pro Datenpunkt und Ausgang, mit Vorlagen und CSV-Bearbeitung.
+
+**Offen:**
+1. **Standardplan:** neue Linien „Aus“, beim Einschalten „täglich 00:05“ vorgeschlagen – einverstanden?
+2. **Herstellergrenzen** für Auslesungen herausfinden (Datenblätter der häufigsten Zähler); bis
+   dahin gilt der Hinweis für Batteriezähler nach Medium.
+3. **Aufbewahrung:** bei häufigen Plänen 90 Tage alle Werte, danach Tageswerte – passt das?
+4. Welche **Leitsysteme/Protokolle** kommen am häufigsten vor? Bestimmt die Reihenfolge der
+   Phasen 3–5 und welche Zeitquelle zuerst kommt.
 
 ## 11. Phasenplan
 
