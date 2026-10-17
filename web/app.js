@@ -68,7 +68,23 @@ const UI = {
     warn_dup_id: (id, n) => `ID ${id}: ${n} Zähler mit gleicher ID und gleichem Hersteller – vom Hersteller umprogrammieren lassen`,
     warn_collision_pa: (pa, b) => `PA ${pa} (${b} Bd): mehrere Zähler antworten gleichzeitig – Empfehlung: Sekundärscan, dann „PA ändern“`,
     warn_collision_id: (id) => `ID ${id}: mehrere Zähler mit derselben ID – mit dem Primärscan einzeln finden`,
-    warn_no_data: (n) => `${n} Zähler antworten, liefern aber keine brauchbaren Daten – Telegramm-Log prüfen`,
+    warn_no_data: (n) => `${n} Zähler antworten, liefern aber keine brauchbaren Daten – „Warum?“ in der Zeile zeigt die Ursache`,
+    why: "Warum?",
+    why_tip: "Was tun:",
+    why_raw: "Empfangen",
+    why_unknown: ["Keine genauere Ursache bekannt.", "Telegramm-Log öffnen und die Zeilen zu diesem Zähler ansehen."],
+    why_collision: ["Mehrere Zähler antworten gleichzeitig auf diese Adresse.", "Sekundärscan starten, dann bei den doppelten Zählern „PA ändern“."],
+    why_checksum: ["Die Prüfsumme stimmt nicht: Bytes wurden unterwegs verfälscht.", "Verkabelung, Klemmen und Abschirmung prüfen. Langsamere Baudrate versuchen (z.B. 2400 statt 9600). Zu viele Zähler oder zu lange Leitung für den Pegelwandler?"],
+    why_stop: ["Das Endezeichen fehlt: das Telegramm ist gestört.", "Verkabelung und Abschirmung prüfen, langsamere Baudrate versuchen."],
+    why_garbled: ["Unlesbare Antwort: Störung oder mehrere Zähler gleichzeitig.", "Mit dem Sekundärscan prüfen, ob mehrere Zähler auf der Adresse sind. Sonst Verkabelung prüfen."],
+    why_truncated: ["Das Telegramm ist abgeschnitten: der Rest kam nicht an.", "Unter Verbindung den Timeout erhöhen (z.B. 1000 ms) und neu verbinden. Sonst Verkabelung prüfen."],
+    why_no_reply: ["Der Zähler meldet sich, schickt aber keine Daten.", "Später nochmal versuchen. Manche Zähler brauchen nach dem Einschalten Zeit oder haben das Auslesen gesperrt (Hersteller-Doku)."],
+    why_unexpected: ["Der Zähler antwortet mit einem unerwarteten Telegramm.", "Telegramm analysieren lassen. Evtl. kein Standard-M-Bus-Zähler."],
+    why_wrong_address: (a) => [`Der Zähler antwortet mit Adresse ${a} statt mit der abgefragten.`, "Zähler ist falsch konfiguriert. Über die Sekundäradresse ansprechen und mit „PA ändern“ neu setzen."],
+    why_app_error: (code, text) => [`Der Zähler meldet selbst einen Fehler: ${text} (Code ${code}).`, code === "08" ? "Später nochmal auslesen." : "Fehlercode in der Hersteller-Doku nachschlagen."],
+    why_decode: ["Die Daten lassen sich nicht lesen (unbekanntes Format).", "Telegramm analysieren lassen. Evtl. herstellerspezifisches Format."],
+    why_same_id: ["Mehrere Zähler haben dieselbe ID und sind über die ID allein nicht trennbar.", "Mit dem Primärscan einzeln finden. Bei gleichem Hersteller: vom Hersteller umprogrammieren lassen."],
+    app_errors: { "00": "nicht näher bezeichnet", "01": "Funktion nicht unterstützt", "02": "Puffer zu lang", "03": "zu viele Datensätze", "04": "Datensatz vorzeitig beendet", "05": "mehr als 10 DIFE", "06": "mehr als 10 VIFE", "08": "Zähler beschäftigt", "09": "zu viele Auslesungen" },
     start_secondary: "Sekundärscan starten",
     warn_other_baud: (n, b) => `${n} Zähler nicht auf der eingestellten Baudrate (${b} Bd) – Empfehlung: „Baudrate ändern“`,
     warn_fix_hint: "„PA ändern“ sucht eine freie Adresse auf dem Bus und trägt sie mit der ID unter „Zähler einstellen“ ein.",
@@ -272,7 +288,23 @@ const UI = {
     warn_dup_id: (id, n) => `ID ${id}: ${n} meters with the same ID and manufacturer – have the manufacturer reprogram them`,
     warn_collision_pa: (pa, b) => `PA ${pa} (${b} Bd): several meters answer at once – recommendation: secondary scan, then “Change PA”`,
     warn_collision_id: (id) => `ID ${id}: several meters with the same ID – find them one by one with the primary scan`,
-    warn_no_data: (n) => `${n} meter(s) answer but deliver no usable data – check the telegram log`,
+    warn_no_data: (n) => `${n} meter(s) answer but deliver no usable data – “Why?” in the row shows the cause`,
+    why: "Why?",
+    why_tip: "What to do:",
+    why_raw: "Received",
+    why_unknown: ["No more specific cause known.", "Open the telegram log and look at the lines for this meter."],
+    why_collision: ["Several meters answer at once on this address.", "Run a secondary scan, then “Change PA” on the duplicate meters."],
+    why_checksum: ["The checksum is wrong: bytes were corrupted on the way.", "Check wiring, terminals and shielding. Try a slower baud rate (e.g. 2400 instead of 9600). Too many meters or too long a line for the level converter?"],
+    why_stop: ["The stop byte is missing: the telegram is corrupted.", "Check wiring and shielding, try a slower baud rate."],
+    why_garbled: ["Unreadable reply: noise or several meters at once.", "Use the secondary scan to check for several meters on the address. Otherwise check wiring."],
+    why_truncated: ["The telegram is cut off: the rest did not arrive.", "Increase the timeout under Connection (e.g. 1000 ms) and reconnect. Otherwise check wiring."],
+    why_no_reply: ["The meter answers but sends no data.", "Try again later. Some meters need time after power-up or have reading disabled (manufacturer docs)."],
+    why_unexpected: ["The meter answers with an unexpected telegram.", "Have the telegram analysed. Possibly not a standard M-Bus meter."],
+    why_wrong_address: (a) => [`The meter answers with address ${a} instead of the one asked.`, "The meter is misconfigured. Address it by secondary address and set a new PA with “Change PA”."],
+    why_app_error: (code, text) => [`The meter itself reports an error: ${text} (code ${code}).`, code === "08" ? "Read it again later." : "Look up the error code in the manufacturer docs."],
+    why_decode: ["The data cannot be read (unknown format).", "Have the telegram analysed. Possibly a manufacturer-specific format."],
+    why_same_id: ["Several meters share this ID and cannot be told apart by ID alone.", "Find them one by one with the primary scan. Same manufacturer: have them reprogrammed."],
+    app_errors: { "00": "unspecified", "01": "function not supported", "02": "buffer too long", "03": "too many records", "04": "premature end of record", "05": "more than 10 DIFEs", "06": "more than 10 VIFEs", "08": "meter busy", "09": "too many readouts" },
     start_secondary: "Start secondary scan",
     warn_other_baud: (n, b) => `${n} meter(s) not at the configured baud rate (${b} Bd) – recommendation: “Change baud rate”`,
     warn_fix_hint: "“Change PA” finds a free address on the bus and fills it in with the ID under “Configure meter”.",
@@ -740,6 +772,42 @@ async function pollJob() {
   }
 }
 
+/// Ursache eines Treffers in einfachen Worten: [was ist los, was tun]
+function explainReason(reason) {
+  const [key, arg] = (reason || "").split(":");
+  switch (key) {
+    case "wrong_address":
+      return t("why_wrong_address", arg);
+    case "app_error":
+      return t("why_app_error", arg, t("app_errors")[arg] || "?");
+    case "collision":
+    case "checksum":
+    case "stop":
+    case "garbled":
+    case "truncated":
+    case "no_reply":
+    case "unexpected":
+    case "decode":
+    case "same_id":
+      return t("why_" + key);
+    default:
+      return t("why_unknown");
+  }
+}
+
+/// geöffnete "Warum?"-Zeilen, bleiben beim Neuzeichnen offen
+const openWhy = new Set();
+const hitKey = (h) => `${h.baud}:${h.primary_address}:${h.secondary_address}`;
+
+function whyRow(h, cols) {
+  const [what, tip] = explainReason(h.reason);
+  return `<tr class="why-row"><td colspan="${cols}"><div class="why">
+    <p><b>${esc(what)}</b></p>
+    <p><span class="why-label">${esc(t("why_tip"))}</span> ${esc(tip)}</p>
+    ${h.raw ? `<p class="why-raw"><span class="why-label">${esc(t("why_raw"))}:</span> <code>${esc(h.raw)}</code></p>` : ""}
+  </div></td></tr>`;
+}
+
 /// Auffälligkeiten: doppelte Primäradressen (je Baudrate), doppelte IDs, fremde Baudraten
 function analyzeHits(hits) {
   const group = (key) => {
@@ -876,13 +944,15 @@ function renderJob(job) {
         ${sa}
         <td>${esc(label(h.medium))}</td>
         <td><span class="chip st-${h.status}">${t("st_" + h.status)}</span>${warnChips}${otherChip}</td>
-        <td><div class="actions">${fix}${fixBaud}${
+        <td><div class="actions">${
+          h.status !== "ok" ? `<button class="small ghost" data-why="${esc(hitKey(h))}">${t("why")}</button>` : ""
+        }${fix}${fixBaud}${
           target !== ""
             ? `<button class="small quiet needs-conn" data-read="${esc(target)}" data-baud="${h.baud ?? ""}">${t("read")}</button>
                <button class="small ghost" data-remember="${i}">${t("remember")}</button>`
             : ""
         }</div></td>
-      </tr>`;
+      </tr>${openWhy.has(hitKey(h)) ? whyRow(h, cols.length) : ""}`;
     })
     .join("");
   updateButtons();
@@ -930,6 +1000,12 @@ $("hits").addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
   if (!btn) return;
   const d = btn.dataset;
+  if (d.why) {
+    if (openWhy.has(d.why)) openWhy.delete(d.why);
+    else openWhy.add(d.why);
+    renderJob(lastJob);
+    return;
+  }
   if (d.fixbaud) {
     // Zähler unter "Zähler einstellen" eintragen, Ziel = Baudrate des Busses
     setConfigTarget(d.fixbaud, Number(d.from));

@@ -137,6 +137,10 @@ pub struct ScanHit {
     pub status: &'static str,
     /// Baudrate, auf der der Zähler gefunden wurde
     pub baud: Option<u32>,
+    /// Ursache bei "collision"/"no_data" als Schlüssel, z.B. `checksum`, `app_error:08`
+    pub reason: Option<String>,
+    /// zuletzt empfangene Bytes dazu, für die Telegramm-Analyse
+    pub raw: Option<String>,
 }
 
 impl ScanHit {
@@ -150,6 +154,8 @@ impl ScanHit {
             version: h.map(|h| h.version),
             status,
             baud: None,
+            reason: None,
+            raw: None,
         }
     }
 }
@@ -178,6 +184,8 @@ pub struct Master {
     pub timeout: Duration,
     /// Pause zwischen Bytes, nach der ein Telegramm als beendet gilt
     inter_byte: Duration,
+    /// Letzte erkannte Störung: Schlüssel und empfangene Bytes (für "Warum?")
+    diag: Option<(String, Option<String>)>,
 }
 
 /// Auf welchen Baudraten gescannt wird
@@ -214,7 +222,21 @@ impl Master {
             timeout_ms,
             timeout,
             inter_byte,
+            diag: None,
         }
+    }
+
+    fn note(&mut self, key: impl Into<String>, raw: Option<&[u8]>) {
+        self.diag = Some((key.into(), raw.map(hex)));
+    }
+
+    /// Ursache der letzten Störung an einen Treffer hängen
+    fn explain(&mut self, mut hit: ScanHit) -> ScanHit {
+        if let Some((reason, raw)) = self.diag.take() {
+            hit.reason = Some(reason);
+            hit.raw = raw;
+        }
+        hit
     }
 
     pub fn baud(&self) -> u32 {
@@ -276,6 +298,7 @@ impl Master {
                     buf.extend_from_slice(&tmp[..extra]);
                     self.log.push("RX", hex(&buf));
                     if used < buf.len() {
+                        self.note("collision", Some(&buf));
                         self.log.push(
                             "INFO",
                             tr(
@@ -289,7 +312,15 @@ impl Master {
                 }
                 Parse::Invalid(why) => {
                     // Rest abwarten, damit der nächste Request sauber startet
-                    while self.link.recv(&mut tmp, self.inter_byte)? > 0 {}
+                    while let n @ 1.. = self.link.recv(&mut tmp, self.inter_byte)? {
+                        buf.extend_from_slice(&tmp[..n]);
+                    }
+                    let key = match why {
+                        "Prüfsumme falsch" => "checksum",
+                        "Stopbyte fehlt" => "stop",
+                        _ => "garbled",
+                    };
+                    self.note(key, Some(&buf));
                     self.log.push("RX", hex(&buf));
                     self.log.push(
                         "INFO",
@@ -317,6 +348,7 @@ impl Master {
             Ok(Reply::None)
         } else {
             self.log.push("RX", hex(&buf));
+            self.note("truncated", Some(&buf));
             self.log.push(
                 "INFO",
                 tr("Unvollständiges Telegramm", "Incomplete telegram"),
@@ -392,12 +424,17 @@ impl Master {
             let f = match reply {
                 Reply::Frame(f) if f.is_rsp_ud() => f,
                 Reply::Frame(f) => {
+                    self.note("unexpected", Some(&f.encode()));
                     bail!("{}: {f:?}", tr("Unerwartete Antwort", "Unexpected reply"))
                 }
-                Reply::None => bail!(
-                    "{} {address}",
-                    tr("Keine Antwort von Adresse", "No reply from address")
-                ),
+                Reply::None => {
+                    // quittiert SND_NKE, schickt aber keine Daten
+                    self.note("no_reply", None);
+                    bail!(
+                        "{} {address}",
+                        tr("Keine Antwort von Adresse", "No reply from address")
+                    )
+                }
                 Reply::Collision(b) => bail!(
                     "{}: {}",
                     tr(
@@ -418,6 +455,7 @@ impl Master {
                 unreachable!()
             };
             if address <= 250 && a != address {
+                self.note(format!("wrong_address:{a}"), Some(&bytes));
                 bail!(
                     "{} {a} ≠ {address}",
                     tr("Antwort von falscher Adresse", "Reply from wrong address")
@@ -800,12 +838,28 @@ impl Master {
         self.receive()
     }
 
+    /// Daten empfangen, aber nicht decodierbar: Fehlertelegramm des Zählers oder unbekanntes Format
+    fn note_decode(&mut self, frames: &[RawTelegram]) {
+        if let Some((ci, data, bytes)) = frames.first() {
+            let key = match (ci, data.first()) {
+                (0x70, Some(code)) => format!("app_error:{code:02X}"),
+                (0x70, None) => "app_error:00".into(),
+                _ => "decode".into(),
+            };
+            self.note(key, Some(bytes));
+        }
+    }
+
     fn probe_header(&mut self, address: u8) -> Result<(Option<u8>, Option<Header>, bool)> {
+        self.diag = None;
         match self.request_data(address, false) {
             Ok((primary, frames)) => {
                 // brauchbar nur, wenn sich die Antwort decodieren lässt (nicht z.B. "beschäftigt")
                 let decoded = frames.first().map(|(ci, data, _)| decode_rsp_ud(*ci, data));
                 let usable = matches!(decoded, Some(Ok(_)));
+                if !usable {
+                    self.note_decode(&frames);
+                }
                 let header = decoded.and_then(|d| d.ok()?.header);
                 Ok((Some(primary), header, usable))
             }
@@ -838,11 +892,17 @@ impl Master {
             }
             let hit = match reply {
                 Reply::None => continue,
-                Reply::Collision(_) => ScanHit::from_header(Some(a), None, "collision"),
+                Reply::Collision(_) => {
+                    let h = ScanHit::from_header(Some(a), None, "collision");
+                    self.explain(h)
+                }
                 Reply::Frame(_) => match self.probe_header(a)? {
                     (_, Some(h), _) => ScanHit::from_header(Some(a), Some(&h), "ok"),
                     (_, None, true) => ScanHit::from_header(Some(a), None, "ok"),
-                    (_, None, false) => ScanHit::from_header(Some(a), None, "no_data"),
+                    (_, None, false) => {
+                        let h = ScanHit::from_header(Some(a), None, "no_data");
+                        self.explain(h)
+                    }
                 },
             };
             progress(Progress::Hit(hit));
@@ -901,6 +961,7 @@ impl Master {
                 Reply::Collision(_) => true,
                 Reply::Frame(_) => {
                     // ACKs mehrerer Slaves überlagern sich oft fehlerfrei: Daten anfordern prüft das
+                    self.diag = None;
                     match self.request_data(ADDR_SELECTED, false) {
                         // ohne lesbaren Datenkopf weitersuchen, bis die ID vollständig ist
                         Ok((_, frames))
@@ -917,6 +978,7 @@ impl Master {
                             let status = if matches!(decoded, Some(Ok(_))) {
                                 "ok"
                             } else {
+                                self.note_decode(&frames);
                                 "no_data"
                             };
                             let header = decoded.and_then(|d| d.ok()?.header);
@@ -929,16 +991,18 @@ impl Master {
                             if hit.id.is_none() && !m[..8].contains('F') {
                                 hit.id = Some(m[..8].to_string());
                             }
+                            let hit = if status == "ok" { hit } else { self.explain(hit) };
                             progress(Progress::Hit(hit));
                             false
                         }
                         // ID vollständig, aber Daten unbrauchbar: Zähler defekt statt Kollision
                         Err(_) if pos == 7 => {
-                            progress(Progress::Hit(ScanHit {
+                            let hit = self.explain(ScanHit {
                                 secondary_address: Some(m.clone()),
                                 id: Some(m[..8].to_string()),
                                 ..ScanHit::from_header(None, None, "no_data")
-                            }));
+                            });
+                            progress(Progress::Hit(hit));
                             false
                         }
                         Err(_) => true,
@@ -956,6 +1020,7 @@ impl Master {
                     progress(Progress::Hit(ScanHit {
                         secondary_address: Some(m.clone()),
                         id: Some(m[..8].to_string()),
+                        reason: Some("same_id".into()),
                         ..ScanHit::from_header(None, None, "collision")
                     }));
                 }

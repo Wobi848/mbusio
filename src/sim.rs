@@ -838,4 +838,30 @@ mod tests {
         assert_eq!(found(0), 0);
         assert_eq!(found(1), 1);
     }
+
+    #[test]
+    fn scan_explains_why_there_is_no_data() {
+        let mut m = master();
+        let mut why = Vec::new();
+        m.scan_primary(0, 12, 0, &mut |p| {
+            if let Progress::Hit(h) = p {
+                if h.status != "ok" {
+                    why.push((h.primary_address.unwrap(), h.reason.unwrap_or_default(), h.raw.is_some()));
+                }
+            }
+            true
+        })
+        .unwrap();
+        assert_eq!(
+            why,
+            vec![
+                (0, "collision".into(), true),
+                (4, "checksum".into(), true),
+                (5, "truncated".into(), true),
+                (10, "collision".into(), true),
+                (11, "app_error:08".into(), true),
+                (12, "wrong_address:13".into(), true),
+            ]
+        );
+    }
 }

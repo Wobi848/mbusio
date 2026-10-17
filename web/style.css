@@ -773,3 +773,11 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 }
 .busbar-issues.warn { background: var(--warn-soft); color: var(--warn); }
 .busbar-issues.ok { background: var(--ok-soft); color: var(--ok); }
+
+/* "Warum?": Ursache und Tipp unter der Zeile */
+#hits tr.why-row td { white-space: normal; padding-top: 0; }
+.why { background: var(--sunken); border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 1.5; }
+.why p { margin: 0 0 4px; }
+.why p:last-child { margin-bottom: 0; }
+.why-label { color: var(--muted); font-weight: 600; }
+.why-raw code { font-family: var(--mono); font-size: 12px; word-break: break-all; }
