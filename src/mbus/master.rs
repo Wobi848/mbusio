@@ -353,6 +353,16 @@ impl Master {
                         "No meter with secondary address"
                     )
                 ),
+                // nur die ID angegeben: IDs sind nur je Hersteller eindeutig
+                Reply::Collision(_) if mask.ends_with("FFFFFFFF") => bail!(
+                    "{} {}: {}",
+                    tr("Mehrere Zähler mit der ID", "Several meters with ID"),
+                    &mask[..8],
+                    tr(
+                        "volle Sekundäradresse (16-stellig) verwenden, z.B. „Auslesen“ in der Trefferliste",
+                        "use the full secondary address (16 digits), e.g. “Read” in the hit list"
+                    )
+                ),
                 Reply::Collision(_) => bail!(
                     "{} {mask}",
                     tr("Mehrere Zähler passen auf", "Several meters match")

@@ -50,13 +50,15 @@ const UI = {
     spot_done_baud: (id, b) => `✓ Erledigt: Zähler ${id} läuft jetzt mit ${b} Bd.`,
     back_to_hits: "← zurück zur Trefferliste",
     remembered_all: (n, skipped) => `${n} Zähler übernommen` + (skipped ? `, ${skipped} schon in der Liste` : ""),
-    dup_id: "ID doppelt",
+    dup_id: "ID + Hersteller doppelt",
+    dup_id_info: "ID mehrfach",
+    dup_id_info_title: "Kein Fehler: IDs sind nur je Hersteller eindeutig. mbusio unterscheidet die Zähler über die volle Sekundäradresse.",
     dup_pa_title: (pa, n) => `${n} Zähler stehen auf PA ${pa}. Über die ID neu adressieren.`,
-    dup_id_title: "Mehrere Zähler mit dieser ID: über die volle Sekundäradresse ansprechen.",
+    dup_id_title: "Gleiche ID und gleicher Hersteller: nicht unterscheidbar. Der Zähler muss vom Hersteller umprogrammiert werden.",
     fix_pa: "PA ändern",
     warn_title: "Auffälligkeiten",
     warn_dup_pa: (pa, b, ids) => `PA ${pa} (${b} Bd): ${ids.length} Zähler – ${ids.join(", ")}`,
-    warn_dup_id: (id, n) => `ID ${id}: ${n} Zähler`,
+    warn_dup_id: (id, n) => `ID ${id}: ${n} Zähler mit gleicher ID und gleichem Hersteller – vom Hersteller umprogrammieren lassen`,
     warn_collision_pa: (pa, b) => `PA ${pa} (${b} Bd): mehrere Zähler antworten gleichzeitig – Empfehlung: Sekundärscan, dann „PA ändern“`,
     warn_collision_id: (id) => `ID ${id}: mehrere Zähler mit derselben ID – mit dem Primärscan einzeln finden`,
     warn_no_data: (n) => `${n} Zähler antworten, liefern aber keine brauchbaren Daten – Telegramm-Log prüfen`,
@@ -245,13 +247,15 @@ const UI = {
     spot_done_baud: (id, b) => `✓ Done: meter ${id} now runs at ${b} Bd.`,
     back_to_hits: "← back to the hit list",
     remembered_all: (n, skipped) => `${n} meters added` + (skipped ? `, ${skipped} already in the list` : ""),
-    dup_id: "Duplicate ID",
+    dup_id: "Duplicate ID + manufacturer",
+    dup_id_info: "ID shared",
+    dup_id_info_title: "Not an error: IDs are only unique per manufacturer. mbusio tells the meters apart by the full secondary address.",
     dup_pa_title: (pa, n) => `${n} meters are on PA ${pa}. Readdress them by ID.`,
-    dup_id_title: "Several meters with this ID: use the full secondary address.",
+    dup_id_title: "Same ID and same manufacturer: cannot be told apart. The manufacturer has to reprogram the meter.",
     fix_pa: "Change PA",
     warn_title: "Issues",
     warn_dup_pa: (pa, b, ids) => `PA ${pa} (${b} Bd): ${ids.length} meters – ${ids.join(", ")}`,
-    warn_dup_id: (id, n) => `ID ${id}: ${n} meters`,
+    warn_dup_id: (id, n) => `ID ${id}: ${n} meters with the same ID and manufacturer – have the manufacturer reprogram them`,
     warn_collision_pa: (pa, b) => `PA ${pa} (${b} Bd): several meters answer at once – recommendation: secondary scan, then “Change PA”`,
     warn_collision_id: (id) => `ID ${id}: several meters with the same ID – find them one by one with the primary scan`,
     warn_no_data: (n) => `${n} meter(s) answer but deliver no usable data – check the telegram log`,
@@ -710,9 +714,14 @@ function analyzeHits(hits) {
   const dupPa = group((h) => (h.primary_address == null || h.status === "collision" ? null : `${h.baud}:${h.primary_address}`));
   const dupId = group((h) => (h.id && /^[0-9]{8}$/.test(h.id) ? h.id : null));
   const rowDupPa = new Set([...dupPa.values()].flat());
+  // gleiche ID ist nur ein Problem, wenn auch der Hersteller gleich ist (IDs sind je Hersteller eindeutig)
+  const dupIdSame = new Map(
+    [...dupId].filter(([, list]) => new Set(list.map((i) => hits[i].manufacturer)).size < list.length)
+  );
   const rowDupId = new Set([...dupId.values()].flat());
+  const rowDupIdSame = new Set([...dupIdSame.values()].flat());
   const otherBaud = hits.filter((h) => h.baud && h.baud !== connBaud).length;
-  return { dupPa, dupId, rowDupPa, rowDupId, otherBaud };
+  return { dupPa, dupId, dupIdSame, rowDupPa, rowDupId, rowDupIdSame, otherBaud };
 }
 
 function renderHitsWarn(hits, a) {
@@ -721,7 +730,7 @@ function renderHitsWarn(hits, a) {
     const [baud, pa] = k.split(":");
     items.push(t("warn_dup_pa", pa, baud, list.map((i) => hits[i].id || "?")));
   }
-  for (const [id, list] of a.dupId) items.push(t("warn_dup_id", id, list.length));
+  for (const [id, list] of a.dupIdSame) items.push(t("warn_dup_id", id, list.length));
   const collisions = hits.filter((h) => h.status === "collision");
   for (const h of collisions) {
     if (h.primary_address != null) items.push(t("warn_collision_pa", h.primary_address, h.baud));
@@ -786,7 +795,7 @@ function renderJob(job) {
     .join("")}</tr>`;
   table.querySelector("tbody").innerHTML = job.hits
     .map((h, i) => {
-      const target = h.status === "ok" ? h.secondary_address || h.primary_address : "";
+      const target = h.status === "ok" ? hitAddress(h) : "";
       const sa = raw
         ? `<td class="mono">${esc(h.secondary_address ?? "–")}</td>
         <td>${esc(h.manufacturer ?? "")}</td>`
@@ -800,7 +809,11 @@ function renderJob(job) {
       const paCount = dupPa ? issues.dupPa.get(`${h.baud}:${h.primary_address}`).length : 0;
       const warnChips =
         (dupPa ? ` <span class="chip st-collision" title="${esc(t("dup_pa_title", h.primary_address, paCount))}">${t("dup_pa")}</span>` : "") +
-        (dupId ? ` <span class="chip st-collision" title="${esc(t("dup_id_title"))}">${t("dup_id")}</span>` : "");
+        (dupId
+          ? issues.rowDupIdSame.has(i)
+            ? ` <span class="chip st-collision" title="${esc(t("dup_id_title"))}">${t("dup_id")}</span>`
+            : ` <span class="chip st-no_data" title="${esc(t("dup_id_info_title"))}">${t("dup_id_info")}</span>`
+          : "");
       // PA ändern: lieber über die ID, bei doppelter ID über die volle Sekundäradresse
       const fixTarget = dupId ? h.secondary_address : h.id || h.secondary_address;
       const fix =
@@ -834,9 +847,17 @@ function renderJob(job) {
 }
 
 /// Eintrag für die Zählerliste aus einem Treffer
+/// Adresse zum Ansprechen eines Treffers: volle Sekundäradresse, ausser sie ist mehrdeutig
+/// (gleiche ID und gleicher Hersteller), dann die Primäradresse
+function hitAddress(h) {
+  const same = (lastJob?.hits || []).filter((x) => x.secondary_address && x.secondary_address === h.secondary_address);
+  if (h.secondary_address && (same.length < 2 || h.primary_address == null)) return h.secondary_address;
+  return String(h.primary_address);
+}
+
 function meterFromHit(h) {
   return {
-    address: h.secondary_address || String(h.primary_address),
+    address: hitAddress(h),
     // eigene Baudrate nur merken, wenn sie vom Bus abweicht
     baud: h.baud && h.baud !== connBaud ? h.baud : null,
     meter_id: h.id,

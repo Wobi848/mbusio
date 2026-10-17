@@ -18,6 +18,7 @@
 //! - Adr. 12: Zähler antwortet mit falscher Adresse (13), ID 12000012
 //! - Adr. 14 und 15: zwei Zähler mit derselben ID 77777777, verschiedene Hersteller
 //! - Adr. 16: Wackelkontakt, antwortet nur auf jedes zweite Telegramm, ID 16000016
+//! - Adr. 17 und 18: zwei Zähler mit derselben ID 88888888 und demselben Hersteller (echter Fehler)
 //!
 //! Zähler hören nur Telegramme mit ihrer eigenen Baudrate. Baudratenwechsel (CI B8..BF)
 //! und Application Reset (CI 50) werden quittiert.
@@ -292,6 +293,8 @@ impl Simulator {
             Slave::new(14, 0x7777_7777, "SEN", 0x10, 0x07, Model::Water),
             Slave::new(15, 0x7777_7777, "ZRI", 0x01, 0x07, Model::Water),
             Slave::new(16, 0x1600_0016, "SEN", 0x10, 0x16, Model::Water).with_fault(Fault::Flaky),
+            Slave::new(17, 0x8888_8888, "SEN", 0x10, 0x07, Model::Water),
+            Slave::new(18, 0x8888_8888, "SEN", 0x10, 0x07, Model::Water),
         ]);
         for s in &mut slaves {
             s.baud = baud;
@@ -554,6 +557,7 @@ mod tests {
                 // gleiche ID bei zwei Zählern: über die ID allein nicht trennbar
                 ("77777777".into(), "collision"),
                 ("87654321".into(), "ok"),
+                ("88888888".into(), "collision"),
                 // 60000006 und 90000009 laufen mit anderer Baudrate, 16000016 (Wackelkontakt)
                 // verpasst die Selektion: alle drei fehlen
             ]
@@ -816,6 +820,11 @@ mod tests {
         // über die ID geht es
         let r = m.read_meter(&Target::parse("10000011").unwrap()).unwrap();
         assert_eq!(r.header.unwrap().id, "10000011");
+        // gleiche ID, verschiedene Hersteller: nur ID ist mehrdeutig, volle Adresse eindeutig
+        let e = m.read_meter(&Target::parse("77777777").unwrap()).unwrap_err().to_string();
+        assert!(e.contains("16-stellig"), "{e}");
+        let r = m.read_meter(&Target::parse("777777776A490107").unwrap()).unwrap();
+        assert_eq!(r.header.unwrap().manufacturer, "ZRI");
         // Wackelkontakt: ohne Wiederholung übersehen, mit Wiederholung gefunden
         let mut found = |retries| {
             let mut n = 0;

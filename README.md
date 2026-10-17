@@ -28,7 +28,7 @@ Eine einzige Binärdatei für Windows, Linux und Raspberry Pi, die Oberfläche i
 - **Export** als CSV (Semikolon, Excel-tauglich) oder JSON
 - **Telegramm-Log** mit allen gesendeten und empfangenen Bytes, wichtig für die Fehlersuche an echter Hardware
 - **Kommandozeile** für Skripte, Ergebnis als JSON (siehe unten)
-- **Simulator** mit 18 virtuellen Zählern und typischen Fehlern aus der Praxis zum Üben ohne Hardware
+- **Simulator** mit 20 virtuellen Zählern und typischen Fehlern aus der Praxis zum Üben ohne Hardware
 - Oberfläche auf **Deutsch und Englisch**, auch auf dem Handy bedienbar
 
 ## Hardware
@@ -135,6 +135,7 @@ Port `SIMULATOR` wählen. Belegung:
 | 12 | Wasserzähler, ID 12000012 | antwortet mit falscher Adresse (13) |
 | 14, 15 | zwei Wasserzähler mit gleicher ID 77777777 | verschiedene Hersteller |
 | 16 | Wasserzähler, ID 16000016 | Wackelkontakt: nur jedes zweite Telegramm kommt an |
+| 17, 18 | zwei Wasserzähler mit gleicher ID 88888888 | gleicher Hersteller: echter Fehler |
 
 Baudratenwechsel und Application Reset werden wie bei echten Zählern quittiert.
 
