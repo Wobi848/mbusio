@@ -1,6 +1,6 @@
 # Konzept: Dauerbetrieb und Datenweitergabe
 
-Stand: 17.10.2026 · Status: **abgestimmt, Phase 1 in Arbeit** (Linien-Dienst ✓, Ausleseplan und Zeit ✓, kompakte Speicherung offen) · gilt für mbusio ab Version 0.5
+Stand: 17.10.2026 · Status: **Phase 1 umgesetzt**, offen ist nur der Dauertest auf echter Hardware (siehe 5.1) · gilt für mbusio ab Version 0.5
 
 Dieses Dokument beschreibt, wie mbusio vom Inbetriebnahme-Werkzeug zu einem Dienst wird, der
 Zähler dauerhaft und zuverlässig ausliest und die Werte weitergibt. Umgesetzt wird in Phasen;
@@ -278,6 +278,37 @@ bzw. Tag. Standard überall „Aus“. Optional pro Projekt: Verlauf ausdünnen.
 10. Referenzszenario 20 Linien / 2000 Zähler (Simulator) auf einem Raspberry Pi 4: Oberfläche
     bleibt bedienbar, alle täglichen Termine werden innerhalb einer Stunde erledigt.
 
+### 5.1 Stand der Abnahme (17.10.2026)
+
+| Nr. | Kriterium | Stand | Wie geprüft |
+| --- | --- | --- | --- |
+| 1 | 3 Linien, gemischte Pläne, keine Lücken, DB < 20 MB | ✓ im Zeitraffer, **Pi offen** | Zeitraffer 48× über 2 Tage, 3 Linien (täglich/stündlich/15 min) mit 14 Zählern, davon 2 absichtlich fehlerhaft: 790 Auslesungen, 0 Lücken, 0 doppelt, `integrity_check` ok, Datenbank 147 KB (Rohtelegramm Ø 54 Byte im Simulator, echte Zähler 100–250). Hochgerechnet auf 60 Zähler und 7 Tage etwa 3–6 MB |
+| 2 | Bedienung während geplanter Auslesungen, kein „Bus belegt“ | ✓ | Test Linien-Dienst (Bedienung vor Plan), Browser: Auslesen während Scan wartet und klappt |
+| 3 | Stromausfall | ✓ Datenbank, **echter Stecker offen** | 8× `kill -9` mitten im Schreiben: `integrity_check` ok, keine doppelten Zeitstempel, Neustart läuft weiter |
+| 4 | USB abziehen / Gateway neu starten | ✓ Logik, **echte Hardware offen** | Test: Anschluss nicht erreichbar → Fehler, Zähler bleiben fällig; Wiederverbinden mit wachsendem Abstand |
+| 5 | Defekter Zähler gestört nach 3 Terminen | ✓ | Test und Zeitraffer (Prüfsummen-Zähler, andere pünktlich gelesen) |
+| 6 | „Zu viele Auslesungen“ ausgesetzt bis nächster Tag | ✓ | neuer Simulator-Zähler 19 (2 Auslesungen, dann 09); Test und Zeitraffer |
+| 7 | Über Nacht aus: einmal nachlesen | ✓ | Test (3 Tage verpasst → genau eine Auslesung mit echtem Zeitstempel) |
+| 8 | Uhr springt | ✓ | Tests: Sommerzeit-Ende ohne doppelte Termine, Sprung um einen Tag zurück richtet neu aus; Sprung wird protokolliert |
+| 9 | Ohne Zeitquelle „Zeit unsicher“, nach Übernahme unmarkiert | ✓ | `--untrusted-clock`: Auslesung markiert, nach „Uhrzeit vom Gerät übernehmen“ unmarkiert, im Verlauf sichtbar |
+| 10 | 20 Linien / 2000 Zähler | ✓ Rechenzeit, **Pi offen** | Test: eine Prüfung aller 2000 Zähler 0,1–0,2 s, Projektbaum 0,14 s (Debug-Build, PC) |
+| 11 | Speicher fast voll | ✓ Logik, **kleiner Datenträger offen** | Tests: Stufen 20 %/5 % (auf grossen Platten mit absoluter Grenze), bei „voll“ wird gelesen und angezeigt, aber nicht gespeichert |
+
+**Noch auf echter Hardware zu prüfen, bevor ein Release als „dauerbetriebstauglich“ gilt:**
+7 Tage auf einem Raspberry Pi 4 (Kriterien 1 und 10), Stecker ziehen (3), USB-Wandler abziehen (4),
+kleiner Datenträger (11). Der Zeitraffer (`--time-scale 48`, ein Tag in 30 min) ersetzt das nicht,
+macht es aber planbar.
+
+**Umsetzung Speicherung** (Schritt 3):
+- Geplante Auslesungen: nur Rohtelegramme (BLOB), Zeitstempel als Ortszeit und zusätzlich UTC;
+  von Hand gelesene weiterhin zusätzlich als JSON. Beim Anzeigen wird decodiert.
+- Je Zähler eine Transaktion (Auslesung, Zählerliste, Termin zusammen) statt einer je Termin:
+  so geht bei einem Abbruch höchstens der gerade gelesene Zähler verloren und wird nachgeholt.
+  SQLite WAL mit `synchronous=NORMAL` schont die SD-Karte.
+- „Verlauf ausdünnen“ je Projekt: 30, 90 oder 365 Tage, danach der erste Wert je Zähler und Tag.
+- Speicherschutz: „knapp“ unter 20 % frei (und weniger als 10 GB), „voll“ unter 5 % (und weniger
+  als 1 GB) oder unter 200 MB. „Knapp“ zeigt die Oberfläche nur, wenn ein Plan läuft.
+
 ## 6. Phase 2: Datenpunkte (was weitergegeben wird)
 
 Weitergegeben werden nicht „Zähler“, sondern **Datenpunkte**: ein bestimmter Wert eines bestimmten
@@ -391,9 +422,9 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 **Offen:** keine Punkte, die Phase 1 blockieren.
 
 **Umsetzungsnotizen** (Phase 1, Schritt 2):
-- Termine und Zeitstempel sind vorerst Ortszeit (wie alle bisherigen Daten). Doppelte Zeitstempel
-  bei Sommerzeit-Ende werden vermieden, weil Rücksprünge bis 2 h ausgesessen werden; der Umstieg
-  auf UTC kommt mit der kompakten Speicherung (Schritt 3).
+- Termine liegen im Raster der Ortszeit (00:05 soll 00:05 bleiben, auch nach der Zeitumstellung).
+  Jede Auslesung trägt den Zeitstempel in Ortszeit und zusätzlich in UTC (eindeutig auch beim
+  Ende der Sommerzeit). Rücksprünge bis 2 h werden ausgesessen, damit kein Termin doppelt kommt.
 - „Uhrzeit vom Gerät übernehmen“ stellt nicht die Systemuhr (bräuchte Root-Rechte), sondern
   mbusio rechnet mit der Abweichung weiter. Bestätigt danach NTP oder ein Uhr-Modul die Zeit,
   gilt wieder die Systemuhr.
