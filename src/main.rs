@@ -1,6 +1,7 @@
 mod db;
 mod export;
 mod i18n;
+mod line;
 mod link;
 mod mbus;
 mod sim;
@@ -249,12 +250,23 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
         database,
     ));
     if let Some(port) = &args.port {
-        web::connect_blocking(&state, port, args.baud, args.timeout_ms)?;
+        // --port gilt nur für diesen Start und wird nicht bei der Linie gespeichert
+        let conf = line::LineConf {
+            connection: port.clone(),
+            baud: args.baud,
+            timeout_ms: args.timeout_ms,
+        };
+        state.connect_line(active.line.id, conf, i18n::Lang::De)?;
         println!("Verbunden mit {port} ({} Bd)", args.baud);
     } else if !active.line.connection.is_empty() {
         // zuletzt benutzte Linie gleich wieder verbinden; klappt das nicht, geht es trotzdem weiter
         let l = &active.line;
-        match web::connect_blocking(&state, &l.connection, l.baud, l.timeout_ms) {
+        let conf = line::LineConf {
+            connection: l.connection.clone(),
+            baud: l.baud,
+            timeout_ms: l.timeout_ms,
+        };
+        match state.connect_line(l.id, conf, i18n::Lang::De) {
             Ok(()) => println!("Verbunden mit {} ({} Bd)", l.connection, l.baud),
             Err(e) => println!("{}: {e:#}", l.connection),
         }

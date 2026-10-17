@@ -1,7 +1,8 @@
 //! HTTP-API und eingebettete Weboberfläche.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, TryLockError};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use axum::extract::{Path, Query, Request, State};
 use axum::http::{header, HeaderMap, StatusCode, Uri};
@@ -15,6 +16,7 @@ use serde_json::json;
 
 use crate::export;
 use crate::i18n::{self, tr, Lang};
+use crate::line::{is_link_error, ConnInfo, LineConf, LineService};
 use crate::link;
 use crate::mbus::decode::decode_rsp_ud;
 use crate::mbus::frame::{hex, Frame};
@@ -30,15 +32,6 @@ struct Assets;
 /// Höchstens so viele Auslesungen einer Linie an die Oberfläche bzw. in den Export
 const MAX_READINGS: usize = 5000;
 
-#[derive(Clone, Serialize)]
-pub struct ConnInfo {
-    pub port: String,
-    pub baud: u32,
-    pub timeout_ms: u64,
-    /// Timeout wird aus der Baudrate berechnet (für die Dauer-Schätzung im Browser)
-    pub timeout_auto: bool,
-}
-
 #[derive(Clone, Default, Serialize)]
 pub struct JobStatus {
     pub kind: String,
@@ -51,8 +44,8 @@ pub struct JobStatus {
 }
 
 pub struct Shared {
-    bus: Mutex<Option<Master>>,
-    conn: Mutex<Option<ConnInfo>>,
+    /// Linien-Dienste, je verbundener Linie einer; nur er spricht mit dem Bus dieser Linie
+    lines: Mutex<HashMap<i64, LineService>>,
     job: Mutex<JobStatus>,
     cancel: AtomicBool,
     log: Arc<FrameLog>,
@@ -65,8 +58,7 @@ pub struct Shared {
 impl Shared {
     pub fn new(token: Option<String>, db: Db) -> Self {
         Shared {
-            bus: Mutex::default(),
-            conn: Mutex::default(),
+            lines: Mutex::default(),
             job: Mutex::default(),
             cancel: AtomicBool::default(),
             log: Arc::default(),
@@ -77,6 +69,47 @@ impl Shared {
 
     fn line_id(&self) -> Result<i64, ApiError> {
         Ok(self.db.lock().unwrap().active_line()?.id)
+    }
+
+    /// Dienst der aktiven Linie; ohne Verbindung "Nicht verbunden"
+    fn service(&self) -> Result<LineService, ApiError> {
+        let id = self.line_id()?;
+        self.lines.lock().unwrap().get(&id).cloned().ok_or_else(not_connected)
+    }
+
+    /// Verbindung der aktiven Linie, falls offen
+    fn conn_info(&self) -> Option<ConnInfo> {
+        self.service().ok()?.status().connection
+    }
+
+    /// Linie mit diesem Anschluss verbinden; ein vorhandener Dienst der Linie wird ersetzt.
+    /// Klappt die Verbindung nicht, bleibt die Linie getrennt und der Fehler kommt zurück.
+    pub fn connect_line(&self, line_id: i64, conf: LineConf, lang: Lang) -> anyhow::Result<()> {
+        self.stop_line(line_id);
+        let svc = LineService::start(line_id, conf, self.log.clone());
+        match svc.connect(lang) {
+            Ok(()) => {
+                self.lines.lock().unwrap().insert(line_id, svc);
+                Ok(())
+            }
+            Err(e) => {
+                svc.stop();
+                Err(e)
+            }
+        }
+    }
+
+    fn stop_line(&self, line_id: i64) {
+        if let Some(old) = self.lines.lock().unwrap().remove(&line_id) {
+            old.stop();
+        }
+    }
+
+    /// Alle Verbindungen trennen, z.B. weil ein anderes Projekt aktiv wird
+    fn stop_lines(&self) {
+        for (_, svc) in self.lines.lock().unwrap().drain() {
+            svc.stop();
+        }
     }
 
     /// Auslesung speichern (Verlauf und Zählerliste der Linie); Speicherfehler nur ins Log
@@ -140,25 +173,17 @@ fn not_connected() -> ApiError {
     )
 }
 
-/// Führt `f` mit exklusivem Buszugriff in einem Blocking-Thread aus.
+/// Führt `f` auf dem Bus der aktiven Linie aus: als Auftrag an ihren Linien-Dienst, der ihn
+/// nach den laufenden Aufträgen abarbeitet (kein "Bus belegt").
 async fn with_bus<T, F>(state: &AppState, lang: Lang, f: F) -> Result<T, ApiError>
 where
     T: Send + 'static,
     F: FnOnce(&mut Master) -> anyhow::Result<T> + Send + 'static,
 {
-    let st = state.clone();
-    tokio::task::spawn_blocking(move || {
-        i18n::set(lang);
-        let mut guard = match st.bus.try_lock() {
-            Ok(g) => g,
-            Err(TryLockError::WouldBlock) => return Err(busy()),
-            Err(TryLockError::Poisoned(p)) => p.into_inner(),
-        };
-        let master = guard.as_mut().ok_or_else(not_connected)?;
-        f(master).map_err(ApiError::from)
-    })
-    .await
-    .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    let svc = state.service()?;
+    tokio::task::spawn_blocking(move || svc.run(lang, f).map_err(ApiError::from))
+        .await
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
 }
 
 pub fn router(state: AppState) -> Router {
@@ -239,36 +264,6 @@ async fn auth(State(st): State<AppState>, req: Request, next: Next) -> Response 
     next.run(req).await
 }
 
-pub fn connect_blocking(
-    state: &Shared,
-    port: &str,
-    baud: u32,
-    timeout_ms: u64,
-) -> anyhow::Result<()> {
-    let link = link::open(port, baud)?;
-    let master = Master::new(link, baud, timeout_ms, state.log.clone());
-    let effective = master.timeout.as_millis() as u64;
-    let mut bus = state
-        .bus
-        .try_lock()
-        .map_err(|_| anyhow::anyhow!(tr("Bus ist belegt", "Bus is busy")))?;
-    *bus = Some(master);
-    *state.conn.lock().unwrap() = Some(ConnInfo {
-        port: port.into(),
-        baud,
-        timeout_ms: effective,
-        timeout_auto: timeout_ms == 0,
-    });
-    state.log.push(
-        "INFO",
-        format!(
-            "{} {port}, {baud} Bd, 8E1, Timeout {effective} ms",
-            tr("Verbunden mit", "Connected to")
-        ),
-    );
-    Ok(())
-}
-
 async fn ports() -> Json<Vec<String>> {
     Json(
         tokio::task::spawn_blocking(link::list_ports)
@@ -278,7 +273,8 @@ async fn ports() -> Json<Vec<String>> {
 }
 
 async fn status(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
-    let conn = st.conn.lock().unwrap().clone();
+    let line = st.service().ok().map(|s| s.status());
+    let conn = line.as_ref().and_then(|l| l.connection.clone());
     let running = st.job.lock().unwrap().running;
     let db = st.db.lock().unwrap();
     let active = db.active()?;
@@ -291,6 +287,8 @@ async fn status(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
         "token_required": st.token.is_some(),
         "meters_file": db.path().map(|p| p.display().to_string()),
         "active": active,
+        // Zustand des Linien-Dienstes: arbeitet, Warteschlange, Verbindungsfehler
+        "line": line,
     })))
 }
 
@@ -311,40 +309,28 @@ async fn connect(
     if st.job.lock().unwrap().running {
         return Err(busy());
     }
+    let line = st.line_id()?;
+    let conf = LineConf {
+        connection: req.port.clone(),
+        baud: req.baud,
+        timeout_ms: req.timeout_ms,
+    };
     let s = st.clone();
-    tokio::task::spawn_blocking(move || {
-        i18n::set(lang);
-        connect_blocking(&s, &req.port, req.baud, req.timeout_ms)
-    })
-    .await
-    .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-    .map_err(|e| ApiError(StatusCode::BAD_REQUEST, format!("{e:#}")))?;
+    tokio::task::spawn_blocking(move || s.connect_line(line, conf, lang))
+        .await
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| ApiError(StatusCode::BAD_REQUEST, format!("{e:#}")))?;
     // erfolgreiche Verbindung gehört zur aktiven Linie: beim nächsten Mal wieder so verbinden
-    if let Some(c) = st.conn.lock().unwrap().clone() {
-        let mut db = st.db.lock().unwrap();
-        let line = db.active_line()?.id;
-        db.set_line_connection(line, &c.port, c.baud, req_timeout(&c))?;
-    }
-    Ok(Json(
-        json!({ "ok": true, "connection": st.conn.lock().unwrap().clone() }),
-    ))
-}
-
-/// Timeout wie eingestellt speichern: 0 = automatisch
-fn req_timeout(c: &ConnInfo) -> u64 {
-    if c.timeout_auto {
-        0
-    } else {
-        c.timeout_ms
-    }
+    st.db
+        .lock()
+        .unwrap()
+        .set_line_connection(line, &req.port, req.baud, req.timeout_ms)?;
+    Ok(Json(json!({ "ok": true, "connection": st.conn_info() })))
 }
 
 async fn disconnect(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
-    let mut bus = st.bus.try_lock().map_err(|_| busy())?;
-    *bus = None;
-    *st.conn.lock().unwrap() = None;
-    st.log
-        .push("INFO", tr("Verbindung getrennt", "Disconnected"));
+    ensure_idle(&st)?;
+    st.stop_line(st.line_id()?);
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -352,9 +338,7 @@ fn start_job<F>(st: &AppState, kind: &str, lang: Lang, work: F) -> ApiResult<Job
 where
     F: FnOnce(&mut Master, &mut dyn FnMut(Progress) -> bool) -> anyhow::Result<()> + Send + 'static,
 {
-    if st.conn.lock().unwrap().is_none() {
-        return Err(not_connected());
-    }
+    let svc = st.service()?;
     {
         let mut job = st.job.lock().unwrap();
         if job.running {
@@ -373,33 +357,32 @@ where
     // Ergebnis gehört zur Linie, die beim Start aktiv war
     let line = st.line_id()?;
     let s = st.clone();
-    std::thread::spawn(move || {
+    // als Auftrag an den Linien-Dienst; der Fortschritt läuft über job
+    svc.submit(Box::new(move |m| {
         i18n::set(lang);
-        let result = {
-            let mut guard = s.bus.lock().unwrap_or_else(|p| p.into_inner());
-            match guard.as_mut() {
-                None => Err(anyhow::anyhow!(tr("Nicht verbunden", "Not connected"))),
-                Some(master) => {
-                    let mut on_progress = |p: Progress| {
-                        let mut job = s.job.lock().unwrap();
-                        match p {
-                            Progress::Step {
-                                done,
-                                total,
-                                message,
-                            } => {
-                                job.done = done;
-                                job.total = total;
-                                job.message = message;
-                            }
-                            Progress::Hit(h) => job.hits.push(h),
+        let result = match m {
+            Err(e) => Err(anyhow::anyhow!(e)),
+            Ok(master) => {
+                let mut on_progress = |p: Progress| {
+                    let mut job = s.job.lock().unwrap();
+                    match p {
+                        Progress::Step {
+                            done,
+                            total,
+                            message,
+                        } => {
+                            job.done = done;
+                            job.total = total;
+                            job.message = message;
                         }
-                        !s.cancel.load(Ordering::SeqCst)
-                    };
-                    work(master, &mut on_progress)
-                }
+                        Progress::Hit(h) => job.hits.push(h),
+                    }
+                    !s.cancel.load(Ordering::SeqCst)
+                };
+                work(master, &mut on_progress)
             }
         };
+        let link_ok = !matches!(&result, Err(e) if is_link_error(e));
         let mut job = s.job.lock().unwrap();
         job.running = false;
         if let Err(e) = result {
@@ -422,7 +405,8 @@ where
                 s.log.push("INFO", format!("DB: {e:#}"));
             }
         }
-    });
+        link_ok
+    }));
     Ok(Json(st.job.lock().unwrap().clone()))
 }
 
@@ -610,7 +594,7 @@ fn update_hits(
     from_baud: Option<u32>,
     upd: HitUpdate,
 ) -> Option<(String, String)> {
-    let bus = st.conn.lock().unwrap().as_ref().map(|c| c.baud)?;
+    let bus = st.conn_info()?.baud;
     let baud = from_baud.unwrap_or(bus);
     let matches = |status: &str, pa: Option<u8>, sa: Option<&str>, hb: Option<u32>| {
         hb == Some(baud)
@@ -1094,14 +1078,10 @@ fn ensure_idle(st: &AppState) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// Verbindung trennen, z.B. weil eine andere Linie aktiv wird
+/// Verbindungen trennen, z.B. weil eine andere Linie aktiv wird. (Ab den Ausleseplänen bleiben
+/// Linien mit aktivem Plan verbunden.)
 fn disconnect_bus(st: &AppState) {
-    if let Ok(mut bus) = st.bus.try_lock() {
-        if bus.take().is_some() {
-            st.log.push("INFO", tr("Verbindung getrennt", "Disconnected"));
-        }
-    }
-    *st.conn.lock().unwrap() = None;
+    st.stop_lines();
     *st.job.lock().unwrap() = JobStatus::default();
 }
 
@@ -1162,10 +1142,12 @@ async fn line_activate(
         return Ok(Json(json!({ "ok": true, "connected": false })));
     }
     let s = st.clone();
-    let result = tokio::task::spawn_blocking(move || {
-        i18n::set(lang);
-        connect_blocking(&s, &line.connection, line.baud, line.timeout_ms)
-    })
+    let conf = LineConf {
+        connection: line.connection.clone(),
+        baud: line.baud,
+        timeout_ms: line.timeout_ms,
+    };
+    let result = tokio::task::spawn_blocking(move || s.connect_line(id, conf, lang))
     .await
     .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     // Linie bleibt aktiv, auch wenn der Anschluss gerade nicht erreichbar ist
