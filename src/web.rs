@@ -167,6 +167,30 @@ impl Shared {
         Some(svc)
     }
 
+    /// Alle Linien mit diesem Anschluss neu verbinden (z.B. weil die Simulation geändert wurde).
+    /// Liefert die Anzahl.
+    pub(crate) fn restart_connection(&self, connection: &str, lang: Lang) -> usize {
+        let ids: Vec<(i64, LineConf)> = self
+            .lines
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, s)| s.conf().connection == connection)
+            .map(|(id, s)| (*id, s.conf().clone()))
+            .collect();
+        let active = self.line_id().ok();
+        for (id, conf) in &ids {
+            self.stop_line_wait(*id);
+            // die angesehene Linie gleich wieder verbinden; Linien mit Plan startet der Zeitplan
+            if Some(*id) == active {
+                if let Err(e) = self.connect_line(*id, conf.clone(), lang) {
+                    self.log.push("INFO", format!("{connection}: {e:#}"));
+                }
+            }
+        }
+        ids.len()
+    }
+
     /// Dienste von Linien beenden, die weder einen Plan haben noch gerade angesehen werden
     pub(crate) fn stop_unused_services(&self) {
         let keep = self.planner.planned_lines();
@@ -313,6 +337,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/projects/{id}/plan", put(project_plan))
         .route("/api/projects/{id}/thin", put(project_thin))
         .route("/api/mqtt", get(mqtt_get).put(mqtt_put))
+        .route("/api/sim", get(sim_get).post(sim_create))
+        .route("/api/sim/{key}", put(sim_save).delete(sim_delete))
+        .route("/api/sim/{key}/use", post(sim_use))
         .route("/api/datapoints", get(datapoints))
         .route("/api/datapoints/bulk", post(datapoints_bulk))
         .route("/api/datapoints/{id}", put(datapoint_update))
@@ -1388,6 +1415,78 @@ async fn meter_exchange(
         st.log.push("INFO", n);
     }
     Ok(Json(json!({ "ok": true, "details": lines, "reading": reading })))
+}
+
+// ------------------------------------------------------------ Simulator
+
+async fn sim_get(State(st): State<AppState>, headers: HeaderMap) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    let active = st.db.lock().unwrap().active_line()?;
+    Ok(Json(json!({
+        "scenarios": crate::sim::all(),
+        "media": crate::sim::MEDIA.iter().map(|(k, _)| k).collect::<Vec<_>>(),
+        "faults": crate::sim::FAULTS,
+        "line": { "id": active.id, "name": active.name, "connection": active.connection, "baud": active.baud },
+    })))
+}
+
+#[derive(Deserialize)]
+struct SimCreateReq {
+    name: String,
+    /// Kopie dieser Simulation; leer = ohne Zähler
+    #[serde(default)]
+    from: Option<String>,
+}
+
+async fn sim_create(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<SimCreateReq>) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    let key = st.db.lock().unwrap().sim_create(&r.name, r.from.as_deref()).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "key": key })))
+}
+
+#[derive(Deserialize)]
+struct SimSaveReq {
+    name: String,
+    meters: Vec<crate::sim::SimMeter>,
+}
+
+/// Simulation speichern; Linien, die sie gerade verwenden, verbinden neu (neue Zähler gelten sofort)
+async fn sim_save(State(st): State<AppState>, headers: HeaderMap, Path(key): Path<String>, Json(r): Json<SimSaveReq>) -> ApiResult<serde_json::Value> {
+    let lang = lang_of(&headers);
+    i18n::set(lang);
+    st.db.lock().unwrap().sim_save(&key, &r.name, &r.meters).map_err(bad_request)?;
+    let s = st.clone();
+    let restarted = tokio::task::spawn_blocking(move || s.restart_connection(&format!("SIMULATOR:{key}"), lang))
+        .await
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(json!({ "ok": true, "restarted": restarted })))
+}
+
+async fn sim_delete(State(st): State<AppState>, headers: HeaderMap, Path(key): Path<String>) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    st.db.lock().unwrap().sim_delete(&key).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// Simulation für die aktive Linie verwenden und verbinden
+async fn sim_use(State(st): State<AppState>, headers: HeaderMap, Path(key): Path<String>) -> ApiResult<serde_json::Value> {
+    let lang = lang_of(&headers);
+    i18n::set(lang);
+    ensure_idle(&st)?;
+    let connection = if key == "praxis" { "SIMULATOR".to_string() } else { format!("SIMULATOR:{key}") };
+    if !crate::sim::all().iter().any(|s| s.key == key) {
+        return Err(bad_request(format!("{} „{key}“ {}", tr("Simulation", "Simulation"), tr("gibt es nicht", "does not exist"))));
+    }
+    let line = st.db.lock().unwrap().active_line()?;
+    let conf = LineConf { connection: connection.clone(), baud: line.baud, timeout_ms: line.timeout_ms };
+    let s = st.clone();
+    let id = line.id;
+    tokio::task::spawn_blocking(move || s.connect_line(id, conf, lang))
+        .await
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(bad_request)?;
+    st.db.lock().unwrap().set_line_connection(id, &connection, line.baud, line.timeout_ms)?;
+    Ok(Json(json!({ "ok": true, "connection": connection })))
 }
 
 // ------------------------------------------------------------ MQTT

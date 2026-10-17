@@ -488,8 +488,9 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
   „Uhrzeit vom Leitsystem“.
 - Danach Release v0.5.0 (bisher letztes Release: v0.4.0).
 
-**Aufräumen:** alter, schon eingebauter Branch `claude/vibrant-pascal-1vangk` auf GitHub
-(löschen nur auf ausdrückliche Bestätigung).
+**Ausserhalb der Phasen umgesetzt:** Simulator-Reiter mit Vorlagen (Praxis mit Fehlern, alles
+i.O. mit 10 Zählern, Mehrfamilienhaus mit 30 Zählern, gemischte Baudraten) und eigenen Anlagen.
+Der alte Branch `claude/vibrant-pascal-1vangk` ist gelöscht.
 
 **Bekannte Grenzen** (siehe auch README): Antworten zweier Zähler exakt gleichzeitig mit `E5`
 können wie eine Antwort aussehen; CI 76/77 nicht unterstützt; die ID eines Zählers lässt sich

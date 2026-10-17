@@ -24,10 +24,18 @@
 //!
 //! Zähler hören nur Telegramme mit ihrer eigenen Baudrate. Baudratenwechsel (CI B8..BF)
 //! und Application Reset (CI 50) werden quittiert.
+//!
+//! Das ist die Simulation „Praxis mit Fehlern“ (Anschluss `SIMULATOR`). Weitere Simulationen sind
+//! Listen von [`SimMeter`]: eingebaute Vorlagen (z.B. „Alles in Ordnung – 10 Zähler“) und eigene,
+//! in der Oberfläche angelegte (Anschluss `SIMULATOR:<name>`).
 
 use std::collections::VecDeque;
 use std::io;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
+
+use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
 
 use chrono::{Datelike, Local, Timelike};
 
@@ -37,6 +45,7 @@ use crate::mbus::frame::{
     CI_DATA_SEND, CI_SELECT,
 };
 use crate::mbus::master::BAUD_RATES;
+use crate::i18n::tr;
 use crate::mbus::tables::manufacturer_code;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -80,6 +89,8 @@ struct Slave {
     last_fcb: Option<bool>,
     /// für Fault::TooMany: bisherige Auslesungen
     readouts: u32,
+    /// Versatz der Werte, damit nicht alle Zähler gleich viel anzeigen
+    seed: u32,
 }
 
 impl Slave {
@@ -100,6 +111,7 @@ impl Slave {
             part: 0,
             last_fcb: None,
             readouts: 0,
+            seed: 0,
         }
     }
 
@@ -181,7 +193,7 @@ impl Slave {
             let mut d = self.id.to_le_bytes().to_vec();
             // Medium Wärme (4): Bits 7..6 beider Einheitenbytes; Einheiten kWh (05) und m³ (2C)
             d.extend_from_slice(&[self.access, 0x00, 0x05, 0x40 | 0x2C]);
-            d.extend_from_slice(&bcd_bytes(12_345 + (elapsed as u64) / 60, 4));
+            d.extend_from_slice(&bcd_bytes(12_345 + self.seed as u64 + (elapsed as u64) / 60, 4));
             d.extend_from_slice(&bcd_bytes(678, 4));
             return Frame::Long {
                 control: 0x08,
@@ -196,10 +208,11 @@ impl Slave {
         d.extend_from_slice(&self.manufacturer.to_le_bytes());
         d.extend_from_slice(&[self.version, self.medium, self.access, 0x00, 0x00, 0x00]);
         let tick = elapsed as u32;
+        let seed = self.seed;
         match (self.model, self.part) {
             (Model::Heat, 0) => {
-                rec(&mut d, &[0x04, 0x06], &(123_456 + tick / 10).to_le_bytes()); // kWh
-                rec(&mut d, &[0x04, 0x14], &(456_789 + tick / 4).to_le_bytes()); // 0.01 m³
+                rec(&mut d, &[0x04, 0x06], &(123_456 + seed + tick / 10).to_le_bytes()); // kWh
+                rec(&mut d, &[0x04, 0x14], &(456_789 + seed * 3 + tick / 4).to_le_bytes()); // 0.01 m³
                 rec(&mut d, &[0x04, 0x2B], &(12_345 + tick % 50).to_le_bytes()); // W
                 rec(&mut d, &[0x02, 0x59], &6523i16.to_le_bytes()); // 0.01 °C
                 rec(&mut d, &[0x02, 0x5D], &4210i16.to_le_bytes());
@@ -221,7 +234,7 @@ impl Slave {
                 rec(
                     &mut d,
                     &[0x0E, 0x03],
-                    &bcd_bytes(12_345_678 + tick as u64, 6),
+                    &bcd_bytes(12_345_678 + seed as u64 * 1000 + tick as u64, 6),
                 ); // Wh
                 rec(&mut d, &[0x8E, 0x10, 0x03], &bcd_bytes(8_000_000, 6));
                 rec(&mut d, &[0x8E, 0x20, 0x03], &bcd_bytes(4_345_678, 6));
@@ -233,7 +246,7 @@ impl Slave {
                 rec(&mut d, &[0x0D, 0xFD, 0x0E, fw.len() as u8], &fw);
             }
             (Model::Water | Model::Fixed, _) => {
-                rec(&mut d, &[0x0C, 0x13], &bcd_bytes(123_456 + tick as u64, 4)); // l
+                rec(&mut d, &[0x0C, 0x13], &bcd_bytes(123_456 + seed as u64 * 7 + tick as u64, 4)); // l
                 rec(&mut d, &[0x4C, 0x13], &bcd_bytes(100_000, 4));
                 rec(&mut d, &[0x42, 0x6C], &type_g(2025, 12, 31));
                 rec(&mut d, &[0x04, 0x6D], &now_type_f());
@@ -280,6 +293,337 @@ fn now_type_f() -> [u8; 4] {
     [t.minute() as u8, t.hour() as u8, g[0], g[1]]
 }
 
+// ---------------------------------------------------------------- Simulationen
+
+/// Ein simulierter Zähler, wie er in der Oberfläche angelegt wird
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SimMeter {
+    /// Primäradresse 0..250
+    pub primary: u8,
+    /// Identnummer, 8 Ziffern
+    pub id: String,
+    /// Herstellerkennung, 3 Buchstaben
+    pub manufacturer: String,
+    #[serde(default = "one")]
+    pub version: u8,
+    /// Schlüssel aus [`MEDIA`]
+    pub medium: String,
+    /// eigene Baudrate; None = wie der Bus
+    #[serde(default)]
+    pub baud: Option<u32>,
+    /// Schlüssel aus [`FAULTS`]
+    #[serde(default = "no_fault")]
+    pub fault: String,
+}
+
+fn one() -> u8 {
+    1
+}
+fn no_fault() -> String {
+    "none".into()
+}
+
+/// Medien zum Auswählen: Schlüssel und Code im Telegramm
+pub const MEDIA: [(&str, u8); 8] = [
+    ("heat", 0x04),
+    ("cooling", 0x0A),
+    ("water", 0x07),
+    ("cold_water", 0x16),
+    ("warm_water", 0x06),
+    ("gas", 0x03),
+    ("electricity", 0x02),
+    // alter Wärmezähler mit fester Datenstruktur (CI 73)
+    ("heat_old", 0x04),
+];
+
+/// Fehler zum Einbauen
+pub const FAULTS: [&str; 7] = ["none", "checksum", "truncated", "busy", "wrong_address", "flaky", "too_many"];
+
+fn medium_code(m: &str) -> u8 {
+    MEDIA.iter().find(|(k, _)| *k == m).map_or(0x07, |(_, c)| *c)
+}
+
+fn model_of(m: &str) -> Model {
+    match m {
+        "heat" | "cooling" => Model::Heat,
+        "electricity" => Model::Electricity,
+        "heat_old" => Model::Fixed,
+        _ => Model::Water,
+    }
+}
+
+fn fault_of(f: &str) -> Fault {
+    match f {
+        "checksum" => Fault::Checksum,
+        "truncated" => Fault::Truncated,
+        "busy" => Fault::Busy,
+        "wrong_address" => Fault::WrongAddress,
+        "flaky" => Fault::Flaky,
+        "too_many" => Fault::TooMany,
+        _ => Fault::None,
+    }
+}
+
+impl SimMeter {
+    pub fn new(primary: u8, id: &str, manufacturer: &str, medium: &str) -> Self {
+        SimMeter {
+            primary,
+            id: id.into(),
+            manufacturer: manufacturer.into(),
+            version: 1,
+            medium: medium.into(),
+            baud: None,
+            fault: no_fault(),
+        }
+    }
+
+    fn baud(mut self, b: u32) -> Self {
+        self.baud = Some(b);
+        self
+    }
+
+    fn fault(mut self, f: &str) -> Self {
+        self.fault = f.into();
+        self
+    }
+
+    fn version(mut self, v: u8) -> Self {
+        self.version = v;
+        self
+    }
+
+    pub fn check(&self) -> Result<()> {
+        let who = format!("PA {} / ID {}", self.primary, self.id);
+        if self.primary > 250 {
+            bail!("{who}: {}", tr("Primäradresse 0..250", "primary address 0..250"));
+        }
+        if self.id.len() != 8 || !self.id.chars().all(|c| c.is_ascii_digit()) {
+            bail!("{who}: {}", tr("ID muss 8 Ziffern haben", "ID must have 8 digits"));
+        }
+        if self.manufacturer.len() != 3 || !self.manufacturer.chars().all(|c| c.is_ascii_uppercase()) {
+            bail!("{who}: {}", tr("Hersteller: 3 Grossbuchstaben, z.B. KAM", "manufacturer: 3 capital letters, e.g. KAM"));
+        }
+        if !MEDIA.iter().any(|(k, _)| *k == self.medium) {
+            bail!("{who}: medium {}", self.medium);
+        }
+        if let Some(b) = self.baud {
+            if !crate::mbus::master::BAUD_RATES.contains(&b) {
+                bail!("{who}: {} {b}", tr("keine Standard-Baudrate", "not a standard baud rate"));
+            }
+        }
+        if !FAULTS.contains(&self.fault.as_str()) {
+            bail!("{who}: fault {}", self.fault);
+        }
+        Ok(())
+    }
+}
+
+/// „Praxis mit Fehlern“: die bisherige feste Belegung (siehe Kopf der Datei)
+pub fn praxis() -> Vec<SimMeter> {
+    let m = SimMeter::new;
+    vec![
+        m(1, "12345678", "KAM", "heat").version(0x1B),
+        m(2, "87654321", "ABB", "electricity").version(0x02),
+        m(3, "30000001", "SEN", "water").version(0x10),
+        m(0, "12345699", "SEN", "cold_water").version(0x10),
+        m(0, "55500011", "ZRI", "warm_water").version(0x01),
+        m(4, "40000004", "SEN", "water").version(0x10).fault("checksum"),
+        m(5, "50000005", "SEN", "water").version(0x10).fault("truncated"),
+        SimMeter { manufacturer: String::new(), version: 0, ..m(7, "70000007", "", "heat_old") },
+        m(10, "10000010", "KAM", "heat").version(0x1B),
+        m(10, "10000011", "KAM", "heat").version(0x1B),
+        m(11, "11000011", "SEN", "water").version(0x10).fault("busy"),
+        m(12, "12000012", "SEN", "water").version(0x10).fault("wrong_address"),
+        m(14, "77777777", "SEN", "water").version(0x10),
+        m(15, "77777777", "ZRI", "water").version(0x01),
+        m(16, "16000016", "SEN", "cold_water").version(0x10).fault("flaky"),
+        m(17, "88888888", "SEN", "water").version(0x10),
+        m(18, "88888888", "SEN", "water").version(0x10),
+        m(19, "19000019", "SEN", "water").version(0x10).fault("too_many"),
+        m(9, "90000009", "SEN", "water").version(0x01).baud(300),
+        m(6, "60000006", "SEN", "water").version(0x10).baud(9600),
+    ]
+}
+
+/// Eine Simulation: Name und Zähler
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Scenario {
+    /// Teil des Anschlusses: `SIMULATOR:<key>`
+    pub key: String,
+    pub name: String,
+    /// eingebaute Vorlage (nicht änderbar, aber kopierbar)
+    #[serde(default)]
+    pub builtin: bool,
+    pub meters: Vec<SimMeter>,
+}
+
+/// Eingebaute Vorlagen
+pub fn builtins() -> Vec<Scenario> {
+    let m = SimMeter::new;
+    let ok10 = vec![
+        m(1, "61000001", "KAM", "heat"),
+        m(2, "61000002", "KAM", "heat"),
+        m(3, "61000003", "KAM", "heat"),
+        m(4, "62000004", "SEN", "cold_water"),
+        m(5, "62000005", "SEN", "cold_water"),
+        m(6, "62000006", "SEN", "cold_water"),
+        m(7, "63000007", "ZRI", "warm_water"),
+        m(8, "63000008", "ZRI", "warm_water"),
+        m(9, "64000009", "ABB", "electricity"),
+        m(10, "65000010", "ELS", "gas"),
+    ];
+    let mut mfh = Vec::new();
+    for k in 1..=10u8 {
+        mfh.push(m(k, &format!("710000{k:02}"), "KAM", "heat"));
+        mfh.push(m(10 + k, &format!("720000{k:02}"), "SEN", "cold_water"));
+        mfh.push(m(20 + k, &format!("730000{k:02}"), "SEN", "warm_water"));
+    }
+    let bauds = vec![
+        m(1, "81000001", "KAM", "heat"),
+        m(2, "81000002", "KAM", "heat"),
+        m(3, "82000003", "SEN", "water"),
+        m(4, "82000004", "SEN", "water"),
+        m(5, "83000005", "ABB", "electricity").baud(9600),
+        m(6, "83000006", "ABB", "electricity").baud(9600),
+        m(7, "84000007", "SEN", "water").baud(300),
+        m(8, "84000008", "SEN", "water").baud(300),
+    ];
+    let b = |key: &str, name: String, meters: Vec<SimMeter>| Scenario { key: key.into(), name, builtin: true, meters };
+    vec![
+        b("praxis", tr("Praxis mit typischen Fehlern (21 Zähler)", "Real life with typical faults (21 meters)"), praxis()),
+        b("ok10", tr("Alles in Ordnung – 10 Zähler", "All OK – 10 meters"), ok10),
+        b("mfh30", tr("Mehrfamilienhaus – 10 Wohnungen, 30 Zähler i.O.", "Apartment block – 10 flats, 30 meters OK"), mfh),
+        b("bauds", tr("Gemischte Baudraten (2400/9600/300), sonst i.O.", "Mixed baud rates (2400/9600/300), otherwise OK"), bauds),
+    ]
+}
+
+/// Eigene Simulationen (aus der Datenbank); gelten für jede neue Verbindung
+static USER: Mutex<Vec<Scenario>> = Mutex::new(Vec::new());
+
+pub fn set_user(list: Vec<Scenario>) {
+    *USER.lock().unwrap() = list;
+}
+
+/// Vorlagen und eigene Simulationen
+pub fn all() -> Vec<Scenario> {
+    let mut v = builtins();
+    v.extend(USER.lock().unwrap().iter().cloned());
+    v
+}
+
+/// Simulator für `SIMULATOR` (leer = Praxis) oder `SIMULATOR:<key>`
+pub fn open(key: &str, baud: u32) -> io::Result<Simulator> {
+    if key.is_empty() || key == "praxis" {
+        return Ok(Simulator::new(baud));
+    }
+    match all().into_iter().find(|s| s.key == key) {
+        Some(s) => Ok(Simulator::from_meters(baud, &s.meters, false)),
+        None => Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("{} „{key}“ {}", tr("Simulation", "Simulation"), tr("gibt es nicht", "does not exist")),
+        )),
+    }
+}
+
+// ---------------------------------------------------------------- Eigene Simulationen speichern
+
+pub const SCHEMA: &str = "
+CREATE TABLE IF NOT EXISTS sim_scenarios (
+    key TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    meters TEXT NOT NULL
+);
+";
+
+impl crate::db::Db {
+    pub fn sim_list(&self) -> Result<Vec<Scenario>> {
+        let mut st = self.conn.prepare("SELECT key, name, meters FROM sim_scenarios ORDER BY name COLLATE NOCASE")?;
+        let rows = st.query_map([], |r| {
+            Ok(Scenario {
+                key: r.get(0)?,
+                name: r.get(1)?,
+                builtin: false,
+                meters: serde_json::from_str(&r.get::<_, String>(2)?).unwrap_or_default(),
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Eigene Simulationen in die Liste für neue Verbindungen übernehmen
+    pub fn sim_load(&self) -> Result<()> {
+        set_user(self.sim_list()?);
+        Ok(())
+    }
+
+    /// Neue Simulation, leer oder als Kopie; liefert den Schlüssel
+    pub fn sim_create(&mut self, name: &str, from: Option<&str>) -> Result<String> {
+        let name = name.trim();
+        if name.is_empty() {
+            bail!(tr("Name fehlt", "Name missing"));
+        }
+        let meters = match from {
+            Some(k) => all()
+                .into_iter()
+                .find(|s| s.key == k)
+                .map(|s| s.meters)
+                .ok_or_else(|| anyhow::anyhow!("{} „{k}“ {}", tr("Simulation", "Simulation"), tr("gibt es nicht", "does not exist")))?,
+            None => Vec::new(),
+        };
+        let base = crate::mqtt::slug(name);
+        let base = if base.is_empty() { "sim".to_string() } else { base };
+        let mut key = base.clone();
+        let mut n = 2;
+        while all().iter().any(|s| s.key == key) {
+            key = format!("{base}-{n}");
+            n += 1;
+        }
+        self.conn.execute(
+            "INSERT INTO sim_scenarios (key, name, meters) VALUES (?1, ?2, ?3)",
+            rusqlite::params![key, name, serde_json::to_string(&meters)?],
+        )?;
+        self.sim_load()?;
+        Ok(key)
+    }
+
+    pub fn sim_save(&mut self, key: &str, name: &str, meters: &[SimMeter]) -> Result<()> {
+        if builtins().iter().any(|s| s.key == key) {
+            bail!(tr("Vorlagen lassen sich nicht ändern, zuerst kopieren", "Templates cannot be changed, copy them first"));
+        }
+        if name.trim().is_empty() {
+            bail!(tr("Name fehlt", "Name missing"));
+        }
+        if meters.len() > 500 {
+            bail!(tr("Höchstens 500 Zähler je Simulation", "At most 500 meters per simulation"));
+        }
+        for m in meters {
+            m.check()?;
+        }
+        let n = self.conn.execute(
+            "UPDATE sim_scenarios SET name = ?2, meters = ?3 WHERE key = ?1",
+            rusqlite::params![key, name.trim(), serde_json::to_string(meters)?],
+        )?;
+        if n == 0 {
+            bail!("{} „{key}“ {}", tr("Simulation", "Simulation"), tr("gibt es nicht", "does not exist"));
+        }
+        self.sim_load()
+    }
+
+    /// Löschen, wenn keine Linie sie verwendet
+    pub fn sim_delete(&mut self, key: &str) -> Result<()> {
+        let conn = format!("SIMULATOR:{key}");
+        let users: Vec<String> = self
+            .conn
+            .prepare("SELECT gateways.name || ' › ' || lines.name FROM lines JOIN gateways ON gateways.id = lines.gateway_id WHERE lines.connection = ?1")?
+            .query_map([&conn], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        if !users.is_empty() {
+            bail!("{}: {}", tr("Wird noch verwendet von", "Still used by"), users.join(", "));
+        }
+        self.conn.execute("DELETE FROM sim_scenarios WHERE key = ?1", [key])?;
+        self.sim_load()
+    }
+}
+
 pub struct Simulator {
     slaves: Vec<Slave>,
     baud: u32,
@@ -290,38 +634,33 @@ pub struct Simulator {
 }
 
 impl Simulator {
+    /// Simulation „Praxis mit Fehlern“ (Anschluss `SIMULATOR`)
     pub fn new(baud: u32) -> Self {
-        let mut slaves = vec![
-            Slave::new(1, 0x1234_5678, "KAM", 0x1B, 0x04, Model::Heat),
-            Slave::new(2, 0x8765_4321, "ABB", 0x02, 0x02, Model::Electricity),
-            Slave::new(3, 0x3000_0001, "SEN", 0x10, 0x07, Model::Water),
-            Slave::new(0, 0x1234_5699, "SEN", 0x10, 0x16, Model::Water),
-            Slave::new(0, 0x5550_0011, "ZRI", 0x01, 0x06, Model::Water),
-            Slave::new(4, 0x4000_0004, "SEN", 0x10, 0x07, Model::Water).with_fault(Fault::Checksum),
-            Slave::new(5, 0x5000_0005, "SEN", 0x10, 0x07, Model::Water)
-                .with_fault(Fault::Truncated),
-            Slave::new(7, 0x7000_0007, "", 0, 0x04, Model::Fixed),
-        ];
-        slaves.extend([
-            Slave::new(10, 0x1000_0010, "KAM", 0x1B, 0x04, Model::Heat),
-            Slave::new(10, 0x1000_0011, "KAM", 0x1B, 0x04, Model::Heat),
-            Slave::new(11, 0x1100_0011, "SEN", 0x10, 0x07, Model::Water).with_fault(Fault::Busy),
-            Slave::new(12, 0x1200_0012, "SEN", 0x10, 0x07, Model::Water)
-                .with_fault(Fault::WrongAddress),
-            Slave::new(14, 0x7777_7777, "SEN", 0x10, 0x07, Model::Water),
-            Slave::new(15, 0x7777_7777, "ZRI", 0x01, 0x07, Model::Water),
-            Slave::new(16, 0x1600_0016, "SEN", 0x10, 0x16, Model::Water).with_fault(Fault::Flaky),
-            Slave::new(17, 0x8888_8888, "SEN", 0x10, 0x07, Model::Water),
-            Slave::new(18, 0x8888_8888, "SEN", 0x10, 0x07, Model::Water),
-            Slave::new(19, 0x1900_0019, "SEN", 0x10, 0x07, Model::Water).with_fault(Fault::TooMany),
-        ]);
-        for s in &mut slaves {
-            s.baud = baud;
-        }
-        let slow = if baud == 300 { 2400 } else { 300 };
-        slaves.push(Slave::new(9, 0x9000_0009, "SEN", 0x01, 0x07, Model::Water).with_baud(slow));
-        let other = if baud == 9600 { 2400 } else { 9600 };
-        slaves.push(Slave::new(6, 0x6000_0006, "SEN", 0x10, 0x07, Model::Water).with_baud(other));
+        Self::from_meters(baud, &praxis(), true)
+    }
+
+    /// Simulator aus einer Liste von Zählern. `praxis`: Zähler mit eigener Baudrate laufen auf
+    /// 2400 Bd, falls der Bus selbst mit ihrer Baudrate läuft (so bleibt immer einer „anders“),
+    /// und alle Werte beginnen gleich (für die Tests).
+    pub fn from_meters(baud: u32, meters: &[SimMeter], praxis: bool) -> Self {
+        let slaves = meters
+            .iter()
+            .map(|m| {
+                let id = u32::from_str_radix(&m.id, 16).unwrap_or(0);
+                let mut s = Slave::new(m.primary, id, &m.manufacturer, m.version, medium_code(&m.medium), model_of(&m.medium))
+                    .with_fault(fault_of(&m.fault))
+                    .with_baud(match m.baud {
+                        Some(b) if praxis && b == baud => 2400,
+                        Some(b) => b,
+                        None => baud,
+                    });
+                if !praxis {
+                    // Zählerstände je Zähler verschieden, aber immer gleich für dieselbe ID
+                    s.seed = (m.id.parse::<u64>().unwrap_or(0) % 997 * 53) as u32;
+                }
+                s
+            })
+            .collect();
         Simulator {
             slaves,
             baud,
@@ -895,5 +1234,91 @@ mod tests {
                 (12, "wrong_address:13".into(), true),
             ]
         );
+    }
+
+    fn master_for(key: &str, baud: u32) -> Master {
+        Master::new(Box::new(super::open(key, baud).unwrap()), baud, 50, Arc::new(FrameLog::default()))
+    }
+
+    #[test]
+    fn template_all_ok_has_ten_clean_meters() {
+        let mut m = master_for("ok10", 2400);
+        let mut hits = Vec::new();
+        m.scan_primary(0, 15, 0, &mut |p| {
+            if let Progress::Hit(h) = p {
+                hits.push((h.primary_address, h.status));
+            }
+            true
+        })
+        .unwrap();
+        assert_eq!(hits.len(), 10);
+        assert!(hits.iter().all(|(_, s)| *s == "ok"), "{hits:?}");
+        // Werte je Zähler verschieden
+        let a = m.read_meter(&Target::Primary(1)).unwrap();
+        let b = m.read_meter(&Target::Primary(2)).unwrap();
+        assert_ne!(a.records[0].value, b.records[0].value);
+    }
+
+    #[test]
+    fn template_apartment_block_secondary_scan_finds_all() {
+        let mut m = master_for("mfh30", 2400);
+        let mut n = 0;
+        m.scan_secondary(&mut |p| {
+            if let Progress::Hit(h) = p {
+                assert_eq!(h.status, "ok");
+                n += 1;
+            }
+            true
+        })
+        .unwrap();
+        assert_eq!(n, 30);
+    }
+
+    #[test]
+    fn template_bauds_answers_on_three_rates() {
+        let mut m = master_for("bauds", 2400);
+        assert_eq!(m.bus_bauds(&[]).unwrap(), vec![300, 2400, 9600]);
+    }
+
+    #[test]
+    fn unknown_simulation_and_bad_meters_are_refused() {
+        assert!(super::open("gibtsnicht", 2400).is_err());
+        let ok = SimMeter::new(1, "12345678", "KAM", "heat");
+        assert!(ok.check().is_ok());
+        for bad in [
+            SimMeter { id: "1234".into(), ..ok.clone() },
+            SimMeter { manufacturer: "ka".into(), ..ok.clone() },
+            SimMeter { primary: 251, ..ok.clone() },
+            SimMeter { medium: "lava".into(), ..ok.clone() },
+            SimMeter { baud: Some(1234), ..ok.clone() },
+            SimMeter { fault: "kaputt".into(), ..ok.clone() },
+        ] {
+            assert!(bad.check().is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn own_simulation_is_stored_and_used() {
+        let dir = std::env::temp_dir().join(format!("mbusio-sim-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        {
+            let mut db = crate::db::Db::open(&dir).unwrap();
+            let key = db.sim_create("Test Anlage", Some("ok10")).unwrap();
+            assert_eq!(key, "test-anlage");
+            let mut meters = super::all().into_iter().find(|s| s.key == key).unwrap().meters;
+            meters.truncate(3);
+            meters[2].fault = "busy".into();
+            db.sim_save(&key, "Test Anlage", &meters).unwrap();
+            // Vorlagen bleiben unverändert
+            assert!(db.sim_save("ok10", "x", &meters).is_err());
+        }
+        // nach einem Neustart wieder da
+        crate::sim::set_user(Vec::new());
+        let db = crate::db::Db::open(&dir).unwrap();
+        assert_eq!(db.sim_list().unwrap()[0].meters.len(), 3);
+        let mut m = master_for("test-anlage", 2400);
+        assert!(m.read_meter(&Target::Primary(1)).is_ok());
+        assert!(format!("{:#}", m.read_meter(&Target::Primary(3)).unwrap_err()).contains("08"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

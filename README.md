@@ -128,7 +128,8 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - Alles wird gespeichert (SQLite, eine Datei `mbusio.db`)
 - Deutsch und Englisch, hell/dunkel, fürs Handy angepasst
 - Kommandozeile für Skripte mit JSON-Ausgabe
-- Simulator mit 21 virtuellen Zählern und typischen Fehlern aus der Praxis
+- Simulator mit Vorlagen (Praxis mit Fehlern, alles i.O., Mehrfamilienhaus, gemischte
+  Baudraten) und eigenen, frei zusammengestellten Anlagen
 
 ## Hardware
 
@@ -224,7 +225,25 @@ mbusio --port tcp://192.168.1.50:10001 raw "10 40 05 45 16"
 
 ## Simulator
 
-Als Anschluss `SIMULATOR` eintragen. Belegung:
+Im Reiter **Simulator** lassen sich virtuelle Anlagen zusammenstellen, ohne Hardware: zum Üben,
+Testen und Vorführen. Eingebaute Vorlagen:
+
+| Simulation | Anschluss | Inhalt |
+| --- | --- | --- |
+| Praxis mit typischen Fehlern | `SIMULATOR` | 21 Zähler mit Fehlern aus der Praxis (Tabelle unten) |
+| Alles in Ordnung – 10 Zähler | `SIMULATOR:ok10` | Wärme, Kalt- und Warmwasser, Strom, Gas, PA 1–10 |
+| Mehrfamilienhaus – 30 Zähler i.O. | `SIMULATOR:mfh30` | 10 Wohnungen mit Wärme, Kalt- und Warmwasser |
+| Gemischte Baudraten | `SIMULATOR:bauds` | 8 Zähler auf 2400, 9600 und 300 Bd, sonst i.O. |
+
+Eine Vorlage **kopieren**, dann Zähler frei anlegen (einzeln oder „+ mehrere“), mit Primäradresse,
+ID, Hersteller, Medium, eigener Baudrate und, wenn gewünscht, einem Fehler: Prüfsumme falsch,
+Telegramm abgeschnitten, „beschäftigt“, falsche Adresse, Wackelkontakt, „zu viele Auslesungen“.
+Doppelte Adressen oder IDs werden beim Bearbeiten angezeigt (manchmal sind sie ja gewollt).
+**„Für aktive Linie verwenden“** verbindet die aktive Linie mit der Simulation
+(`SIMULATOR:<name>`); verschiedene Linien können verschiedene Anlagen simulieren. Änderungen
+gelten nach dem Speichern sofort.
+
+Belegung von `SIMULATOR` (Praxis mit Fehlern):
 
 | Adresse | Zähler | Besonderheit |
 | --- | --- | --- |
@@ -243,6 +262,7 @@ Als Anschluss `SIMULATOR` eintragen. Belegung:
 | 14, 15 | zwei Wasserzähler mit gleicher ID 77777777 | verschiedene Hersteller |
 | 16 | Wasserzähler, ID 16000016 | Wackelkontakt: nur jedes zweite Telegramm kommt an |
 | 17, 18 | zwei Wasserzähler mit gleicher ID 88888888 | gleicher Hersteller: echter Fehler |
+| 19 | Wasserzähler, ID 19000019 | nach 2 Auslesungen „zu viele Auslesungen“ (Fehlertelegramm 09) |
 
 Baudratenwechsel und Application Reset werden wie bei echten Zählern quittiert.
 
@@ -315,7 +335,7 @@ installation; the UI runs in the browser, phones included.
   optional time from the control system
 - History per meter as chart or table, CSV; project report as PDF with changes made and open issues
 - Serial port or network gateway (`tcp://host:port`), command line with JSON output
-- Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with 21 meters
+- Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with templates and your own virtual installations
 
 ```sh
 mbusio                                  # http://localhost:8080

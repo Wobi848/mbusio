@@ -26,6 +26,7 @@
       <button class="tab" role="tab" data-tab-go="scan"><span class="tab-no">2</span><span data-i18n="tab_scan"></span></button>
       <button class="tab" role="tab" data-tab-go="meters"><span class="tab-no">3</span><span data-i18n="tab_meters"></span></button>
       <button class="tab" role="tab" data-tab-go="tools"><span class="tab-no">4</span><span data-i18n="tab_tools"></span></button>
+      <button class="tab tab-sim" role="tab" data-tab-go="sim"><svg class="tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg><span data-i18n="tab_sim"></span></button>
     </nav>
     <div class="header-right">
       <a id="crumb" class="crumb" href="#sec-project" data-i18n-title="crumb_title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span id="crumb-text"></span></a>
@@ -392,6 +393,23 @@
         <div id="analysis" class="analysis" hidden></div>
       </details>
     </section>
+  <section class="card" id="sec-sim" data-tab="sim" aria-labelledby="h-sim">
+    <div class="card-head">
+      <div class="head-text">
+        <h2 id="h-sim" data-i18n="sim_title"></h2>
+        <p class="hint explain" data-i18n="sim_hint"></p>
+      </div>
+    </div>
+    <div class="row sim-pick">
+      <label class="grow"><span data-i18n="sim_choose"></span> <select id="sim-select"></select></label>
+      <button id="sim-use" data-i18n="sim_use"></button>
+      <button id="sim-copy" class="quiet" data-i18n="sim_copy"></button>
+      <button id="sim-new" class="quiet" data-i18n="sim_new"></button>
+      <button id="sim-delete" class="quiet danger" data-i18n="sim_delete"></button>
+    </div>
+    <p id="sim-line" class="hint"></p>
+    <div id="sim-editor"></div>
+  </section>
 </main>
 
 <div id="busbar" class="busbar" role="status" hidden>

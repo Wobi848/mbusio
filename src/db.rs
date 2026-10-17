@@ -514,6 +514,10 @@ impl Db {
         self.migrate()?;
         self.ensure_active()?;
         self.mqtt_enabled = self.mqtt_config().enabled;
+        // eigene Simulationen für Verbindungen mit SIMULATOR:<name>
+        if self.path.is_some() {
+            self.sim_load()?;
+        }
         Ok(())
     }
 
@@ -582,6 +586,7 @@ impl Db {
         }
         self.conn.execute_batch(crate::datapoint::SCHEMA)?;
         self.conn.execute_batch(crate::mqtt::SCHEMA)?;
+        self.conn.execute_batch(crate::sim::SCHEMA)?;
         if !has(&self.conn, "datapoints", "last_unsure")? {
             // letzter Wert mit unsicherer Uhrzeit gelesen (für die Weitergabe)
             self.conn.execute_batch("ALTER TABLE datapoints ADD COLUMN last_unsure INTEGER NOT NULL DEFAULT 0")?;

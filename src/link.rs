@@ -143,6 +143,8 @@ pub const SIMULATOR_PORT: &str = "SIMULATOR";
 pub fn open(port: &str, baud: u32) -> Result<Box<dyn Link>> {
     Ok(if port == SIMULATOR_PORT {
         Box::new(crate::sim::Simulator::new(baud))
+    } else if let Some(key) = port.strip_prefix("SIMULATOR:") {
+        Box::new(crate::sim::open(key, baud)?)
     } else if let Some(addr) = port.strip_prefix(TCP_PREFIX) {
         Box::new(TcpLink::open(addr)?)
     } else {
@@ -152,6 +154,13 @@ pub fn open(port: &str, baud: u32) -> Result<Box<dyn Link>> {
 
 pub fn list_ports() -> Vec<String> {
     let mut ports = vec![SIMULATOR_PORT.to_string()];
+    // weitere Simulationen (Vorlagen und eigene)
+    ports.extend(
+        crate::sim::all()
+            .into_iter()
+            .filter(|s| s.key != "praxis")
+            .map(|s| format!("{SIMULATOR_PORT}:{}", s.key)),
+    );
     if let Ok(found) = serialport::available_ports() {
         ports.extend(found.into_iter().map(|p| p.port_name));
     }
