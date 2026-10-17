@@ -471,12 +471,26 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
   Projekt-Karte, der Zählerliste und im Protokoll; in die Scan-Auffälligkeiten (Statusleiste)
   fliessen sie nicht ein, weil diese aus dem letzten Scan berechnet werden.
 
-## 11. Phasenplan
+## 11. Roadmap und Stand (17.10.2026)
 
-| Phase | Inhalt | Voraussetzung |
+| Phase | Inhalt | Stand |
 | --- | --- | --- |
-| 1 | Linien-Dienst, Ausleseplan je Zähler, kompakte Speicherung, Aufbewahrung | Abstimmung dieses Konzepts |
-| 2 | Datenpunkte, Qualität, Plausibilität, Zählertausch | Phase 1 im Dauertest bestanden |
-| 3 | MQTT | Phase 2 |
-| 4 | Modbus TCP | Phase 3 |
-| 5 | BACnet/IP | Bedarf bestätigt, Bibliothek geprüft |
+| 1 | Linien-Dienst, Ausleseplan, Uhrzeit, kompakte Speicherung, Speicherschutz | ✓ umgesetzt, Hardware-Tests offen (5.1) |
+| 2 | Datenpunkte, Qualität, Plausibilität, Zählertausch, Vorlagen, CSV | ✓ umgesetzt |
+| 3 | MQTT | ✓ umgesetzt, gegen Test-Broker geprüft |
+| 4 | Modbus TCP (Server, Registertabelle für den Integrator) | ⏸ zurückgestellt |
+| 5 | BACnet/IP | offen, nur bei Bedarf und nach Prüfung einer Bibliothek |
+
+**Offen, bevor ein Release als dauerbetriebstauglich gilt:**
+- 7 Tage auf einem Raspberry Pi 4 (Kriterien 1 und 10), Stecker ziehen (3), USB-Wandler abziehen
+  bzw. Gateway neu starten (4), kleine SD-Karte (11). Hilfsmittel: `--time-scale 48`.
+- MQTT mit einem verbreiteten Broker (z.B. Mosquitto) und echtem Leitsystem prüfen, auch TLS und
+  „Uhrzeit vom Leitsystem“.
+- Danach Release v0.5.0 (bisher letztes Release: v0.4.0).
+
+**Aufräumen:** alter, schon eingebauter Branch `claude/vibrant-pascal-1vangk` auf GitHub
+(löschen nur auf ausdrückliche Bestätigung).
+
+**Bekannte Grenzen** (siehe auch README): Antworten zweier Zähler exakt gleichzeitig mit `E5`
+können wie eine Antwort aussehen; CI 76/77 nicht unterstützt; die ID eines Zählers lässt sich
+nicht ändern.
