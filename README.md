@@ -320,7 +320,10 @@ Aufbau:
 - `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
   bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
 - `src/web.rs`: HTTP-API; `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
-- `src/i18n.rs`: Übersetzungen der Messgrössen; UI-Texte in `web/app.js` und `web/report.js`
+- `src/i18n.rs`: Übersetzungen der Messgrössen; UI-Texte in `web/js/texts.js` und `web/report.js`
+- `web/js/`: Oberfläche, nach Bereichen (core, scan, tools, meters, chart, meterlist, datapoints,
+  sim, mqtt, project, main); normale Skripte ohne Build-Schritt, Reihenfolge in `index.html`
+- `tests/ui/`: Browser-Tests der Oberfläche (siehe `tests/ui/README.md`)
 
 Der Decoder ist eine Eigenentwicklung und wird gegen das Referenztelegramm aus der
 M-Bus-Dokumentation getestet. Funktionsumfang wie libmbus: Primär-/Sekundärscan, Auslesen mit
