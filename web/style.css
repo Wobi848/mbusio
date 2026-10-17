@@ -101,8 +101,9 @@ input, select {
 
 label.inline input { width: auto; }
 
-button, a.button {
+button, a.button, label.button {
   font: inherit;
+  font-size: 15px;
   font-weight: 600;
   border: 1px solid var(--accent);
   background: var(--accent);
@@ -114,7 +115,7 @@ button, a.button {
   white-space: nowrap;
 }
 
-button.ghost { background: transparent; color: var(--accent); }
+button.ghost, .button.ghost { background: transparent; color: var(--accent); }
 button.small { padding: 4px 8px; font-size: 13px; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 
@@ -162,8 +163,8 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.mono, .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
 
 .st-ok { color: var(--ok); }
-.st-kollision { color: var(--warn); }
-.st-keine_daten { color: var(--muted); }
+.st-collision { color: var(--warn); }
+.st-no_data { color: var(--muted); }
 
 .meta {
   display: grid;
@@ -173,7 +174,7 @@ td.mono, .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-siz
 }
 .meta div span { display: block; font-size: 12px; color: var(--muted); }
 
-pre#log {
+pre#log, pre.code {
   background: var(--code);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -230,3 +231,39 @@ details[open] summary { margin-bottom: 12px; }
 
 [hidden] { display: none !important; }
 .hits-opt { margin: 6px 0; }
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.config-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.config-item h3, details h3 { margin: 0 0 8px; font-size: 15px; }
+details h3 { margin-top: 16px; }
+.config-item .row:last-child { margin-bottom: 0; }
+
+.meter-form { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin: 10px 0; }
+#meters-table td.wrap { white-space: normal; min-width: 120px; }
+#meters-table .err { color: var(--err); font-size: 12px; display: block; white-space: normal; }
+#meters-table .sub { color: var(--muted); font-size: 12px; display: block; }
+.actions { display: flex; gap: 4px; justify-content: flex-end; }
+.file-button { flex: 0 0 auto; display: inline-block; gap: 0; }
+#meters-file { margin-bottom: 10px; word-break: break-all; }
+
+/* Zählerliste auf dem Handy: jede Zeile als kleine Karte statt breiter Tabelle */
+@media (max-width: 520px) {
+  #meters-table thead { display: none; }
+  #meters-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  #meters-table td { border: 0; padding: 0; white-space: normal; text-align: left; min-width: 0; }
+  #meters-table td:empty { display: none; }
+  #meters-table td:first-child { font-weight: 600; }
+  #meters-table td:last-child { grid-column: 1 / -1; margin-top: 6px; }
+  #meters-table .actions { justify-content: flex-start; }
+}

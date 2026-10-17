@@ -44,6 +44,43 @@ pub fn manufacturer_code(name: &str) -> u16 {
     })
 }
 
+/// Einheiten der festen Datenstruktur (6 Bit): (Grösse, Einheit, Zehnerexponent).
+/// Aufbau: je Einheit drei Stufen ×1, ×10, ×100.
+pub fn fixed_unit(code: u8) -> (&'static str, &'static str, i32) {
+    const STEPS: &[(u8, &str, &str)] = &[
+        (0x02, "energy", "Wh"),
+        (0x05, "energy", "kWh"),
+        (0x08, "energy", "MWh"),
+        (0x0B, "energy", "kJ"),
+        (0x0E, "energy", "MJ"),
+        (0x11, "energy", "GJ"),
+        (0x14, "power", "W"),
+        (0x17, "power", "kW"),
+        (0x1A, "power", "MW"),
+        (0x1D, "power", "kJ/h"),
+        (0x20, "power", "MJ/h"),
+        (0x23, "power", "GJ/h"),
+        (0x26, "volume", "ml"),
+        (0x29, "volume", "l"),
+        (0x2C, "volume", "m³"),
+        (0x2F, "volume_flow", "ml/h"),
+        (0x32, "volume_flow", "l/h"),
+        (0x35, "volume_flow", "m³/h"),
+    ];
+    for &(base, quantity, unit) in STEPS {
+        if (base..base + 3).contains(&code) {
+            return (quantity, unit, (code - base) as i32);
+        }
+    }
+    match code {
+        0x00 => ("value", "h,m,s", 0),
+        0x01 => ("value", "D,M,Y", 0),
+        0x38 => ("external_temperature", "°C", -3),
+        0x39 => ("hca_units", "", 0),
+        _ => ("value", "", 0),
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     /// Messwert mit Zehnerexponent

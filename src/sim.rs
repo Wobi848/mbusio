@@ -8,6 +8,11 @@
 //!   kollidieren bei Primäradressierung, nur per Sekundäradresse erreichbar
 //! - Adr. 4: Zähler mit falscher Prüfsumme im Datentelegramm
 //! - Adr. 5: Zähler, dessen Datentelegramm abgeschnitten ist
+//! - Adr. 6: Wasserzähler, ID 60000006, läuft mit 9600 Bd (bzw. 2400 Bd, wenn mit 9600 verbunden)
+//! - Adr. 7: alter Wärmezähler, ID 70000007, feste Datenstruktur (CI 73)
+//!
+//! Zähler hören nur Telegramme mit ihrer eigenen Baudrate. Baudratenwechsel (CI B8..BF)
+//! und Application Reset (CI 50) werden quittiert.
 
 use std::collections::VecDeque;
 use std::io;
@@ -17,9 +22,10 @@ use chrono::{Datelike, Local, Timelike};
 
 use crate::link::Link;
 use crate::mbus::frame::{
-    self, Frame, Parse, ACK, ADDR_BROADCAST, ADDR_BROADCAST_REPLY, ADDR_SELECTED, CI_DATA_SEND,
-    CI_SELECT,
+    self, Frame, Parse, ACK, ADDR_BROADCAST, ADDR_BROADCAST_REPLY, ADDR_SELECTED, CI_APP_RESET,
+    CI_DATA_SEND, CI_SELECT,
 };
+use crate::mbus::master::BAUD_RATES;
 use crate::mbus::tables::manufacturer_code;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -34,6 +40,8 @@ enum Model {
     Heat,
     Electricity,
     Water,
+    /// Feste Datenstruktur (CI 73), wie sehr alte Zähler
+    Fixed,
 }
 
 struct Slave {
@@ -45,6 +53,7 @@ struct Slave {
     model: Model,
     fault: Fault,
     access: u8,
+    baud: u32,
     selected: bool,
     part: usize,
     last_fcb: Option<bool>,
@@ -61,10 +70,16 @@ impl Slave {
             model,
             fault: Fault::None,
             access: 0,
+            baud: 0,
             selected: false,
             part: 0,
             last_fcb: None,
         }
+    }
+
+    fn with_baud(mut self, baud: u32) -> Self {
+        self.baud = baud;
+        self
     }
 
     fn with_fault(mut self, fault: Fault) -> Self {
@@ -105,6 +120,21 @@ impl Slave {
         }
         self.last_fcb = Some(fcb);
         self.access = self.access.wrapping_add(1);
+
+        if let Model::Fixed = self.model {
+            // ID, Zugriffsnummer, Status (BCD, aktuelle Werte), Medium/Einheiten, 2 Zähler
+            let mut d = self.id.to_le_bytes().to_vec();
+            // Medium Wärme (4): Bits 7..6 beider Einheitenbytes; Einheiten kWh (05) und m³ (2C)
+            d.extend_from_slice(&[self.access, 0x00, 0x05, 0x40 | 0x2C]);
+            d.extend_from_slice(&bcd_bytes(12_345 + (elapsed as u64) / 60, 4));
+            d.extend_from_slice(&bcd_bytes(678, 4));
+            return Frame::Long {
+                control: 0x08,
+                address: self.primary,
+                ci: 0x73,
+                data: d,
+            };
+        }
 
         let mut d = Vec::new();
         d.extend_from_slice(&self.id.to_le_bytes());
@@ -147,7 +177,7 @@ impl Slave {
                 let fw: Vec<u8> = b"1.02".iter().rev().copied().collect();
                 rec(&mut d, &[0x0D, 0xFD, 0x0E, fw.len() as u8], &fw);
             }
-            (Model::Water, _) => {
+            (Model::Water | Model::Fixed, _) => {
                 rec(&mut d, &[0x0C, 0x13], &bcd_bytes(123_456 + tick as u64, 4)); // l
                 rec(&mut d, &[0x4C, 0x13], &bcd_bytes(100_000, 4));
                 rec(&mut d, &[0x42, 0x6C], &type_g(2025, 12, 31));
@@ -193,6 +223,7 @@ fn now_type_f() -> [u8; 4] {
 
 pub struct Simulator {
     slaves: Vec<Slave>,
+    baud: u32,
     inbuf: Vec<u8>,
     rx: VecDeque<u8>,
     byte_time: Duration,
@@ -201,7 +232,7 @@ pub struct Simulator {
 
 impl Simulator {
     pub fn new(baud: u32) -> Self {
-        let slaves = vec![
+        let mut slaves = vec![
             Slave::new(1, 0x1234_5678, "KAM", 0x1B, 0x04, Model::Heat),
             Slave::new(2, 0x8765_4321, "ABB", 0x02, 0x02, Model::Electricity),
             Slave::new(3, 0x3000_0001, "SEN", 0x10, 0x07, Model::Water),
@@ -210,9 +241,16 @@ impl Simulator {
             Slave::new(4, 0x4000_0004, "SEN", 0x10, 0x07, Model::Water).with_fault(Fault::Checksum),
             Slave::new(5, 0x5000_0005, "SEN", 0x10, 0x07, Model::Water)
                 .with_fault(Fault::Truncated),
+            Slave::new(7, 0x7000_0007, "", 0, 0x04, Model::Fixed),
         ];
+        for s in &mut slaves {
+            s.baud = baud;
+        }
+        let other = if baud == 9600 { 2400 } else { 9600 };
+        slaves.push(Slave::new(6, 0x6000_0006, "SEN", 0x10, 0x07, Model::Water).with_baud(other));
         Simulator {
             slaves,
+            baud,
             inbuf: Vec::new(),
             rx: VecDeque::new(),
             byte_time: Duration::from_secs_f64(11.0 / baud.max(300) as f64),
@@ -222,6 +260,7 @@ impl Simulator {
 
     fn targets(&self, address: u8) -> Vec<usize> {
         (0..self.slaves.len())
+            .filter(|&k| self.slaves[k].baud == self.baud)
             .filter(|&k| match address {
                 ADDR_BROADCAST | ADDR_BROADCAST_REPLY => true,
                 ADDR_SELECTED => self.slaves[k].selected,
@@ -267,7 +306,8 @@ impl Simulator {
                 data,
             } if control & 0xCF == 0x43 => {
                 if ci == CI_SELECT && address == ADDR_SELECTED {
-                    for s in &mut self.slaves {
+                    let baud = self.baud;
+                    for s in self.slaves.iter_mut().filter(|s| s.baud == baud) {
                         s.selected = s.matches(&data);
                         if s.selected {
                             s.reset();
@@ -281,6 +321,18 @@ impl Simulator {
                 {
                     for k in self.targets(address) {
                         self.slaves[k].primary = data[2];
+                        replies.push(vec![ACK]);
+                    }
+                } else if (0xB8..=0xBF).contains(&ci) && data.is_empty() {
+                    let new = BAUD_RATES[(ci - 0xB8) as usize];
+                    for k in self.targets(address) {
+                        // ACK geht noch mit der alten Baudrate raus
+                        self.slaves[k].baud = new;
+                        replies.push(vec![ACK]);
+                    }
+                } else if ci == CI_APP_RESET {
+                    for k in self.targets(address) {
+                        self.slaves[k].reset();
                         replies.push(vec![ACK]);
                     }
                 }
@@ -359,6 +411,13 @@ impl Link for Simulator {
         self.rx.clear();
         Ok(())
     }
+
+    fn set_baud(&mut self, baud: u32) -> io::Result<()> {
+        self.baud = baud;
+        self.byte_time = Duration::from_secs_f64(11.0 / baud.max(300) as f64);
+        self.inbuf.clear();
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -428,6 +487,8 @@ mod tests {
                 ("40000004".into(), "no_data"),
                 ("50000005".into(), "no_data"),
                 ("55500011".into(), "ok"),
+                ("70000007".into(), "ok"),
+                // 60000006 läuft mit anderer Baudrate und fehlt deshalb
                 ("87654321".into(), "ok"),
             ]
         );
@@ -510,5 +571,65 @@ mod tests {
         let mut m = master();
         m.set_primary(&Target::Primary(1), 1).unwrap();
         m.set_primary(&Target::parse("87654321").unwrap(), 2).unwrap();
+    }
+
+    #[test]
+    fn detect_and_switch_baud() {
+        let mut m = master();
+        // Adresse 6 läuft mit 2400 Bd, der Master mit 9600
+        assert!(m.read_meter(&Target::Primary(6)).is_err());
+        assert_eq!(m.detect_baud(&Target::Primary(6)).unwrap(), vec![2400]);
+        assert_eq!(m.baud(), 9600);
+        m.set_baud(2400).unwrap();
+        m.switch_baud(&Target::parse("60000006").unwrap(), 9600)
+            .unwrap();
+        m.set_baud(9600).unwrap();
+        let r = m.read_meter(&Target::Primary(6)).unwrap();
+        assert_eq!(r.header.unwrap().id, "60000006");
+        // Zähler 1 läuft weiter mit 9600
+        assert_eq!(m.detect_baud(&Target::Primary(1)).unwrap(), vec![9600]);
+    }
+
+    #[test]
+    fn switch_baud_refuses_collision() {
+        let mut m = master();
+        assert!(m.switch_baud(&Target::Primary(0), 2400).is_err());
+        assert_eq!(m.detect_baud(&Target::Primary(0)).unwrap(), vec![9600]);
+    }
+
+    #[test]
+    fn application_reset_is_acknowledged() {
+        let mut m = master();
+        m.application_reset(&Target::Primary(1), None).unwrap();
+        m.application_reset(&Target::parse("87654321").unwrap(), Some(0x10))
+            .unwrap();
+        assert!(m.application_reset(&Target::Primary(99), None).is_err());
+    }
+
+    #[test]
+    fn read_fixed_structure() {
+        let mut m = master();
+        let r = m.read_meter(&Target::Primary(7)).unwrap();
+        let h = r.header.unwrap();
+        assert_eq!((h.id.as_str(), h.medium.as_str()), ("70000007", "medium_heat_outlet"));
+        assert_eq!(r.records.len(), 2);
+        assert_eq!(
+            (r.records[0].quantity.as_str(), r.records[0].unit.as_str()),
+            ("energy", "kWh")
+        );
+        assert!(r.records[0].value_text.starts_with("123"));
+        assert_eq!(
+            (r.records[1].unit.as_str(), r.records[1].value_text.as_str()),
+            ("m³", "678")
+        );
+    }
+
+    #[test]
+    fn raw_send_returns_reply() {
+        let mut m = master();
+        let ack = m.raw_send(&[0x10, 0x40, 0x01, 0x41, 0x16]).unwrap();
+        assert!(matches!(ack, crate::mbus::master::Reply::Frame(crate::mbus::frame::Frame::Ack)));
+        let none = m.raw_send(&[0x10, 0x40, 0x63, 0xA3, 0x16]).unwrap();
+        assert!(matches!(none, crate::mbus::master::Reply::None));
     }
 }

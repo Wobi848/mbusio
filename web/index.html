@@ -28,7 +28,7 @@
       <button id="refresh-ports" class="ghost" data-i18n-title="reload_ports">↻</button>
     </div>
     <div class="row">
-      <label><span data-i18n="port_manual"></span> <input id="port-manual" placeholder="/dev/ttyUSB0, COM3 …"></label>
+      <label><span data-i18n="port_manual"></span> <input id="port-manual" placeholder="/dev/ttyUSB0, COM3, tcp://192.168.1.50:10001 …"></label>
     </div>
     <div class="row">
       <label><span data-i18n="baud"></span>
@@ -83,6 +83,52 @@
   </section>
 
   <section class="card">
+    <h2 data-i18n="meters"></h2>
+    <p class="hint" data-i18n="meters_hint"></p>
+    <p id="meters-file" class="hint mono"></p>
+    <div class="row">
+      <button id="meter-add" class="ghost" data-i18n="meter_add"></button>
+      <button id="meters-read-all" class="needs-conn" data-i18n="meters_read_all"></button>
+      <a id="meters-export" class="button ghost" href="api/meters/export" data-i18n="export"></a>
+      <label class="button ghost file-button"><span data-i18n="import"></span><input id="meters-import" type="file" accept=".json,application/json" hidden></label>
+    </div>
+    <div id="meters-job" class="hint" hidden></div>
+    <form id="meter-form" class="meter-form" hidden>
+      <div class="row">
+        <label><span data-i18n="meter_name"></span> <input id="mf-name" data-i18n-ph="meter_name_ph"></label>
+        <label><span data-i18n="meter_location"></span> <input id="mf-location" data-i18n-ph="meter_location_ph"></label>
+      </div>
+      <div class="row">
+        <label><span data-i18n="address"></span> <input id="mf-address" data-i18n-ph="address_ph" required></label>
+        <label><span data-i18n="baud"></span>
+          <select id="mf-baud">
+            <option value="" data-i18n="baud_bus"></option>
+            <option>300</option><option>600</option><option>1200</option><option>2400</option>
+            <option>4800</option><option>9600</option><option>19200</option><option>38400</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label><span data-i18n="meter_note"></span> <input id="mf-note"></label>
+      </div>
+      <div class="row">
+        <button type="submit" data-i18n="save"></button>
+        <button type="button" id="mf-cancel" class="ghost" data-i18n="cancel"></button>
+      </div>
+    </form>
+    <p id="meters-empty" class="hint" data-i18n="meters_empty"></p>
+    <div class="table-wrap">
+      <table id="meters-table" hidden>
+        <thead><tr>
+          <th data-i18n="meter_name"></th><th data-i18n="meter_location"></th><th data-i18n="address"></th>
+          <th data-i18n="col_medium"></th><th data-i18n="baud"></th><th data-i18n="last_value"></th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
     <h2 data-i18n="read_meter"></h2>
     <div class="row">
       <label><span data-i18n="address"></span> <input id="read-addr" data-i18n-ph="address_ph"></label>
@@ -92,13 +138,44 @@
   </section>
 
   <section class="card">
-    <h2 data-i18n="set_primary"></h2>
+    <h2 data-i18n="configure"></h2>
     <div class="row">
-      <label><span data-i18n="current_address"></span> <input id="set-old" data-i18n-ph="address_ph_short"></label>
-      <label><span data-i18n="new_primary"></span> <input id="set-new" type="number" min="0" max="250"></label>
-      <button id="set-addr" class="needs-conn" data-i18n="set"></button>
+      <label><span data-i18n="meter"></span> <input id="set-old" data-i18n-ph="address_ph"></label>
     </div>
     <p class="hint" data-i18n="set_hint"></p>
+    <div class="config-grid">
+      <div class="config-item">
+        <h3 data-i18n="set_primary"></h3>
+        <div class="row">
+          <label><span data-i18n="new_primary"></span> <input id="set-new" type="number" min="0" max="250"></label>
+          <button id="set-addr" class="needs-conn" data-i18n="set"></button>
+        </div>
+      </div>
+      <div class="config-item">
+        <h3 data-i18n="baud_title"></h3>
+        <div class="row">
+          <label><span data-i18n="new_baud"></span>
+            <select id="new-baud">
+              <option>300</option><option>600</option><option>1200</option><option selected>2400</option>
+              <option>4800</option><option>9600</option><option>19200</option><option>38400</option>
+            </select>
+          </label>
+          <button id="switch-baud" class="needs-conn" data-i18n="switch"></button>
+        </div>
+        <div class="row">
+          <button id="detect-baud" class="ghost needs-conn" data-i18n="detect_baud"></button>
+          <span id="detect-result" class="hint"></span>
+        </div>
+        <p class="hint" data-i18n="baud_hint"></p>
+      </div>
+      <div class="config-item">
+        <h3 data-i18n="reset_title"></h3>
+        <p class="hint" data-i18n="reset_hint"></p>
+        <div class="row">
+          <button id="app-reset" class="ghost needs-conn" data-i18n="reset"></button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section class="card">
@@ -119,6 +196,13 @@
         <label class="inline"><input id="log-follow" type="checkbox" checked> <span data-i18n="follow"></span></label>
       </div>
       <pre id="log"></pre>
+      <h3 data-i18n="raw_title"></h3>
+      <p class="hint" data-i18n="raw_hint"></p>
+      <div class="row">
+        <label><span data-i18n="raw_bytes"></span> <input id="raw-hex" class="mono" placeholder="10 40 01 41 16"></label>
+        <button id="raw-send" class="needs-conn" data-i18n="send"></button>
+      </div>
+      <pre id="raw-result" class="code" hidden></pre>
     </details>
   </section>
 </main>

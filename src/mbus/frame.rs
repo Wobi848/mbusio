@@ -14,6 +14,7 @@ pub const ADDR_BROADCAST_REPLY: u8 = 0xFE;
 /// Broadcast, kein Slave antwortet.
 pub const ADDR_BROADCAST: u8 = 0xFF;
 
+pub const CI_APP_RESET: u8 = 0x50;
 pub const CI_DATA_SEND: u8 = 0x51;
 pub const CI_SELECT: u8 = 0x52;
 

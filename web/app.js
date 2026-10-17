@@ -14,7 +14,8 @@ const UI = {
     timeout_hint: "0 = automatisch",
     connect: "Verbinden",
     disconnect: "Trennen",
-    connection_hint: "8 Datenbits, gerade Parität, 1 Stopbit. „SIMULATOR“ startet einen virtuellen Bus zum Testen.",
+    connection_hint:
+      "8 Datenbits, gerade Parität, 1 Stopbit. Netzwerk-Gateways als tcp://IP:Port angeben (Baudrate dann am Gateway einstellen). „SIMULATOR“ startet einen virtuellen Bus zum Testen.",
     scan: "Scan",
     from: "Von Adresse",
     to: "Bis Adresse",
@@ -43,10 +44,60 @@ const UI = {
     read: "Auslesen",
     reading_busy: "Lese …",
     set_primary: "Primäradresse setzen",
-    current_address: "Aktuelle Adresse",
     new_primary: "Neue Primäradresse",
     set: "Setzen",
-    set_hint: "Bei mehreren Zählern auf derselben Adresse (z.B. 0) die Sekundäradresse oder ID verwenden.",
+    set_hint: "Zähler über Primäradresse, ID oder Sekundäradresse angeben. Stehen mehrere Zähler auf derselben Adresse (z.B. 0), die ID verwenden.",
+    configure: "Zähler einstellen",
+    meter: "Zähler",
+    baud_title: "Baudrate",
+    new_baud: "Neue Baudrate",
+    switch: "Umstellen",
+    detect_baud: "Baudrate suchen",
+    baud_hint: "„Suchen“ probiert 300 bis 38400 Bd durch. Nach dem Umstellen antwortet der Zähler nur noch mit der neuen Baudrate; in der Zählerliste wird sie übernommen.",
+    confirm_switch: (a, b) => `Zähler ${a} auf ${b} Bd umstellen?`,
+    baud_switched: (b) => `Zähler läuft jetzt mit ${b} Bd`,
+    baud_switched_list: (b) => `Zähler läuft jetzt mit ${b} Bd, in der Zählerliste übernommen`,
+    detect_busy: "Suche …",
+    detect_none: "Keine Antwort auf allen Baudraten",
+    detect_found: (l) => `Antwortet mit: ${l} Bd`,
+    reset_title: "Application Reset",
+    reset_hint: "Setzt die Kommunikation des Zählers zurück (z.B. Auswahl der Telegramme). Zählerstände bleiben erhalten.",
+    reset: "Reset senden",
+    confirm_reset: (a) => `Application Reset an Zähler ${a} senden?`,
+    reset_done: "Reset quittiert",
+    meters: "Zählerliste",
+    meters_hint: "Zähler merken, benennen und gesammelt auslesen. Die Liste wird auf dem Rechner gespeichert, auf dem mbusio läuft.",
+    meters_file: (p) => `Datei: ${p}`,
+    meters_empty: "Noch keine Zähler. In der Scan-Liste „Merken“ klicken oder „Zähler hinzufügen“.",
+    meter_add: "Zähler hinzufügen",
+    meters_read_all: "Alle auslesen",
+    export: "Exportieren",
+    import: "Importieren",
+    meter_name: "Name",
+    meter_name_ph: "z.B. Whg. 3 Warmwasser",
+    meter_location: "Ort",
+    meter_location_ph: "z.B. Keller links",
+    meter_note: "Notiz",
+    baud_bus: "wie Bus",
+    save: "Speichern",
+    edit: "Bearbeiten",
+    remember: "Merken",
+    remembered: "In Zählerliste übernommen",
+    last_value: "Letzter Wert",
+    meter_saved: "Gespeichert",
+    confirm_delete_meter: (n) => `„${n}“ aus der Zählerliste entfernen?`,
+    imported: (n) => `${n} Zähler importiert`,
+    import_bad: "Datei enthält keine Zählerliste",
+    job_read_all: "Alle auslesen",
+    read_all_done: "Zählerliste ausgelesen",
+    raw_title: "Telegramm senden (Experten)",
+    raw_hint: "Bytes werden unverändert gesendet, die Prüfsumme muss stimmen. Beispiel: 10 40 01 41 16 = SND_NKE an Adresse 1.",
+    raw_bytes: "Bytes (Hex)",
+    send: "Senden",
+    raw_none: "Keine Antwort",
+    raw_ack: "ACK (E5)",
+    raw_collision: "Gestörte Antwort",
+    raw_frame: "Telegramm",
     readings_export: "Messwerte & Export",
     readings_count: (n) => `${n} Auslesung${n === 1 ? "" : "en"} gespeichert`,
     delete: "Löschen",
@@ -95,7 +146,8 @@ const UI = {
     timeout_hint: "0 = automatic",
     connect: "Connect",
     disconnect: "Disconnect",
-    connection_hint: "8 data bits, even parity, 1 stop bit. “SIMULATOR” starts a virtual bus for testing.",
+    connection_hint:
+      "8 data bits, even parity, 1 stop bit. Network gateways as tcp://IP:port (set the baud rate on the gateway). “SIMULATOR” starts a virtual bus for testing.",
     scan: "Scan",
     from: "From address",
     to: "To address",
@@ -124,10 +176,60 @@ const UI = {
     read: "Read",
     reading_busy: "Reading …",
     set_primary: "Set primary address",
-    current_address: "Current address",
     new_primary: "New primary address",
     set: "Set",
-    set_hint: "If several meters share an address (e.g. 0), use the secondary address or ID.",
+    set_hint: "Give the meter by primary address, ID or secondary address. If several meters share an address (e.g. 0), use the ID.",
+    configure: "Configure meter",
+    meter: "Meter",
+    baud_title: "Baud rate",
+    new_baud: "New baud rate",
+    switch: "Switch",
+    detect_baud: "Detect baud rate",
+    baud_hint: "“Detect” tries 300 to 38400 Bd. After switching, the meter only answers at the new baud rate; it is stored in the meter list.",
+    confirm_switch: (a, b) => `Switch meter ${a} to ${b} Bd?`,
+    baud_switched: (b) => `Meter now runs at ${b} Bd`,
+    baud_switched_list: (b) => `Meter now runs at ${b} Bd, updated in the meter list`,
+    detect_busy: "Searching …",
+    detect_none: "No answer at any baud rate",
+    detect_found: (l) => `Answers at: ${l} Bd`,
+    reset_title: "Application reset",
+    reset_hint: "Resets the meter's communication (e.g. telegram selection). Meter readings are kept.",
+    reset: "Send reset",
+    confirm_reset: (a) => `Send application reset to meter ${a}?`,
+    reset_done: "Reset acknowledged",
+    meters: "Meter list",
+    meters_hint: "Remember meters, name them and read them all at once. The list is stored on the computer running mbusio.",
+    meters_file: (p) => `File: ${p}`,
+    meters_empty: "No meters yet. Click “Remember” in the scan list or “Add meter”.",
+    meter_add: "Add meter",
+    meters_read_all: "Read all",
+    export: "Export",
+    import: "Import",
+    meter_name: "Name",
+    meter_name_ph: "e.g. Flat 3 hot water",
+    meter_location: "Location",
+    meter_location_ph: "e.g. basement left",
+    meter_note: "Note",
+    baud_bus: "same as bus",
+    save: "Save",
+    edit: "Edit",
+    remember: "Remember",
+    remembered: "Added to meter list",
+    last_value: "Last value",
+    meter_saved: "Saved",
+    confirm_delete_meter: (n) => `Remove “${n}” from the meter list?`,
+    imported: (n) => `${n} meters imported`,
+    import_bad: "File does not contain a meter list",
+    job_read_all: "Read all",
+    read_all_done: "Meter list read",
+    raw_title: "Send telegram (experts)",
+    raw_hint: "Bytes are sent unchanged, the checksum must be correct. Example: 10 40 01 41 16 = SND_NKE to address 1.",
+    raw_bytes: "Bytes (hex)",
+    send: "Send",
+    raw_none: "No reply",
+    raw_ack: "ACK (E5)",
+    raw_collision: "Corrupted reply",
+    raw_frame: "Telegram",
     readings_export: "Readings & export",
     readings_count: (n) => `${n} reading${n === 1 ? "" : "s"} stored`,
     delete: "Delete",
@@ -213,6 +315,7 @@ async function setLang(l) {
   updateExportLinks();
   if (lastReading) renderReading(lastReading);
   if (lastJob) renderJob(lastJob);
+  renderMeters();
   refreshStatus().catch(() => {});
 }
 
@@ -251,6 +354,7 @@ function updateExportLinks() {
   const extra = `&lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
   $("export-csv").href = "api/export?format=csv" + extra;
   $("export-json").href = "api/export?format=json" + extra;
+  $("meters-export").href = "api/meters/export" + (token ? `?token=${encodeURIComponent(token)}` : "");
 }
 
 function toast(msg, isError = false) {
@@ -308,6 +412,7 @@ async function refreshStatus() {
     badge.className = "badge off";
   }
   $("readings-count").textContent = t("readings_count", s.readings);
+  $("meters-file").textContent = s.meters_file ? t("meters_file", s.meters_file) : "";
   updateButtons();
   if (jobRunning) pollJob();
 }
@@ -342,10 +447,13 @@ async function pollJob() {
     for (;;) {
       const job = await api("job");
       renderJob(job);
+      // Zählerliste während "Alle auslesen" mitlaufend aktualisieren
+      if (job.kind === "read_all") await loadMeters().catch(() => {});
       if (!job.running) {
         jobRunning = false;
         updateButtons();
         if (job.error) toast(job.error, true);
+        else if (job.kind === "read_all") toast(t("read_all_done"));
         else toast(`${t("job_" + job.kind)}: ${t("hits", job.hits.length)}`);
         break;
       }
@@ -361,6 +469,15 @@ async function pollJob() {
 
 function renderJob(job) {
   lastJob = job;
+  if (job.kind === "read_all") {
+    const el = $("meters-job");
+    el.hidden = false;
+    el.textContent = job.running
+      ? `${t("job_read_all")}: ${Math.min(job.done + 1, job.total)}/${job.total} · ${job.message}`
+      : `${t("job_read_all")}: ${job.error || job.message}`;
+    updateButtons();
+    return;
+  }
   $("job").hidden = false;
   const p = $("job-progress");
   p.max = Math.max(job.total, 1);
@@ -376,7 +493,7 @@ function renderJob(job) {
     : ["col_primary", "col_id", "col_manufacturer", "col_version", "col_medium", "col_status", ""];
   table.querySelector("thead").innerHTML = `<tr>${cols.map((c) => `<th>${c && t(c)}</th>`).join("")}</tr>`;
   table.querySelector("tbody").innerHTML = job.hits
-    .map((h) => {
+    .map((h, i) => {
       const target = h.status === "ok" ? h.secondary_address || h.primary_address : "";
       const sa = raw
         ? `<td class="mono">${esc(h.secondary_address ?? "–")}</td>
@@ -389,7 +506,12 @@ function renderJob(job) {
         ${sa}
         <td>${esc(label(h.medium))}</td>
         <td class="st-${h.status}">${t("st_" + h.status)}</td>
-        <td>${target !== "" ? `<button class="small ghost needs-conn" data-read="${esc(target)}">${t("read")}</button>` : ""}</td>
+        <td><div class="actions">${
+          target !== ""
+            ? `<button class="small ghost needs-conn" data-read="${esc(target)}">${t("read")}</button>
+               <button class="small ghost" data-remember="${i}">${t("remember")}</button>`
+            : ""
+        }</div></td>
       </tr>`;
     })
     .join("");
@@ -403,10 +525,27 @@ $("sa-raw").onchange = () => {
 };
 
 $("hits").addEventListener("click", (ev) => {
-  const addr = ev.target.dataset?.read;
-  if (!addr) return;
-  $("read-addr").value = addr;
-  $("set-old").value = addr;
+  const d = ev.target.dataset || {};
+  if (d.remember !== undefined) {
+    const h = lastJob.hits[Number(d.remember)];
+    guarded(ev.target, async () => {
+      await api("meters", {
+        method: "POST",
+        body: {
+          address: h.secondary_address || String(h.primary_address),
+          meter_id: h.id,
+          manufacturer: h.manufacturer || null,
+          medium: h.medium,
+        },
+      });
+      toast(t("remembered"));
+      await loadMeters();
+    });
+    return;
+  }
+  if (!d.read) return;
+  $("read-addr").value = d.read;
+  $("set-old").value = d.read;
   readMeter();
 });
 
@@ -494,7 +633,18 @@ async function readMeter() {
 $("read").onclick = readMeter;
 $("read-addr").addEventListener("keydown", (e) => e.key === "Enter" && readMeter());
 
-// ------------------------------------------------------------ Adresse setzen
+// ------------------------------------------------------------ Zähler einstellen
+
+function configTarget() {
+  const address = $("set-old").value.trim();
+  if (!address) throw new Error(t("enter_address"));
+  return address;
+}
+
+/// Zähler der Liste mit derselben Adresse (gleiche Schreibweise)
+function listedMeter(address) {
+  return meters.find((m) => m.address.toUpperCase() === address.toUpperCase());
+}
 
 $("set-addr").onclick = () =>
   guarded($("set-addr"), async () => {
@@ -505,6 +655,175 @@ $("set-addr").onclick = () =>
     await api("set-address", { method: "POST", body: { address, new_address: Number(newAddr) } });
     toast(t("address_set", newAddr));
   });
+
+$("switch-baud").onclick = () =>
+  guarded($("switch-baud"), async () => {
+    const address = configTarget();
+    const baud = Number($("new-baud").value);
+    if (!confirm(t("confirm_switch", address, baud))) return;
+    await api("switch-baud", { method: "POST", body: { address, baud } });
+    const m = listedMeter(address);
+    if (m) {
+      await api("meters/" + m.id, { method: "PUT", body: { ...m, baud } });
+      await loadMeters();
+      toast(t("baud_switched_list", baud));
+    } else {
+      toast(t("baud_switched", baud));
+    }
+  });
+
+$("detect-baud").onclick = () =>
+  guarded($("detect-baud"), async () => {
+    const address = configTarget();
+    const out = $("detect-result");
+    out.textContent = t("detect_busy");
+    try {
+      const r = await api("detect-baud", { method: "POST", body: { address } });
+      out.textContent = r.bauds.length ? t("detect_found", r.bauds.join(", ")) : t("detect_none");
+      if (r.bauds.length) $("new-baud").value = r.bauds[0];
+    } catch (e) {
+      out.textContent = "";
+      throw e;
+    }
+  });
+
+$("app-reset").onclick = () =>
+  guarded($("app-reset"), async () => {
+    const address = configTarget();
+    if (!confirm(t("confirm_reset", address))) return;
+    await api("reset", { method: "POST", body: { address } });
+    toast(t("reset_done"));
+  });
+
+// ------------------------------------------------------------ Zählerliste
+
+let meters = [];
+let editingId = null;
+
+async function loadMeters() {
+  meters = await api("meters");
+  renderMeters();
+}
+
+function renderMeters() {
+  const table = $("meters-table");
+  table.hidden = meters.length === 0;
+  $("meters-empty").hidden = meters.length > 0;
+  table.querySelector("tbody").innerHTML = meters
+    .map((m) => {
+      // ID nur zusätzlich zeigen, wenn die Adresse nicht schon die ID ist
+      const info = [m.meter_id !== m.address ? m.meter_id : null, m.manufacturer].filter(Boolean).join(" · ");
+      const sub = (text) => (text ? `<span class="sub">${esc(text)}</span>` : "");
+      return `<tr>
+        <td class="wrap">${esc(m.name || "–")}${sub(m.note)}</td>
+        <td class="wrap">${esc(m.location)}</td>
+        <td class="mono">${esc(m.address)}${sub(info)}</td>
+        <td>${esc(label(m.medium))}</td>
+        <td class="num">${m.baud ?? ""}</td>
+        <td class="wrap">${esc(m.last_value ?? "")}${sub(
+          [m.last_value ? label(m.last_quantity) : "", m.last_read].filter(Boolean).join(" · ")
+        )}${m.last_error ? `<span class="err">${esc(m.last_error)}</span>` : ""}</td>
+        <td><div class="actions">
+          <button class="small ghost needs-conn" data-meter-read="${m.id}">${t("read")}</button>
+          <button class="small ghost" data-meter-edit="${m.id}">${t("edit")}</button>
+          <button class="small ghost" data-meter-del="${m.id}" title="${esc(t("delete"))}">✕</button>
+        </div></td>
+      </tr>`;
+    })
+    .join("");
+  updateButtons();
+}
+
+function openMeterForm(m) {
+  editingId = m ? m.id : null;
+  $("mf-name").value = m?.name ?? "";
+  $("mf-location").value = m?.location ?? "";
+  $("mf-address").value = m?.address ?? "";
+  $("mf-baud").value = m?.baud ?? "";
+  $("mf-note").value = m?.note ?? "";
+  $("meter-form").hidden = false;
+  $("mf-name").focus();
+}
+
+$("meter-add").onclick = () => openMeterForm(null);
+$("mf-cancel").onclick = () => ($("meter-form").hidden = true);
+
+$("meter-form").onsubmit = (ev) => {
+  ev.preventDefault();
+  guarded(ev.submitter || $("meter-form").querySelector("[type=submit]"), async () => {
+    const old = meters.find((m) => m.id === editingId) || {};
+    const body = {
+      ...old,
+      name: $("mf-name").value.trim(),
+      location: $("mf-location").value.trim(),
+      address: $("mf-address").value.trim(),
+      baud: $("mf-baud").value ? Number($("mf-baud").value) : null,
+      note: $("mf-note").value.trim(),
+    };
+    if (editingId === null) await api("meters", { method: "POST", body });
+    else await api("meters/" + editingId, { method: "PUT", body });
+    $("meter-form").hidden = true;
+    toast(t("meter_saved"));
+    await loadMeters();
+  });
+};
+
+$("meters-table").addEventListener("click", (ev) => {
+  const d = ev.target.dataset || {};
+  const m = meters.find((x) => String(x.id) === (d.meterRead ?? d.meterEdit ?? d.meterDel));
+  if (!m) return;
+  if (d.meterEdit) return openMeterForm(m);
+  if (d.meterDel) {
+    if (!confirm(t("confirm_delete_meter", m.name || m.address))) return;
+    guarded(ev.target, async () => {
+      await api("meters/" + m.id, { method: "DELETE" });
+      await loadMeters();
+    });
+    return;
+  }
+  // Auslesen mit der Baudrate des Zählers, Ergebnis im Bereich "Zähler auslesen"
+  $("read-addr").value = m.address;
+  $("set-old").value = m.address;
+  guarded(ev.target, async () => {
+    $("reading").innerHTML = `<p class="hint">${t("reading_busy")}</p>`;
+    try {
+      renderReading(await api(`meters/${m.id}/read`, { method: "POST" }));
+    } catch (e) {
+      $("reading").innerHTML = "";
+      throw e;
+    } finally {
+      await loadMeters().catch(() => {});
+      refreshStatus().catch(() => {});
+    }
+  });
+});
+
+$("meters-read-all").onclick = () =>
+  guarded($("meters-read-all"), async () => {
+    await api("meters/read-all", { method: "POST" });
+    jobRunning = true;
+    updateButtons();
+    pollJob();
+  });
+
+$("meters-import").onchange = (ev) => {
+  const file = ev.target.files[0];
+  ev.target.value = "";
+  if (!file) return;
+  guarded($("meter-add"), async () => {
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      throw new Error(t("import_bad"));
+    }
+    const list = Array.isArray(data) ? data : data?.meters;
+    if (!Array.isArray(list)) throw new Error(t("import_bad"));
+    const r = await api("meters/import", { method: "POST", body: { meters: list } });
+    toast(t("imported", r.added));
+    await loadMeters();
+  });
+};
 
 // ------------------------------------------------------------ Messwerte
 
@@ -531,6 +850,23 @@ async function pollLog() {
   if ($("log-follow").checked) pre.scrollTop = pre.scrollHeight;
 }
 
+$("raw-send").onclick = () =>
+  guarded($("raw-send"), async () => {
+    const hex = $("raw-hex").value.trim();
+    if (!hex) return;
+    const r = await api("raw", { method: "POST", body: { hex } });
+    const lines = [t("raw_" + r.kind) + (r.hex && r.kind !== "ack" ? ": " + r.hex : "")];
+    if (r.decoded) {
+      const h = r.decoded.header;
+      if (h) lines.push(`ID ${h.id} · ${h.manufacturer} · ${label(h.medium)}`);
+      for (const x of r.decoded.records) lines.push(`${label(x.quantity)}: ${x.value_text} ${x.unit}`.trim());
+    }
+    const out = $("raw-result");
+    out.textContent = lines.join("\n");
+    out.hidden = false;
+  });
+$("raw-hex").addEventListener("keydown", (e) => e.key === "Enter" && $("raw-send").click());
+
 $("clear-log").onclick = async () => {
   await api("log", { method: "DELETE" }).catch(() => {});
   $("log").innerHTML = "";
@@ -540,5 +876,6 @@ $("clear-log").onclick = async () => {
 
 setLang(lang);
 loadPorts().catch((e) => toast(e.message, true));
+loadMeters().catch((e) => toast(e.message, true));
 setInterval(() => pollLog().catch(() => {}), 1000);
 setInterval(() => !jobRunning && refreshStatus().catch(() => {}), 5000);

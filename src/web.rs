@@ -3,11 +3,11 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, TryLockError};
 
-use axum::extract::{Query, Request, State};
+use axum::extract::{Path, Query, Request, State};
 use axum::http::{header, HeaderMap, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
@@ -15,9 +15,11 @@ use serde_json::json;
 
 use crate::export;
 use crate::i18n::{self, tr, Lang};
-use crate::link::{self, SerialLink, SIMULATOR_PORT};
-use crate::mbus::master::{FrameLog, Master, MeterReading, Progress, ScanHit, Target};
-use crate::sim::Simulator;
+use crate::link;
+use crate::mbus::decode::decode_rsp_ud;
+use crate::mbus::frame::{hex, Frame};
+use crate::mbus::master::{FrameLog, Master, MeterReading, Progress, Reply, ScanHit, Target};
+use crate::project::{Meter, Store};
 
 #[derive(RustEmbed)]
 #[folder = "web/"]
@@ -51,17 +53,36 @@ pub struct Shared {
     cancel: AtomicBool,
     readings: Mutex<Vec<MeterReading>>,
     log: Arc<FrameLog>,
+    meters: Mutex<Store>,
     /// Optionaler Zugriffsschlüssel für die API (bei LAN-Zugriff)
     token: Option<String>,
 }
 
 impl Shared {
-    pub fn new(token: Option<String>) -> Self {
+    pub fn new(token: Option<String>, meters: Store) -> Self {
         Shared {
             token,
+            meters: Mutex::new(meters),
             ..Default::default()
         }
     }
+
+    fn push_reading(&self, reading: MeterReading) {
+        let mut all = self.readings.lock().unwrap();
+        all.push(reading);
+        if all.len() > MAX_READINGS {
+            let excess = all.len() - MAX_READINGS;
+            all.drain(..excess);
+        }
+    }
+}
+
+fn bad_request(e: impl std::fmt::Display) -> ApiError {
+    ApiError(StatusCode::BAD_REQUEST, format!("{e:#}"))
+}
+
+fn parse_target(address: &str) -> Result<Target, ApiError> {
+    Target::parse(address).map_err(bad_request)
 }
 
 /// Sprache aus `X-Lang` oder `Accept-Language`.
@@ -142,6 +163,16 @@ pub fn router(state: AppState) -> Router {
         .route("/api/job/cancel", post(cancel))
         .route("/api/read", post(read))
         .route("/api/set-address", post(set_address))
+        .route("/api/switch-baud", post(switch_baud))
+        .route("/api/detect-baud", post(detect_baud))
+        .route("/api/reset", post(app_reset))
+        .route("/api/raw", post(raw_send))
+        .route("/api/meters", get(meters_list).post(meters_add))
+        .route("/api/meters/{id}", put(meters_update).delete(meters_remove))
+        .route("/api/meters/read-all", post(meters_read_all))
+        .route("/api/meters/{id}/read", post(meters_read_one))
+        .route("/api/meters/export", get(meters_export))
+        .route("/api/meters/import", post(meters_import))
         .route("/api/readings", get(readings).delete(clear_readings))
         .route("/api/export", get(export_readings))
         .route("/api/log", get(log).delete(clear_log))
@@ -181,11 +212,7 @@ pub fn connect_blocking(
     baud: u32,
     timeout_ms: u64,
 ) -> anyhow::Result<()> {
-    let link: Box<dyn link::Link> = if port == SIMULATOR_PORT {
-        Box::new(Simulator::new(baud))
-    } else {
-        Box::new(SerialLink::open(port, baud)?)
-    };
+    let link = link::open(port, baud)?;
     let master = Master::new(link, baud, timeout_ms, state.log.clone());
     let effective = master.timeout.as_millis() as u64;
     let mut bus = state
@@ -226,6 +253,7 @@ async fn status(State(st): State<AppState>) -> Json<serde_json::Value> {
         "readings": st.readings.lock().unwrap().len(),
         "version": env!("CARGO_PKG_VERSION"),
         "token_required": st.token.is_some(),
+        "meters_file": st.meters.lock().unwrap().path().map(|p| p.display().to_string()),
     }))
 }
 
@@ -402,16 +430,21 @@ async fn read(
     headers: HeaderMap,
     Json(req): Json<ReadReq>,
 ) -> ApiResult<MeterReading> {
-    let target = Target::parse(&req.address)
-        .map_err(|e| ApiError(StatusCode::BAD_REQUEST, e.to_string()))?;
-    let reading = with_bus(&st, lang_of(&headers), move |m| m.read_meter(&target)).await?;
-    let mut all = st.readings.lock().unwrap();
-    all.push(reading.clone());
-    if all.len() > MAX_READINGS {
-        let excess = all.len() - MAX_READINGS;
-        all.drain(..excess);
+    let target = parse_target(&req.address)?;
+    let t = target.clone();
+    let result = with_bus(&st, lang_of(&headers), move |m| m.read_meter(&t)).await;
+    // Ergebnis auch in der Zählerliste vermerken, falls der Zähler dort steht
+    match &result {
+        Ok(r) => {
+            st.meters.lock().unwrap().record(&target, Ok(r));
+            st.push_reading(r.clone());
+        }
+        Err(ApiError(StatusCode::BAD_GATEWAY, e)) => {
+            st.meters.lock().unwrap().record(&target, Err(e.clone()));
+        }
+        Err(_) => {}
     }
-    Ok(Json(reading))
+    Ok(Json(result?))
 }
 
 #[derive(Deserialize)]
@@ -425,11 +458,262 @@ async fn set_address(
     headers: HeaderMap,
     Json(req): Json<SetAddressReq>,
 ) -> ApiResult<serde_json::Value> {
-    let target = Target::parse(&req.address)
-        .map_err(|e| ApiError(StatusCode::BAD_REQUEST, e.to_string()))?;
+    let target = parse_target(&req.address)?;
     let new = req.new_address;
     with_bus(&st, lang_of(&headers), move |m| m.set_primary(&target, new)).await?;
     Ok(Json(json!({ "ok": true, "new_address": new })))
+}
+
+#[derive(Deserialize)]
+struct SwitchBaudReq {
+    address: String,
+    baud: u32,
+}
+
+async fn switch_baud(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<SwitchBaudReq>,
+) -> ApiResult<serde_json::Value> {
+    let target = parse_target(&req.address)?;
+    let baud = req.baud;
+    with_bus(&st, lang_of(&headers), move |m| m.switch_baud(&target, baud)).await?;
+    Ok(Json(json!({ "ok": true, "baud": baud })))
+}
+
+async fn detect_baud(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<ReadReq>,
+) -> ApiResult<serde_json::Value> {
+    let target = parse_target(&req.address)?;
+    let bauds = with_bus(&st, lang_of(&headers), move |m| m.detect_baud(&target)).await?;
+    Ok(Json(json!({ "bauds": bauds })))
+}
+
+#[derive(Deserialize)]
+struct ResetReq {
+    address: String,
+    #[serde(default)]
+    subcode: Option<u8>,
+}
+
+async fn app_reset(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<ResetReq>,
+) -> ApiResult<serde_json::Value> {
+    let target = parse_target(&req.address)?;
+    let sub = req.subcode;
+    with_bus(&st, lang_of(&headers), move |m| m.application_reset(&target, sub)).await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+#[derive(Deserialize)]
+struct RawReq {
+    hex: String,
+}
+
+/// Hex-Text in Bytes, Leerzeichen und Trennzeichen erlaubt.
+pub fn parse_hex(text: &str) -> anyhow::Result<Vec<u8>> {
+    let digits: String = text.chars().filter(|c| c.is_ascii_hexdigit()).collect();
+    let junk = text
+        .chars()
+        .any(|c| !c.is_ascii_hexdigit() && !c.is_whitespace() && !matches!(c, ',' | ':' | '-'));
+    if junk || digits.is_empty() || !digits.len().is_multiple_of(2) {
+        anyhow::bail!(tr(
+            "Bitte Bytes als Hex eingeben, z.B. 10 40 01 41 16",
+            "Please enter bytes as hex, e.g. 10 40 01 41 16"
+        ));
+    }
+    Ok((0..digits.len())
+        .step_by(2)
+        .map(|k| u8::from_str_radix(&digits[k..k + 2], 16).unwrap())
+        .collect())
+}
+
+async fn raw_send(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<RawReq>,
+) -> ApiResult<serde_json::Value> {
+    let bytes = parse_hex(&req.hex).map_err(bad_request)?;
+    let reply = with_bus(&st, lang_of(&headers), move |m| m.raw_send(&bytes)).await?;
+    Ok(Json(match reply {
+        Reply::None => json!({ "kind": "none" }),
+        Reply::Collision(b) => json!({ "kind": "collision", "hex": hex(&b) }),
+        Reply::Frame(f) => {
+            // Datentelegramm gleich decodieren, wenn möglich
+            let decoded = match &f {
+                Frame::Long { ci, data, .. } => decode_rsp_ud(*ci, data).ok().map(|t| {
+                    json!({ "header": t.header, "records": t.records })
+                }),
+                _ => None,
+            };
+            let kind = if f == Frame::Ack { "ack" } else { "frame" };
+            json!({ "kind": kind, "hex": hex(&f.encode()), "decoded": decoded })
+        }
+    }))
+}
+
+// ------------------------------------------------------------ Zählerliste
+
+async fn meters_list(State(st): State<AppState>) -> Json<Vec<Meter>> {
+    Json(st.meters.lock().unwrap().list())
+}
+
+async fn meters_add(State(st): State<AppState>, Json(m): Json<Meter>) -> ApiResult<Meter> {
+    Ok(Json(st.meters.lock().unwrap().add(m).map_err(bad_request)?))
+}
+
+async fn meters_update(
+    State(st): State<AppState>,
+    Path(id): Path<u64>,
+    Json(m): Json<Meter>,
+) -> ApiResult<Meter> {
+    Ok(Json(
+        st.meters.lock().unwrap().update(id, m).map_err(bad_request)?,
+    ))
+}
+
+async fn meters_remove(
+    State(st): State<AppState>,
+    Path(id): Path<u64>,
+) -> ApiResult<serde_json::Value> {
+    st.meters.lock().unwrap().remove(id).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// Liest einen Zähler der Liste, mit seiner eigenen Baudrate falls angegeben.
+fn read_listed(m: &mut Master, meter: &Meter, home: u32) -> anyhow::Result<(Target, MeterReading)> {
+    let target = Target::parse(&meter.address)?;
+    m.set_baud(meter.baud.unwrap_or(home))?;
+    let r = m.read_meter(&target)?;
+    Ok((target, r))
+}
+
+async fn meters_read_one(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<u64>,
+) -> ApiResult<MeterReading> {
+    let meter = st
+        .meters
+        .lock()
+        .unwrap()
+        .list()
+        .into_iter()
+        .find(|m| m.id == id)
+        .ok_or_else(|| bad_request(format!("{} {id}", tr("Zähler nicht in der Liste:", "Meter not in list:"))))?;
+    let target = parse_target(&meter.address)?;
+    let result = with_bus(&st, lang_of(&headers), move |m| {
+        let home = m.baud();
+        let r = read_listed(m, &meter, home);
+        m.set_baud(home)?;
+        r
+    })
+    .await;
+    match result {
+        Ok((_, r)) => {
+            st.meters.lock().unwrap().record(&target, Ok(&r));
+            st.push_reading(r.clone());
+            Ok(Json(r))
+        }
+        Err(e) => {
+            // nur Busfehler vermerken, nicht "belegt" oder "nicht verbunden"
+            if e.0 == StatusCode::BAD_GATEWAY {
+                st.meters.lock().unwrap().record(&target, Err(e.1.clone()));
+            }
+            Err(e)
+        }
+    }
+}
+
+async fn meters_read_all(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+) -> ApiResult<JobStatus> {
+    let meters = st.meters.lock().unwrap().list();
+    if meters.is_empty() {
+        return Err(bad_request(tr(
+            "Die Zählerliste ist leer",
+            "The meter list is empty",
+        )));
+    }
+    let s = st.clone();
+    start_job(&st, "read_all", lang_of(&headers), move |m, progress| {
+        let total = meters.len() as u32;
+        let home = m.baud();
+        for (k, meter) in meters.iter().enumerate() {
+            let name = if meter.name.is_empty() {
+                &meter.address
+            } else {
+                &meter.name
+            };
+            if !progress(Progress::Step {
+                done: k as u32,
+                total,
+                message: name.clone(),
+            }) {
+                break;
+            }
+            match read_listed(m, meter, home) {
+                Ok((target, r)) => {
+                    s.meters.lock().unwrap().record(&target, Ok(&r));
+                    s.push_reading(r);
+                }
+                Err(e) => {
+                    if let Ok(target) = Target::parse(&meter.address) {
+                        s.meters
+                            .lock()
+                            .unwrap()
+                            .record(&target, Err(format!("{e:#}")));
+                    }
+                }
+            }
+        }
+        m.set_baud(home)?;
+        progress(Progress::Step {
+            done: total,
+            total,
+            message: tr("Fertig", "Done"),
+        });
+        Ok(())
+    })
+}
+
+async fn meters_export(State(st): State<AppState>) -> Response {
+    let body = serde_json::to_string_pretty(&json!({ "meters": st.meters.lock().unwrap().list() }))
+        .unwrap_or_default();
+    (
+        [
+            (header::CONTENT_TYPE, "application/json".to_string()),
+            (
+                header::CONTENT_DISPOSITION,
+                "attachment; filename=\"mbusio-meters.json\"".to_string(),
+            ),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+#[derive(Deserialize)]
+struct ImportReq {
+    meters: Vec<Meter>,
+}
+
+async fn meters_import(
+    State(st): State<AppState>,
+    Json(req): Json<ImportReq>,
+) -> ApiResult<serde_json::Value> {
+    let n = st
+        .meters
+        .lock()
+        .unwrap()
+        .import(req.meters)
+        .map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "added": n })))
 }
 
 async fn readings(State(st): State<AppState>) -> Json<Vec<MeterReading>> {

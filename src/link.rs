@@ -1,6 +1,7 @@
-//! Physische Verbindung zum Bus: serielle Schnittstelle oder Simulator.
+//! Physische Verbindung zum Bus: serielle Schnittstelle, TCP-Gateway oder Simulator.
 
 use std::io::{self, Read, Write};
+use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
 use crate::i18n::tr;
@@ -13,6 +14,8 @@ pub trait Link: Send {
     fn recv(&mut self, buf: &mut [u8], timeout: Duration) -> io::Result<usize>;
     /// Empfangspuffer verwerfen.
     fn clear(&mut self) -> io::Result<()>;
+    /// Baudrate wechseln (für Baudratensuche und Busse mit gemischten Baudraten).
+    fn set_baud(&mut self, baud: u32) -> io::Result<()>;
 }
 
 pub struct SerialLink {
@@ -61,9 +64,91 @@ impl Link for SerialLink {
             .clear(ClearBuffer::Input)
             .map_err(io::Error::other)
     }
+
+    fn set_baud(&mut self, baud: u32) -> io::Result<()> {
+        self.port.set_baud_rate(baud).map_err(io::Error::other)
+    }
+}
+
+/// M-Bus-Master mit Netzwerkanschluss (transparentes TCP, wie `mbus-tcp-*` von libmbus).
+pub struct TcpLink {
+    stream: TcpStream,
+}
+
+pub const TCP_PREFIX: &str = "tcp://";
+
+impl TcpLink {
+    /// `host:port`, z.B. `192.168.1.50:10001`
+    pub fn open(addr: &str) -> Result<Self> {
+        let context = || {
+            format!(
+                "{} {addr}",
+                tr("Keine Verbindung zu", "Could not connect to")
+            )
+        };
+        let sock = addr
+            .to_socket_addrs()
+            .with_context(context)?
+            .next()
+            .with_context(context)?;
+        let stream = TcpStream::connect_timeout(&sock, Duration::from_secs(3)).with_context(context)?;
+        stream.set_nodelay(true)?;
+        Ok(Self { stream })
+    }
+}
+
+impl Link for TcpLink {
+    fn send(&mut self, data: &[u8]) -> io::Result<()> {
+        self.stream.write_all(data)?;
+        self.stream.flush()
+    }
+
+    fn recv(&mut self, buf: &mut [u8], timeout: Duration) -> io::Result<usize> {
+        self.stream
+            .set_read_timeout(Some(timeout.max(Duration::from_millis(1))))?;
+        match self.stream.read(buf) {
+            Ok(0) => Err(io::Error::new(
+                io::ErrorKind::ConnectionAborted,
+                tr("Gateway hat die Verbindung geschlossen", "Gateway closed the connection"),
+            )),
+            Ok(n) => Ok(n),
+            Err(e) if matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => {
+                Ok(0)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    fn clear(&mut self) -> io::Result<()> {
+        let mut tmp = [0u8; 256];
+        while self.recv(&mut tmp, Duration::from_millis(1))? > 0 {}
+        Ok(())
+    }
+
+    fn set_baud(&mut self, _baud: u32) -> io::Result<()> {
+        // Die Baudrate auf dem Bus stellt man am Gateway ein, nicht über TCP
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            tr(
+                "Bei TCP-Gateways wird die Baudrate am Gateway eingestellt",
+                "With TCP gateways the baud rate is set on the gateway",
+            ),
+        ))
+    }
 }
 
 pub const SIMULATOR_PORT: &str = "SIMULATOR";
+
+/// `SIMULATOR`, `tcp://host:port` oder Name der seriellen Schnittstelle
+pub fn open(port: &str, baud: u32) -> Result<Box<dyn Link>> {
+    Ok(if port == SIMULATOR_PORT {
+        Box::new(crate::sim::Simulator::new(baud))
+    } else if let Some(addr) = port.strip_prefix(TCP_PREFIX) {
+        Box::new(TcpLink::open(addr)?)
+    } else {
+        Box::new(SerialLink::open(port, baud)?)
+    })
+}
 
 pub fn list_ports() -> Vec<String> {
     let mut ports = vec![SIMULATOR_PORT.to_string()];
@@ -71,4 +156,30 @@ pub fn list_ports() -> Vec<String> {
         ports.extend(found.into_iter().map(|p| p.port_name));
     }
     ports
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::TcpListener;
+
+    #[test]
+    fn tcp_link_round_trip() {
+        let server = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = server.local_addr().unwrap();
+        let t = std::thread::spawn(move || {
+            let (mut s, _) = server.accept().unwrap();
+            let mut buf = [0u8; 5];
+            s.read_exact(&mut buf).unwrap();
+            s.write_all(&[0xE5]).unwrap();
+            buf
+        });
+        let mut link = open(&format!("{TCP_PREFIX}{addr}"), 2400).unwrap();
+        link.send(&[0x10, 0x40, 0x01, 0x41, 0x16]).unwrap();
+        let mut buf = [0u8; 8];
+        let n = link.recv(&mut buf, Duration::from_secs(2)).unwrap();
+        assert_eq!(&buf[..n], &[0xE5]);
+        assert_eq!(t.join().unwrap(), [0x10, 0x40, 0x01, 0x41, 0x16]);
+        assert!(link.set_baud(9600).is_err());
+    }
 }

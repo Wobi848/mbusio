@@ -153,6 +153,7 @@ const LABELS: &[(&str, &str, &str)] = &[
         "manufacturer specific",
     ),
     ("note_vife", "VIFE", "VIFE"),
+    ("note_counter", "Zähler", "Counter"),
     // Medien
     ("medium_other", "Andere", "Other"),
     ("medium_oil", "Öl", "Oil"),

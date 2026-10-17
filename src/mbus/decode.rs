@@ -1,4 +1,4 @@
-//! Application-Layer (EN 13757-3): RSP_UD mit variabler Datenstruktur decodieren.
+//! Application-Layer (EN 13757-3): RSP_UD mit variabler oder fester Datenstruktur decodieren.
 
 use serde::Serialize;
 use serde_json::Value;
@@ -65,6 +65,8 @@ pub fn decode_rsp_ud(ci: u8, data: &[u8]) -> Result<Telegram, String> {
             (None, &data[4..])
         }
         0x78 => (None, data),
+        0x73 => return fixed(data),
+        0x70 => return Err(application_error(data)),
         _ => {
             return Err(format!(
                 "{} {ci:02X}",
@@ -95,6 +97,97 @@ fn long_header(d: &[u8]) -> Header {
             d[3], d[2], d[1], d[0], d[5], d[4], d[6], d[7]
         ),
     }
+}
+
+/// Feste Datenstruktur (CI 73), EN 1434-3: ID, Zugriffsnummer, Status,
+/// Medium/Einheiten (2 Byte), zwei Zählerstände à 4 Byte.
+fn fixed(d: &[u8]) -> Result<Telegram, String> {
+    if d.len() < 16 {
+        return Err(tr("Datenkopf zu kurz", "Data header too short"));
+    }
+    let status = d[5];
+    let medium = (d[6] >> 6) | ((d[7] >> 6) << 2);
+    let header = Header {
+        id: format!("{:02X}{:02X}{:02X}{:02X}", d[3], d[2], d[1], d[0]),
+        // keine Herstellerkennung und Version in der festen Struktur
+        manufacturer: String::new(),
+        version: 0,
+        medium_code: medium,
+        medium: tables::medium_key(medium).into(),
+        access_no: d[4],
+        status,
+        secondary_address: format!(
+            "{:02X}{:02X}{:02X}{:02X}FFFFFF{medium:02X}",
+            d[3], d[2], d[1], d[0]
+        ),
+    };
+    // Status Bit 7: Zähler binär statt BCD; Bit 6: Werte vom Stichtag statt aktuell
+    let binary = status & 0x80 != 0;
+    let storage = u64::from(status & 0x40 != 0);
+    let unit1 = d[6] & 0x3F;
+    let mut records = Vec::new();
+    for (k, raw) in [&d[8..12], &d[12..16]].into_iter().enumerate() {
+        let mut code = d[6 + k] & 0x3F;
+        let mut st = storage;
+        // 3E beim zweiten Zähler: gleiche Einheit wie Zähler 1, aber historisch
+        if k == 1 && code == 0x3E {
+            code = unit1;
+            st = 1;
+        }
+        let (quantity, unit, exp) = tables::fixed_unit(code);
+        let v = if binary {
+            Some(le_unsigned(raw) as i64)
+        } else {
+            bcd(raw)
+        };
+        let (value, value_text) = match v {
+            Some(v) => scale(v, exp),
+            None => (
+                Value::String(hex(raw)),
+                format!("{} (BCD {})", hex(raw), tr("ungültig", "invalid")),
+            ),
+        };
+        records.push(Record {
+            function: "instantaneous",
+            storage: st,
+            tariff: 0,
+            subunit: 0,
+            quantity: quantity.into(),
+            notes: vec![format!("note_counter:{}", k + 1)],
+            unit: unit.into(),
+            value,
+            value_text,
+            dif: String::new(),
+            vif: format!("{code:02X}"),
+            raw: hex(raw),
+        });
+    }
+    Ok(Telegram {
+        header: Some(header),
+        records,
+        more_follow: false,
+    })
+}
+
+/// Fehlermeldung des Zählers (CI 70), EN 13757-3.
+fn application_error(d: &[u8]) -> String {
+    let code = d.first().copied().unwrap_or(0);
+    let text = match code {
+        0 => tr("nicht näher bezeichnet", "unspecified"),
+        1 => tr("CI-Feld nicht unterstützt", "unimplemented CI field"),
+        2 => tr("Puffer zu lang, abgeschnitten", "buffer too long, truncated"),
+        3 => tr("zu viele Datensätze", "too many records"),
+        4 => tr("Datensatz vorzeitig beendet", "premature end of record"),
+        5 => tr("mehr als 10 DIFE", "more than 10 DIFEs"),
+        6 => tr("mehr als 10 VIFE", "more than 10 VIFEs"),
+        8 => tr("Zähler beschäftigt", "application too busy"),
+        9 => tr("zu viele Auslesungen", "too many readouts"),
+        _ => tr("reserviert", "reserved"),
+    };
+    format!(
+        "{} {code:02X}: {text}",
+        tr("Zähler meldet Anwendungsfehler", "Meter reports application error")
+    )
 }
 
 fn take<'a>(data: &'a [u8], i: &mut usize, n: usize) -> Result<&'a [u8], String> {
@@ -481,5 +574,33 @@ mod tests {
     fn dates() {
         // 2026-09-30: y=26 -> low 3 bits 2, high 4 bits 3
         assert_eq!(date_g(&[30 | (2 << 5), 9 | (3 << 4)]), "2026-09-30");
+    }
+
+    #[test]
+    fn fixed_binary_and_historic() {
+        // Status 0xC0: binär, Stichtagswerte; Medium Wasser (7); Einheiten 100 l (2B), 3E
+        let d = [
+            0x01, 0x00, 0x00, 0x10, 0x05, 0xC0, 0xC0 | 0x2B, 0x40 | 0x3E, 0x10, 0x00, 0x00,
+            0x00, 0x20, 0x00, 0x00, 0x00,
+        ];
+        let t = decode_rsp_ud(0x73, &d).unwrap();
+        let h = t.header.unwrap();
+        assert_eq!((h.id.as_str(), h.medium_code), ("10000001", 7));
+        assert_eq!(
+            (t.records[0].value_text.as_str(), t.records[0].unit.as_str()),
+            ("1600", "l")
+        );
+        assert_eq!(t.records[0].storage, 1);
+        // Zähler 2: gleiche Einheit wie Zähler 1
+        assert_eq!(
+            (t.records[1].value_text.as_str(), t.records[1].unit.as_str()),
+            ("3200", "l")
+        );
+    }
+
+    #[test]
+    fn application_error_is_reported() {
+        let e = decode_rsp_ud(0x70, &[0x08]).unwrap_err();
+        assert!(e.contains("08"), "{e}");
     }
 }
