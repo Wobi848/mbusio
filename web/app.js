@@ -38,6 +38,11 @@ const UI = {
       "„Prüfen“ fragt in wenigen Sekunden alle Baudraten ab und markiert die, auf denen Geräte antworten (●). Gescannt wird nur auf den markierten Baudraten.",
     bauds_all: "Alle",
     busbar_view: "Ansehen",
+    new_site: "Neue Anlage",
+    new_site_title: "Alles von der letzten Anlage löschen und neu beginnen",
+    confirm_new_site: (m, r) =>
+      `Neue Anlage beginnen?\n\nGelöscht werden: Trefferliste, Zählerliste (${m} Zähler), gespeicherte Auslesungen (${r}), Änderungsprotokoll, Kopfdaten des Berichts und Telegramm-Log.\nVerbindung und Einstellungen bleiben.\n\nTipp: vorher Bericht oder Zählerliste exportieren.`,
+    new_site_done: "Alles zurückgesetzt – bereit für die neue Anlage",
     confirm_cancel_scan: "Scan wirklich abbrechen?\n\nDie bisher gefundenen Zähler bleiben in der Liste.",
     confirm_cancel_read: "Auslesen wirklich abbrechen?\n\nBereits gelesene Zähler behalten ihre Werte.",
     idle_ready: (p, b) => `Bereit · ${p} · ${b} Bd`,
@@ -284,6 +289,11 @@ const UI = {
       "“Check” polls all baud rates in a few seconds and selects those where devices answer (●). The scan only runs at the selected baud rates.",
     bauds_all: "All",
     busbar_view: "View",
+    new_site: "New site",
+    new_site_title: "Delete everything from the last site and start over",
+    confirm_new_site: (m, r) =>
+      `Start a new site?\n\nThis deletes: hit list, meter list (${m} meters), stored readings (${r}), change log, report header and telegram log.\nConnection and settings stay.\n\nTip: export the report or meter list first.`,
+    new_site_done: "Everything reset – ready for the new site",
     confirm_cancel_scan: "Really cancel the scan?\n\nMeters found so far stay in the list.",
     confirm_cancel_read: "Really cancel reading?\n\nMeters already read keep their values.",
     idle_ready: (p, b) => `Ready · ${p} · ${b} Bd`,
@@ -550,6 +560,7 @@ async function setLang(l) {
 
 document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => setLang(b.dataset.lang)));
 
+
 // Design: auto (wie System), hell oder dunkel; das Setzen beim Laden steht in index.html
 function setTheme(theme) {
   if (theme === "auto") delete document.documentElement.dataset.theme;
@@ -568,6 +579,8 @@ let jobRunning = false;
 let logSeq = 0;
 let lastReading = null;
 let lastJob = null;
+/// Art des zuletzt angezeigten Jobs (auch "Alle auslesen"), z.B. für die Abbruch-Frage
+let currentJobKind = null;
 let connBaud = null;
 let checking = false;
 let conn = null;
@@ -683,7 +696,7 @@ async function refreshStatus() {
   connBaud = s.connection?.baud ?? null;
   conn = s.connection;
   // "Baudrate abweichend" hängt von der Bus-Baudrate ab: Trefferliste neu zeichnen, wenn sie sich ändert
-  if (connBaud !== prevBaud && lastJob && lastJob.kind !== "read_all") renderJob(lastJob);
+  if (connBaud !== prevBaud && lastJob) renderJob(lastJob);
   renderBusbar();
   // Auswahl folgt der eingestellten Baudrate, bis man selbst etwas anklickt
   if (connBaud && connBaud !== prevBaud && !baudsTouched) setPickedBauds([connBaud]);
@@ -774,7 +787,7 @@ function renderBusbar() {
 let cancelRequested = false;
 
 function cancelJob() {
-  const kind = lastJob?.kind;
+  const kind = currentJobKind;
   if (!confirm(t(kind === "read_all" ? "confirm_cancel_read" : "confirm_cancel_scan"))) return;
   cancelRequested = true;
   api("job/cancel", { method: "POST" }).catch((e) => toast(e.message, true));
@@ -918,7 +931,9 @@ function renderHitsWarn(hits, a) {
 }
 
 function renderJob(job) {
-  lastJob = job;
+  currentJobKind = job.kind;
+  // lastJob ist die Trefferliste; "Alle auslesen" darf sie nicht ersetzen
+  if (job.kind !== "read_all") lastJob = job;
   if (job.running) {
     const frac = job.total ? Math.min(job.done / job.total, 1) : 0;
     const found = job.kind === "read_all" ? "" : ` · ${t("found", job.hits.length)}`;
@@ -1485,9 +1500,7 @@ $("set-old").addEventListener("input", () => {
 /// Treffer der letzten Suche zu einer eingegebenen Adresse
 function hitFor(address) {
   const key = address.toUpperCase();
-  return lastJob?.kind !== "read_all"
-    ? lastJob?.hits.find((h) => h.id === key || h.secondary_address === key || String(h.primary_address) === key)
-    : null;
+  return lastJob?.hits.find((h) => h.id === key || h.secondary_address === key || String(h.primary_address) === key) ?? null;
 }
 
 function configTarget() {
@@ -1832,6 +1845,29 @@ $("clear-log").onclick = async () => {
   $("log").innerHTML = "";
 };
 
+// Neue Anlage: Server und Browser-Daten der letzten Anlage löschen, dann frisch laden
+$("new-site").onclick = () =>
+  guarded($("new-site"), async () => {
+    const s = await api("status");
+    if (!confirm(t("confirm_new_site", meters.length, s.readings))) return;
+    await api("new-site", { method: "POST" });
+    for (const k of ["report_changes", "report_fields", "report_details"]) storageSet(k, "");
+    try {
+      sessionStorage.setItem("new_site_done", "1");
+    } catch {
+      /* ohne Hinweis nach dem Laden */
+    }
+    location.reload();
+  });
+try {
+  if (sessionStorage.getItem("new_site_done")) {
+    sessionStorage.removeItem("new_site_done");
+    setTimeout(() => toast(t("new_site_done")), 300);
+  }
+} catch {
+  /* privater Modus */
+}
+
 // ------------------------------------------------------------ Start
 
 setLang(lang);
@@ -1839,9 +1875,9 @@ loadPorts().catch((e) => toast(e.message, true));
 // letztes Scan-Ergebnis nach dem Neuladen wieder anzeigen (läuft ein Scan, übernimmt pollJob);
 // erst nach dem Status, denn die Bewertung braucht die Bus-Baudrate
 refreshStatus()
-  .then(() => api("job"))
+  .then(() => (jobRunning ? null : api("last-scan")))
   .then((job) => {
-    if (!job.running && job.kind && job.kind !== "read_all" && job.hits.length) renderJob(job);
+    if (job && job.hits.length) renderJob(job);
   })
   .catch(() => {});
 loadMeters().catch((e) => toast(e.message, true));

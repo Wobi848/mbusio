@@ -54,6 +54,8 @@ pub struct Shared {
     bus: Mutex<Option<Master>>,
     conn: Mutex<Option<ConnInfo>>,
     job: Mutex<JobStatus>,
+    /// Ergebnis des letzten abgeschlossenen Scans; bleibt bei "Alle auslesen" erhalten
+    last_scan: Mutex<Option<JobStatus>>,
     cancel: AtomicBool,
     readings: Mutex<Vec<MeterReading>>,
     log: Arc<FrameLog>,
@@ -164,6 +166,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/scan/primary", post(scan_primary))
         .route("/api/scan/secondary", post(scan_secondary))
         .route("/api/job", get(job))
+        .route("/api/last-scan", get(last_scan))
         .route("/api/job/cancel", post(cancel))
         .route("/api/read", post(read))
         .route("/api/set-address", post(set_address))
@@ -187,6 +190,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/export", get(export_readings))
         .route("/api/log", get(log).delete(clear_log))
         .route("/api/labels", get(labels))
+        .route("/api/new-site", post(new_site))
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .fallback(static_file)
         .with_state(state)
@@ -373,6 +377,9 @@ where
                 job.hits.len()
             ),
         );
+        if job.kind != "read_all" {
+            *s.last_scan.lock().unwrap() = Some(job.clone());
+        }
     });
     Ok(Json(st.job.lock().unwrap().clone()))
 }
@@ -479,6 +486,11 @@ async fn bus_bauds(
     Ok(Json(json!({ "bauds": bauds })))
 }
 
+/// Letzter abgeschlossener Scan (für die Trefferliste nach dem Neuladen)
+async fn last_scan(State(st): State<AppState>) -> Json<Option<JobStatus>> {
+    Json(st.last_scan.lock().unwrap().clone())
+}
+
 async fn job(State(st): State<AppState>) -> Json<JobStatus> {
     Json(st.job.lock().unwrap().clone())
 }
@@ -549,7 +561,15 @@ fn update_hits(st: &AppState, target: &Target, from_baud: Option<u32>, f: impl F
     };
     let baud = from_baud.unwrap_or(bus);
     let mut job = st.job.lock().unwrap();
-    for h in job.hits.iter_mut().filter(|h| h.baud == Some(baud)) {
+    let mut last = st.last_scan.lock().unwrap();
+    let scans = [Some(&mut *job), last.as_mut()];
+    for h in scans
+        .into_iter()
+        .flatten()
+        .filter(|j| j.kind != "read_all")
+        .flat_map(|j| j.hits.iter_mut())
+        .filter(|h| h.baud == Some(baud))
+    {
         let hit = match target {
             Target::Primary(a) => h.status == "ok" && h.primary_address == Some(*a),
             Target::Secondary(mask) => h
@@ -858,6 +878,24 @@ async fn meters_import(
 
 async fn readings(State(st): State<AppState>) -> Json<Vec<MeterReading>> {
     Json(st.readings.lock().unwrap().clone())
+}
+
+/// Neue Anlage: Trefferliste, Zählerliste, Auslesungen und Log löschen; Verbindung bleibt
+async fn new_site(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    {
+        let mut job = st.job.lock().unwrap();
+        if job.running {
+            return Err(busy());
+        }
+        *job = JobStatus::default();
+    }
+    *st.last_scan.lock().unwrap() = None;
+    let meters = st.meters.lock().unwrap().clear().map_err(bad_request)?;
+    let readings = std::mem::take(&mut *st.readings.lock().unwrap()).len();
+    st.log.clear();
+    st.log
+        .push("INFO", tr("Neue Anlage: alles zurückgesetzt", "New site: everything reset"));
+    Ok(Json(json!({ "ok": true, "meters": meters, "readings": readings })))
 }
 
 async fn clear_readings(State(st): State<AppState>) -> Json<serde_json::Value> {

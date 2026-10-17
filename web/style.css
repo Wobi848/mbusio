@@ -809,3 +809,6 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 .analysis tr.bad td { color: var(--err); }
 .analysis tr.bad td.bytes { color: var(--err); }
 .why .analyze-link { font-weight: 600; margin-left: 8px; }
+
+.new-site { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line-strong) !important; }
+@media (max-width: 560px) { .new-site span { display: none; } }
