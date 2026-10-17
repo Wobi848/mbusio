@@ -38,6 +38,11 @@ const UI = {
       "„Prüfen“ fragt in wenigen Sekunden alle Baudraten ab und markiert die, auf denen Geräte antworten (●). Gescannt wird nur auf den markierten Baudraten.",
     bauds_all: "Alle",
     busbar_view: "Ansehen",
+    idle_ready: (p, b) => `Bereit · ${p} · ${b} Bd`,
+    idle_off: "Nicht verbunden",
+    idle_connect: "Verbinden",
+    issues: (n) => `⚠ ${n} Auffälligkeit${n === 1 ? "" : "en"}`,
+    issues_none: "✓ Keine Auffälligkeiten",
     dup_pa: "PA doppelt",
     other_baud: "Baudrate abweichend",
     other_baud_title: (b, bus) => `Zähler läuft mit ${b} Bd, der Bus mit ${bus} Bd. Empfehlung: auf ${bus} Bd umstellen.`,
@@ -235,6 +240,11 @@ const UI = {
       "“Check” polls all baud rates in a few seconds and selects those where devices answer (●). The scan only runs at the selected baud rates.",
     bauds_all: "All",
     busbar_view: "View",
+    idle_ready: (p, b) => `Ready · ${p} · ${b} Bd`,
+    idle_off: "Not connected",
+    idle_connect: "Connect",
+    issues: (n) => `⚠ ${n} issue${n === 1 ? "" : "s"}`,
+    issues_none: "✓ No issues",
     dup_pa: "Duplicate PA",
     other_baud: "Different baud rate",
     other_baud_title: (b, bus) => `Meter runs at ${b} Bd, the bus at ${bus} Bd. Recommendation: switch it to ${bus} Bd.`,
@@ -446,6 +456,7 @@ async function setLang(l) {
   if (lastReading) renderReading(lastReading);
   if (lastJob) renderJob(lastJob);
   renderMeters();
+  renderBusbar();
   refreshStatus().catch(() => {});
 }
 
@@ -582,6 +593,7 @@ async function refreshStatus() {
   const prevBaud = connBaud;
   connBaud = s.connection?.baud ?? null;
   conn = s.connection;
+  renderBusbar();
   // Auswahl folgt der eingestellten Baudrate, bis man selbst etwas anklickt
   if (connBaud && connBaud !== prevBaud && !baudsTouched) setPickedBauds([connBaud]);
   updateEstimate();
@@ -624,28 +636,48 @@ let renderedHits = 0;
 // ------------------------------------------------------------ Leiste unten
 
 let busbarTimer = null;
+/// laufende Aktion oder kurz stehende Fertigmeldung; null = Ruhezustand
+let busbarState = null;
+/// Anzahl Auffälligkeiten der letzten Suche; null = noch keine Suche
+let issueCount = null;
 
-/// `null` blendet aus; sonst { text, frac (0..1, ohne = unbestimmt), link, cancel, done, error }
+/// `null` = Ruhezustand; sonst { text, frac (0..1, ohne = unbestimmt), link, cancel, done, error }
 function busbar(state) {
-  const el = $("busbar");
   clearTimeout(busbarTimer);
-  if (!state) {
-    el.hidden = true;
-    document.body.classList.remove("has-busbar");
-    return;
-  }
+  busbarState = state;
+  renderBusbar();
+  // fertig: noch kurz stehen lassen, dann zurück in den Ruhezustand
+  if (state?.done) busbarTimer = setTimeout(() => busbar(null), state.error ? 10000 : 6000);
+}
+
+/// Die Leiste ist immer da: im Ruhezustand Verbindung bzw. "Nicht verbunden"
+function renderBusbar() {
+  const el = $("busbar");
+  const state = busbarState || {
+    text: connected && conn ? t("idle_ready", conn.port, conn.baud) : t("idle_off"),
+    idle: true,
+    off: !connected,
+  };
   el.hidden = false;
   document.body.classList.add("has-busbar");
+  el.classList.toggle("idle", !!state.idle);
+  el.classList.toggle("off", !!state.off);
   el.classList.toggle("done", !!state.done && !state.error);
   el.classList.toggle("error", !!state.error);
   $("busbar-text").textContent = state.text;
   const bar = el.querySelector(".busbar-progress");
   bar.hidden = state.frac === undefined;
   if (state.frac !== undefined) bar.querySelector(".bar-fill").style.transform = `scaleX(${state.frac})`;
-  $("busbar-link").href = state.link || "#sec-scan";
+  const link = $("busbar-link");
+  link.hidden = state.idle && !state.off;
+  link.href = state.off ? "#sec-conn" : state.link || "#sec-scan";
+  link.textContent = t(state.off ? "idle_connect" : "busbar_view");
   $("busbar-cancel").hidden = !state.cancel;
-  // fertig: noch kurz stehen lassen
-  if (state.done) busbarTimer = setTimeout(() => busbar(null), state.error ? 10000 : 6000);
+  const issues = $("busbar-issues");
+  issues.hidden = issueCount === null;
+  issues.className = "busbar-issues " + (issueCount ? "warn" : "ok");
+  issues.textContent = issueCount ? t("issues", issueCount) : t("issues_none");
+  issues.href = issueCount ? "#hits-warn" : "#hits";
 }
 
 let cancelRequested = false;
@@ -741,6 +773,8 @@ function renderHitsWarn(hits, a) {
   if (a.otherBaud) items.push(t("warn_other_baud", a.otherBaud, connBaud));
   const el = $("hits-warn");
   el.hidden = items.length === 0;
+  issueCount = items.length;
+  renderBusbar();
   el.innerHTML = items.length
     ? `<b>⚠ ${esc(t("warn_title"))}</b><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` +
       (a.dupPa.size ? `<p class="hint">${esc(t("warn_fix_hint"))}</p>` : "") +

@@ -757,3 +757,19 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 #hits td:nth-last-child(2) .chip { margin: 2px 4px 2px 0; }
 #hits td:last-child .actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
 #hits td:last-child { white-space: normal; min-width: 150px; }
+
+/* Statusleiste im Ruhezustand und Zähler der Auffälligkeiten */
+.busbar.idle .busbar-dot { background: var(--ok); animation: none; }
+.busbar.idle.off .busbar-dot { background: var(--muted); }
+.busbar.idle .busbar-text { font-weight: 450; color: var(--muted); }
+.busbar-issues {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 650;
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.busbar-issues.warn { background: var(--warn-soft); color: var(--warn); }
+.busbar-issues.ok { background: var(--ok-soft); color: var(--ok); }
