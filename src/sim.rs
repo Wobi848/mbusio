@@ -811,6 +811,11 @@ mod tests {
         })
         .unwrap();
         assert_eq!(st, vec!["collision"]);
+        let e = m.read_meter(&Target::Primary(10)).unwrap_err().to_string();
+        assert!(e.contains("Mehrere Zähler"), "{e}");
+        // über die ID geht es
+        let r = m.read_meter(&Target::parse("10000011").unwrap()).unwrap();
+        assert_eq!(r.header.unwrap().id, "10000011");
         // Wackelkontakt: ohne Wiederholung übersehen, mit Wiederholung gefunden
         let mut found = |retries| {
             let mut n = 0;

@@ -426,8 +426,18 @@ impl Master {
 
     pub fn read_meter(&mut self, target: &Target) -> Result<MeterReading> {
         if let Target::Primary(a) = target {
-            // Kommunikation zurücksetzen; manche Zähler quittieren nicht, das ist ok
-            self.ping(*a)?;
+            // Kommunikation zurücksetzen; manche Zähler quittieren nicht, das ist ok.
+            // Antworten mehrere, wären die Daten ein Gemisch, das zufällig gültig aussehen kann.
+            if let Reply::Collision(_) = self.ping(*a)? {
+                bail!(
+                    "{} {a}: {}",
+                    tr("Mehrere Zähler auf Adresse", "Several meters on address"),
+                    tr(
+                        "über die ID auslesen, oder Sekundärscan und „PA ändern“",
+                        "read by ID, or run a secondary scan and “Change PA”"
+                    )
+                );
+            }
         }
         let address = self.address(target)?;
         let (primary, frames) = self.request_data(address, true)?;
