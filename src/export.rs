@@ -93,7 +93,7 @@ pub fn csv(readings: &[MeterReading], lang: Lang) -> String {
                 description(&rec.quantity, &rec.notes, lang),
                 rec.value_text.clone(),
                 rec.unit.clone(),
-                label(rec.function, lang),
+                label(&rec.function, lang),
                 rec.storage.to_string(),
                 rec.tariff.to_string(),
                 rec.subunit.to_string(),

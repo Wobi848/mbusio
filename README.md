@@ -18,8 +18,13 @@ Eine einzige Binärdatei für Windows, Linux und Raspberry Pi, die Oberfläche i
 - **Gemischte Baudraten auf einem Bus**: prüfen, auf welchen Baudraten Geräte antworten, und
   Primär- oder Sekundärscan auf den gewählten Baudraten; geschätzte Höchstdauer des Primärscans
 - **Application Reset** senden
-- **Zählerliste**: Zähler merken, mit Name, Ort und Notiz versehen, gesammelt auslesen
-  (auch mit unterschiedlichen Baudraten auf einem Bus), als JSON exportieren und importieren
+- **Projekte, Gateways, Linien**: Projekt (Kunde, Objekt) → Gateway (z.B. IP) → Linie (Anschluss,
+  Baudrate). Jede Linie hat ihre eigene Zählerliste, ihren letzten Scan und ihre Auslesungen;
+  beim Wechsel der Linie verbindet mbusio automatisch. Projekte als Datei exportieren/importieren
+- **Zählerliste** je Linie: Zähler merken, mit Name, Ort und Notiz versehen, gesammelt auslesen
+  (auch mit unterschiedlichen Baudraten auf einem Bus)
+- **Alles wird gespeichert** (SQLite, eine Datei `mbusio.db`): Auslesungen mit Verlauf, letzter Scan,
+  Änderungsprotokoll
 - **Telegramm senden** (Experten): beliebige Bytes senden, Antwort wird decodiert
 - **Prüfung der Trefferliste**: doppelte Primäradressen und IDs sowie Zähler auf fremder
   Baudrate werden markiert, mit Knopf zum Beheben („PA ändern“, „Baudrate ändern“)
@@ -54,8 +59,8 @@ mbusio braucht keine Installation: `mbusio-windows-x86_64.exe` in einen beliebig
 und doppelklicken. Bei der SmartScreen-Warnung „Weitere Informationen → Trotzdem ausführen“.
 Ein zweiter Doppelklick öffnet nur wieder den Browser.
 
-- **Portabel** (z.B. USB-Stick): Ordner `mbusio-data` neben die .exe legen, dann wird die
-  Zählerliste dort gespeichert statt in `%APPDATA%\mbusio`.
+- **Portabel** (z.B. USB-Stick): Ordner `mbusio-data` neben die .exe legen, dann liegt die
+  Datenbank mit allen Projekten dort statt in `%APPDATA%\mbusio`.
 - Der **Treiber des USB-M-Bus-Masters** braucht beim Installieren Adminrechte. Viele Adapter
   (FTDI) erkennt Windows von selbst; im Geräte-Manager muss ein COM-Port erscheinen.
 - Ohne `--lan` starten, sonst verlangt die Windows-Firewall eine Freigabe (Adminrechte).
@@ -73,7 +78,7 @@ mbusio --list-ports
 | `--lan` | auch aus dem Netzwerk erreichbar (sonst nur `127.0.0.1`) |
 | `--token GEHEIM` | Zugriffsschlüssel für die API, empfohlen mit `--lan` (auch per `MBUSIO_TOKEN`) |
 | `--port`, `--baud` | beim Start direkt verbinden (`--port tcp://IP:Port` für Netzwerk-Gateways) |
-| `--data-dir` | Ordner für die Zählerliste `meters.json` (Standard: `mbusio-data` neben dem Programm, falls vorhanden, sonst `~/.local/share/mbusio` bzw. `%APPDATA%\mbusio`) |
+| `--data-dir` | Ordner für die Datenbank `mbusio.db` (Standard: `mbusio-data` neben dem Programm, falls vorhanden, sonst `~/.local/share/mbusio` bzw. `%APPDATA%\mbusio`). Eine `meters.json` aus Version 0.3 wird beim ersten Start übernommen |
 | `--no-browser` | Browser beim Start nicht öffnen |
 | `--timeout-ms` | Antwort-Timeout, `0` = automatisch aus der Baudrate |
 
@@ -165,7 +170,8 @@ Aufbau:
 - `src/mbus/decode.rs`, `tables.rs`: Datensätze decodieren (EN 13757-3)
 - `src/mbus/master.rs`: Scan, Auslesen, Adressierung
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim.rs`: Simulator, alle hinter demselben `Link`-Trait
-- `src/project.rs`: Zählerliste
+- `src/db.rs`: Datenbank (Projekte, Gateways, Linien, Zähler, Auslesungen, Änderungen)
+- `src/mbus/analyze.rs`: Telegramm-Analyse
 - `src/web.rs`: HTTP-API; `web/`: Oberfläche (wird in die Binärdatei eingebettet)
 - `src/i18n.rs`: Übersetzungen der Messgrössen; UI-Texte in `web/app.js`
 

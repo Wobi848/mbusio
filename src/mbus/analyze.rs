@@ -448,7 +448,7 @@ fn record_name(r: &Record, lang: i18n::Lang) -> String {
     }
     let mut extra = Vec::new();
     if r.function != "instantaneous" {
-        extra.push(label(r.function, lang));
+        extra.push(label(&r.function, lang));
     }
     if r.storage != 0 {
         extra.push(format!("{} {}", tr("Speicher", "Storage"), r.storage));

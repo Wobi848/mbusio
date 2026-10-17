@@ -812,3 +812,40 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 
 .new-site { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line-strong) !important; }
 @media (max-width: 560px) { .new-site span { display: none; } }
+
+/* Projekt: Pfad in der Kopfzeile, Gateways mit ihren Linien */
+.crumb {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 320px;
+  padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong);
+  color: var(--text); text-decoration: none; font-size: 12px; font-weight: 600;
+}
+.crumb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb:hover { border-color: var(--accent); }
+@media (max-width: 760px) { .crumb { max-width: 160px; } }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+#sec-project h2 { margin: 0; }
+#project-select { max-width: 260px; }
+.project-tools { margin: 6px 0 12px; flex-wrap: wrap; }
+.tree { display: grid; gap: 12px; }
+.gw { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.gw-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.gw-head h3 { margin: 0; font-size: 14px; }
+.gw-head .hint { margin: 0; }
+.gw-head .spacer { flex: 1; }
+.ln {
+  display: grid; grid-template-columns: auto minmax(0, 1.2fr) minmax(0, 1.6fr) auto auto;
+  gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; font-size: 13px;
+}
+.ln + .ln { border-top: 1px solid var(--line); }
+.ln.active { background: var(--accent-soft); }
+.ln .ln-name { font-weight: 650; }
+.ln .ln-conn { font-family: var(--mono); font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ln .ln-info { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.ln .badge-active { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.gw-foot { margin-top: 8px; }
+.tree-form { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; }
+.tree-form h3 { margin: 0 0 8px; font-size: 14px; }
+@media (max-width: 640px) {
+  .ln { grid-template-columns: auto 1fr auto; }
+  .ln .ln-conn, .ln .ln-info { grid-column: 2 / -1; }
+}

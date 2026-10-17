@@ -7,6 +7,9 @@ const TEXT = {
     print: "Drucken / Als PDF speichern",
     with_details: "Alle Messwerte anhängen",
     changes: "Durchgeführte Änderungen",
+    project: "Projekt",
+    lines: "Linien",
+    th_line: "Gateway › Linie",
     clear_changes: "Änderungen leeren",
     confirm_clear_changes: "Liste der durchgeführten Änderungen leeren?",
     th_time: "Zeitpunkt",
@@ -56,6 +59,9 @@ const TEXT = {
     print: "Print / save as PDF",
     with_details: "Attach all readings",
     changes: "Changes made",
+    project: "Project",
+    lines: "lines",
+    th_line: "Gateway › line",
     clear_changes: "Clear changes",
     confirm_clear_changes: "Clear the list of changes made?",
     th_time: "Time",
@@ -141,36 +147,41 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 }
 
-async function api(path) {
-  const headers = { "X-Lang": lang };
+async function api(path, options = {}) {
+  const headers = { "X-Lang": lang, "Content-Type": "application/json" };
   if (token) headers["X-Token"] = token;
-  const res = await fetch("api/" + path, { headers });
+  const res = await fetch("api/" + path, { ...options, headers, body: options.body && JSON.stringify(options.body) });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
   return res.json();
 }
 
-// ------------------------------------------------------------ Kopffelder
+// ------------------------------------------------------------ Kopffelder (gehören zum Projekt)
 
-const FIELDS = ["customer", "site", "technician", "order", "remarks"];
+/// Feld im Bericht → Feld im Projekt
+const FIELDS = { customer: "customer", site: "site", technician: "technician", order: "order_no", remarks: "remarks" };
+let saveTimer = null;
 
 function loadFields() {
-  let saved = {};
-  try {
-    saved = JSON.parse(get("report_fields") || "{}");
-  } catch {
-    /* kaputt gespeichert: leer anfangen */
-  }
-  for (const f of FIELDS) {
+  for (const [f, key] of Object.entries(FIELDS)) {
     const el = $("f-" + f);
-    el.value = saved[f] || "";
-    el.addEventListener("input", saveFields);
+    el.value = data.project[key] || "";
+    el.addEventListener("input", () => {
+      markBlank();
+      // gesammelt speichern, nicht bei jedem Tastendruck
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveFields, 600);
+    });
   }
   markBlank();
 }
 
-function saveFields() {
-  put("report_fields", JSON.stringify(Object.fromEntries(FIELDS.map((f) => [f, $("f-" + f).value]))));
-  markBlank();
+async function saveFields() {
+  for (const [f, key] of Object.entries(FIELDS)) data.project[key] = $("f-" + f).value;
+  try {
+    await api(`projects/${data.project.id}`, { method: "PUT", body: data.project });
+  } catch (e) {
+    console.warn(e);
+  }
 }
 
 /// Leere Felder erscheinen nicht im Ausdruck; Bemerkungen wachsen mit dem Text
@@ -178,7 +189,7 @@ function markBlank() {
   const r = $("f-remarks");
   r.style.height = "auto";
   r.style.height = r.scrollHeight + "px";
-  for (const f of FIELDS) $("f-" + f).closest(".field").classList.toggle("blank", !$("f-" + f).value.trim());
+  for (const f of Object.keys(FIELDS)) $("f-" + f).closest(".field").classList.toggle("blank", !$("f-" + f).value.trim());
 }
 
 // ------------------------------------------------------------ Inhalt
@@ -191,52 +202,64 @@ function status(m) {
   return `<span class="none">${t("st_none")}</span>`;
 }
 
-function renderTable(meters) {
-  if (!meters.length) return `<p class="empty">${t("empty")}</p>`;
-  const rows = meters
-    .map((m, i) => {
-      // ID steht auf dem Zähler, deshalb vorne; volle Adresse klein darunter
-      const main = m.meter_id || m.address;
-      const info = [main !== m.address ? m.address : null, m.manufacturer].filter(Boolean).join(" · ");
-      return `<tr>
-        <td class="num">${i + 1}</td>
-        <td><b>${esc(m.name || "–")}</b><span class="small">${esc([m.location, m.note].filter(Boolean).join(" · "))}</span></td>
-        <td class="mono">${esc(main)}<span class="small">${esc(info)}</span></td>
-        <td>${esc(label(m.medium))}</td>
-        <td class="num mono">${m.primary_address ?? ""}</td>
-        <td class="num mono">${m.baud ?? t("bus")}</td>
-        <td class="num">${esc(m.last_value ?? "")}<span class="small">${esc(m.last_value ? label(m.last_quantity) : "")}</span></td>
-        <td class="mono">${esc(m.last_read ?? "")}</td>
-        <td>${status(m)}</td>
-      </tr>`;
+/// Alle Zähler des Projekts mit Gateway und Linie, fortlaufend nummeriert
+function allMeters() {
+  const out = [];
+  for (const g of data.gateways)
+    for (const l of g.lines) for (const e of l.meters) out.push({ ...e, gateway: g.gateway, line: l.line });
+  return out;
+}
+
+function renderTable() {
+  const list = allMeters();
+  if (!list.length) return `<p class="empty">${t("empty")}</p>`;
+  let n = 0;
+  return data.gateways
+    .flatMap((g) => g.lines.map((l) => ({ g, l })))
+    .filter(({ l }) => l.meters.length)
+    .map(({ g, l }) => {
+      const rows = l.meters
+        .map(({ meter: m }) => {
+          n += 1;
+          // ID steht auf dem Zähler, deshalb vorne; volle Adresse klein darunter
+          const main = m.meter_id || m.address;
+          const info = [main !== m.address ? m.address : null, m.manufacturer].filter(Boolean).join(" · ");
+          return `<tr>
+            <td class="num">${n}</td>
+            <td><b>${esc(m.name || "–")}</b><span class="small">${esc([m.location, m.note].filter(Boolean).join(" · "))}</span></td>
+            <td class="mono">${esc(main)}<span class="small">${esc(info)}</span></td>
+            <td>${esc(label(m.medium))}</td>
+            <td class="num mono">${m.primary_address ?? ""}</td>
+            <td class="num mono">${m.baud ?? l.line.baud}</td>
+            <td class="num">${esc(m.last_value ?? "")}<span class="small">${esc(m.last_value ? label(m.last_quantity) : "")}</span></td>
+            <td class="mono">${esc(m.last_read ?? "")}</td>
+            <td>${status(m)}</td>
+          </tr>`;
+        })
+        .join("");
+      return `<h3 class="line-head">${esc(g.gateway.name)} › ${esc(l.line.name)}${
+        l.line.connection ? ` <span class="small inline">${esc(l.line.connection)} · ${l.line.baud} Bd</span>` : ""
+      }</h3>
+      <table>
+        <thead><tr>
+          <th class="num">${t("th_no")}</th><th>${t("th_name")}</th><th>${t("th_id")}</th><th>${t("th_medium")}</th>
+          <th class="num">${t("th_pa")}</th><th class="num">${t("th_baud")}</th><th class="num">${t("th_value")}</th>
+          <th>${t("th_read")}</th><th>${t("th_status")}</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
     })
     .join("");
-  return `<table>
-    <thead><tr>
-      <th class="num">${t("th_no")}</th><th>${t("th_name")}</th><th>${t("th_id")}</th><th>${t("th_medium")}</th>
-      <th class="num">${t("th_pa")}</th><th class="num">${t("th_baud")}</th><th class="num">${t("th_value")}</th>
-      <th>${t("th_read")}</th><th>${t("th_status")}</th>
-    </tr></thead>
-    <tbody>${rows}</tbody>
-  </table>`;
 }
 
-/// Letzte gespeicherte Auslesung eines Zählers (über ID oder Adresse)
-function latestReading(m, readings) {
-  for (let i = readings.length - 1; i >= 0; i--) {
-    const r = readings[i];
-    if ((m.meter_id && r.header?.id === m.meter_id) || r.target === m.address) return r;
-  }
-  return null;
-}
-
-function renderDetails(meters, readings) {
+function renderDetails() {
   return (
     `<section class="details-section"><h2>${t("details")}</h2>` +
-    meters
-      .map((m, i) => {
-        const r = latestReading(m, readings);
-        const head = `<h3>${i + 1}. ${esc(m.name || m.meter_id || m.address)}${r ? ` <span class="small">${esc(r.timestamp)}</span>` : ""}</h3>`;
+    allMeters()
+      .map(({ meter: m, reading: r, line }, i) => {
+        const head = `<h3>${i + 1}. ${esc(m.name || m.meter_id || m.address)} <span class="small inline">${esc(line.name)}${
+          r ? " · " + esc(r.timestamp) : ""
+        }</span></h3>`;
         if (!r) return `<div class="detail">${head}<p class="empty">${t("no_details")}</p></div>`;
         const rows = r.records
           .map((x) => {
@@ -261,47 +284,39 @@ function renderDetails(meters, readings) {
   );
 }
 
-/// Änderungen am Bus, von mbusio im Browser gemerkt (PA, Baudrate)
-function loadChanges() {
-  try {
-    return JSON.parse(get("report_changes") || "[]");
-  } catch {
-    return [];
-  }
-}
-
+/// Änderungen am Bus (PA, Baudrate), vom Server je Linie protokolliert
 function renderChanges() {
-  const list = loadChanges();
+  const list = data.changes;
   $("clear-changes").hidden = list.length === 0;
   if (!list.length) return "";
   return `<h2>${t("changes")}</h2><table>
-    <thead><tr><th>${t("th_time")}</th><th>${t("th_change")}</th></tr></thead>
-    <tbody>${list.map((c) => `<tr><td class="mono">${esc(c.time)}</td><td>${esc(c.text)}</td></tr>`).join("")}</tbody>
+    <thead><tr><th>${t("th_time")}</th><th>${t("th_line")}</th><th>${t("th_change")}</th></tr></thead>
+    <tbody>${list.map((c) => `<tr><td class="mono">${esc(c.time)}</td><td>${esc(c.line)}</td><td>${esc(c.text)}</td></tr>`).join("")}</tbody>
   </table>`;
 }
 
 function render() {
-  const { status: s, meters, readings } = data;
-  const ok = meters.filter((m) => m.last_read && !m.last_error).length;
-  const err = meters.filter((m) => m.last_error).length;
-  const c = s.connection;
+  const list = allMeters().map((e) => e.meter);
+  const ok = list.filter((m) => m.last_read && !m.last_error).length;
+  const err = list.filter((m) => m.last_error).length;
+  const lines = data.gateways.reduce((n, g) => n + g.lines.length, 0);
   const meta = [
+    [t("project"), data.project.name],
     [t("date"), new Date().toLocaleString(lang === "de" ? "de-CH" : "en-GB")],
-    c ? [t("connection"), `${c.port} · ${c.baud} Bd`] : null,
-    [t("count"), `${meters.length} · ${ok} ${t("ok_count")}` + (err ? ` · ${err} ${t("err_count")}` : "")],
-  ].filter(Boolean);
+    [t("lines"), `${data.gateways.length} Gateway · ${lines} ${t("lines")}`],
+    [t("count"), `${list.length} · ${ok} ${t("ok_count")}` + (err ? ` · ${err} ${t("err_count")}` : "")],
+  ];
   $("meta").innerHTML = meta.map(([k, v]) => `<span>${esc(k)}: <b>${esc(v)}</b></span>`).join("");
-  $("table").innerHTML = renderTable(meters);
+  $("table").innerHTML = renderTable();
   $("changes").innerHTML = renderChanges();
-  $("details-out").innerHTML = $("details").checked && meters.length ? renderDetails(meters, readings) : "";
-  $("foot").textContent = t("foot", s.version);
+  $("details-out").innerHTML = $("details").checked && list.length ? renderDetails() : "";
+  $("foot").textContent = t("foot", data.version);
 }
 
 async function main() {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
   document.title = `mbusio – ${t("title")}`;
-  loadFields();
   $("details").checked = get("report_details") === "1";
   $("details").onchange = () => {
     put("report_details", $("details").checked ? "1" : "0");
@@ -309,20 +324,23 @@ async function main() {
   };
   $("print").onclick = () => window.print();
   $("close").onclick = () => window.close();
-  $("clear-changes").onclick = () => {
+  $("clear-changes").onclick = async () => {
     if (!confirm(t("confirm_clear_changes"))) return;
-    put("report_changes", "[]");
-    if (data) render();
+    await api(`projects/${data.project.id}/changes`, { method: "DELETE" });
+    data.changes = [];
+    render();
   };
   try {
-    const [status, meters, readings, l] = await Promise.all([
+    // ?project=ID für ein anderes als das aktive Projekt
+    const q = new URLSearchParams(location.search).get("project");
+    const [report, status, l] = await Promise.all([
+      api("report" + (q ? `?project=${encodeURIComponent(q)}` : "")),
       api("status"),
-      api("meters"),
-      api("readings"),
       api("labels?lang=" + lang),
     ]);
     labels = l;
-    data = { status, meters, readings };
+    data = { ...report, version: status.version };
+    loadFields();
     render();
   } catch (e) {
     $("table").innerHTML = `<p class="err">${esc(e.message)}</p>`;

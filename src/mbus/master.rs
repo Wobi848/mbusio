@@ -115,7 +115,7 @@ pub enum Reply {
     Collision(Vec<u8>),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct MeterReading {
     pub timestamp: String,
     pub target: String,

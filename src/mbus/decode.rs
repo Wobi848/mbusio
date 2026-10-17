@@ -1,13 +1,13 @@
 //! Application-Layer (EN 13757-3): RSP_UD mit variabler oder fester Datenstruktur decodieren.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::frame::hex;
 use super::tables::{self, Kind, VifInfo, Vife};
 use crate::i18n::tr;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Header {
     pub id: String,
     pub manufacturer: String,
@@ -21,10 +21,10 @@ pub struct Header {
     pub secondary_address: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Record {
     /// Schlüssel: instantaneous, maximum, minimum, error_value
-    pub function: &'static str,
+    pub function: String,
     pub storage: u64,
     pub tariff: u32,
     pub subunit: u32,
@@ -148,7 +148,7 @@ fn fixed(d: &[u8]) -> Result<Telegram, String> {
             ),
         };
         records.push(Record {
-            function: "instantaneous",
+            function: "instantaneous".into(),
             storage: st,
             tariff: 0,
             subunit: 0,
@@ -221,7 +221,7 @@ pub fn decode_records(data: &[u8]) -> Result<(Vec<Record>, bool), String> {
                 let rest = &data[i..];
                 if !rest.is_empty() {
                     records.push(Record {
-                        function: "instantaneous",
+                        function: "instantaneous".into(),
                         storage: 0,
                         tariff: 0,
                         subunit: 0,
@@ -306,7 +306,7 @@ pub fn decode_records(data: &[u8]) -> Result<(Vec<Record>, bool), String> {
                 let rest = &data[i..];
                 i = data.len();
                 records.push(Record {
-                    function: "instantaneous",
+                    function: "instantaneous".into(),
                     storage,
                     tariff,
                     subunit,
@@ -337,7 +337,8 @@ pub fn decode_records(data: &[u8]) -> Result<(Vec<Record>, bool), String> {
                 1 => "maximum",
                 2 => "minimum",
                 _ => "error_value",
-            },
+            }
+            .into(),
             storage,
             tariff,
             subunit,

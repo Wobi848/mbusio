@@ -38,11 +38,41 @@ const UI = {
       "„Prüfen“ fragt in wenigen Sekunden alle Baudraten ab und markiert die, auf denen Geräte antworten (●). Gescannt wird nur auf den markierten Baudraten.",
     bauds_all: "Alle",
     busbar_view: "Ansehen",
-    new_site: "Neue Anlage",
-    new_site_title: "Alles von der letzten Anlage löschen und neu beginnen",
-    confirm_new_site: (m, r) =>
-      `Neue Anlage beginnen?\n\nGelöscht werden: Trefferliste, Zählerliste (${m} Zähler), gespeicherte Auslesungen (${r}), Änderungsprotokoll, Kopfdaten des Berichts und Telegramm-Log.\nVerbindung und Einstellungen bleiben.\n\nTipp: vorher Bericht oder Zählerliste exportieren.`,
-    new_site_done: "Alles zurückgesetzt – bereit für die neue Anlage",
+    project: "Projekt",
+    crumb_title: "Projekt › Gateway › Linie: hier wechseln",
+    project_switch: "Projekt wechseln",
+    project_new: "+ Neues Projekt",
+    project_new_prompt: "Name des neuen Projekts (z.B. Objekt oder Adresse):",
+    project_edit: "Projekt bearbeiten",
+    project_delete: "Projekt löschen",
+    confirm_project_delete: (n) => `Projekt „${n}“ mit allen Gateways, Linien, Zählern und Auslesungen löschen?\n\nDas lässt sich nicht rückgängig machen. Tipp: vorher „Exportieren“.`,
+    project_imported: (n) => `Projekt „${n}“ importiert`,
+    gw_add: "+ Gateway",
+    gw_new: (n) => `Gateway ${n}`,
+    ln_add: "+ Linie",
+    ln_new: (n) => `Linie ${n}`,
+    ln_use: "Wählen",
+    ln_active: "Aktiv",
+    ln_no_conn: "Anschluss noch nicht festgelegt",
+    ln_info: (n, read) => `${n} Zähler` + (read ? ` · gelesen ${read}` : ""),
+    confirm_gw_delete: (n) => `Gateway „${n}“ mit allen Linien und Zählern löschen?`,
+    confirm_ln_delete: (n) => `Linie „${n}“ mit allen Zählern und Auslesungen löschen?`,
+    form_project: "Projekt",
+    form_gateway: "Gateway",
+    form_line: "Linie",
+    f_name: "Name",
+    f_customer: "Kunde",
+    f_site: "Objekt / Anlage",
+    f_technician: "Bearbeiter",
+    f_order: "Auftrag",
+    f_remarks: "Bemerkungen",
+    f_address: "Adresse (z.B. IP)",
+    f_note: "Notiz",
+    f_connection: "Anschluss",
+    f_connection_ph: "COM3, /dev/ttyUSB0, tcp://IP:Port, SIMULATOR",
+    conn_line: (l) => `Verbindung gehört zur Linie „${l}“ und wird dort gespeichert.`,
+    activated: (l) => `Linie „${l}“ aktiv`,
+    activate_failed: (l, e) => `Linie „${l}“ aktiv, aber nicht verbunden: ${e}`,
     confirm_cancel_scan: "Scan wirklich abbrechen?\n\nDie bisher gefundenen Zähler bleiben in der Liste.",
     confirm_cancel_read: "Auslesen wirklich abbrechen?\n\nBereits gelesene Zähler behalten ihre Werte.",
     idle_ready: (p, b) => `Bereit · ${p} · ${b} Bd`,
@@ -289,11 +319,41 @@ const UI = {
       "“Check” polls all baud rates in a few seconds and selects those where devices answer (●). The scan only runs at the selected baud rates.",
     bauds_all: "All",
     busbar_view: "View",
-    new_site: "New site",
-    new_site_title: "Delete everything from the last site and start over",
-    confirm_new_site: (m, r) =>
-      `Start a new site?\n\nThis deletes: hit list, meter list (${m} meters), stored readings (${r}), change log, report header and telegram log.\nConnection and settings stay.\n\nTip: export the report or meter list first.`,
-    new_site_done: "Everything reset – ready for the new site",
+    project: "Project",
+    crumb_title: "Project › gateway › line: switch here",
+    project_switch: "Switch project",
+    project_new: "+ New project",
+    project_new_prompt: "Name of the new project (e.g. building or address):",
+    project_edit: "Edit project",
+    project_delete: "Delete project",
+    confirm_project_delete: (n) => `Delete project “${n}” with all gateways, lines, meters and readings?\n\nThis cannot be undone. Tip: “Export” first.`,
+    project_imported: (n) => `Project “${n}” imported`,
+    gw_add: "+ Gateway",
+    gw_new: (n) => `Gateway ${n}`,
+    ln_add: "+ Line",
+    ln_new: (n) => `Line ${n}`,
+    ln_use: "Select",
+    ln_active: "Active",
+    ln_no_conn: "Connection not set yet",
+    ln_info: (n, read) => `${n} meters` + (read ? ` · read ${read}` : ""),
+    confirm_gw_delete: (n) => `Delete gateway “${n}” with all lines and meters?`,
+    confirm_ln_delete: (n) => `Delete line “${n}” with all meters and readings?`,
+    form_project: "Project",
+    form_gateway: "Gateway",
+    form_line: "Line",
+    f_name: "Name",
+    f_customer: "Customer",
+    f_site: "Site / installation",
+    f_technician: "Technician",
+    f_order: "Order",
+    f_remarks: "Remarks",
+    f_address: "Address (e.g. IP)",
+    f_note: "Note",
+    f_connection: "Connection",
+    f_connection_ph: "COM3, /dev/ttyUSB0, tcp://IP:port, SIMULATOR",
+    conn_line: (l) => `This connection belongs to line “${l}” and is saved there.`,
+    activated: (l) => `Line “${l}” active`,
+    activate_failed: (l, e) => `Line “${l}” active, but not connected: ${e}`,
     confirm_cancel_scan: "Really cancel the scan?\n\nMeters found so far stay in the list.",
     confirm_cancel_read: "Really cancel reading?\n\nMeters already read keep their values.",
     idle_ready: (p, b) => `Ready · ${p} · ${b} Bd`,
@@ -554,6 +614,7 @@ async function setLang(l) {
   if (lastReading) renderReading(lastReading);
   if (lastJob) renderJob(lastJob);
   renderMeters();
+  renderTree();
   renderBusbar();
   refreshStatus().catch(() => {});
 }
@@ -1528,9 +1589,7 @@ $("set-addr").onclick = () =>
 /// Primäradresse setzen und überall nachführen: Trefferliste, Zählerliste, Änderungsprotokoll
 async function doSetAddress(address, newAddr, fromBaud) {
   const hit = hitFor(address);
-  const old = hit?.primary_address ?? address;
   await api("set-address", { method: "POST", body: { address, new_address: newAddr, from_baud: fromBaud } });
-  logChange(t("change_pa", hit?.id || address, old, newAddr));
   // Trefferliste nachführen, damit die Warnung "PA doppelt" ohne neuen Scan verschwindet
   if (hit) {
     hit.primary_address = newAddr;
@@ -1548,7 +1607,6 @@ async function doSetAddress(address, newAddr, fromBaud) {
 async function doSwitchBaud(address, baud, fromBaud) {
   const hit = hitFor(address);
   await api("switch-baud", { method: "POST", body: { address, baud, from_baud: fromBaud } });
-  logChange(t("change_baud", hit?.id || address, fromBaud || connBaud, baud));
   if (hit) {
     hit.baud = baud;
     renderJob(lastJob);
@@ -1561,17 +1619,7 @@ async function doSwitchBaud(address, baud, fromBaud) {
   return true;
 }
 
-/// Änderungen am Bus für den Bericht merken
-function logChange(text) {
-  let list = [];
-  try {
-    list = JSON.parse(storageGet("report_changes") || "[]");
-  } catch {
-    /* kaputt: neu anfangen */
-  }
-  list.push({ time: new Date().toLocaleString(lang === "de" ? "de-CH" : "en-GB"), text });
-  storageSet("report_changes", JSON.stringify(list));
-}
+
 
 $("switch-baud").onclick = () =>
   guarded($("switch-baud"), async () => {
@@ -1845,25 +1893,222 @@ $("clear-log").onclick = async () => {
   $("log").innerHTML = "";
 };
 
-// Neue Anlage: Server und Browser-Daten der letzten Anlage löschen, dann frisch laden
-$("new-site").onclick = () =>
-  guarded($("new-site"), async () => {
-    const s = await api("status");
-    if (!confirm(t("confirm_new_site", meters.length, s.readings))) return;
-    await api("new-site", { method: "POST" });
-    for (const k of ["report_changes", "report_fields", "report_details"]) storageSet(k, "");
-    try {
-      sessionStorage.setItem("new_site_done", "1");
-    } catch {
-      /* ohne Hinweis nach dem Laden */
-    }
-    location.reload();
-  });
-try {
-  if (sessionStorage.getItem("new_site_done")) {
-    sessionStorage.removeItem("new_site_done");
-    setTimeout(() => toast(t("new_site_done")), 300);
+
+
+// ------------------------------------------------------------ Projekte, Gateways, Linien
+
+let tree = null;
+
+async function loadTree() {
+  tree = await api("projects");
+  renderTree();
+}
+
+function activeProjectNode() {
+  return tree.projects.find((p) => p.id === tree.active.project.id);
+}
+
+function renderTree() {
+  if (!tree) return;
+  const a = tree.active;
+  $("h-project").textContent = a.project.name;
+  $("project-sub").textContent = [a.project.customer, a.project.site].filter(Boolean).join(" · ");
+  $("crumb-text").textContent = `${a.project.name} › ${a.gateway.name} › ${a.line.name}`;
+  $("conn-line").textContent = t("conn_line", `${a.gateway.name} › ${a.line.name}`);
+  $("project-select").innerHTML = tree.projects
+    .map((p) => `<option value="${p.id}" ${p.id === a.project.id ? "selected" : ""}>${esc(p.name)}</option>`)
+    .join("");
+  $("project-export").href = `api/projects/${a.project.id}/export` + (token ? `?token=${encodeURIComponent(token)}` : "");
+  const node = activeProjectNode();
+  $("tree").innerHTML =
+    node.gateways
+      .map(
+        (g) => `<div class="gw">
+      <div class="gw-head">
+        <h3>${esc(g.name)}</h3>${g.address ? `<span class="hint mono">${esc(g.address)}</span>` : ""}
+        <span class="spacer"></span>
+        <button class="icon-btn" data-gw-edit="${g.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
+        <button class="icon-btn" data-gw-del="${g.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>
+      </div>
+      ${g.lines
+        .map((l) => {
+          const active = l.id === a.line.id;
+          return `<div class="ln${active ? " active" : ""}">
+          <span>${active ? `<span class="badge-active">${esc(t("ln_active"))}</span>` : `<button class="small ghost" data-ln-use="${l.id}">${esc(t("ln_use"))}</button>`}</span>
+          <span class="ln-name">${esc(l.name)}</span>
+          <span class="ln-conn">${l.connection ? `${esc(l.connection)} · ${l.baud} Bd` : esc(t("ln_no_conn"))}</span>
+          <span class="ln-info">${esc(t("ln_info", l.meters, l.last_read))}</span>
+          <span class="actions">
+            <button class="icon-btn" data-ln-edit="${l.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
+            <button class="icon-btn" data-ln-del="${l.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>
+          </span>
+        </div>`;
+        })
+        .join("")}
+      <div class="gw-foot"><button class="small quiet" data-ln-add="${g.id}">${esc(t("ln_add"))}</button></div>
+    </div>`
+      )
+      .join("") + `<div><button class="small ghost" data-gw-add>${esc(t("gw_add"))}</button></div>`;
+}
+
+/// Seite neu laden mit einer Meldung danach (Wechsel von Projekt/Linie betrifft fast alles)
+function reloadWith(msg, isError = false) {
+  try {
+    sessionStorage.setItem("flash", JSON.stringify({ msg, isError }));
+  } catch {
+    /* ohne Meldung */
   }
+  location.reload();
+}
+
+async function activateLine(id, name = null) {
+  const r = await api(`lines/${id}/activate`, { method: "POST" });
+  const line = tree.projects.flatMap((p) => p.gateways).flatMap((g) => g.lines).find((l) => l.id === id);
+  name ??= line ? line.name : "";
+  reloadWith(r.error ? t("activate_failed", name, r.error) : t("activated", name), !!r.error);
+}
+
+const findGateway = (id) => activeProjectNode().gateways.find((g) => g.id === id);
+const findLine = (id) => activeProjectNode().gateways.flatMap((g) => g.lines).find((l) => l.id === id);
+
+/// Formular für Projekt, Gateway oder Linie unter dem Baum
+function openTreeForm(kind, data, onSave) {
+  const f = $("tree-form");
+  const field = (key, label, value, attrs = "") =>
+    `<label><span>${esc(t(label))}</span> <input name="${key}" value="${esc(value ?? "")}" ${attrs}></label>`;
+  let body = "";
+  if (kind === "project") {
+    body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("customer", "f_customer", data.customer)}</div>
+      <div class="row">${field("site", "f_site", data.site)}${field("technician", "f_technician", data.technician)}${field("order_no", "f_order", data.order_no)}</div>
+      <div class="row">${field("remarks", "f_remarks", data.remarks)}</div>`;
+  } else if (kind === "gateway") {
+    body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("address", "f_address", data.address, 'class="mono"')}${field("note", "f_note", data.note)}</div>`;
+  } else {
+    body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("connection", "f_connection", data.connection, `class="mono" placeholder="${esc(t("f_connection_ph"))}" list="port-list"`)}
+      <label><span>${esc(t("baud"))}</span><select name="baud">${BAUDS.map((b) => `<option ${b === (data.baud || 2400) ? "selected" : ""}>${b}</option>`).join("")}</select></label></div>`;
+  }
+  f.innerHTML = `<h3>${esc(t("form_" + kind))}</h3>${body}
+    <datalist id="port-list">${[...$("port").options].map((o) => `<option value="${esc(o.value)}">`).join("")}</datalist>
+    <div class="row"><button type="submit">${esc(t("save"))}</button><button type="button" class="quiet" data-form-cancel>${esc(t("cancel"))}</button></div>`;
+  f.hidden = false;
+  f.onsubmit = (ev) => {
+    ev.preventDefault();
+    const values = Object.fromEntries(new FormData(f).entries());
+    if (values.baud) values.baud = Number(values.baud);
+    guarded(f.querySelector("[type=submit]"), async () => {
+      await onSave({ ...data, ...values });
+      f.hidden = true;
+    });
+  };
+  f.querySelector("[data-form-cancel]").onclick = () => (f.hidden = true);
+  f.querySelector("input").focus();
+  f.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+$("tree").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button");
+  if (!b) return;
+  const d = b.dataset;
+  const id = Number(d.lnUse || d.lnEdit || d.lnDel || d.lnAdd || d.gwEdit || d.gwDel || 0);
+  if (d.lnUse) return guarded(b, () => activateLine(id));
+  if (d.lnEdit) {
+    const l = findLine(id);
+    return openTreeForm("line", l, async (v) => {
+      await api(`lines/${id}`, { method: "PUT", body: { name: v.name, connection: v.connection, baud: v.baud, timeout_ms: l.timeout_ms } });
+      // aktive Linie mit neuem Anschluss: gleich neu verbinden
+      if (id === tree.active.line.id && (v.connection !== l.connection || v.baud !== l.baud)) return activateLine(id, v.name);
+      await loadTree();
+    });
+  }
+  if (d.lnAdd) {
+    const g = findGateway(id);
+    const prefill = g.address ? `tcp://${g.address}:` : "";
+    return openTreeForm("line", { name: t("ln_new", g.lines.length + 1), connection: prefill, baud: 2400 }, async (v) => {
+      await api(`gateways/${id}/lines`, { method: "POST", body: v });
+      await loadTree();
+    });
+  }
+  if (d.gwEdit) {
+    return openTreeForm("gateway", findGateway(id), async (v) => {
+      await api(`gateways/${id}`, { method: "PUT", body: v });
+      await loadTree();
+    });
+  }
+  if (d.gwAdd !== undefined) {
+    const n = activeProjectNode().gateways.length + 1;
+    return openTreeForm("gateway", { name: t("gw_new", n), address: "", note: "" }, async (v) => {
+      await api(`projects/${tree.active.project.id}/gateways`, { method: "POST", body: v });
+      await loadTree();
+    });
+  }
+  if (d.lnDel || d.gwDel) {
+    const name = d.lnDel ? findLine(id).name : findGateway(id).name;
+    if (!confirm(t(d.lnDel ? "confirm_ln_delete" : "confirm_gw_delete", name))) return;
+    return guarded(b, async () => {
+      const before = tree.active.line.id;
+      await api(`${d.lnDel ? "lines" : "gateways"}/${id}`, { method: "DELETE" });
+      const after = (await api("projects")).active.line.id;
+      if (after !== before) reloadWith(t("activated", ""));
+      else await loadTree();
+    });
+  }
+});
+
+$("project-select").onchange = () =>
+  guarded($("project-select"), async () => {
+    const p = tree.projects.find((x) => x.id === Number($("project-select").value));
+    const first = p?.gateways.flatMap((g) => g.lines)[0];
+    if (first) await activateLine(first.id);
+  });
+
+$("project-new").onclick = () =>
+  guarded($("project-new"), async () => {
+    const name = prompt(t("project_new_prompt"));
+    if (!name || !name.trim()) return;
+    await api("projects", { method: "POST", body: { name: name.trim() } });
+    reloadWith(t("activated", name.trim()));
+  });
+
+$("project-edit").onclick = () =>
+  openTreeForm("project", tree.active.project, async (v) => {
+    await api(`projects/${tree.active.project.id}`, { method: "PUT", body: v });
+    await loadTree();
+  });
+
+$("project-delete").onclick = () => {
+  const p = tree.active.project;
+  if (!confirm(t("confirm_project_delete", p.name))) return;
+  guarded($("project-delete"), async () => {
+    await api(`projects/${p.id}`, { method: "DELETE" });
+    reloadWith(t("activated", ""));
+  });
+};
+
+$("project-import").onchange = (ev) => {
+  const file = ev.target.files[0];
+  ev.target.value = "";
+  if (!file) return;
+  guarded($("project-new"), async () => {
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      throw new Error(t("import_bad"));
+    }
+    const r = await api("projects/import", { method: "POST", body: data });
+    tree = await api("projects");
+    const p = tree.projects.find((x) => x.id === r.project);
+    const first = p?.gateways.flatMap((g) => g.lines)[0];
+    toast(t("project_imported", p?.name || ""));
+    if (first) await activateLine(first.id);
+  });
+};
+
+// Meldung nach dem Neuladen (Linie gewechselt, Projekt angelegt …)
+try {
+  const flash = JSON.parse(sessionStorage.getItem("flash") || "null");
+  sessionStorage.removeItem("flash");
+  if (flash?.msg) setTimeout(() => toast(flash.msg, flash.isError), 300);
 } catch {
   /* privater Modus */
 }
@@ -1872,6 +2117,17 @@ try {
 
 setLang(lang);
 loadPorts().catch((e) => toast(e.message, true));
+loadTree()
+  .then(() => {
+    // nicht verbunden: Anschluss der aktiven Linie in die Felder übernehmen
+    const l = tree.active.line;
+    if (!connected && l.connection) {
+      $("port-manual").value = l.connection;
+      $("baud").value = l.baud;
+      $("timeout").value = l.timeout_ms;
+    }
+  })
+  .catch((e) => toast(e.message, true));
 // letztes Scan-Ergebnis nach dem Neuladen wieder anzeigen (läuft ein Scan, übernimmt pollJob);
 // erst nach dem Status, denn die Bewertung braucht die Bus-Baudrate
 refreshStatus()

@@ -21,13 +21,14 @@ use crate::mbus::frame::{hex, Frame};
 use crate::mbus::master::{
     mask_matches, Bauds, FrameLog, Master, MeterReading, Progress, Reply, ScanHit, Target,
 };
-use crate::project::{Meter, Store};
+use crate::db::{Db, Gateway, Line, Meter, Project};
 
 #[derive(RustEmbed)]
 #[folder = "web/"]
 struct Assets;
 
-const MAX_READINGS: usize = 2000;
+/// Höchstens so viele Auslesungen einer Linie an die Oberfläche bzw. in den Export
+const MAX_READINGS: usize = 5000;
 
 #[derive(Clone, Serialize)]
 pub struct ConnInfo {
@@ -49,36 +50,39 @@ pub struct JobStatus {
     pub error: Option<String>,
 }
 
-#[derive(Default)]
 pub struct Shared {
     bus: Mutex<Option<Master>>,
     conn: Mutex<Option<ConnInfo>>,
     job: Mutex<JobStatus>,
-    /// Ergebnis des letzten abgeschlossenen Scans; bleibt bei "Alle auslesen" erhalten
-    last_scan: Mutex<Option<JobStatus>>,
     cancel: AtomicBool,
-    readings: Mutex<Vec<MeterReading>>,
     log: Arc<FrameLog>,
-    meters: Mutex<Store>,
+    /// Projekte, Linien, Zähler, Auslesungen; Zählerliste und Scan gelten für die aktive Linie
+    db: Mutex<Db>,
     /// Optionaler Zugriffsschlüssel für die API (bei LAN-Zugriff)
     token: Option<String>,
 }
 
 impl Shared {
-    pub fn new(token: Option<String>, meters: Store) -> Self {
+    pub fn new(token: Option<String>, db: Db) -> Self {
         Shared {
+            bus: Mutex::default(),
+            conn: Mutex::default(),
+            job: Mutex::default(),
+            cancel: AtomicBool::default(),
+            log: Arc::default(),
+            db: Mutex::new(db),
             token,
-            meters: Mutex::new(meters),
-            ..Default::default()
         }
     }
 
-    fn push_reading(&self, reading: MeterReading) {
-        let mut all = self.readings.lock().unwrap();
-        all.push(reading);
-        if all.len() > MAX_READINGS {
-            let excess = all.len() - MAX_READINGS;
-            all.drain(..excess);
+    fn line_id(&self) -> Result<i64, ApiError> {
+        Ok(self.db.lock().unwrap().active_line()?.id)
+    }
+
+    /// Auslesung speichern (Verlauf und Zählerliste der Linie); Speicherfehler nur ins Log
+    fn record(&self, line: i64, target: &Target, result: Result<&MeterReading, String>) {
+        if let Err(e) = self.db.lock().unwrap().record(line, target, result) {
+            self.log.push("INFO", format!("DB: {e:#}"));
         }
     }
 }
@@ -190,7 +194,17 @@ pub fn router(state: AppState) -> Router {
         .route("/api/export", get(export_readings))
         .route("/api/log", get(log).delete(clear_log))
         .route("/api/labels", get(labels))
-        .route("/api/new-site", post(new_site))
+        .route("/api/projects", get(tree).post(project_create))
+        .route("/api/projects/import", post(project_import))
+        .route("/api/projects/{id}", put(project_update).delete(project_delete))
+        .route("/api/projects/{id}/export", get(project_export))
+        .route("/api/projects/{id}/changes", axum::routing::delete(changes_clear))
+        .route("/api/projects/{id}/gateways", post(gateway_create))
+        .route("/api/gateways/{id}", put(gateway_update).delete(gateway_delete))
+        .route("/api/gateways/{id}/lines", post(line_create))
+        .route("/api/lines/{id}", put(line_update).delete(line_delete))
+        .route("/api/lines/{id}/activate", post(line_activate))
+        .route("/api/report", get(report))
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .fallback(static_file)
         .with_state(state)
@@ -258,18 +272,21 @@ async fn ports() -> Json<Vec<String>> {
     )
 }
 
-async fn status(State(st): State<AppState>) -> Json<serde_json::Value> {
+async fn status(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     let conn = st.conn.lock().unwrap().clone();
-    let job = st.job.lock().unwrap();
-    Json(json!({
+    let running = st.job.lock().unwrap().running;
+    let db = st.db.lock().unwrap();
+    let active = db.active()?;
+    Ok(Json(json!({
         "connected": conn.is_some(),
         "connection": conn,
-        "job_running": job.running,
-        "readings": st.readings.lock().unwrap().len(),
+        "job_running": running,
+        "readings": db.reading_count(active.line.id)?,
         "version": env!("CARGO_PKG_VERSION"),
         "token_required": st.token.is_some(),
-        "meters_file": st.meters.lock().unwrap().path().map(|p| p.display().to_string()),
-    }))
+        "meters_file": db.path().map(|p| p.display().to_string()),
+        "active": active,
+    })))
 }
 
 #[derive(Deserialize)]
@@ -297,9 +314,24 @@ async fn connect(
     .await
     .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
     .map_err(|e| ApiError(StatusCode::BAD_REQUEST, format!("{e:#}")))?;
+    // erfolgreiche Verbindung gehört zur aktiven Linie: beim nächsten Mal wieder so verbinden
+    if let Some(c) = st.conn.lock().unwrap().clone() {
+        let mut db = st.db.lock().unwrap();
+        let line = db.active_line()?.id;
+        db.set_line_connection(line, &c.port, c.baud, req_timeout(&c))?;
+    }
     Ok(Json(
         json!({ "ok": true, "connection": st.conn.lock().unwrap().clone() }),
     ))
+}
+
+/// Timeout wie eingestellt speichern: 0 = automatisch
+fn req_timeout(c: &ConnInfo) -> u64 {
+    if c.timeout_auto {
+        0
+    } else {
+        c.timeout_ms
+    }
 }
 
 async fn disconnect(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
@@ -333,6 +365,8 @@ where
     st.cancel.store(false, Ordering::SeqCst);
     st.log
         .push("INFO", format!("{} {kind}", tr("Starte", "Starting")));
+    // Ergebnis gehört zur Linie, die beim Start aktiv war
+    let line = st.line_id()?;
     let s = st.clone();
     std::thread::spawn(move || {
         i18n::set(lang);
@@ -378,7 +412,10 @@ where
             ),
         );
         if job.kind != "read_all" {
-            *s.last_scan.lock().unwrap() = Some(job.clone());
+            let value = serde_json::to_value(&*job).unwrap_or_default();
+            if let Err(e) = s.db.lock().unwrap().set_last_scan(line, &value) {
+                s.log.push("INFO", format!("DB: {e:#}"));
+            }
         }
     });
     Ok(Json(st.job.lock().unwrap().clone()))
@@ -487,8 +524,10 @@ async fn bus_bauds(
 }
 
 /// Letzter abgeschlossener Scan (für die Trefferliste nach dem Neuladen)
-async fn last_scan(State(st): State<AppState>) -> Json<Option<JobStatus>> {
-    Json(st.last_scan.lock().unwrap().clone())
+/// Letzter Scan der aktiven Linie (für die Trefferliste nach dem Neuladen)
+async fn last_scan(State(st): State<AppState>) -> ApiResult<Option<serde_json::Value>> {
+    let db = st.db.lock().unwrap();
+    Ok(Json(db.last_scan(db.active_line()?.id)?))
 }
 
 async fn job(State(st): State<AppState>) -> Json<JobStatus> {
@@ -514,18 +553,14 @@ async fn read(
     Json(req): Json<ReadReq>,
 ) -> ApiResult<MeterReading> {
     let target = parse_target(&req.address)?;
+    let line = st.line_id()?;
     let t = target.clone();
     let baud = req.baud;
     let result = with_bus(&st, lang_of(&headers), move |m| at_baud(m, baud, |m| m.read_meter(&t))).await;
-    // Ergebnis auch in der Zählerliste vermerken, falls der Zähler dort steht
+    // Ergebnis speichern (Verlauf) und in der Zählerliste vermerken, falls der Zähler dort steht
     match &result {
-        Ok(r) => {
-            st.meters.lock().unwrap().record(&target, Ok(r));
-            st.push_reading(r.clone());
-        }
-        Err(ApiError(StatusCode::BAD_GATEWAY, e)) => {
-            st.meters.lock().unwrap().record(&target, Err(e.clone()));
-        }
+        Ok(r) => st.record(line, &target, Ok(r)),
+        Err(ApiError(StatusCode::BAD_GATEWAY, e)) => st.record(line, &target, Err(e.clone())),
         Err(_) => {}
     }
     Ok(Json(result?))
@@ -553,34 +588,80 @@ fn at_baud<T>(
     r
 }
 
-/// Änderung am Zähler auch in der Trefferliste des letzten Scans nachtragen, damit sie nach
-/// dem Neuladen der Seite (oder auf einem zweiten Gerät) stimmt.
-fn update_hits(st: &AppState, target: &Target, from_baud: Option<u32>, f: impl Fn(&mut ScanHit)) {
-    let Some(bus) = st.conn.lock().unwrap().as_ref().map(|c| c.baud) else {
-        return;
-    };
+/// Was an einem Treffer geändert wurde
+#[derive(Clone, Copy)]
+enum HitUpdate {
+    Pa(u8),
+    Baud(u32),
+}
+
+/// Änderung am Zähler auch in der Trefferliste nachtragen (laufender Job und letzter Scan der
+/// Linie in der Datenbank), damit sie nach dem Neuladen der Seite oder auf einem zweiten Gerät
+/// stimmt. Liefert Name (ID) und alten Wert des Zählers fürs Änderungsprotokoll.
+fn update_hits(
+    st: &AppState,
+    line: i64,
+    target: &Target,
+    from_baud: Option<u32>,
+    upd: HitUpdate,
+) -> Option<(String, String)> {
+    let bus = st.conn.lock().unwrap().as_ref().map(|c| c.baud)?;
     let baud = from_baud.unwrap_or(bus);
-    let mut job = st.job.lock().unwrap();
-    let mut last = st.last_scan.lock().unwrap();
-    let scans = [Some(&mut *job), last.as_mut()];
-    for h in scans
-        .into_iter()
-        .flatten()
-        .filter(|j| j.kind != "read_all")
-        .flat_map(|j| j.hits.iter_mut())
-        .filter(|h| h.baud == Some(baud))
+    let matches = |status: &str, pa: Option<u8>, sa: Option<&str>, hb: Option<u32>| {
+        hb == Some(baud)
+            && match target {
+                Target::Primary(a) => status == "ok" && pa == Some(*a),
+                Target::Secondary(mask) => sa.is_some_and(|s| mask_matches(mask, s)),
+            }
+    };
+    let mut found = None;
     {
-        let hit = match target {
-            Target::Primary(a) => h.status == "ok" && h.primary_address == Some(*a),
-            Target::Secondary(mask) => h
-                .secondary_address
-                .as_deref()
-                .is_some_and(|s| mask_matches(mask, s)),
-        };
-        if hit {
-            f(h);
+        let mut job = st.job.lock().unwrap();
+        if job.kind != "read_all" {
+            for h in job.hits.iter_mut() {
+                if !matches(h.status, h.primary_address, h.secondary_address.as_deref(), h.baud) {
+                    continue;
+                }
+                let old = match upd {
+                    HitUpdate::Pa(_) => h.primary_address.map(|a| a.to_string()),
+                    HitUpdate::Baud(_) => h.baud.map(|b| b.to_string()),
+                };
+                found.get_or_insert((h.id.clone().unwrap_or_else(|| target.label()), old.unwrap_or_default()));
+                match upd {
+                    HitUpdate::Pa(a) => h.primary_address = Some(a),
+                    HitUpdate::Baud(b) => h.baud = Some(b),
+                }
+            }
         }
     }
+    let mut db = st.db.lock().unwrap();
+    if let Ok(Some(mut scan)) = db.last_scan(line) {
+        let mut changed = false;
+        for h in scan["hits"].as_array_mut().into_iter().flatten() {
+            let pa = h["primary_address"].as_u64().map(|a| a as u8);
+            let hb = h["baud"].as_u64().map(|b| b as u32);
+            if !matches(h["status"].as_str().unwrap_or(""), pa, h["secondary_address"].as_str(), hb) {
+                continue;
+            }
+            let old = match upd {
+                HitUpdate::Pa(_) => pa.map(|a| a.to_string()),
+                HitUpdate::Baud(_) => hb.map(|b| b.to_string()),
+            };
+            found.get_or_insert((
+                h["id"].as_str().map(String::from).unwrap_or_else(|| target.label()),
+                old.unwrap_or_default(),
+            ));
+            match upd {
+                HitUpdate::Pa(a) => h["primary_address"] = json!(a),
+                HitUpdate::Baud(b) => h["baud"] = json!(b),
+            }
+            changed = true;
+        }
+        if changed {
+            let _ = db.replace_last_scan(line, &scan);
+        }
+    }
+    found
 }
 
 async fn set_address(
@@ -588,14 +669,20 @@ async fn set_address(
     headers: HeaderMap,
     Json(req): Json<SetAddressReq>,
 ) -> ApiResult<serde_json::Value> {
+    let lang = lang_of(&headers);
     let target = parse_target(&req.address)?;
     let new = req.new_address;
+    let line = st.line_id()?;
     let t = target.clone();
-    with_bus(&st, lang_of(&headers), move |m| {
+    with_bus(&st, lang, move |m| {
         at_baud(m, req.from_baud, |m| m.set_primary(&t, new))
     })
     .await?;
-    update_hits(&st, &target, req.from_baud, |h| h.primary_address = Some(new));
+    i18n::set(lang);
+    let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Pa(new))
+        .unwrap_or_else(|| (target.label(), "?".into()));
+    let text = format!("{name}: {} {old} → {new}", tr("Primäradresse", "primary address"));
+    let _ = st.db.lock().unwrap().add_change(line, &text);
     Ok(Json(json!({ "ok": true, "new_address": new })))
 }
 
@@ -613,14 +700,20 @@ async fn switch_baud(
     headers: HeaderMap,
     Json(req): Json<SwitchBaudReq>,
 ) -> ApiResult<serde_json::Value> {
+    let lang = lang_of(&headers);
     let target = parse_target(&req.address)?;
     let baud = req.baud;
+    let line = st.line_id()?;
     let t = target.clone();
-    with_bus(&st, lang_of(&headers), move |m| {
+    with_bus(&st, lang, move |m| {
         at_baud(m, req.from_baud, |m| m.switch_baud(&t, baud))
     })
     .await?;
-    update_hits(&st, &target, req.from_baud, |h| h.baud = Some(baud));
+    i18n::set(lang);
+    let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Baud(baud))
+        .unwrap_or_else(|| (target.label(), "?".into()));
+    let text = format!("{name}: {} {old} → {baud} Bd", tr("Baudrate", "baud rate"));
+    let _ = st.db.lock().unwrap().add_change(line, &text);
     Ok(Json(json!({ "ok": true, "baud": baud })))
 }
 
@@ -713,34 +806,37 @@ async fn raw_send(
 
 // ------------------------------------------------------------ Zählerliste
 
-async fn meters_list(State(st): State<AppState>) -> Json<Vec<Meter>> {
-    Json(st.meters.lock().unwrap().list())
+async fn meters_list(State(st): State<AppState>) -> ApiResult<Vec<Meter>> {
+    let db = st.db.lock().unwrap();
+    Ok(Json(db.meters(db.active_line()?.id)?))
 }
 
 async fn meters_add(State(st): State<AppState>, Json(m): Json<Meter>) -> ApiResult<Meter> {
-    Ok(Json(st.meters.lock().unwrap().add(m).map_err(bad_request)?))
+    let mut db = st.db.lock().unwrap();
+    let line = db.active_line()?.id;
+    Ok(Json(db.add_meter(line, m).map_err(bad_request)?))
 }
 
 async fn meters_update(
     State(st): State<AppState>,
-    Path(id): Path<u64>,
+    Path(id): Path<i64>,
     Json(m): Json<Meter>,
 ) -> ApiResult<Meter> {
-    Ok(Json(
-        st.meters.lock().unwrap().update(id, m).map_err(bad_request)?,
-    ))
+    Ok(Json(st.db.lock().unwrap().update_meter(id, m).map_err(bad_request)?))
 }
 
 async fn meters_clear(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
-    let n = st.meters.lock().unwrap().clear().map_err(bad_request)?;
+    let mut db = st.db.lock().unwrap();
+    let line = db.active_line()?.id;
+    let n = db.clear_meters(line).map_err(bad_request)?;
     Ok(Json(json!({ "ok": true, "removed": n })))
 }
 
 async fn meters_remove(
     State(st): State<AppState>,
-    Path(id): Path<u64>,
+    Path(id): Path<i64>,
 ) -> ApiResult<serde_json::Value> {
-    st.meters.lock().unwrap().remove(id).map_err(bad_request)?;
+    st.db.lock().unwrap().remove_meter(id).map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -755,16 +851,10 @@ fn read_listed(m: &mut Master, meter: &Meter, home: u32) -> anyhow::Result<(Targ
 async fn meters_read_one(
     State(st): State<AppState>,
     headers: HeaderMap,
-    Path(id): Path<u64>,
+    Path(id): Path<i64>,
 ) -> ApiResult<MeterReading> {
-    let meter = st
-        .meters
-        .lock()
-        .unwrap()
-        .list()
-        .into_iter()
-        .find(|m| m.id == id)
-        .ok_or_else(|| bad_request(format!("{} {id}", tr("Zähler nicht in der Liste:", "Meter not in list:"))))?;
+    let meter = st.db.lock().unwrap().meter(id).map_err(bad_request)?;
+    let line = meter.line_id;
     let target = parse_target(&meter.address)?;
     let result = with_bus(&st, lang_of(&headers), move |m| {
         let home = m.baud();
@@ -775,14 +865,13 @@ async fn meters_read_one(
     .await;
     match result {
         Ok((_, r)) => {
-            st.meters.lock().unwrap().record(&target, Ok(&r));
-            st.push_reading(r.clone());
+            st.record(line, &target, Ok(&r));
             Ok(Json(r))
         }
         Err(e) => {
             // nur Busfehler vermerken, nicht "belegt" oder "nicht verbunden"
             if e.0 == StatusCode::BAD_GATEWAY {
-                st.meters.lock().unwrap().record(&target, Err(e.1.clone()));
+                st.record(line, &target, Err(e.1.clone()));
             }
             Err(e)
         }
@@ -793,7 +882,11 @@ async fn meters_read_all(
     State(st): State<AppState>,
     headers: HeaderMap,
 ) -> ApiResult<JobStatus> {
-    let meters = st.meters.lock().unwrap().list();
+    let (line, meters) = {
+        let db = st.db.lock().unwrap();
+        let line = db.active_line()?.id;
+        (line, db.meters(line)?)
+    };
     if meters.is_empty() {
         return Err(bad_request(tr(
             "Die Zählerliste ist leer",
@@ -818,16 +911,10 @@ async fn meters_read_all(
                 break;
             }
             match read_listed(m, meter, home) {
-                Ok((target, r)) => {
-                    s.meters.lock().unwrap().record(&target, Ok(&r));
-                    s.push_reading(r);
-                }
+                Ok((target, r)) => s.record(line, &target, Ok(&r)),
                 Err(e) => {
                     if let Ok(target) = Target::parse(&meter.address) {
-                        s.meters
-                            .lock()
-                            .unwrap()
-                            .record(&target, Err(format!("{e:#}")));
+                        s.record(line, &target, Err(format!("{e:#}")));
                     }
                 }
             }
@@ -842,20 +929,25 @@ async fn meters_read_all(
     })
 }
 
-async fn meters_export(State(st): State<AppState>) -> Response {
-    let body = serde_json::to_string_pretty(&json!({ "meters": st.meters.lock().unwrap().list() }))
-        .unwrap_or_default();
+fn download(body: String, mime: &str, filename: &str) -> Response {
     (
         [
-            (header::CONTENT_TYPE, "application/json".to_string()),
+            (header::CONTENT_TYPE, mime.to_string()),
             (
                 header::CONTENT_DISPOSITION,
-                "attachment; filename=\"mbusio-meters.json\"".to_string(),
+                format!("attachment; filename=\"{filename}\""),
             ),
         ],
         body,
     )
         .into_response()
+}
+
+async fn meters_export(State(st): State<AppState>) -> Result<Response, ApiError> {
+    let db = st.db.lock().unwrap();
+    let body = serde_json::to_string_pretty(&json!({ "meters": db.meters(db.active_line()?.id)? }))
+        .unwrap_or_default();
+    Ok(download(body, "application/json", "mbusio-meters.json"))
 }
 
 #[derive(Deserialize)]
@@ -867,40 +959,187 @@ async fn meters_import(
     State(st): State<AppState>,
     Json(req): Json<ImportReq>,
 ) -> ApiResult<serde_json::Value> {
-    let n = st
-        .meters
-        .lock()
-        .unwrap()
-        .import(req.meters)
-        .map_err(bad_request)?;
+    let mut db = st.db.lock().unwrap();
+    let line = db.active_line()?.id;
+    let n = db.import_meters(line, req.meters).map_err(bad_request)?;
     Ok(Json(json!({ "ok": true, "added": n })))
 }
 
-async fn readings(State(st): State<AppState>) -> Json<Vec<MeterReading>> {
-    Json(st.readings.lock().unwrap().clone())
+async fn readings(State(st): State<AppState>) -> ApiResult<Vec<MeterReading>> {
+    let db = st.db.lock().unwrap();
+    Ok(Json(db.readings(db.active_line()?.id, MAX_READINGS)?))
 }
 
-/// Neue Anlage: Trefferliste, Zählerliste, Auslesungen und Log löschen; Verbindung bleibt
-async fn new_site(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
-    {
-        let mut job = st.job.lock().unwrap();
-        if job.running {
-            return Err(busy());
-        }
-        *job = JobStatus::default();
+async fn clear_readings(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let mut db = st.db.lock().unwrap();
+    let line = db.active_line()?.id;
+    db.clear_readings(line)?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+// ------------------------------------------------------------ Projekte, Gateways, Linien
+
+async fn tree(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let db = st.db.lock().unwrap();
+    Ok(Json(json!({ "projects": db.tree()?, "active": db.active()? })))
+}
+
+/// Projekt anlegen und gleich seine erste Linie aktivieren
+async fn project_create(State(st): State<AppState>, Json(p): Json<Project>) -> ApiResult<serde_json::Value> {
+    ensure_idle(&st)?;
+    let mut db = st.db.lock().unwrap();
+    let p = db.create_project(p).map_err(bad_request)?;
+    let tree = db.tree()?;
+    let line = tree
+        .iter()
+        .find(|n| n.project.id == p.id)
+        .and_then(|n| n.gateways.first()?.lines.first().map(|l| l.line.id));
+    if let Some(line) = line {
+        db.set_active(line)?;
     }
-    *st.last_scan.lock().unwrap() = None;
-    let meters = st.meters.lock().unwrap().clear().map_err(bad_request)?;
-    let readings = std::mem::take(&mut *st.readings.lock().unwrap()).len();
-    st.log.clear();
-    st.log
-        .push("INFO", tr("Neue Anlage: alles zurückgesetzt", "New site: everything reset"));
-    Ok(Json(json!({ "ok": true, "meters": meters, "readings": readings })))
+    drop(db);
+    disconnect_bus(&st);
+    Ok(Json(json!({ "ok": true, "project": p })))
 }
 
-async fn clear_readings(State(st): State<AppState>) -> Json<serde_json::Value> {
-    st.readings.lock().unwrap().clear();
-    Json(json!({ "ok": true }))
+async fn project_update(State(st): State<AppState>, Path(id): Path<i64>, Json(p): Json<Project>) -> ApiResult<Project> {
+    Ok(Json(st.db.lock().unwrap().update_project(id, p).map_err(bad_request)?))
+}
+
+async fn project_delete(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    ensure_idle(&st)?;
+    let before = st.line_id()?;
+    st.db.lock().unwrap().delete_project(id).map_err(bad_request)?;
+    if st.line_id()? != before {
+        disconnect_bus(&st);
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn gateway_create(State(st): State<AppState>, Path(project): Path<i64>, Json(g): Json<Gateway>) -> ApiResult<Gateway> {
+    Ok(Json(st.db.lock().unwrap().create_gateway(project, g).map_err(bad_request)?))
+}
+
+async fn gateway_update(State(st): State<AppState>, Path(id): Path<i64>, Json(g): Json<Gateway>) -> ApiResult<Gateway> {
+    Ok(Json(st.db.lock().unwrap().update_gateway(id, g).map_err(bad_request)?))
+}
+
+async fn gateway_delete(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    ensure_idle(&st)?;
+    let before = st.line_id()?;
+    st.db.lock().unwrap().delete_gateway(id).map_err(bad_request)?;
+    if st.line_id()? != before {
+        disconnect_bus(&st);
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn line_create(State(st): State<AppState>, Path(gateway): Path<i64>, Json(l): Json<Line>) -> ApiResult<Line> {
+    Ok(Json(st.db.lock().unwrap().create_line(gateway, l).map_err(bad_request)?))
+}
+
+async fn line_update(State(st): State<AppState>, Path(id): Path<i64>, Json(l): Json<Line>) -> ApiResult<Line> {
+    Ok(Json(st.db.lock().unwrap().update_line(id, l).map_err(bad_request)?))
+}
+
+async fn line_delete(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    ensure_idle(&st)?;
+    let before = st.line_id()?;
+    st.db.lock().unwrap().delete_line(id).map_err(bad_request)?;
+    if st.line_id()? != before {
+        disconnect_bus(&st);
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
+fn ensure_idle(st: &AppState) -> Result<(), ApiError> {
+    if st.job.lock().unwrap().running {
+        return Err(busy());
+    }
+    Ok(())
+}
+
+/// Verbindung trennen, z.B. weil eine andere Linie aktiv wird
+fn disconnect_bus(st: &AppState) {
+    if let Ok(mut bus) = st.bus.try_lock() {
+        if bus.take().is_some() {
+            st.log.push("INFO", tr("Verbindung getrennt", "Disconnected"));
+        }
+    }
+    *st.conn.lock().unwrap() = None;
+    *st.job.lock().unwrap() = JobStatus::default();
+}
+
+/// Linie aktivieren und, wenn sie eine Verbindung hat, gleich damit verbinden
+async fn line_activate(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
+    ensure_idle(&st)?;
+    let lang = lang_of(&headers);
+    let line = st.db.lock().unwrap().set_active(id).map_err(bad_request)?;
+    disconnect_bus(&st);
+    if line.connection.is_empty() {
+        return Ok(Json(json!({ "ok": true, "connected": false })));
+    }
+    let s = st.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        i18n::set(lang);
+        connect_blocking(&s, &line.connection, line.baud, line.timeout_ms)
+    })
+    .await
+    .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    // Linie bleibt aktiv, auch wenn der Anschluss gerade nicht erreichbar ist
+    Ok(Json(match result {
+        Ok(()) => json!({ "ok": true, "connected": true }),
+        Err(e) => json!({ "ok": true, "connected": false, "error": format!("{e:#}") }),
+    }))
+}
+
+#[derive(Deserialize)]
+struct ProjectQuery {
+    #[serde(default)]
+    project: Option<i64>,
+}
+
+fn project_or_active(st: &AppState, q: &ProjectQuery) -> Result<i64, ApiError> {
+    match q.project {
+        Some(id) => Ok(id),
+        None => Ok(st.db.lock().unwrap().active()?.project.id),
+    }
+}
+
+/// Alles für den Bericht eines Projekts (Standard: aktives Projekt)
+async fn report(State(st): State<AppState>, Query(q): Query<ProjectQuery>) -> ApiResult<serde_json::Value> {
+    let id = project_or_active(&st, &q)?;
+    Ok(Json(st.db.lock().unwrap().report(id).map_err(bad_request)?))
+}
+
+async fn changes_clear(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    let n = st.db.lock().unwrap().clear_changes(id)?;
+    Ok(Json(json!({ "ok": true, "removed": n })))
+}
+
+async fn project_export(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Response, ApiError> {
+    let db = st.db.lock().unwrap();
+    let v = db.export_project(id).map_err(bad_request)?;
+    let name: String = db
+        .project(id)?
+        .name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' { c } else { '_' })
+        .collect();
+    Ok(download(
+        serde_json::to_string_pretty(&v).unwrap_or_default(),
+        "application/json",
+        &format!("mbusio-{name}.json"),
+    ))
+}
+
+async fn project_import(State(st): State<AppState>, Json(v): Json<serde_json::Value>) -> ApiResult<serde_json::Value> {
+    let id = st.db.lock().unwrap().import_project(&v).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "project": id })))
 }
 
 #[derive(Deserialize)]
@@ -911,8 +1150,11 @@ struct ExportQuery {
     lang: String,
 }
 
-async fn export_readings(State(st): State<AppState>, Query(q): Query<ExportQuery>) -> Response {
-    let readings = st.readings.lock().unwrap().clone();
+async fn export_readings(State(st): State<AppState>, Query(q): Query<ExportQuery>) -> Result<Response, ApiError> {
+    let readings = {
+        let db = st.db.lock().unwrap();
+        db.readings(db.active_line()?.id, MAX_READINGS)?
+    };
     let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
     let (body, mime, ext) = match q.format.as_str() {
         "json" => (export::json(&readings), "application/json", "json"),
@@ -922,17 +1164,7 @@ async fn export_readings(State(st): State<AppState>, Query(q): Query<ExportQuery
             "csv",
         ),
     };
-    (
-        [
-            (header::CONTENT_TYPE, mime.to_string()),
-            (
-                header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"mbusio-{stamp}.{ext}\""),
-            ),
-        ],
-        body,
-    )
-        .into_response()
+    Ok(download(body, mime, &format!("mbusio-{stamp}.{ext}")))
 }
 
 #[derive(Deserialize)]

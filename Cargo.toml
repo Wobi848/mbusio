@@ -11,6 +11,8 @@ axum = "0.8"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 clap = { version = "4", features = ["derive", "env"] }
 mime_guess = "2"
+# SQLite fest eingebaut: keine Systembibliothek nötig, auch nicht auf Windows oder dem Pi
+rusqlite = { version = "0.40", features = ["bundled"] }
 rust-embed = "8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

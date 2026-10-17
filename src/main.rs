@@ -1,8 +1,8 @@
+mod db;
 mod export;
 mod i18n;
 mod link;
 mod mbus;
-mod project;
 mod sim;
 mod web;
 
@@ -241,16 +241,28 @@ fn run_cli(args: &Args) -> anyhow::Result<()> {
 }
 
 async fn serve(args: &Args) -> anyhow::Result<()> {
-    let data_dir = args.data_dir.clone().unwrap_or_else(project::default_dir);
-    let meters = project::Store::load(&data_dir)?;
+    let data_dir = args.data_dir.clone().unwrap_or_else(db::default_dir);
+    let database = db::Db::open(&data_dir)?;
+    let active = database.active()?;
     let state: web::AppState = Arc::new(web::Shared::new(
         args.token.clone().filter(|t| !t.is_empty()),
-        meters,
+        database,
     ));
     if let Some(port) = &args.port {
         web::connect_blocking(&state, port, args.baud, args.timeout_ms)?;
         println!("Verbunden mit {port} ({} Bd)", args.baud);
+    } else if !active.line.connection.is_empty() {
+        // zuletzt benutzte Linie gleich wieder verbinden; klappt das nicht, geht es trotzdem weiter
+        let l = &active.line;
+        match web::connect_blocking(&state, &l.connection, l.baud, l.timeout_ms) {
+            Ok(()) => println!("Verbunden mit {} ({} Bd)", l.connection, l.baud),
+            Err(e) => println!("{}: {e:#}", l.connection),
+        }
     }
+    println!(
+        "Projekt / project: {} · {} · {}",
+        active.project.name, active.gateway.name, active.line.name
+    );
 
     let host = if args.lan { "0.0.0.0" } else { "127.0.0.1" };
     let listener = match tokio::net::TcpListener::bind((host, args.http_port)).await {
@@ -269,7 +281,7 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
     let port = listener.local_addr()?.port();
     let url = format!("http://localhost:{port}");
     println!("mbusio {}: {url}", env!("CARGO_PKG_VERSION"));
-    println!("Zählerliste / meter list: {}", data_dir.join("meters.json").display());
+    println!("Daten / data: {}", data_dir.join("mbusio.db").display());
     if args.lan {
         println!("LAN: http://<IP>:{port}");
         if args.token.is_none() {

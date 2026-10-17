@@ -30,7 +30,7 @@
       <a href="#sec-log" data-i18n="nav_log"></a>
     </nav>
     <div class="header-right">
-      <button id="new-site" class="small quiet new-site" data-i18n-title="new_site_title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="new_site"></span></button>
+      <a id="crumb" class="crumb" href="#sec-project" data-i18n-title="crumb_title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span id="crumb-text"></span></a>
       <span id="conn-badge" class="chip off"><span class="dot"></span><span class="chip-text" data-i18n="disconnected"></span></span>
       <div class="seg theme-switch" role="group" aria-label="Theme">
         <button data-theme-set="auto" data-i18n-title="theme_auto" aria-label="Auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
@@ -46,6 +46,29 @@
 </header>
 
 <main id="top">
+  <section class="card" id="sec-project" aria-labelledby="h-project">
+    <div class="card-head">
+      <div class="head-text">
+        <span class="eyebrow" data-i18n="project"></span>
+        <h2 id="h-project"></h2>
+        <p id="project-sub" class="hint"></p>
+      </div>
+      <div class="head-actions">
+        <select id="project-select" data-i18n-title="project_switch"></select>
+        <button id="project-new" class="small ghost" data-i18n="project_new"></button>
+      </div>
+    </div>
+    <div class="row tight project-tools">
+      <button id="project-edit" class="small quiet" data-i18n="project_edit"></button>
+      <a id="project-export" class="button small quiet" data-i18n="export"></a>
+      <label class="button small quiet file-button"><span data-i18n="import"></span><input id="project-import" type="file" accept=".json,application/json" hidden></label>
+      <a id="project-report" class="button small quiet" href="report.html" target="_blank" rel="noopener" data-i18n="report"></a>
+      <button id="project-delete" class="small quiet danger" data-i18n="project_delete"></button>
+    </div>
+    <div id="tree" class="tree"></div>
+    <form id="tree-form" class="tree-form" hidden></form>
+  </section>
+
   <section class="card" id="sec-conn" aria-labelledby="h-conn">
     <div class="card-head">
       <h2 id="h-conn" class="h-small" data-i18n="connection"></h2>
@@ -74,6 +97,7 @@
       </div>
     </div>
     <p class="hint" data-i18n="connection_hint"></p>
+    <p id="conn-line" class="hint result"></p>
   </section>
 
   <section class="card" id="sec-scan" aria-labelledby="h-scan">
