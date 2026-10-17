@@ -19,7 +19,7 @@ use crate::link;
 use crate::mbus::decode::decode_rsp_ud;
 use crate::mbus::frame::{hex, Frame};
 use crate::mbus::master::{
-    Bauds, FrameLog, Master, MeterReading, Progress, Reply, ScanHit, Target,
+    mask_matches, Bauds, FrameLog, Master, MeterReading, Progress, Reply, ScanHit, Target,
 };
 use crate::project::{Meter, Store};
 
@@ -540,6 +540,28 @@ fn at_baud<T>(
     r
 }
 
+/// Änderung am Zähler auch in der Trefferliste des letzten Scans nachtragen, damit sie nach
+/// dem Neuladen der Seite (oder auf einem zweiten Gerät) stimmt.
+fn update_hits(st: &AppState, target: &Target, from_baud: Option<u32>, f: impl Fn(&mut ScanHit)) {
+    let Some(bus) = st.conn.lock().unwrap().as_ref().map(|c| c.baud) else {
+        return;
+    };
+    let baud = from_baud.unwrap_or(bus);
+    let mut job = st.job.lock().unwrap();
+    for h in job.hits.iter_mut().filter(|h| h.baud == Some(baud)) {
+        let hit = match target {
+            Target::Primary(a) => h.status == "ok" && h.primary_address == Some(*a),
+            Target::Secondary(mask) => h
+                .secondary_address
+                .as_deref()
+                .is_some_and(|s| mask_matches(mask, s)),
+        };
+        if hit {
+            f(h);
+        }
+    }
+}
+
 async fn set_address(
     State(st): State<AppState>,
     headers: HeaderMap,
@@ -547,10 +569,12 @@ async fn set_address(
 ) -> ApiResult<serde_json::Value> {
     let target = parse_target(&req.address)?;
     let new = req.new_address;
+    let t = target.clone();
     with_bus(&st, lang_of(&headers), move |m| {
-        at_baud(m, req.from_baud, |m| m.set_primary(&target, new))
+        at_baud(m, req.from_baud, |m| m.set_primary(&t, new))
     })
     .await?;
+    update_hits(&st, &target, req.from_baud, |h| h.primary_address = Some(new));
     Ok(Json(json!({ "ok": true, "new_address": new })))
 }
 
@@ -570,10 +594,12 @@ async fn switch_baud(
 ) -> ApiResult<serde_json::Value> {
     let target = parse_target(&req.address)?;
     let baud = req.baud;
+    let t = target.clone();
     with_bus(&st, lang_of(&headers), move |m| {
-        at_baud(m, req.from_baud, |m| m.switch_baud(&target, baud))
+        at_baud(m, req.from_baud, |m| m.switch_baud(&t, baud))
     })
     .await?;
+    update_hits(&st, &target, req.from_baud, |h| h.baud = Some(baud));
     Ok(Json(json!({ "ok": true, "baud": baud })))
 }
 

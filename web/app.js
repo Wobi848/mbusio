@@ -38,6 +38,8 @@ const UI = {
       "„Prüfen“ fragt in wenigen Sekunden alle Baudraten ab und markiert die, auf denen Geräte antworten (●). Gescannt wird nur auf den markierten Baudraten.",
     bauds_all: "Alle",
     busbar_view: "Ansehen",
+    confirm_cancel_scan: "Scan wirklich abbrechen?\n\nDie bisher gefundenen Zähler bleiben in der Liste.",
+    confirm_cancel_read: "Auslesen wirklich abbrechen?\n\nBereits gelesene Zähler behalten ihre Werte.",
     idle_ready: (p, b) => `Bereit · ${p} · ${b} Bd`,
     idle_off: "Nicht verbunden",
     idle_connect: "Verbinden",
@@ -240,6 +242,8 @@ const UI = {
       "“Check” polls all baud rates in a few seconds and selects those where devices answer (●). The scan only runs at the selected baud rates.",
     bauds_all: "All",
     busbar_view: "View",
+    confirm_cancel_scan: "Really cancel the scan?\n\nMeters found so far stay in the list.",
+    confirm_cancel_read: "Really cancel reading?\n\nMeters already read keep their values.",
     idle_ready: (p, b) => `Ready · ${p} · ${b} Bd`,
     idle_off: "Not connected",
     idle_connect: "Connect",
@@ -593,6 +597,8 @@ async function refreshStatus() {
   const prevBaud = connBaud;
   connBaud = s.connection?.baud ?? null;
   conn = s.connection;
+  // "Baudrate abweichend" hängt von der Bus-Baudrate ab: Trefferliste neu zeichnen, wenn sie sich ändert
+  if (connBaud !== prevBaud && lastJob && lastJob.kind !== "read_all") renderJob(lastJob);
   renderBusbar();
   // Auswahl folgt der eingestellten Baudrate, bis man selbst etwas anklickt
   if (connBaud && connBaud !== prevBaud && !baudsTouched) setPickedBauds([connBaud]);
@@ -683,6 +689,8 @@ function renderBusbar() {
 let cancelRequested = false;
 
 function cancelJob() {
+  const kind = lastJob?.kind;
+  if (!confirm(t(kind === "read_all" ? "confirm_cancel_read" : "confirm_cancel_scan"))) return;
   cancelRequested = true;
   api("job/cancel", { method: "POST" }).catch((e) => toast(e.message, true));
 }
@@ -1488,6 +1496,14 @@ $("clear-log").onclick = async () => {
 
 setLang(lang);
 loadPorts().catch((e) => toast(e.message, true));
+// letztes Scan-Ergebnis nach dem Neuladen wieder anzeigen (läuft ein Scan, übernimmt pollJob);
+// erst nach dem Status, denn die Bewertung braucht die Bus-Baudrate
+refreshStatus()
+  .then(() => api("job"))
+  .then((job) => {
+    if (!job.running && job.kind && job.kind !== "read_all" && job.hits.length) renderJob(job);
+  })
+  .catch(() => {});
 loadMeters().catch((e) => toast(e.message, true));
 setInterval(() => pollLog().catch(() => {}), 1000);
 setInterval(() => !jobRunning && refreshStatus().catch(() => {}), 5000);
