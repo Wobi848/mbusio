@@ -26,6 +26,17 @@ pub struct LineConf {
     pub timeout_ms: u64,
 }
 
+impl LineConf {
+    /// Anschluss, wie er bei der Linie gespeichert ist
+    pub fn of(line: &crate::db::Line) -> Self {
+        LineConf {
+            connection: line.connection.clone(),
+            baud: line.baud,
+            timeout_ms: line.timeout_ms,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct ConnInfo {
     pub port: String,

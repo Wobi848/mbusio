@@ -280,11 +280,7 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
     } else if !active.line.connection.is_empty() {
         // zuletzt benutzte Linie gleich wieder verbinden; klappt das nicht, geht es trotzdem weiter
         let l = &active.line;
-        let conf = line::LineConf {
-            connection: l.connection.clone(),
-            baud: l.baud,
-            timeout_ms: l.timeout_ms,
-        };
+        let conf = line::LineConf::of(l);
         match state.connect_line(l.id, conf, i18n::Lang::De) {
             Ok(()) => println!("Verbunden mit {} ({} Bd)", l.connection, l.baud),
             Err(e) => println!("{}: {e:#}", l.connection),
