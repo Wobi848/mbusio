@@ -1,0 +1,24 @@
+[package]
+name = "mbusio"
+version = "0.1.0"
+edition = "2021"
+description = "M-Bus Master mit Weboberfläche: Scan, Auslesen, Adressierung, Export"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+axum = "0.8"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "4", features = ["derive", "env"] }
+mime_guess = "2"
+rust-embed = "8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# ohne libudev, damit Cross-Compile (Raspberry Pi, Windows) ohne Systembibliotheken klappt
+serialport = { version = "4", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
