@@ -1,7 +1,7 @@
 //! HTTP-API und eingebettete Weboberfläche.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use axum::extract::{Path, Query, Request, State};
@@ -14,6 +14,8 @@ use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+use crate::clock;
+use crate::db::{Db, Gateway, Line, Meter, Project};
 use crate::export;
 use crate::i18n::{self, tr, Lang};
 use crate::line::{is_link_error, ConnInfo, LineConf, LineService};
@@ -23,9 +25,7 @@ use crate::mbus::frame::{hex, Frame};
 use crate::mbus::master::{
     mask_matches, Bauds, FrameLog, Master, MeterReading, Progress, Reply, ScanHit, Target,
 };
-use crate::db::{Db, Gateway, Line, Meter, Project};
 use crate::scheduler::Planner;
-use crate::clock;
 
 #[derive(RustEmbed)]
 #[folder = "web/"]
@@ -86,7 +86,12 @@ impl Shared {
     /// Dienst der aktiven Linie; ohne Verbindung "Nicht verbunden"
     fn service(&self) -> Result<LineService, ApiError> {
         let id = self.line_id()?;
-        self.lines.lock().unwrap().get(&id).cloned().ok_or_else(not_connected)
+        self.lines
+            .lock()
+            .unwrap()
+            .get(&id)
+            .cloned()
+            .ok_or_else(not_connected)
     }
 
     /// Verbindung der aktiven Linie, falls offen
@@ -321,11 +326,20 @@ pub fn router(state: AppState) -> Router {
         .route("/api/labels", get(labels))
         .route("/api/projects", get(tree).post(project_create))
         .route("/api/projects/import", post(project_import))
-        .route("/api/projects/{id}", put(project_update).delete(project_delete))
+        .route(
+            "/api/projects/{id}",
+            put(project_update).delete(project_delete),
+        )
         .route("/api/projects/{id}/export", get(project_export))
-        .route("/api/projects/{id}/changes", axum::routing::delete(changes_clear))
+        .route(
+            "/api/projects/{id}/changes",
+            axum::routing::delete(changes_clear),
+        )
         .route("/api/projects/{id}/gateways", post(gateway_create))
-        .route("/api/gateways/{id}", put(gateway_update).delete(gateway_delete))
+        .route(
+            "/api/gateways/{id}",
+            put(gateway_update).delete(gateway_delete),
+        )
         .route("/api/gateways/{id}/lines", post(line_create))
         .route("/api/lines/{id}", put(line_update).delete(line_delete))
         .route("/api/lines/{id}/activate", post(line_activate))
@@ -349,9 +363,15 @@ pub fn router(state: AppState) -> Router {
         .route("/api/meters/{id}/values", get(meter_values))
         .route("/api/meters/{id}/datapoints", put(meter_datapoints))
         .route("/api/meters/{id}/exchange", post(meter_exchange))
-        .route("/api/templates/{id}", axum::routing::delete(template_delete))
+        .route(
+            "/api/templates/{id}",
+            axum::routing::delete(template_delete),
+        )
         .route("/api/projects/{id}/datapoints/csv", get(datapoints_csv))
-        .route("/api/projects/{id}/datapoints/import", post(datapoints_import))
+        .route(
+            "/api/projects/{id}/datapoints/import",
+            post(datapoints_import),
+        )
         .route("/api/lines/{id}/plan", put(line_plan))
         .route("/api/meters/{id}/plan", put(meter_plan))
         .route("/api/time", post(set_time))
@@ -626,7 +646,10 @@ async fn free_address(
     headers: HeaderMap,
     Json(req): Json<FreeAddressReq>,
 ) -> ApiResult<serde_json::Value> {
-    let address = with_bus(&st, lang_of(&headers), move |m| m.free_primary(req.from, &req.skip)).await?;
+    let address = with_bus(&st, lang_of(&headers), move |m| {
+        m.free_primary(req.from, &req.skip)
+    })
+    .await?;
     Ok(Json(json!({ "address": address })))
 }
 
@@ -679,7 +702,10 @@ async fn read(
     let line = st.line_id()?;
     let t = target.clone();
     let baud = req.baud;
-    let result = with_bus(&st, lang_of(&headers), move |m| at_baud(m, baud, |m| m.read_meter(&t))).await;
+    let result = with_bus(&st, lang_of(&headers), move |m| {
+        at_baud(m, baud, |m| m.read_meter(&t))
+    })
+    .await;
     // Ergebnis speichern (Verlauf) und in der Zählerliste vermerken, falls der Zähler dort steht
     match &result {
         Ok(r) => st.record(line, &target, Ok(r)),
@@ -742,14 +768,22 @@ fn update_hits(
         let mut job = st.job.lock().unwrap();
         if job.kind != "read_all" {
             for h in job.hits.iter_mut() {
-                if !matches(h.status, h.primary_address, h.secondary_address.as_deref(), h.baud) {
+                if !matches(
+                    h.status,
+                    h.primary_address,
+                    h.secondary_address.as_deref(),
+                    h.baud,
+                ) {
                     continue;
                 }
                 let old = match upd {
                     HitUpdate::Pa(_) => h.primary_address.map(|a| a.to_string()),
                     HitUpdate::Baud(_) => h.baud.map(|b| b.to_string()),
                 };
-                found.get_or_insert((h.id.clone().unwrap_or_else(|| target.label()), old.unwrap_or_default()));
+                found.get_or_insert((
+                    h.id.clone().unwrap_or_else(|| target.label()),
+                    old.unwrap_or_default(),
+                ));
                 match upd {
                     HitUpdate::Pa(a) => h.primary_address = Some(a),
                     HitUpdate::Baud(b) => h.baud = Some(b),
@@ -763,7 +797,12 @@ fn update_hits(
         for h in scan["hits"].as_array_mut().into_iter().flatten() {
             let pa = h["primary_address"].as_u64().map(|a| a as u8);
             let hb = h["baud"].as_u64().map(|b| b as u32);
-            if !matches(h["status"].as_str().unwrap_or(""), pa, h["secondary_address"].as_str(), hb) {
+            if !matches(
+                h["status"].as_str().unwrap_or(""),
+                pa,
+                h["secondary_address"].as_str(),
+                hb,
+            ) {
                 continue;
             }
             let old = match upd {
@@ -771,7 +810,10 @@ fn update_hits(
                 HitUpdate::Baud(_) => hb.map(|b| b.to_string()),
             };
             found.get_or_insert((
-                h["id"].as_str().map(String::from).unwrap_or_else(|| target.label()),
+                h["id"]
+                    .as_str()
+                    .map(String::from)
+                    .unwrap_or_else(|| target.label()),
                 old.unwrap_or_default(),
             ));
             match upd {
@@ -804,7 +846,10 @@ async fn set_address(
     i18n::set(lang);
     let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Pa(new))
         .unwrap_or_else(|| (target.label(), "?".into()));
-    let text = format!("{name}: {} {old} → {new}", tr("Primäradresse", "primary address"));
+    let text = format!(
+        "{name}: {} {old} → {new}",
+        tr("Primäradresse", "primary address")
+    );
     let _ = st.db.lock().unwrap().add_change(line, &text);
     Ok(Json(json!({ "ok": true, "new_address": new })))
 }
@@ -897,7 +942,10 @@ pub fn parse_hex(text: &str) -> anyhow::Result<Vec<u8>> {
 }
 
 /// Telegramm erklären, ohne etwas zu senden
-async fn analyze(headers: HeaderMap, Json(req): Json<RawReq>) -> ApiResult<crate::mbus::analyze::Analysis> {
+async fn analyze(
+    headers: HeaderMap,
+    Json(req): Json<RawReq>,
+) -> ApiResult<crate::mbus::analyze::Analysis> {
     i18n::set(lang_of(&headers));
     let bytes = parse_hex(&req.hex).map_err(bad_request)?;
     Ok(Json(crate::mbus::analyze::analyze(&bytes)))
@@ -916,9 +964,9 @@ async fn raw_send(
         Reply::Frame(f) => {
             // Datentelegramm gleich decodieren, wenn möglich
             let decoded = match &f {
-                Frame::Long { ci, data, .. } => decode_rsp_ud(*ci, data).ok().map(|t| {
-                    json!({ "header": t.header, "records": t.records })
-                }),
+                Frame::Long { ci, data, .. } => decode_rsp_ud(*ci, data)
+                    .ok()
+                    .map(|t| json!({ "header": t.header, "records": t.records })),
                 _ => None,
             };
             let kind = if f == Frame::Ack { "ack" } else { "frame" };
@@ -959,7 +1007,13 @@ async fn meters_update(
     Path(id): Path<i64>,
     Json(m): Json<Meter>,
 ) -> ApiResult<Meter> {
-    Ok(Json(st.db.lock().unwrap().update_meter(id, m).map_err(bad_request)?))
+    Ok(Json(
+        st.db
+            .lock()
+            .unwrap()
+            .update_meter(id, m)
+            .map_err(bad_request)?,
+    ))
 }
 
 async fn meters_clear(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
@@ -973,12 +1027,20 @@ async fn meters_remove(
     State(st): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<serde_json::Value> {
-    st.db.lock().unwrap().remove_meter(id).map_err(bad_request)?;
+    st.db
+        .lock()
+        .unwrap()
+        .remove_meter(id)
+        .map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
 
 /// Liest einen Zähler der Liste, mit seiner eigenen Baudrate falls angegeben.
-pub(crate) fn read_listed(m: &mut Master, meter: &Meter, home: u32) -> anyhow::Result<(Target, MeterReading)> {
+pub(crate) fn read_listed(
+    m: &mut Master,
+    meter: &Meter,
+    home: u32,
+) -> anyhow::Result<(Target, MeterReading)> {
     let target = Target::parse(&meter.address)?;
     m.set_baud(meter.baud.unwrap_or(home))?;
     let r = m.read_meter(&target)?;
@@ -1017,7 +1079,10 @@ async fn meters_read_one(
 
 /// Verlauf eines Zählers: je Auslesung die aktuellen Zahlenwerte (Speicher 0), als Reihen nach
 /// Messgrösse, Einheit und Tarif, damit die Oberfläche eine davon als Linie zeichnen kann
-async fn meter_history(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+async fn meter_history(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
     let db = st.db.lock().unwrap();
     let meter = db.meter(id).map_err(bad_request)?;
     let points: Vec<serde_json::Value> = db
@@ -1045,10 +1110,7 @@ async fn meter_history(State(st): State<AppState>, Path(id): Path<i64>) -> ApiRe
     Ok(Json(json!({ "meter": meter, "points": points })))
 }
 
-async fn meters_read_all(
-    State(st): State<AppState>,
-    headers: HeaderMap,
-) -> ApiResult<JobStatus> {
+async fn meters_read_all(State(st): State<AppState>, headers: HeaderMap) -> ApiResult<JobStatus> {
     let (line, meters) = {
         let db = st.db.lock().unwrap();
         let line = db.active_line()?.id;
@@ -1188,7 +1250,11 @@ struct PlanReq {
 }
 
 /// Warnungen zur Buslast der Linien eines Projekts (nach dem Ändern eines Plans)
-fn load_warnings(st: &AppState, project_id: Option<i64>, line_id: Option<i64>) -> Result<Vec<String>, ApiError> {
+fn load_warnings(
+    st: &AppState,
+    project_id: Option<i64>,
+    line_id: Option<i64>,
+) -> Result<Vec<String>, ApiError> {
     let db = st.db.lock().unwrap();
     let mut out = Vec::new();
     for p in db.tree()? {
@@ -1205,7 +1271,10 @@ fn load_warnings(st: &AppState, project_id: Option<i64>, line_id: Option<i64>) -
                         "{} › {}: {} {:.0} % {}",
                         g.gateway.name,
                         l.line.name,
-                        tr("geplante Auslesungen brauchen ca.", "planned reads need about"),
+                        tr(
+                            "geplante Auslesungen brauchen ca.",
+                            "planned reads need about"
+                        ),
                         l.plan_info["load"].as_f64().unwrap_or(0.0) * 100.0,
                         tr(
                             "der Buszeit. Seltener auslesen oder auf mehrere Linien verteilen.",
@@ -1227,8 +1296,14 @@ async fn project_plan(
 ) -> ApiResult<serde_json::Value> {
     i18n::set(lang_of(&headers));
     let plan = r.plan.unwrap_or_else(|| "off".into());
-    st.db.lock().unwrap().set_project_plan(id, &plan).map_err(bad_request)?;
-    Ok(Json(json!({ "ok": true, "warnings": load_warnings(&st, Some(id), None)? })))
+    st.db
+        .lock()
+        .unwrap()
+        .set_project_plan(id, &plan)
+        .map_err(bad_request)?;
+    Ok(Json(
+        json!({ "ok": true, "warnings": load_warnings(&st, Some(id), None)? }),
+    ))
 }
 
 async fn line_plan(
@@ -1238,8 +1313,14 @@ async fn line_plan(
     Json(r): Json<PlanReq>,
 ) -> ApiResult<serde_json::Value> {
     i18n::set(lang_of(&headers));
-    st.db.lock().unwrap().set_line_plan(id, r.plan.as_deref()).map_err(bad_request)?;
-    Ok(Json(json!({ "ok": true, "warnings": load_warnings(&st, None, Some(id))? })))
+    st.db
+        .lock()
+        .unwrap()
+        .set_line_plan(id, r.plan.as_deref())
+        .map_err(bad_request)?;
+    Ok(Json(
+        json!({ "ok": true, "warnings": load_warnings(&st, None, Some(id))? }),
+    ))
 }
 
 async fn meter_plan(
@@ -1251,26 +1332,44 @@ async fn meter_plan(
     i18n::set(lang_of(&headers));
     let line = {
         let mut db = st.db.lock().unwrap();
-        db.set_meter_plan(id, r.plan.as_deref()).map_err(bad_request)?;
+        db.set_meter_plan(id, r.plan.as_deref())
+            .map_err(bad_request)?;
         db.meter(id)?.line_id
     };
-    Ok(Json(json!({ "ok": true, "warnings": load_warnings(&st, None, Some(line))? })))
+    Ok(Json(
+        json!({ "ok": true, "warnings": load_warnings(&st, None, Some(line))? }),
+    ))
 }
 
 // ------------------------------------------------------------ Datenpunkte
 
-async fn datapoints(State(st): State<AppState>, headers: HeaderMap) -> ApiResult<serde_json::Value> {
+async fn datapoints(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+) -> ApiResult<serde_json::Value> {
     i18n::set(lang_of(&headers));
     let db = st.db.lock().unwrap();
     let line = db.active_line()?.id;
-    Ok(Json(json!({ "datapoints": db.dp_list(Some(line), None)?, "templates": db.templates(line)? })))
+    Ok(Json(
+        json!({ "datapoints": db.dp_list(Some(line), None)?, "templates": db.templates(line)? }),
+    ))
 }
 
 /// Werte eines Zählers zur Auswahl als Datenpunkte
-async fn meter_values(State(st): State<AppState>, headers: HeaderMap, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+async fn meter_values(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
     let lang = lang_of(&headers);
     i18n::set(lang);
-    Ok(Json(st.db.lock().unwrap().dp_candidates(id, lang).map_err(bad_request)?))
+    Ok(Json(
+        st.db
+            .lock()
+            .unwrap()
+            .dp_candidates(id, lang)
+            .map_err(bad_request)?,
+    ))
 }
 
 #[derive(Deserialize)]
@@ -1300,17 +1399,26 @@ async fn meter_datapoints(
     let lang = lang_of(&headers);
     i18n::set(lang);
     let mut db = st.db.lock().unwrap();
-    let (added, removed) = db.dp_select_mqtt(id, &r.keys, r.mqtt, lang).map_err(bad_request)?;
+    let (added, removed) = db
+        .dp_select_mqtt(id, &r.keys, r.mqtt, lang)
+        .map_err(bad_request)?;
     let mut others = 0;
     if let Some(t) = r.template {
         let m = db.meter(id)?;
         let Some(medium) = m.medium.clone() else {
-            return Err(bad_request(tr("Medium unbekannt, Zähler zuerst auslesen", "Medium unknown, read the meter first")));
+            return Err(bad_request(tr(
+                "Medium unbekannt, Zähler zuerst auslesen",
+                "Medium unknown, read the meter first",
+            )));
         };
-        others = db.template_save(m.line_id, &medium, &r.keys, t.auto, r.mqtt, lang).map_err(bad_request)?;
+        others = db
+            .template_save(m.line_id, &medium, &r.keys, t.auto, r.mqtt, lang)
+            .map_err(bad_request)?;
     }
     db.mqtt_refresh()?;
-    Ok(Json(json!({ "ok": true, "added": added, "removed": removed, "others": others })))
+    Ok(Json(
+        json!({ "ok": true, "added": added, "removed": removed, "others": others }),
+    ))
 }
 
 async fn datapoint_update(
@@ -1333,7 +1441,10 @@ struct BulkReq {
     action: String,
 }
 
-async fn datapoints_bulk(State(st): State<AppState>, Json(r): Json<BulkReq>) -> ApiResult<serde_json::Value> {
+async fn datapoints_bulk(
+    State(st): State<AppState>,
+    Json(r): Json<BulkReq>,
+) -> ApiResult<serde_json::Value> {
     let n = {
         let mut db = st.db.lock().unwrap();
         let n = db.dp_bulk(&r.ids, &r.action).map_err(bad_request)?;
@@ -1343,21 +1454,40 @@ async fn datapoints_bulk(State(st): State<AppState>, Json(r): Json<BulkReq>) -> 
     Ok(Json(json!({ "ok": true, "changed": n })))
 }
 
-async fn template_delete(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+async fn template_delete(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
     st.db.lock().unwrap().template_delete(id)?;
     Ok(Json(json!({ "ok": true })))
 }
 
 /// Datenpunkt-Liste des Projekts als CSV (Excel), auch für den Integrator
-async fn datapoints_csv(State(st): State<AppState>, headers: HeaderMap, Query(q): Query<LangQuery>, Path(id): Path<i64>) -> Result<Response, ApiError> {
-    let lang = q.lang.as_deref().map(Lang::parse).unwrap_or_else(|| lang_of(&headers));
+async fn datapoints_csv(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<LangQuery>,
+    Path(id): Path<i64>,
+) -> Result<Response, ApiError> {
+    let lang = q
+        .lang
+        .as_deref()
+        .map(Lang::parse)
+        .unwrap_or_else(|| lang_of(&headers));
     i18n::set(lang);
     let db = st.db.lock().unwrap();
     let name = db.project(id)?.name;
     // BOM, damit Excel die Umlaute richtig liest
     let body = format!("\u{feff}{}", db.dp_csv(id, lang)?);
-    let file: String = name.chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect();
-    Ok(download(body, "text/csv; charset=utf-8", &format!("mbusio-datenpunkte-{file}.csv")))
+    let file: String = name
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect();
+    Ok(download(
+        body,
+        "text/csv; charset=utf-8",
+        &format!("mbusio-datenpunkte-{file}.csv"),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -1382,7 +1512,13 @@ async fn datapoints_import(
 ) -> ApiResult<crate::datapoint::ImportResult> {
     let lang = lang_of(&headers);
     i18n::set(lang);
-    Ok(Json(st.db.lock().unwrap().dp_import(id, &r.csv, r.apply, lang).map_err(bad_request)?))
+    Ok(Json(
+        st.db
+            .lock()
+            .unwrap()
+            .dp_import(id, &r.csv, r.apply, lang)
+            .map_err(bad_request)?,
+    ))
 }
 
 #[derive(Deserialize)]
@@ -1405,7 +1541,11 @@ async fn meter_exchange(
     i18n::set(lang);
     let meter = st.db.lock().unwrap().meter(id).map_err(bad_request)?;
     parse_target(&r.address)?;
-    let probe = Meter { address: r.address.clone(), baud: r.baud.or(meter.baud), ..Default::default() };
+    let probe = Meter {
+        address: r.address.clone(),
+        baud: r.baud.or(meter.baud),
+        ..Default::default()
+    };
     let (_, reading) = with_bus(&st, lang, move |m| {
         let home = m.baud();
         let res = read_listed(m, &probe, home);
@@ -1415,13 +1555,17 @@ async fn meter_exchange(
     .await?;
     let (lines, notes) = {
         let mut db = st.db.lock().unwrap();
-        let lines = db.exchange_meter(id, &r.address, &reading).map_err(bad_request)?;
+        let lines = db
+            .exchange_meter(id, &r.address, &reading)
+            .map_err(bad_request)?;
         (lines, std::mem::take(&mut db.notes))
     };
     for n in notes.into_iter().chain(lines.iter().cloned()) {
         st.log.push("INFO", n);
     }
-    Ok(Json(json!({ "ok": true, "details": lines, "reading": reading })))
+    Ok(Json(
+        json!({ "ok": true, "details": lines, "reading": reading }),
+    ))
 }
 
 // ------------------------------------------------------------ Zählerliste schnell füllen
@@ -1434,11 +1578,18 @@ struct ListImportReq {
 }
 
 /// Liste vom Kunden/Installateur: Zähler über die ID anlegen bzw. benennen (zuerst Vorschau)
-async fn meters_import_list(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<ListImportReq>) -> ApiResult<crate::meterlist::ListImport> {
+async fn meters_import_list(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(r): Json<ListImportReq>,
+) -> ApiResult<crate::meterlist::ListImport> {
     i18n::set(lang_of(&headers));
     let mut db = st.db.lock().unwrap();
     let line = db.active_line()?.id;
-    Ok(Json(db.import_list(line, &r.rows, r.apply).map_err(bad_request)?))
+    Ok(Json(
+        db.import_list(line, &r.rows, r.apply)
+            .map_err(bad_request)?,
+    ))
 }
 
 #[derive(Deserialize)]
@@ -1454,23 +1605,52 @@ struct NamesReq {
     apply: bool,
 }
 
-async fn meters_names(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<NamesReq>) -> ApiResult<serde_json::Value> {
+async fn meters_names(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(r): Json<NamesReq>,
+) -> ApiResult<serde_json::Value> {
     let lang = lang_of(&headers);
     i18n::set(lang);
     let mut db = st.db.lock().unwrap();
     let line = db.active_line()?.id;
-    let list = db.auto_names(line, &r.pattern, r.ids.as_deref(), r.only_empty, r.apply, lang)?;
-    Ok(Json(json!({ "ok": true, "names": list, "applied": r.apply })))
+    let list = db.auto_names(
+        line,
+        &r.pattern,
+        r.ids.as_deref(),
+        r.only_empty,
+        r.apply,
+        lang,
+    )?;
+    Ok(Json(
+        json!({ "ok": true, "names": list, "applied": r.apply }),
+    ))
 }
 
-async fn meters_csv(State(st): State<AppState>, headers: HeaderMap, Query(q): Query<LangQuery>) -> Result<Response, ApiError> {
-    let lang = q.lang.as_deref().map(Lang::parse).unwrap_or_else(|| lang_of(&headers));
+async fn meters_csv(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<LangQuery>,
+) -> Result<Response, ApiError> {
+    let lang = q
+        .lang
+        .as_deref()
+        .map(Lang::parse)
+        .unwrap_or_else(|| lang_of(&headers));
     i18n::set(lang);
     let db = st.db.lock().unwrap();
     let line = db.active_line()?;
     let body = format!("\u{feff}{}", db.meters_csv(line.id, lang)?);
-    let file: String = line.name.chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect();
-    Ok(download(body, "text/csv; charset=utf-8", &format!("mbusio-zaehler-{file}.csv")))
+    let file: String = line
+        .name
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect();
+    Ok(download(
+        body,
+        "text/csv; charset=utf-8",
+        &format!("mbusio-zaehler-{file}.csv"),
+    ))
 }
 
 // ------------------------------------------------------------ Simulator
@@ -1494,9 +1674,18 @@ struct SimCreateReq {
     from: Option<String>,
 }
 
-async fn sim_create(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<SimCreateReq>) -> ApiResult<serde_json::Value> {
+async fn sim_create(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(r): Json<SimCreateReq>,
+) -> ApiResult<serde_json::Value> {
     i18n::set(lang_of(&headers));
-    let key = st.db.lock().unwrap().sim_create(&r.name, r.from.as_deref()).map_err(bad_request)?;
+    let key = st
+        .db
+        .lock()
+        .unwrap()
+        .sim_create(&r.name, r.from.as_deref())
+        .map_err(bad_request)?;
     Ok(Json(json!({ "ok": true, "key": key })))
 }
 
@@ -1507,41 +1696,79 @@ struct SimSaveReq {
 }
 
 /// Simulation speichern; Linien, die sie gerade verwenden, verbinden neu (neue Zähler gelten sofort)
-async fn sim_save(State(st): State<AppState>, headers: HeaderMap, Path(key): Path<String>, Json(r): Json<SimSaveReq>) -> ApiResult<serde_json::Value> {
+async fn sim_save(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(key): Path<String>,
+    Json(r): Json<SimSaveReq>,
+) -> ApiResult<serde_json::Value> {
     let lang = lang_of(&headers);
     i18n::set(lang);
-    st.db.lock().unwrap().sim_save(&key, &r.name, &r.meters).map_err(bad_request)?;
+    st.db
+        .lock()
+        .unwrap()
+        .sim_save(&key, &r.name, &r.meters)
+        .map_err(bad_request)?;
     let s = st.clone();
-    let restarted = tokio::task::spawn_blocking(move || s.restart_connection(&format!("SIMULATOR:{key}"), lang))
-        .await
-        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let restarted = tokio::task::spawn_blocking(move || {
+        s.restart_connection(&format!("SIMULATOR:{key}"), lang)
+    })
+    .await
+    .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(json!({ "ok": true, "restarted": restarted })))
 }
 
-async fn sim_delete(State(st): State<AppState>, headers: HeaderMap, Path(key): Path<String>) -> ApiResult<serde_json::Value> {
+async fn sim_delete(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(key): Path<String>,
+) -> ApiResult<serde_json::Value> {
     i18n::set(lang_of(&headers));
-    st.db.lock().unwrap().sim_delete(&key).map_err(bad_request)?;
+    st.db
+        .lock()
+        .unwrap()
+        .sim_delete(&key)
+        .map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
 
 /// Simulation für die aktive Linie verwenden und verbinden
-async fn sim_use(State(st): State<AppState>, headers: HeaderMap, Path(key): Path<String>) -> ApiResult<serde_json::Value> {
+async fn sim_use(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(key): Path<String>,
+) -> ApiResult<serde_json::Value> {
     let lang = lang_of(&headers);
     i18n::set(lang);
     ensure_idle(&st)?;
-    let connection = if key == "praxis" { "SIMULATOR".to_string() } else { format!("SIMULATOR:{key}") };
+    let connection = if key == "praxis" {
+        "SIMULATOR".to_string()
+    } else {
+        format!("SIMULATOR:{key}")
+    };
     if !crate::sim::all().iter().any(|s| s.key == key) {
-        return Err(bad_request(format!("{} „{key}“ {}", tr("Simulation", "Simulation"), tr("gibt es nicht", "does not exist"))));
+        return Err(bad_request(format!(
+            "{} „{key}“ {}",
+            tr("Simulation", "Simulation"),
+            tr("gibt es nicht", "does not exist")
+        )));
     }
     let line = st.db.lock().unwrap().active_line()?;
-    let conf = LineConf { connection: connection.clone(), baud: line.baud, timeout_ms: line.timeout_ms };
+    let conf = LineConf {
+        connection: connection.clone(),
+        baud: line.baud,
+        timeout_ms: line.timeout_ms,
+    };
     let s = st.clone();
     let id = line.id;
     tokio::task::spawn_blocking(move || s.connect_line(id, conf, lang))
         .await
         .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .map_err(bad_request)?;
-    st.db.lock().unwrap().set_line_connection(id, &connection, line.baud, line.timeout_ms)?;
+    st.db
+        .lock()
+        .unwrap()
+        .set_line_connection(id, &connection, line.baud, line.timeout_ms)?;
     Ok(Json(json!({ "ok": true, "connection": connection })))
 }
 
@@ -1559,7 +1786,9 @@ async fn mqtt_get(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     let mut c = db.mqtt_config();
     let has_password = !c.password.is_empty();
     c.password.clear();
-    Ok(Json(json!({ "config": c, "has_password": has_password, "status": mqtt_status(&st, &db) })))
+    Ok(Json(
+        json!({ "config": c, "has_password": has_password, "status": mqtt_status(&st, &db) }),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -1570,7 +1799,11 @@ struct MqttReq {
     password: Option<String>,
 }
 
-async fn mqtt_put(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<MqttReq>) -> ApiResult<serde_json::Value> {
+async fn mqtt_put(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(r): Json<MqttReq>,
+) -> ApiResult<serde_json::Value> {
     i18n::set(lang_of(&headers));
     {
         let mut db = st.db.lock().unwrap();
@@ -1583,7 +1816,10 @@ async fn mqtt_put(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<
         db.mqtt_refresh()?;
     }
     st.mqtt.version.fetch_add(1, Ordering::SeqCst);
-    st.log.push("INFO", tr("MQTT-Einstellungen gespeichert", "MQTT settings saved"));
+    st.log.push(
+        "INFO",
+        tr("MQTT-Einstellungen gespeichert", "MQTT settings saved"),
+    );
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -1593,8 +1829,16 @@ struct ThinReq {
     days: Option<i64>,
 }
 
-async fn project_thin(State(st): State<AppState>, Path(id): Path<i64>, Json(r): Json<ThinReq>) -> ApiResult<serde_json::Value> {
-    st.db.lock().unwrap().set_thin_days(id, r.days).map_err(bad_request)?;
+async fn project_thin(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(r): Json<ThinReq>,
+) -> ApiResult<serde_json::Value> {
+    st.db
+        .lock()
+        .unwrap()
+        .set_thin_days(id, r.days)
+        .map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -1605,21 +1849,35 @@ struct TimeReq {
 }
 
 /// „Uhrzeit vom Gerät übernehmen“
-async fn set_time(State(st): State<AppState>, Json(r): Json<TimeReq>) -> ApiResult<serde_json::Value> {
+async fn set_time(
+    State(st): State<AppState>,
+    Json(r): Json<TimeReq>,
+) -> ApiResult<serde_json::Value> {
     let offset = clock::set_from_browser(r.epoch_ms).ok_or_else(|| bad_request("epoch_ms"))?;
     st.log.push(
         "INFO",
         if offset == 0.0 {
             tr("Uhrzeit vom Gerät bestätigt", "Time confirmed by device")
         } else {
-            format!("{} {offset:+.0} s", tr("Uhrzeit vom Gerät übernommen, Korrektur", "Time taken from device, correction"))
+            format!(
+                "{} {offset:+.0} s",
+                tr(
+                    "Uhrzeit vom Gerät übernommen, Korrektur",
+                    "Time taken from device, correction"
+                )
+            )
         },
     );
-    Ok(Json(json!({ "ok": true, "offset_s": offset, "time": clock::state() })))
+    Ok(Json(
+        json!({ "ok": true, "offset_s": offset, "time": clock::state() }),
+    ))
 }
 
 /// Projekt anlegen und gleich seine erste Linie aktivieren
-async fn project_create(State(st): State<AppState>, Json(p): Json<Project>) -> ApiResult<serde_json::Value> {
+async fn project_create(
+    State(st): State<AppState>,
+    Json(p): Json<Project>,
+) -> ApiResult<serde_json::Value> {
     ensure_idle(&st)?;
     let mut db = st.db.lock().unwrap();
     let p = db.create_project(p).map_err(bad_request)?;
@@ -1636,47 +1894,114 @@ async fn project_create(State(st): State<AppState>, Json(p): Json<Project>) -> A
     Ok(Json(json!({ "ok": true, "project": p })))
 }
 
-async fn project_update(State(st): State<AppState>, Path(id): Path<i64>, Json(p): Json<Project>) -> ApiResult<Project> {
-    Ok(Json(st.db.lock().unwrap().update_project(id, p).map_err(bad_request)?))
+async fn project_update(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(p): Json<Project>,
+) -> ApiResult<Project> {
+    Ok(Json(
+        st.db
+            .lock()
+            .unwrap()
+            .update_project(id, p)
+            .map_err(bad_request)?,
+    ))
 }
 
-async fn project_delete(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+async fn project_delete(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
     ensure_idle(&st)?;
     let before = st.line_id()?;
-    st.db.lock().unwrap().delete_project(id).map_err(bad_request)?;
+    st.db
+        .lock()
+        .unwrap()
+        .delete_project(id)
+        .map_err(bad_request)?;
     if st.line_id()? != before {
         disconnect_bus(&st);
     }
     Ok(Json(json!({ "ok": true })))
 }
 
-async fn gateway_create(State(st): State<AppState>, Path(project): Path<i64>, Json(g): Json<Gateway>) -> ApiResult<Gateway> {
-    Ok(Json(st.db.lock().unwrap().create_gateway(project, g).map_err(bad_request)?))
+async fn gateway_create(
+    State(st): State<AppState>,
+    Path(project): Path<i64>,
+    Json(g): Json<Gateway>,
+) -> ApiResult<Gateway> {
+    Ok(Json(
+        st.db
+            .lock()
+            .unwrap()
+            .create_gateway(project, g)
+            .map_err(bad_request)?,
+    ))
 }
 
-async fn gateway_update(State(st): State<AppState>, Path(id): Path<i64>, Json(g): Json<Gateway>) -> ApiResult<Gateway> {
-    Ok(Json(st.db.lock().unwrap().update_gateway(id, g).map_err(bad_request)?))
+async fn gateway_update(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(g): Json<Gateway>,
+) -> ApiResult<Gateway> {
+    Ok(Json(
+        st.db
+            .lock()
+            .unwrap()
+            .update_gateway(id, g)
+            .map_err(bad_request)?,
+    ))
 }
 
-async fn gateway_delete(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+async fn gateway_delete(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
     ensure_idle(&st)?;
     let before = st.line_id()?;
-    st.db.lock().unwrap().delete_gateway(id).map_err(bad_request)?;
+    st.db
+        .lock()
+        .unwrap()
+        .delete_gateway(id)
+        .map_err(bad_request)?;
     if st.line_id()? != before {
         disconnect_bus(&st);
     }
     Ok(Json(json!({ "ok": true })))
 }
 
-async fn line_create(State(st): State<AppState>, Path(gateway): Path<i64>, Json(l): Json<Line>) -> ApiResult<Line> {
-    Ok(Json(st.db.lock().unwrap().create_line(gateway, l).map_err(bad_request)?))
+async fn line_create(
+    State(st): State<AppState>,
+    Path(gateway): Path<i64>,
+    Json(l): Json<Line>,
+) -> ApiResult<Line> {
+    Ok(Json(
+        st.db
+            .lock()
+            .unwrap()
+            .create_line(gateway, l)
+            .map_err(bad_request)?,
+    ))
 }
 
-async fn line_update(State(st): State<AppState>, Path(id): Path<i64>, Json(l): Json<Line>) -> ApiResult<Line> {
-    Ok(Json(st.db.lock().unwrap().update_line(id, l).map_err(bad_request)?))
+async fn line_update(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(l): Json<Line>,
+) -> ApiResult<Line> {
+    Ok(Json(
+        st.db
+            .lock()
+            .unwrap()
+            .update_line(id, l)
+            .map_err(bad_request)?,
+    ))
 }
 
-async fn line_delete(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+async fn line_delete(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
     ensure_idle(&st)?;
     let before = st.line_id()?;
     st.db.lock().unwrap().delete_line(id).map_err(bad_request)?;
@@ -1706,13 +2031,29 @@ struct MoveReq {
     dir: i64,
 }
 
-async fn gateway_move(State(st): State<AppState>, Path(id): Path<i64>, Json(r): Json<MoveReq>) -> ApiResult<serde_json::Value> {
-    st.db.lock().unwrap().move_gateway(id, r.dir).map_err(bad_request)?;
+async fn gateway_move(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(r): Json<MoveReq>,
+) -> ApiResult<serde_json::Value> {
+    st.db
+        .lock()
+        .unwrap()
+        .move_gateway(id, r.dir)
+        .map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
 
-async fn line_move(State(st): State<AppState>, Path(id): Path<i64>, Json(r): Json<MoveReq>) -> ApiResult<serde_json::Value> {
-    st.db.lock().unwrap().move_line(id, r.dir).map_err(bad_request)?;
+async fn line_move(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(r): Json<MoveReq>,
+) -> ApiResult<serde_json::Value> {
+    st.db
+        .lock()
+        .unwrap()
+        .move_line(id, r.dir)
+        .map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -1729,8 +2070,15 @@ async fn line_addressing(
     Json(req): Json<AddressingReq>,
 ) -> ApiResult<serde_json::Value> {
     i18n::set(lang_of(&headers));
-    let (changed, kept) = st.db.lock().unwrap().set_addressing(id, &req.mode).map_err(bad_request)?;
-    Ok(Json(json!({ "ok": true, "changed": changed, "kept": kept })))
+    let (changed, kept) = st
+        .db
+        .lock()
+        .unwrap()
+        .set_addressing(id, &req.mode)
+        .map_err(bad_request)?;
+    Ok(Json(
+        json!({ "ok": true, "changed": changed, "kept": kept }),
+    ))
 }
 
 /// Auffälligkeiten der Linie merken (berechnet die Oberfläche aus dem letzten Scan)
@@ -1739,7 +2087,11 @@ async fn line_issues(
     Path(id): Path<i64>,
     Json(v): Json<serde_json::Value>,
 ) -> ApiResult<serde_json::Value> {
-    st.db.lock().unwrap().set_issues(id, &v).map_err(bad_request)?;
+    st.db
+        .lock()
+        .unwrap()
+        .set_issues(id, &v)
+        .map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
 
@@ -1763,8 +2115,8 @@ async fn line_activate(
         timeout_ms: line.timeout_ms,
     };
     let result = tokio::task::spawn_blocking(move || s.connect_line(id, conf, lang))
-    .await
-    .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .await
+        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     // Linie bleibt aktiv, auch wenn der Anschluss gerade nicht erreichbar ist
     Ok(Json(match result {
         Ok(()) => json!({ "ok": true, "connected": true }),
@@ -1786,24 +2138,39 @@ fn project_or_active(st: &AppState, q: &ProjectQuery) -> Result<i64, ApiError> {
 }
 
 /// Alles für den Bericht eines Projekts (Standard: aktives Projekt)
-async fn report(State(st): State<AppState>, Query(q): Query<ProjectQuery>) -> ApiResult<serde_json::Value> {
+async fn report(
+    State(st): State<AppState>,
+    Query(q): Query<ProjectQuery>,
+) -> ApiResult<serde_json::Value> {
     let id = project_or_active(&st, &q)?;
     Ok(Json(st.db.lock().unwrap().report(id).map_err(bad_request)?))
 }
 
-async fn changes_clear(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+async fn changes_clear(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
     let n = st.db.lock().unwrap().clear_changes(id)?;
     Ok(Json(json!({ "ok": true, "removed": n })))
 }
 
-async fn project_export(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Response, ApiError> {
+async fn project_export(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<Response, ApiError> {
     let db = st.db.lock().unwrap();
     let v = db.export_project(id).map_err(bad_request)?;
     let name: String = db
         .project(id)?
         .name
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     Ok(download(
         serde_json::to_string_pretty(&v).unwrap_or_default(),
@@ -1812,8 +2179,16 @@ async fn project_export(State(st): State<AppState>, Path(id): Path<i64>) -> Resu
     ))
 }
 
-async fn project_import(State(st): State<AppState>, Json(v): Json<serde_json::Value>) -> ApiResult<serde_json::Value> {
-    let id = st.db.lock().unwrap().import_project(&v).map_err(bad_request)?;
+async fn project_import(
+    State(st): State<AppState>,
+    Json(v): Json<serde_json::Value>,
+) -> ApiResult<serde_json::Value> {
+    let id = st
+        .db
+        .lock()
+        .unwrap()
+        .import_project(&v)
+        .map_err(bad_request)?;
     Ok(Json(json!({ "ok": true, "project": id })))
 }
 
@@ -1825,7 +2200,10 @@ struct ExportQuery {
     lang: String,
 }
 
-async fn export_readings(State(st): State<AppState>, Query(q): Query<ExportQuery>) -> Result<Response, ApiError> {
+async fn export_readings(
+    State(st): State<AppState>,
+    Query(q): Query<ExportQuery>,
+) -> Result<Response, ApiError> {
     let readings = {
         let db = st.db.lock().unwrap();
         db.readings(db.active_line()?.id, MAX_READINGS)?

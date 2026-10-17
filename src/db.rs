@@ -28,7 +28,11 @@ pub fn default_dir() -> PathBuf {
     {
         return dir;
     }
-    let env = |k| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
+    let env = |k| {
+        std::env::var_os(k)
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+    };
     if cfg!(windows) {
         if let Some(p) = env("APPDATA") {
             return p.join("mbusio");
@@ -503,13 +507,12 @@ impl Db {
     }
 
     fn init(&mut self) -> Result<()> {
-        self.conn
-            .execute_batch(
-                // WAL mit synchronous=NORMAL: nach Stromausfall bleibt die Datenbank intakt
-                // (höchstens die letzten Sekunden fehlen), viel weniger Schreibzugriffe auf die SD-Karte
-                "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
+        self.conn.execute_batch(
+            // WAL mit synchronous=NORMAL: nach Stromausfall bleibt die Datenbank intakt
+            // (höchstens die letzten Sekunden fehlen), viel weniger Schreibzugriffe auf die SD-Karte
+            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
                  PRAGMA busy_timeout = 5000;",
-            )?;
+        )?;
         self.conn.execute_batch(SCHEMA)?;
         self.migrate()?;
         self.ensure_active()?;
@@ -535,7 +538,8 @@ impl Db {
         };
         if !has(&self.conn, "lines", "issues")? {
             // Auffälligkeiten des letzten Scans: {"count": n, "items": [...]}
-            self.conn.execute_batch("ALTER TABLE lines ADD COLUMN issues TEXT")?;
+            self.conn
+                .execute_batch("ALTER TABLE lines ADD COLUMN issues TEXT")?;
         }
         if !has(&self.conn, "lines", "addressing")? {
             self.conn.execute_batch(
@@ -575,7 +579,8 @@ impl Db {
         }
         if !has(&self.conn, "projects", "thin_days")? {
             // Verlauf ausdünnen: nach so vielen Tagen nur noch ein Wert pro Tag (NULL = alles behalten)
-            self.conn.execute_batch("ALTER TABLE projects ADD COLUMN thin_days INTEGER")?;
+            self.conn
+                .execute_batch("ALTER TABLE projects ADD COLUMN thin_days INTEGER")?;
         }
         if !has(&self.conn, "projects", "dp_next")? {
             // Datenpunkte (Phase 2): stabile Nummern je Projekt, Vorlagen einmal je neuem Zähler
@@ -588,11 +593,15 @@ impl Db {
         self.conn.execute_batch(crate::mqtt::SCHEMA)?;
         self.conn.execute_batch(crate::sim::SCHEMA)?;
         if !has(&self.conn, "dp_templates", "mqtt")? {
-            self.conn.execute_batch("ALTER TABLE dp_templates ADD COLUMN mqtt INTEGER NOT NULL DEFAULT 0")?;
+            self.conn.execute_batch(
+                "ALTER TABLE dp_templates ADD COLUMN mqtt INTEGER NOT NULL DEFAULT 0",
+            )?;
         }
         if !has(&self.conn, "datapoints", "last_unsure")? {
             // letzter Wert mit unsicherer Uhrzeit gelesen (für die Weitergabe)
-            self.conn.execute_batch("ALTER TABLE datapoints ADD COLUMN last_unsure INTEGER NOT NULL DEFAULT 0")?;
+            self.conn.execute_batch(
+                "ALTER TABLE datapoints ADD COLUMN last_unsure INTEGER NOT NULL DEFAULT 0",
+            )?;
         }
         if !has(&self.conn, "datapoints", "mqtt")? {
             // MQTT (Phase 3): je Datenpunkt ein/aus, eigenes Topic, zuletzt Gesendetes
@@ -665,7 +674,10 @@ impl Db {
 
     /// Es gibt immer eine aktive Linie; notfalls wird ein Projekt "Standard" angelegt.
     fn ensure_active(&mut self) -> Result<i64> {
-        if let Some(id) = self.meta("active_line")?.and_then(|v| v.parse::<i64>().ok()) {
+        if let Some(id) = self
+            .meta("active_line")?
+            .and_then(|v| v.parse::<i64>().ok())
+        {
             if self.line(id).is_ok() {
                 return Ok(id);
             }
@@ -699,7 +711,15 @@ impl Db {
         self.conn.execute(
             "INSERT INTO projects (name, customer, site, technician, order_no, remarks, created)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![name, p.customer, p.site, p.technician, p.order_no, p.remarks, now()],
+            params![
+                name,
+                p.customer,
+                p.site,
+                p.technician,
+                p.order_no,
+                p.remarks,
+                now()
+            ],
         )?;
         let id = self.conn.last_insert_rowid();
         self.create_gateway(
@@ -726,7 +746,15 @@ impl Db {
         let n = self.conn.execute(
             "UPDATE projects SET name = ?2, customer = ?3, site = ?4, technician = ?5,
              order_no = ?6, remarks = ?7 WHERE id = ?1",
-            params![id, p.name.trim(), p.customer, p.site, p.technician, p.order_no, p.remarks],
+            params![
+                id,
+                p.name.trim(),
+                p.customer,
+                p.site,
+                p.technician,
+                p.order_no,
+                p.remarks
+            ],
         )?;
         if n == 0 {
             return Err(not_found(&tr("Projekt", "Project"), id));
@@ -735,7 +763,11 @@ impl Db {
     }
 
     pub fn delete_project(&mut self, id: i64) -> Result<()> {
-        if self.conn.execute("DELETE FROM projects WHERE id = ?1", [id])? == 0 {
+        if self
+            .conn
+            .execute("DELETE FROM projects WHERE id = ?1", [id])?
+            == 0
+        {
             return Err(not_found(&tr("Projekt", "Project"), id));
         }
         self.ensure_active()?;
@@ -793,13 +825,19 @@ impl Db {
     fn move_row(&mut self, table: &str, parent: &str, id: i64, dir: i64) -> Result<()> {
         let parent_id: i64 = self
             .conn
-            .query_row(&format!("SELECT {parent} FROM {table} WHERE id = ?1"), [id], |r| r.get(0))
+            .query_row(
+                &format!("SELECT {parent} FROM {table} WHERE id = ?1"),
+                [id],
+                |r| r.get(0),
+            )
             .optional()?
             .ok_or_else(|| not_found(table, id))?;
-        let mut st = self
-            .conn
-            .prepare(&format!("SELECT id FROM {table} WHERE {parent} = ?1 ORDER BY position, id"))?;
-        let mut ids: Vec<i64> = st.query_map([parent_id], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+        let mut st = self.conn.prepare(&format!(
+            "SELECT id FROM {table} WHERE {parent} = ?1 ORDER BY position, id"
+        ))?;
+        let mut ids: Vec<i64> = st
+            .query_map([parent_id], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
         drop(st);
         let k = ids.iter().position(|x| *x == id).unwrap_or(0);
         let j = k as i64 + dir.signum();
@@ -809,7 +847,10 @@ impl Db {
         ids.swap(k, j as usize);
         let tx = self.conn.transaction()?;
         for (pos, row) in ids.iter().enumerate() {
-            tx.execute(&format!("UPDATE {table} SET position = ?2 WHERE id = ?1"), params![row, pos as i64 + 1])?;
+            tx.execute(
+                &format!("UPDATE {table} SET position = ?2 WHERE id = ?1"),
+                params![row, pos as i64 + 1],
+            )?;
         }
         tx.commit()?;
         Ok(())
@@ -824,7 +865,11 @@ impl Db {
     }
 
     pub fn delete_gateway(&mut self, id: i64) -> Result<()> {
-        if self.conn.execute("DELETE FROM gateways WHERE id = ?1", [id])? == 0 {
+        if self
+            .conn
+            .execute("DELETE FROM gateways WHERE id = ?1", [id])?
+            == 0
+        {
             return Err(not_found("Gateway", id));
         }
         self.ensure_active()?;
@@ -867,7 +912,13 @@ impl Db {
         Self::check_line(&l)?;
         let n = self.conn.execute(
             "UPDATE lines SET name = ?2, connection = ?3, baud = ?4, timeout_ms = ?5 WHERE id = ?1",
-            params![id, l.name.trim(), l.connection.trim(), l.baud, l.timeout_ms as i64],
+            params![
+                id,
+                l.name.trim(),
+                l.connection.trim(),
+                l.baud,
+                l.timeout_ms as i64
+            ],
         )?;
         if n == 0 {
             return Err(not_found(&tr("Linie", "Line"), id));
@@ -882,8 +933,10 @@ impl Db {
             bail!("addressing: {mode}");
         }
         self.line(id)?;
-        self.conn
-            .execute("UPDATE lines SET addressing = ?2 WHERE id = ?1", params![id, mode])?;
+        self.conn.execute(
+            "UPDATE lines SET addressing = ?2 WHERE id = ?1",
+            params![id, mode],
+        )?;
         let meters = self.meters(id)?;
         let mut changed = 0;
         let mut kept = Vec::new();
@@ -891,41 +944,79 @@ impl Db {
             let name = m.meter_id.clone().unwrap_or_else(|| m.address.clone());
             let target = if mode == "secondary" {
                 match &m.secondary_address {
-                    Some(sa) if meters.iter().filter(|x| x.secondary_address.as_ref() == Some(sa)).count() == 1 => {
+                    Some(sa)
+                        if meters
+                            .iter()
+                            .filter(|x| x.secondary_address.as_ref() == Some(sa))
+                            .count()
+                            == 1 =>
+                    {
                         Some(sa.clone())
                     }
                     Some(_) => {
-                        kept.push(format!("{name}: {}", tr("Sekundäradresse nicht eindeutig", "secondary address not unique")));
+                        kept.push(format!(
+                            "{name}: {}",
+                            tr(
+                                "Sekundäradresse nicht eindeutig",
+                                "secondary address not unique"
+                            )
+                        ));
                         None
                     }
                     None => {
-                        kept.push(format!("{name}: {}", tr("Sekundäradresse unbekannt, einmal auslesen", "secondary address unknown, read once")));
+                        kept.push(format!(
+                            "{name}: {}",
+                            tr(
+                                "Sekundäradresse unbekannt, einmal auslesen",
+                                "secondary address unknown, read once"
+                            )
+                        ));
                         None
                     }
                 }
             } else {
                 match m.primary_address {
                     Some(0) => {
-                        kept.push(format!("{name}: {}", tr("PA 0 (Werkszustand), zuerst PA ändern", "PA 0 (factory default), change PA first")));
+                        kept.push(format!(
+                            "{name}: {}",
+                            tr(
+                                "PA 0 (Werkszustand), zuerst PA ändern",
+                                "PA 0 (factory default), change PA first"
+                            )
+                        ));
                         None
                     }
-                    Some(pa) if meters.iter().filter(|x| x.primary_address == Some(pa)).count() == 1 => {
+                    Some(pa)
+                        if meters
+                            .iter()
+                            .filter(|x| x.primary_address == Some(pa))
+                            .count()
+                            == 1 =>
+                    {
                         Some(pa.to_string())
                     }
                     Some(pa) => {
-                        kept.push(format!("{name}: PA {pa} {}", tr("doppelt, zuerst PA ändern", "duplicate, change PA first")));
+                        kept.push(format!(
+                            "{name}: PA {pa} {}",
+                            tr("doppelt, zuerst PA ändern", "duplicate, change PA first")
+                        ));
                         None
                     }
                     None => {
-                        kept.push(format!("{name}: {}", tr("PA unbekannt, einmal auslesen", "PA unknown, read once")));
+                        kept.push(format!(
+                            "{name}: {}",
+                            tr("PA unbekannt, einmal auslesen", "PA unknown, read once")
+                        ));
                         None
                     }
                 }
             };
             if let Some(t) = target {
                 if t != m.address {
-                    self.conn
-                        .execute("UPDATE meters SET address = ?2 WHERE id = ?1", params![m.id, t])?;
+                    self.conn.execute(
+                        "UPDATE meters SET address = ?2 WHERE id = ?1",
+                        params![m.id, t],
+                    )?;
                     changed += 1;
                 }
             }
@@ -942,7 +1033,13 @@ impl Db {
     }
 
     /// Verbindungsdaten der Linie beim Verbinden übernehmen
-    pub fn set_line_connection(&mut self, id: i64, connection: &str, baud: u32, timeout_ms: u64) -> Result<()> {
+    pub fn set_line_connection(
+        &mut self,
+        id: i64,
+        connection: &str,
+        baud: u32,
+        timeout_ms: u64,
+    ) -> Result<()> {
         self.conn.execute(
             "UPDATE lines SET connection = ?2, baud = ?3, timeout_ms = ?4 WHERE id = ?1",
             params![id, connection, baud, timeout_ms as i64],
@@ -987,14 +1084,19 @@ impl Db {
     /// Alle Projekte mit Gateways und Linien, je mit Anzahl Zähler und letzter Auslesung
     pub fn tree(&self) -> Result<Vec<ProjectNode>> {
         let mut out = Vec::new();
-        let mut ps = self.conn.prepare("SELECT * FROM projects ORDER BY name COLLATE NOCASE, id")?;
-        let projects: Vec<Project> = ps.query_map([], project_of)?.collect::<rusqlite::Result<_>>()?;
+        let mut ps = self
+            .conn
+            .prepare("SELECT * FROM projects ORDER BY name COLLATE NOCASE, id")?;
+        let projects: Vec<Project> = ps
+            .query_map([], project_of)?
+            .collect::<rusqlite::Result<_>>()?;
         for project in projects {
             let mut gs = self
                 .conn
                 .prepare("SELECT * FROM gateways WHERE project_id = ?1 ORDER BY position, id")?;
-            let gateways: Vec<Gateway> =
-                gs.query_map([project.id], gateway_of)?.collect::<rusqlite::Result<_>>()?;
+            let gateways: Vec<Gateway> = gs
+                .query_map([project.id], gateway_of)?
+                .collect::<rusqlite::Result<_>>()?;
             let mut gnodes = Vec::new();
             for gateway in gateways {
                 let mut ls = self.conn.prepare(
@@ -1037,7 +1139,9 @@ impl Db {
     // ------------------------------------------------------------ Zähler
 
     pub fn meters(&self, line_id: i64) -> Result<Vec<Meter>> {
-        let mut st = self.conn.prepare("SELECT * FROM meters WHERE line_id = ?1 ORDER BY id")?;
+        let mut st = self
+            .conn
+            .prepare("SELECT * FROM meters WHERE line_id = ?1 ORDER BY id")?;
         let rows = st.query_map([line_id], meter_of)?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
@@ -1072,7 +1176,10 @@ impl Db {
         }
         if let Some(b) = m.baud {
             if !BAUD_RATES.contains(&b) {
-                bail!("{}: {b}", tr("Keine Standard-Baudrate", "Not a standard baud rate"));
+                bail!(
+                    "{}: {b}",
+                    tr("Keine Standard-Baudrate", "Not a standard baud rate")
+                );
             }
         }
         Ok(())
@@ -1132,12 +1239,15 @@ impl Db {
 
     pub fn remove_meter(&mut self, id: i64) -> Result<()> {
         self.meter(id)?;
-        self.conn.execute("DELETE FROM meters WHERE id = ?1", [id])?;
+        self.conn
+            .execute("DELETE FROM meters WHERE id = ?1", [id])?;
         Ok(())
     }
 
     pub fn clear_meters(&mut self, line_id: i64) -> Result<usize> {
-        Ok(self.conn.execute("DELETE FROM meters WHERE line_id = ?1", [line_id])?)
+        Ok(self
+            .conn
+            .execute("DELETE FROM meters WHERE line_id = ?1", [line_id])?)
     }
 
     /// Fügt Zähler hinzu, deren Adresse noch nicht in der Liste ist. Liefert die Anzahl.
@@ -1156,17 +1266,30 @@ impl Db {
 
     /// Zähler der Linie, der zur Adresse passt
     fn find_meter(&self, line_id: i64, target: &Target) -> Result<Option<Meter>> {
-        Ok(self.meters(line_id)?.into_iter().find(|m| listed(m, target)))
+        Ok(self
+            .meters(line_id)?
+            .into_iter()
+            .find(|m| listed(m, target)))
     }
 
     /// Ergebnis einer Auslesung speichern: Verlauf und, falls in der Liste, beim Zähler.
     /// `compact`: nur die Rohtelegramme (geplante Auslesungen), sonst zusätzlich alles als JSON.
-    pub fn record(&mut self, line_id: i64, target: &Target, result: Result<&MeterReading, String>, compact: bool) -> Result<()> {
+    pub fn record(
+        &mut self,
+        line_id: i64,
+        target: &Target,
+        result: Result<&MeterReading, String>,
+        compact: bool,
+    ) -> Result<()> {
         let meter = self.find_meter(line_id, target)?;
         match result {
             Ok(r) => {
                 if !self.readings_paused {
-                    let data = if compact { String::new() } else { serde_json::to_string(r)? };
+                    let data = if compact {
+                        String::new()
+                    } else {
+                        serde_json::to_string(r)?
+                    };
                     self.conn.execute(
                         "INSERT INTO readings (line_id, meter, timestamp, data, raw, utc, target, time_unsure)
                          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -1213,8 +1336,10 @@ impl Db {
             }
             Err(e) => {
                 if let Some(m) = meter {
-                    self.conn
-                        .execute("UPDATE meters SET last_error = ?2 WHERE id = ?1", params![m.id, e])?;
+                    self.conn.execute(
+                        "UPDATE meters SET last_error = ?2 WHERE id = ?1",
+                        params![m.id, e],
+                    )?;
                 }
             }
         }
@@ -1247,9 +1372,11 @@ impl Db {
     }
 
     pub fn reading_count(&self, line_id: i64) -> Result<i64> {
-        Ok(self
-            .conn
-            .query_row("SELECT COUNT(*) FROM readings WHERE line_id = ?1", [line_id], |r| r.get(0))?)
+        Ok(self.conn.query_row(
+            "SELECT COUNT(*) FROM readings WHERE line_id = ?1",
+            [line_id],
+            |r| r.get(0),
+        )?)
     }
 
     pub fn clear_readings(&mut self, line_id: i64) -> Result<usize> {
@@ -1258,7 +1385,9 @@ impl Db {
                JOIN meters ON meters.id = datapoints.meter_id WHERE meters.line_id = ?1)",
             [line_id],
         )?;
-        Ok(self.conn.execute("DELETE FROM readings WHERE line_id = ?1", [line_id])?)
+        Ok(self
+            .conn
+            .execute("DELETE FROM readings WHERE line_id = ?1", [line_id])?)
     }
 
     /// Verlauf eines Zählers: seine Auslesungen, älteste zuerst (höchstens `limit` neueste)
@@ -1296,7 +1425,9 @@ impl Db {
             .collect::<rusqlite::Result<_>>()?;
         let mut n = 0;
         for (project, days) in projects {
-            let cutoff = (now - chrono::Duration::days(days)).format("%Y-%m-%d 00:00:00").to_string();
+            let cutoff = (now - chrono::Duration::days(days))
+                .format("%Y-%m-%d 00:00:00")
+                .to_string();
             n += self.conn.execute(
                 "DELETE FROM readings WHERE timestamp < ?2 AND meter IN (
                    SELECT meters.id FROM meters JOIN lines ON lines.id = meters.line_id
@@ -1321,7 +1452,11 @@ impl Db {
 
     pub fn set_thin_days(&mut self, project_id: i64, days: Option<i64>) -> Result<()> {
         let days = days.filter(|d| *d > 0);
-        if self.conn.execute("UPDATE projects SET thin_days = ?2 WHERE id = ?1", params![project_id, days])? == 0 {
+        if self.conn.execute(
+            "UPDATE projects SET thin_days = ?2 WHERE id = ?1",
+            params![project_id, days],
+        )? == 0
+        {
             return Err(not_found(&tr("Projekt", "Project"), project_id));
         }
         Ok(())
@@ -1356,7 +1491,11 @@ impl Db {
     pub fn last_scan(&self, line_id: i64) -> Result<Option<Value>> {
         let text: Option<String> = self
             .conn
-            .query_row("SELECT last_scan FROM lines WHERE id = ?1", [line_id], |r| r.get(0))
+            .query_row(
+                "SELECT last_scan FROM lines WHERE id = ?1",
+                [line_id],
+                |r| r.get(0),
+            )
             .optional()?
             .flatten();
         Ok(match text {
@@ -1366,10 +1505,10 @@ impl Db {
     }
 
     pub fn set_issues(&mut self, line_id: i64, issues: &Value) -> Result<()> {
-        if self
-            .conn
-            .execute("UPDATE lines SET issues = ?2 WHERE id = ?1", params![line_id, issues.to_string()])?
-            == 0
+        if self.conn.execute(
+            "UPDATE lines SET issues = ?2 WHERE id = ?1",
+            params![line_id, issues.to_string()],
+        )? == 0
         {
             return Err(not_found(&tr("Linie", "Line"), line_id));
         }
@@ -1413,7 +1552,11 @@ impl Db {
 
     pub fn set_project_plan(&mut self, id: i64, plan: &str) -> Result<()> {
         let key = Plan::parse(plan)?.key();
-        if self.conn.execute("UPDATE projects SET plan = ?2 WHERE id = ?1", params![id, key])? == 0 {
+        if self.conn.execute(
+            "UPDATE projects SET plan = ?2 WHERE id = ?1",
+            params![id, key],
+        )? == 0
+        {
             return Err(not_found(&tr("Projekt", "Project"), id));
         }
         Ok(())
@@ -1422,7 +1565,11 @@ impl Db {
     /// None = wie Projekt
     pub fn set_line_plan(&mut self, id: i64, plan: Option<&str>) -> Result<()> {
         let key = plan.map(|p| Plan::parse(p).map(|p| p.key())).transpose()?;
-        if self.conn.execute("UPDATE lines SET plan = ?2 WHERE id = ?1", params![id, key])? == 0 {
+        if self
+            .conn
+            .execute("UPDATE lines SET plan = ?2 WHERE id = ?1", params![id, key])?
+            == 0
+        {
             return Err(not_found(&tr("Linie", "Line"), id));
         }
         Ok(())
@@ -1431,8 +1578,15 @@ impl Db {
     /// None = wie Linie
     pub fn set_meter_plan(&mut self, id: i64, plan: Option<&str>) -> Result<()> {
         let key = plan.map(|p| Plan::parse(p).map(|p| p.key())).transpose()?;
-        if self.conn.execute("UPDATE meters SET plan = ?2 WHERE id = ?1", params![id, key])? == 0 {
-            return Err(anyhow!("{} {id}", tr("Zähler nicht in der Liste:", "Meter not in list:")));
+        if self.conn.execute(
+            "UPDATE meters SET plan = ?2 WHERE id = ?1",
+            params![id, key],
+        )? == 0
+        {
+            return Err(anyhow!(
+                "{} {id}",
+                tr("Zähler nicht in der Liste:", "Meter not in list:")
+            ));
         }
         Ok(())
     }
@@ -1455,7 +1609,9 @@ impl Db {
              JOIN projects ON projects.id = gateways.project_id ORDER BY lines.id",
         )?;
         let rows: Vec<(Line, String, String)> = st
-            .query_map([], |r| Ok((line_of(r)?, r.get("project_plan")?, r.get("gateway_name")?)))?
+            .query_map([], |r| {
+                Ok((line_of(r)?, r.get("project_plan")?, r.get("gateway_name")?))
+            })?
             .collect::<rusqlite::Result<_>>()?;
         let mut out = Vec::new();
         for (line, project_plan, gateway) in rows {
@@ -1463,7 +1619,8 @@ impl Db {
                 .meters(line.id)?
                 .into_iter()
                 .map(|m| {
-                    let (p, _) = plan::effective(m.plan.as_deref(), line.plan.as_deref(), &project_plan);
+                    let (p, _) =
+                        plan::effective(m.plan.as_deref(), line.plan.as_deref(), &project_plan);
                     (m, p)
                 })
                 .collect();
@@ -1514,7 +1671,11 @@ impl Db {
         };
         Ok(self
             .conn
-            .query_row("SELECT plan_fails FROM meters WHERE id = ?1", [meter_id], |r| r.get(0))
+            .query_row(
+                "SELECT plan_fails FROM meters WHERE id = ?1",
+                [meter_id],
+                |r| r.get(0),
+            )
             .optional()?
             .unwrap_or(0))
     }
@@ -1529,11 +1690,23 @@ impl Db {
     }
 
     /// Plan eines Zählers für die Oberfläche: gültiger Plan, woher, nächster Termin, Zustand
-    pub fn meter_plan_info(m: &Meter, line_plan: Option<&str>, project_plan: &str, now: chrono::NaiveDateTime) -> Value {
+    pub fn meter_plan_info(
+        m: &Meter,
+        line_plan: Option<&str>,
+        project_plan: &str,
+        now: chrono::NaiveDateTime,
+    ) -> Value {
         let (p, source) = plan::effective(m.plan.as_deref(), line_plan, project_plan);
-        let pause = m.plan_pause.as_deref().and_then(plan::parse_time).filter(|t| *t > now);
+        let pause = m
+            .plan_pause
+            .as_deref()
+            .and_then(plan::parse_time)
+            .filter(|t| *t > now);
         let next = p.next_slot(now).map(|n| match pause {
-            Some(t) => p.next_slot(t - chrono::Duration::seconds(1)).unwrap_or(n).max(n),
+            Some(t) => p
+                .next_slot(t - chrono::Duration::seconds(1))
+                .unwrap_or(n)
+                .max(n),
             None => n,
         });
         json!({
@@ -1606,7 +1779,8 @@ impl Db {
                 for m in self.meters(l.line.id)? {
                     let reading = self.latest_reading(m.id)?;
                     let datapoints = self.dp_export(m.id)?;
-                    meters.push(json!({ "meter": m, "reading": reading, "datapoints": datapoints }));
+                    meters
+                        .push(json!({ "meter": m, "reading": reading, "datapoints": datapoints }));
                 }
                 let templates = self.templates(l.line.id)?;
                 lines.push(json!({ "line": l.line, "meters": meters, "issues": l.issues, "templates": templates }));
@@ -1631,7 +1805,10 @@ impl Db {
     /// Exportiertes Projekt als neues Projekt einlesen; liefert die neue Projekt-ID
     pub fn import_project(&mut self, v: &Value) -> Result<i64> {
         if v["format"] != "mbusio-project" {
-            bail!(tr("Datei ist kein mbusio-Projekt", "File is not an mbusio project"));
+            bail!(tr(
+                "Datei ist kein mbusio-Projekt",
+                "File is not an mbusio project"
+            ));
         }
         let mut project: Project = serde_json::from_value(v["project"].clone())?;
         // gleicher Name schon vorhanden: in der Auswahl unterscheidbar machen
@@ -1763,7 +1940,14 @@ mod tests {
         let l1 = db.active_line().unwrap().id;
         let gw = db.active().unwrap().gateway.id;
         let l2 = db
-            .create_line(gw, Line { name: "Linie 2".into(), baud: 9600, ..Default::default() })
+            .create_line(
+                gw,
+                Line {
+                    name: "Linie 2".into(),
+                    baud: 9600,
+                    ..Default::default()
+                },
+            )
             .unwrap()
             .id;
         db.add_meter(l1, meter("12345678")).unwrap();
@@ -1773,7 +1957,11 @@ mod tests {
         assert!(db.add_meter(l1, meter("x")).is_err());
         // auf einer anderen Linie erlaubt
         db.add_meter(l2, meter("12345678")).unwrap();
-        assert_eq!(db.import_meters(l1, vec![meter("5"), meter("6"), meter("5")]).unwrap(), 2);
+        assert_eq!(
+            db.import_meters(l1, vec![meter("5"), meter("6"), meter("5")])
+                .unwrap(),
+            2
+        );
         assert_eq!(db.meters(l1).unwrap().len(), 3);
         assert_eq!(db.clear_meters(l1).unwrap(), 3);
         assert_eq!(db.meters(l2).unwrap().len(), 1);
@@ -1783,10 +1971,30 @@ mod tests {
     fn gateways_and_lines_can_be_reordered() {
         let mut db = Db::memory().unwrap();
         let p = db.active().unwrap().project.id;
-        let g2 = db.create_gateway(p, Gateway { name: "B".into(), ..Default::default() }).unwrap();
-        let g3 = db.create_gateway(p, Gateway { name: "C".into(), ..Default::default() }).unwrap();
+        let g2 = db
+            .create_gateway(
+                p,
+                Gateway {
+                    name: "B".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let g3 = db
+            .create_gateway(
+                p,
+                Gateway {
+                    name: "C".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         let names = |db: &Db| -> Vec<String> {
-            db.tree().unwrap()[0].gateways.iter().map(|g| g.gateway.name.clone()).collect()
+            db.tree().unwrap()[0]
+                .gateways
+                .iter()
+                .map(|g| g.gateway.name.clone())
+                .collect()
         };
         assert_eq!(names(&db), ["Gateway 1", "B", "C"]);
         db.move_gateway(g3.id, -1).unwrap();
@@ -1796,16 +2004,34 @@ mod tests {
         assert_eq!(names(&db), ["C", "Gateway 1", "B"]);
         db.move_gateway(g2.id, 1).unwrap(); // schon unten
         assert_eq!(names(&db), ["C", "Gateway 1", "B"]);
-        let l2 = db.create_line(g2.id, Line { name: "L2".into(), baud: 2400, ..Default::default() }).unwrap();
+        let l2 = db
+            .create_line(
+                g2.id,
+                Line {
+                    name: "L2".into(),
+                    baud: 2400,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         db.move_line(l2.id, -1).unwrap();
-        let lines: Vec<String> = db.tree().unwrap()[0].gateways[2].lines.iter().map(|l| l.line.name.clone()).collect();
+        let lines: Vec<String> = db.tree().unwrap()[0].gateways[2]
+            .lines
+            .iter()
+            .map(|l| l.line.name.clone())
+            .collect();
         assert_eq!(lines[0], "L2");
     }
 
     #[test]
     fn deleting_the_active_project_keeps_a_line_active() {
         let mut db = Db::memory().unwrap();
-        let p2 = db.create_project(Project { name: "B".into(), ..Default::default() }).unwrap();
+        let p2 = db
+            .create_project(Project {
+                name: "B".into(),
+                ..Default::default()
+            })
+            .unwrap();
         let first = db.active().unwrap().project.id;
         db.delete_project(first).unwrap();
         assert_eq!(db.active().unwrap().project.id, p2.id);
@@ -1818,15 +2044,32 @@ mod tests {
     fn export_and_import_round_trip() {
         let mut db = Db::memory().unwrap();
         let a = db.active().unwrap();
-        db.update_project(a.project.id, Project { name: "MFH".into(), customer: "Muster AG".into(), ..Default::default() })
-            .unwrap();
-        db.add_meter(a.line.id, Meter { name: "Whg 1".into(), ..meter("3") }).unwrap();
+        db.update_project(
+            a.project.id,
+            Project {
+                name: "MFH".into(),
+                customer: "Muster AG".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        db.add_meter(
+            a.line.id,
+            Meter {
+                name: "Whg 1".into(),
+                ..meter("3")
+            },
+        )
+        .unwrap();
         db.add_change(a.line.id, "3: PA 0 → 3").unwrap();
         let file = db.export_project(a.project.id).unwrap();
         let id = db.import_project(&file).unwrap();
         let r = db.report(id).unwrap();
         assert_eq!(r["project"]["customer"], "Muster AG");
-        assert_eq!(r["gateways"][0]["lines"][0]["meters"][0]["meter"]["name"], "Whg 1");
+        assert_eq!(
+            r["gateways"][0]["lines"][0]["meters"][0]["meter"]["name"],
+            "Whg 1"
+        );
         assert_eq!(r["changes"][0]["text"], "3: PA 0 → 3");
         assert!(db.import_project(&json!({ "format": "x" })).is_err());
     }
@@ -1846,17 +2089,25 @@ mod tests {
                     .unwrap();
             }
         }
-        let now = chrono::NaiveDateTime::parse_from_str("2026-10-10 12:00", "%Y-%m-%d %H:%M").unwrap();
+        let now =
+            chrono::NaiveDateTime::parse_from_str("2026-10-10 12:00", "%Y-%m-%d %H:%M").unwrap();
         // ausgeschaltet: nichts löschen
         assert_eq!(db.thin_readings(now).unwrap(), 0);
         db.set_thin_days(1, Some(5)).unwrap();
         // älter als 5 Tage (vor dem 5.): Tag 1–4 je 3 von 4 weg
         assert_eq!(db.thin_readings(now).unwrap(), 12);
-        let left: i64 = db.conn.query_row("SELECT COUNT(*) FROM readings", [], |r| r.get(0)).unwrap();
+        let left: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM readings", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(left, 40 - 12);
         let first: String = db
             .conn
-            .query_row("SELECT timestamp FROM readings ORDER BY id LIMIT 1", [], |r| r.get(0))
+            .query_row(
+                "SELECT timestamp FROM readings ORDER BY id LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(first, "2026-10-01 00:00:00");
     }
@@ -1865,12 +2116,23 @@ mod tests {
     fn imports_old_meter_list() {
         let dir = std::env::temp_dir().join(format!("mbusio-db-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("meters.json"), r#"{"meters":[{"address":"5","name":"Alt"}]}"#).unwrap();
+        std::fs::write(
+            dir.join("meters.json"),
+            r#"{"meters":[{"address":"5","name":"Alt"}]}"#,
+        )
+        .unwrap();
         let mut db = Db::open(&dir).unwrap();
         let line = db.active_line().unwrap().id;
         assert_eq!(db.meters(line).unwrap()[0].name, "Alt");
-        db.set_issues(line, &json!({ "count": 2, "items": ["a", "b"] })).unwrap();
-        assert_eq!(db.tree().unwrap()[0].gateways[0].lines[0].issues.as_ref().unwrap()["count"], 2);
+        db.set_issues(line, &json!({ "count": 2, "items": ["a", "b"] }))
+            .unwrap();
+        assert_eq!(
+            db.tree().unwrap()[0].gateways[0].lines[0]
+                .issues
+                .as_ref()
+                .unwrap()["count"],
+            2
+        );
         assert!(dir.join("meters.json.imported").exists());
         drop(db);
         // zweiter Start: nichts doppelt

@@ -153,7 +153,10 @@ pub fn run(st: AppState) {
 fn check_disk(st: &AppState) {
     let (dir, size) = {
         let db = st.db.lock().unwrap();
-        (db.path().and_then(|p| p.parent()).map(|p| p.to_path_buf()), db.size())
+        (
+            db.path().and_then(|p| p.parent()).map(|p| p.to_path_buf()),
+            db.size(),
+        )
     };
     let Some(dir) = dir else { return };
     let new = storage::check(&dir, size);
@@ -168,7 +171,10 @@ fn check_disk(st: &AppState) {
                 "Storage almost full: new readings are no longer stored",
             ),
         };
-        note(st, format!("{msg} ({:.0} % {})", new.free_pct, tr("frei", "free")));
+        note(
+            st,
+            format!("{msg} ({:.0} % {})", new.free_pct, tr("frei", "free")),
+        );
     }
 }
 
@@ -183,11 +189,27 @@ fn thin(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
     }
     let dropped = st.db.lock().unwrap().mqtt_trim()?;
     if dropped > 0 {
-        note(st, format!("MQTT: {dropped} {}", tr("alte Nachrichten verworfen (Broker zu lange nicht erreichbar)", "old messages dropped (broker unreachable for too long)")));
+        note(
+            st,
+            format!(
+                "MQTT: {dropped} {}",
+                tr(
+                    "alte Nachrichten verworfen (Broker zu lange nicht erreichbar)",
+                    "old messages dropped (broker unreachable for too long)"
+                )
+            ),
+        );
     }
     let n = st.db.lock().unwrap().thin_readings(now)?;
     if n > 0 {
-        note(st, format!("{}: {n} {}", tr("Verlauf ausgedünnt", "History thinned"), tr("Auslesungen gelöscht", "readings deleted")));
+        note(
+            st,
+            format!(
+                "{}: {n} {}",
+                tr("Verlauf ausgedünnt", "History thinned"),
+                tr("Auslesungen gelöscht", "readings deleted")
+            ),
+        );
     }
     Ok(())
 }
@@ -260,7 +282,9 @@ pub fn tick(st: &AppState) -> anyhow::Result<()> {
                 for (id, p, d) in &changes {
                     match d {
                         Due::Reset => db.plan_reset(*id)?,
-                        Due::Start(slot) => db.plan_start(*id, &p.key(), &slot.format(SLOT_FORMAT).to_string())?,
+                        Due::Start(slot) => {
+                            db.plan_start(*id, &p.key(), &slot.format(SLOT_FORMAT).to_string())?
+                        }
                         _ => {}
                     }
                 }
@@ -326,7 +350,9 @@ fn attempt(master: &mut Master, meter: &Meter) -> Attempt {
                 break;
             }
             Err(e) => {
-                if e.downcast_ref::<MeterRefused>().is_some_and(|r| matches!(r.code, 8 | 9)) {
+                if e.downcast_ref::<MeterRefused>()
+                    .is_some_and(|r| matches!(r.code, 8 | 9))
+                {
                     result = Attempt::Refused(format!("{e:#}"));
                     break;
                 }
@@ -375,7 +401,11 @@ fn finish(
 ) -> anyhow::Result<()> {
     let now = (st.planner.now)();
     // hat es lange gedauert, gilt auch ein inzwischen fälliger Termin als erledigt (nie doppelt)
-    let slot = plan.prev_slot(now).map_or(slot, |p| p.max(slot)).format(SLOT_FORMAT).to_string();
+    let slot = plan
+        .prev_slot(now)
+        .map_or(slot, |p| p.max(slot))
+        .format(SLOT_FORMAT)
+        .to_string();
     let target = Target::parse(&meter.address);
     let mut read = false;
     let mut attempted = true;
@@ -411,7 +441,10 @@ fn finish(
                         tr("Zähler", "Meter"),
                         meter_name(meter),
                         tr("gestört,", "disturbed,"),
-                        tr("Termine nacheinander nicht gelesen", "terms in a row not read")
+                        tr(
+                            "Termine nacheinander nicht gelesen",
+                            "terms in a row not read"
+                        )
                     ),
                 );
             }
@@ -480,7 +513,10 @@ fn finish_run(st: &AppState, run: Run) -> anyhow::Result<()> {
         "line_down": line_down,
         "error": if run.ok < run.attempted || offline { run.last_error.clone() } else { None },
     });
-    st.db.lock().unwrap().set_plan_result(run.line_id, &result)?;
+    st.db
+        .lock()
+        .unwrap()
+        .set_plan_result(run.line_id, &result)?;
     if offline {
         note(
             st,
@@ -488,7 +524,10 @@ fn finish_run(st: &AppState, run: Run) -> anyhow::Result<()> {
                 "{} {}: {} ({})",
                 tr("Plan", "Plan"),
                 run.label,
-                tr("Linie nicht verbunden, Zähler bleiben fällig", "line not connected, meters stay due"),
+                tr(
+                    "Linie nicht verbunden, Zähler bleiben fällig",
+                    "line not connected, meters stay due"
+                ),
                 run.last_error.unwrap_or_default()
             ),
         );
@@ -508,7 +547,14 @@ fn finish_run(st: &AppState, run: Run) -> anyhow::Result<()> {
     } else {
         note(
             st,
-            format!("{} {}: {}/{} {}", tr("Plan", "Plan"), run.label, run.ok, run.attempted, tr("gelesen", "read")),
+            format!(
+                "{} {}: {}/{} {}",
+                tr("Plan", "Plan"),
+                run.label,
+                run.ok,
+                run.attempted,
+                tr("gelesen", "read")
+            ),
         );
     }
     Ok(())
@@ -559,7 +605,11 @@ mod tests {
             let t = time.clone();
             let planner = Planner::with_clock(Box::new(move || *t.lock().unwrap()));
             let st = Arc::new(Shared::with_planner(None, db, planner));
-            Rig { st, time, line: line.id }
+            Rig {
+                st,
+                time,
+                line: line.id,
+            }
         }
 
         fn set_time(&self, s: &str) {
@@ -578,12 +628,22 @@ mod tests {
 
         fn meter(&self, address: &str) -> Meter {
             let db = self.st.db.lock().unwrap();
-            db.meters(self.line).unwrap().into_iter().find(|m| m.address == address).unwrap()
+            db.meters(self.line)
+                .unwrap()
+                .into_iter()
+                .find(|m| m.address == address)
+                .unwrap()
         }
 
         fn readings(&self, address: &str) -> usize {
             let id = self.meter(address).id;
-            self.st.db.lock().unwrap().meter_history(id, 1000).unwrap().len()
+            self.st
+                .db
+                .lock()
+                .unwrap()
+                .meter_history(id, 1000)
+                .unwrap()
+                .len()
         }
     }
 
@@ -591,7 +651,11 @@ mod tests {
     fn reads_on_schedule_and_handles_faulty_meters() {
         // 1, 2: gut · 4: falsche Prüfsumme · 11: beschäftigt (08)
         let r = Rig::new(&["1", "2", "4", "11"]);
-        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_project_plan(1, "hourly")
+            .unwrap();
         // eingeschaltet: erst ab dem nächsten Termin
         r.tick();
         assert_eq!(r.readings("1"), 0);
@@ -618,8 +682,13 @@ mod tests {
         // nächster Tag: der ausgesetzte Zähler wird wieder versucht
         r.set_time("2026-10-18 00:00");
         r.tick();
-        assert_eq!(r.meter("11").plan_slot.as_deref(), Some("2026-10-18 00:00:00"));
-        let result = r.st.db.lock().unwrap().tree().unwrap()[0].gateways[0].lines[0].plan_info["result"].clone();
+        assert_eq!(
+            r.meter("11").plan_slot.as_deref(),
+            Some("2026-10-18 00:00:00")
+        );
+        let result = r.st.db.lock().unwrap().tree().unwrap()[0].gateways[0].lines[0].plan_info
+            ["result"]
+            .clone();
         assert_eq!(result["ok"], 2);
         assert_eq!(result["total"], 4);
     }
@@ -627,17 +696,28 @@ mod tests {
     #[test]
     fn missed_terms_are_read_once_and_plan_off_forgets() {
         let r = Rig::new(&["1"]);
-        r.st.db.lock().unwrap().set_project_plan(1, "daily 00:05").unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_project_plan(1, "daily 00:05")
+            .unwrap();
         r.tick();
         // drei Tage aus: genau einmal nachlesen
         r.set_time("2026-10-20 09:00");
         r.tick();
         r.tick();
         assert_eq!(r.readings("1"), 1);
-        assert_eq!(r.meter("1").plan_slot.as_deref(), Some("2026-10-20 00:05:00"));
+        assert_eq!(
+            r.meter("1").plan_slot.as_deref(),
+            Some("2026-10-20 00:05:00")
+        );
         // Zähler selbst aus: Zustand weg, kein Nachholen beim Wiedereinschalten
         let id = r.meter("1").id;
-        r.st.db.lock().unwrap().set_meter_plan(id, Some("off")).unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_meter_plan(id, Some("off"))
+            .unwrap();
         r.tick();
         assert!(r.meter("1").plan_key.is_none());
         assert!(!r.st.planner.is_planned(r.line));
@@ -651,7 +731,11 @@ mod tests {
     #[test]
     fn meter_with_quota_is_suspended_until_next_day() {
         let r = Rig::new(&["19"]);
-        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_project_plan(1, "hourly")
+            .unwrap();
         r.tick();
         for t in ["2026-10-17 11:00", "2026-10-17 12:00", "2026-10-17 13:00"] {
             r.set_time(t);
@@ -666,10 +750,16 @@ mod tests {
         // bis Mitternacht wird er nicht mehr gefragt
         r.set_time("2026-10-17 14:00");
         r.tick();
-        assert_eq!(r.meter("19").plan_slot.as_deref(), Some("2026-10-17 13:00:00"));
+        assert_eq!(
+            r.meter("19").plan_slot.as_deref(),
+            Some("2026-10-17 13:00:00")
+        );
         r.set_time("2026-10-18 00:00");
         r.tick();
-        assert_eq!(r.meter("19").plan_slot.as_deref(), Some("2026-10-18 00:00:00"));
+        assert_eq!(
+            r.meter("19").plan_slot.as_deref(),
+            Some("2026-10-18 00:00:00")
+        );
     }
 
     /// Geplante Auslesungen werden kompakt gespeichert (Rohtelegramme) und beim Anzeigen
@@ -677,14 +767,22 @@ mod tests {
     #[test]
     fn planned_readings_are_stored_compact() {
         let r = Rig::new(&["1", "2"]);
-        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_project_plan(1, "hourly")
+            .unwrap();
         r.tick();
         r.set_time("2026-10-17 11:00");
         r.tick();
         let db = r.st.db.lock().unwrap();
         let (data, raw): (String, Vec<u8>) = db
             .conn_for_tests()
-            .query_row("SELECT data, raw FROM readings ORDER BY id LIMIT 1", [], |x| Ok((x.get(0)?, x.get(1)?)))
+            .query_row(
+                "SELECT data, raw FROM readings ORDER BY id LIMIT 1",
+                [],
+                |x| Ok((x.get(0)?, x.get(1)?)),
+            )
             .unwrap();
         assert!(data.is_empty());
         assert!(raw.len() < 400, "Rohtelegramme {} Byte", raw.len());
@@ -702,7 +800,11 @@ mod tests {
     #[test]
     fn full_storage_keeps_reading_without_storing() {
         let r = Rig::new(&["2"]);
-        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_project_plan(1, "hourly")
+            .unwrap();
         r.tick();
         r.st.db.lock().unwrap().readings_paused = true;
         r.set_time("2026-10-17 11:00");
@@ -717,7 +819,11 @@ mod tests {
     #[test]
     fn clock_jump_back_realigns_without_duplicates() {
         let r = Rig::new(&["1"]);
-        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_project_plan(1, "hourly")
+            .unwrap();
         r.tick();
         r.set_time("2026-10-17 11:00");
         r.tick();
@@ -726,7 +832,10 @@ mod tests {
         r.set_time("2026-10-16 11:30");
         r.tick();
         assert_eq!(r.readings("1"), 1);
-        assert_eq!(r.meter("1").plan_slot.as_deref(), Some("2026-10-16 11:00:00"));
+        assert_eq!(
+            r.meter("1").plan_slot.as_deref(),
+            Some("2026-10-16 11:00:00")
+        );
         r.set_time("2026-10-16 12:00");
         r.tick();
         assert_eq!(r.readings("1"), 2);
@@ -740,10 +849,20 @@ mod tests {
         let gw = db.active().unwrap().gateway.id;
         for l in 0..20 {
             let line = db
-                .create_line(gw, Line { name: format!("L{l}"), baud: 2400, ..Default::default() })
+                .create_line(
+                    gw,
+                    Line {
+                        name: format!("L{l}"),
+                        baud: 2400,
+                        ..Default::default()
+                    },
+                )
                 .unwrap();
             let meters = (0..100)
-                .map(|k| Meter { address: format!("{:08}", l * 1000 + k), ..Default::default() })
+                .map(|k| Meter {
+                    address: format!("{:08}", l * 1000 + k),
+                    ..Default::default()
+                })
                 .collect();
             db.import_meters(line.id, meters).unwrap();
         }
@@ -763,13 +882,21 @@ mod tests {
         st.db.lock().unwrap().tree().unwrap();
         let tree = tree.elapsed();
         println!("erste Prüfung {first:?}, weitere {again:?}, Projektbaum {tree:?}");
-        assert!(first < Duration::from_secs(5) && again < Duration::from_secs(2) && tree < Duration::from_secs(2));
+        assert!(
+            first < Duration::from_secs(5)
+                && again < Duration::from_secs(2)
+                && tree < Duration::from_secs(2)
+        );
     }
 
     #[test]
     fn held_line_is_not_read() {
         let r = Rig::new(&["1"]);
-        r.st.db.lock().unwrap().set_project_plan(1, "15min").unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_project_plan(1, "15min")
+            .unwrap();
         r.tick();
         r.st.planner.hold(r.line);
         r.set_time("2026-10-17 10:45");

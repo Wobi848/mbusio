@@ -39,13 +39,13 @@ use serde::{Deserialize, Serialize};
 
 use chrono::{Datelike, Local, Timelike};
 
+use crate::i18n::tr;
 use crate::link::Link;
 use crate::mbus::frame::{
     self, Frame, Parse, ACK, ADDR_BROADCAST, ADDR_BROADCAST_REPLY, ADDR_SELECTED, CI_APP_RESET,
     CI_DATA_SEND, CI_SELECT,
 };
 use crate::mbus::master::BAUD_RATES;
-use crate::i18n::tr;
 use crate::mbus::tables::manufacturer_code;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -193,7 +193,10 @@ impl Slave {
             let mut d = self.id.to_le_bytes().to_vec();
             // Medium Wärme (4): Bits 7..6 beider Einheitenbytes; Einheiten kWh (05) und m³ (2C)
             d.extend_from_slice(&[self.access, 0x00, 0x05, 0x40 | 0x2C]);
-            d.extend_from_slice(&bcd_bytes(12_345 + self.seed as u64 + (elapsed as u64) / 60, 4));
+            d.extend_from_slice(&bcd_bytes(
+                12_345 + self.seed as u64 + (elapsed as u64) / 60,
+                4,
+            ));
             d.extend_from_slice(&bcd_bytes(678, 4));
             return Frame::Long {
                 control: 0x08,
@@ -211,8 +214,16 @@ impl Slave {
         let seed = self.seed;
         match (self.model, self.part) {
             (Model::Heat, 0) => {
-                rec(&mut d, &[0x04, 0x06], &(123_456 + seed + tick / 10).to_le_bytes()); // kWh
-                rec(&mut d, &[0x04, 0x14], &(456_789 + seed * 3 + tick / 4).to_le_bytes()); // 0.01 m³
+                rec(
+                    &mut d,
+                    &[0x04, 0x06],
+                    &(123_456 + seed + tick / 10).to_le_bytes(),
+                ); // kWh
+                rec(
+                    &mut d,
+                    &[0x04, 0x14],
+                    &(456_789 + seed * 3 + tick / 4).to_le_bytes(),
+                ); // 0.01 m³
                 rec(&mut d, &[0x04, 0x2B], &(12_345 + tick % 50).to_le_bytes()); // W
                 rec(&mut d, &[0x02, 0x59], &6523i16.to_le_bytes()); // 0.01 °C
                 rec(&mut d, &[0x02, 0x5D], &4210i16.to_le_bytes());
@@ -246,7 +257,11 @@ impl Slave {
                 rec(&mut d, &[0x0D, 0xFD, 0x0E, fw.len() as u8], &fw);
             }
             (Model::Water | Model::Fixed, _) => {
-                rec(&mut d, &[0x0C, 0x13], &bcd_bytes(123_456 + seed as u64 * 7 + tick as u64, 4)); // l
+                rec(
+                    &mut d,
+                    &[0x0C, 0x13],
+                    &bcd_bytes(123_456 + seed as u64 * 7 + tick as u64, 4),
+                ); // l
                 rec(&mut d, &[0x4C, 0x13], &bcd_bytes(100_000, 4));
                 rec(&mut d, &[0x42, 0x6C], &type_g(2025, 12, 31));
                 rec(&mut d, &[0x04, 0x6D], &now_type_f());
@@ -337,10 +352,21 @@ pub const MEDIA: [(&str, u8); 8] = [
 ];
 
 /// Fehler zum Einbauen
-pub const FAULTS: [&str; 7] = ["none", "checksum", "truncated", "busy", "wrong_address", "flaky", "too_many"];
+pub const FAULTS: [&str; 7] = [
+    "none",
+    "checksum",
+    "truncated",
+    "busy",
+    "wrong_address",
+    "flaky",
+    "too_many",
+];
 
 fn medium_code(m: &str) -> u8 {
-    MEDIA.iter().find(|(k, _)| *k == m).map_or(0x07, |(_, c)| *c)
+    MEDIA
+        .iter()
+        .find(|(k, _)| *k == m)
+        .map_or(0x07, |(_, c)| *c)
 }
 
 fn model_of(m: &str) -> Model {
@@ -395,20 +421,37 @@ impl SimMeter {
     pub fn check(&self) -> Result<()> {
         let who = format!("PA {} / ID {}", self.primary, self.id);
         if self.primary > 250 {
-            bail!("{who}: {}", tr("Primäradresse 0..250", "primary address 0..250"));
+            bail!(
+                "{who}: {}",
+                tr("Primäradresse 0..250", "primary address 0..250")
+            );
         }
         if self.id.len() != 8 || !self.id.chars().all(|c| c.is_ascii_digit()) {
-            bail!("{who}: {}", tr("ID muss 8 Ziffern haben", "ID must have 8 digits"));
+            bail!(
+                "{who}: {}",
+                tr("ID muss 8 Ziffern haben", "ID must have 8 digits")
+            );
         }
-        if self.manufacturer.len() != 3 || !self.manufacturer.chars().all(|c| c.is_ascii_uppercase()) {
-            bail!("{who}: {}", tr("Hersteller: 3 Grossbuchstaben, z.B. KAM", "manufacturer: 3 capital letters, e.g. KAM"));
+        if self.manufacturer.len() != 3
+            || !self.manufacturer.chars().all(|c| c.is_ascii_uppercase())
+        {
+            bail!(
+                "{who}: {}",
+                tr(
+                    "Hersteller: 3 Grossbuchstaben, z.B. KAM",
+                    "manufacturer: 3 capital letters, e.g. KAM"
+                )
+            );
         }
         if !MEDIA.iter().any(|(k, _)| *k == self.medium) {
             bail!("{who}: medium {}", self.medium);
         }
         if let Some(b) = self.baud {
             if !crate::mbus::master::BAUD_RATES.contains(&b) {
-                bail!("{who}: {} {b}", tr("keine Standard-Baudrate", "not a standard baud rate"));
+                bail!(
+                    "{who}: {} {b}",
+                    tr("keine Standard-Baudrate", "not a standard baud rate")
+                );
             }
         }
         if !FAULTS.contains(&self.fault.as_str()) {
@@ -427,19 +470,35 @@ pub fn praxis() -> Vec<SimMeter> {
         m(3, "30000001", "SEN", "water").version(0x10),
         m(0, "12345699", "SEN", "cold_water").version(0x10),
         m(0, "55500011", "ZRI", "warm_water").version(0x01),
-        m(4, "40000004", "SEN", "water").version(0x10).fault("checksum"),
-        m(5, "50000005", "SEN", "water").version(0x10).fault("truncated"),
-        SimMeter { manufacturer: String::new(), version: 0, ..m(7, "70000007", "", "heat_old") },
+        m(4, "40000004", "SEN", "water")
+            .version(0x10)
+            .fault("checksum"),
+        m(5, "50000005", "SEN", "water")
+            .version(0x10)
+            .fault("truncated"),
+        SimMeter {
+            manufacturer: String::new(),
+            version: 0,
+            ..m(7, "70000007", "", "heat_old")
+        },
         m(10, "10000010", "KAM", "heat").version(0x1B),
         m(10, "10000011", "KAM", "heat").version(0x1B),
-        m(11, "11000011", "SEN", "water").version(0x10).fault("busy"),
-        m(12, "12000012", "SEN", "water").version(0x10).fault("wrong_address"),
+        m(11, "11000011", "SEN", "water")
+            .version(0x10)
+            .fault("busy"),
+        m(12, "12000012", "SEN", "water")
+            .version(0x10)
+            .fault("wrong_address"),
         m(14, "77777777", "SEN", "water").version(0x10),
         m(15, "77777777", "ZRI", "water").version(0x01),
-        m(16, "16000016", "SEN", "cold_water").version(0x10).fault("flaky"),
+        m(16, "16000016", "SEN", "cold_water")
+            .version(0x10)
+            .fault("flaky"),
         m(17, "88888888", "SEN", "water").version(0x10),
         m(18, "88888888", "SEN", "water").version(0x10),
-        m(19, "19000019", "SEN", "water").version(0x10).fault("too_many"),
+        m(19, "19000019", "SEN", "water")
+            .version(0x10)
+            .fault("too_many"),
         m(9, "90000009", "SEN", "water").version(0x01).baud(300),
         m(6, "60000006", "SEN", "water").version(0x10).baud(9600),
     ]
@@ -488,12 +547,42 @@ pub fn builtins() -> Vec<Scenario> {
         m(7, "84000007", "SEN", "water").baud(300),
         m(8, "84000008", "SEN", "water").baud(300),
     ];
-    let b = |key: &str, name: String, meters: Vec<SimMeter>| Scenario { key: key.into(), name, builtin: true, meters };
+    let b = |key: &str, name: String, meters: Vec<SimMeter>| Scenario {
+        key: key.into(),
+        name,
+        builtin: true,
+        meters,
+    };
     vec![
-        b("praxis", tr("Praxis mit typischen Fehlern (21 Zähler)", "Real life with typical faults (21 meters)"), praxis()),
-        b("ok10", tr("Alles in Ordnung – 10 Zähler", "All OK – 10 meters"), ok10),
-        b("mfh30", tr("Mehrfamilienhaus – 10 Wohnungen, 30 Zähler i.O.", "Apartment block – 10 flats, 30 meters OK"), mfh),
-        b("bauds", tr("Gemischte Baudraten (2400/9600/300), sonst i.O.", "Mixed baud rates (2400/9600/300), otherwise OK"), bauds),
+        b(
+            "praxis",
+            tr(
+                "Praxis mit typischen Fehlern (21 Zähler)",
+                "Real life with typical faults (21 meters)",
+            ),
+            praxis(),
+        ),
+        b(
+            "ok10",
+            tr("Alles in Ordnung – 10 Zähler", "All OK – 10 meters"),
+            ok10,
+        ),
+        b(
+            "mfh30",
+            tr(
+                "Mehrfamilienhaus – 10 Wohnungen, 30 Zähler i.O.",
+                "Apartment block – 10 flats, 30 meters OK",
+            ),
+            mfh,
+        ),
+        b(
+            "bauds",
+            tr(
+                "Gemischte Baudraten (2400/9600/300), sonst i.O.",
+                "Mixed baud rates (2400/9600/300), otherwise OK",
+            ),
+            bauds,
+        ),
     ]
 }
 
@@ -520,7 +609,11 @@ pub fn open(key: &str, baud: u32) -> io::Result<Simulator> {
         Some(s) => Ok(Simulator::from_meters(baud, &s.meters, false)),
         None => Err(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("{} „{key}“ {}", tr("Simulation", "Simulation"), tr("gibt es nicht", "does not exist")),
+            format!(
+                "{} „{key}“ {}",
+                tr("Simulation", "Simulation"),
+                tr("gibt es nicht", "does not exist")
+            ),
         )),
     }
 }
@@ -537,7 +630,9 @@ CREATE TABLE IF NOT EXISTS sim_scenarios (
 
 impl crate::db::Db {
     pub fn sim_list(&self) -> Result<Vec<Scenario>> {
-        let mut st = self.conn.prepare("SELECT key, name, meters FROM sim_scenarios ORDER BY name COLLATE NOCASE")?;
+        let mut st = self
+            .conn
+            .prepare("SELECT key, name, meters FROM sim_scenarios ORDER BY name COLLATE NOCASE")?;
         let rows = st.query_map([], |r| {
             Ok(Scenario {
                 key: r.get(0)?,
@@ -566,11 +661,21 @@ impl crate::db::Db {
                 .into_iter()
                 .find(|s| s.key == k)
                 .map(|s| s.meters)
-                .ok_or_else(|| anyhow::anyhow!("{} „{k}“ {}", tr("Simulation", "Simulation"), tr("gibt es nicht", "does not exist")))?,
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "{} „{k}“ {}",
+                        tr("Simulation", "Simulation"),
+                        tr("gibt es nicht", "does not exist")
+                    )
+                })?,
             None => Vec::new(),
         };
         let base = crate::mqtt::slug(name);
-        let base = if base.is_empty() { "sim".to_string() } else { base };
+        let base = if base.is_empty() {
+            "sim".to_string()
+        } else {
+            base
+        };
         let mut key = base.clone();
         let mut n = 2;
         while all().iter().any(|s| s.key == key) {
@@ -587,13 +692,19 @@ impl crate::db::Db {
 
     pub fn sim_save(&mut self, key: &str, name: &str, meters: &[SimMeter]) -> Result<()> {
         if builtins().iter().any(|s| s.key == key) {
-            bail!(tr("Vorlagen lassen sich nicht ändern, zuerst kopieren", "Templates cannot be changed, copy them first"));
+            bail!(tr(
+                "Vorlagen lassen sich nicht ändern, zuerst kopieren",
+                "Templates cannot be changed, copy them first"
+            ));
         }
         if name.trim().is_empty() {
             bail!(tr("Name fehlt", "Name missing"));
         }
         if meters.len() > 500 {
-            bail!(tr("Höchstens 500 Zähler je Simulation", "At most 500 meters per simulation"));
+            bail!(tr(
+                "Höchstens 500 Zähler je Simulation",
+                "At most 500 meters per simulation"
+            ));
         }
         for m in meters {
             m.check()?;
@@ -603,7 +714,11 @@ impl crate::db::Db {
             rusqlite::params![key, name.trim(), serde_json::to_string(meters)?],
         )?;
         if n == 0 {
-            bail!("{} „{key}“ {}", tr("Simulation", "Simulation"), tr("gibt es nicht", "does not exist"));
+            bail!(
+                "{} „{key}“ {}",
+                tr("Simulation", "Simulation"),
+                tr("gibt es nicht", "does not exist")
+            );
         }
         self.sim_load()
     }
@@ -617,9 +732,14 @@ impl crate::db::Db {
             .query_map([&conn], |r| r.get(0))?
             .collect::<rusqlite::Result<_>>()?;
         if !users.is_empty() {
-            bail!("{}: {}", tr("Wird noch verwendet von", "Still used by"), users.join(", "));
+            bail!(
+                "{}: {}",
+                tr("Wird noch verwendet von", "Still used by"),
+                users.join(", ")
+            );
         }
-        self.conn.execute("DELETE FROM sim_scenarios WHERE key = ?1", [key])?;
+        self.conn
+            .execute("DELETE FROM sim_scenarios WHERE key = ?1", [key])?;
         self.sim_load()
     }
 }
@@ -647,13 +767,20 @@ impl Simulator {
             .iter()
             .map(|m| {
                 let id = u32::from_str_radix(&m.id, 16).unwrap_or(0);
-                let mut s = Slave::new(m.primary, id, &m.manufacturer, m.version, medium_code(&m.medium), model_of(&m.medium))
-                    .with_fault(fault_of(&m.fault))
-                    .with_baud(match m.baud {
-                        Some(b) if praxis && b == baud => 2400,
-                        Some(b) => b,
-                        None => baud,
-                    });
+                let mut s = Slave::new(
+                    m.primary,
+                    id,
+                    &m.manufacturer,
+                    m.version,
+                    medium_code(&m.medium),
+                    model_of(&m.medium),
+                )
+                .with_fault(fault_of(&m.fault))
+                .with_baud(match m.baud {
+                    Some(b) if praxis && b == baud => 2400,
+                    Some(b) => b,
+                    None => baud,
+                });
                 if !praxis {
                     // Zählerstände je Zähler verschieden, aber immer gleich für dieselbe ID
                     s.seed = (m.id.parse::<u64>().unwrap_or(0) % 997 * 53) as u32;
@@ -708,7 +835,11 @@ impl Simulator {
                     }
                     let mut bytes = slave.rsp_ud(fcb, elapsed).encode();
                     match slave.fault {
-                        Fault::None | Fault::Busy | Fault::WrongAddress | Fault::Flaky | Fault::TooMany => {}
+                        Fault::None
+                        | Fault::Busy
+                        | Fault::WrongAddress
+                        | Fault::Flaky
+                        | Fault::TooMany => {}
                         Fault::Checksum => {
                             let n = bytes.len();
                             bytes[n - 2] ^= 0x5A;
@@ -940,11 +1071,24 @@ mod tests {
     fn raw_telegrams_round_trip() {
         let mut m = master();
         let r = m.read_meter(&Target::Primary(1)).unwrap();
-        let back = MeterReading::from_raw(&r.raw_bytes(), r.timestamp.clone(), r.utc, r.target.clone(), false).unwrap();
+        let back = MeterReading::from_raw(
+            &r.raw_bytes(),
+            r.timestamp.clone(),
+            r.utc,
+            r.target.clone(),
+            false,
+        )
+        .unwrap();
         assert_eq!(back.raw_frames, r.raw_frames);
         assert_eq!(back.primary_address, r.primary_address);
-        assert_eq!(serde_json::to_value(&back.records).unwrap(), serde_json::to_value(&r.records).unwrap());
-        assert_eq!(back.header.unwrap().secondary_address, r.header.unwrap().secondary_address);
+        assert_eq!(
+            serde_json::to_value(&back.records).unwrap(),
+            serde_json::to_value(&r.records).unwrap()
+        );
+        assert_eq!(
+            back.header.unwrap().secondary_address,
+            r.header.unwrap().secondary_address
+        );
     }
 
     #[test]
@@ -988,7 +1132,10 @@ mod tests {
     #[test]
     fn set_address_refuses_collision() {
         let mut m = master();
-        let e = m.set_primary(&Target::Primary(0), 9).unwrap_err().to_string();
+        let e = m
+            .set_primary(&Target::Primary(0), 9)
+            .unwrap_err()
+            .to_string();
         assert!(e.contains("Mehrere Zähler"), "{e}");
         // keiner der beiden wurde umgestellt
         assert!(m.read_meter(&Target::Primary(9)).is_err());
@@ -999,7 +1146,10 @@ mod tests {
     #[test]
     fn set_address_refuses_occupied() {
         let mut m = master();
-        let e = m.set_primary(&Target::Primary(1), 2).unwrap_err().to_string();
+        let e = m
+            .set_primary(&Target::Primary(1), 2)
+            .unwrap_err()
+            .to_string();
         assert!(e.contains("schon belegt"), "{e}");
         let r = m.read_meter(&Target::Primary(1)).unwrap();
         assert_eq!(r.header.unwrap().id, "12345678");
@@ -1011,7 +1161,8 @@ mod tests {
     fn set_address_to_own_address_is_ok() {
         let mut m = master();
         m.set_primary(&Target::Primary(1), 1).unwrap();
-        m.set_primary(&Target::parse("87654321").unwrap(), 2).unwrap();
+        m.set_primary(&Target::parse("87654321").unwrap(), 2)
+            .unwrap();
     }
 
     #[test]
@@ -1052,7 +1203,10 @@ mod tests {
         let mut m = master();
         let r = m.read_meter(&Target::Primary(7)).unwrap();
         let h = r.header.unwrap();
-        assert_eq!((h.id.as_str(), h.medium.as_str()), ("70000007", "medium_heat_outlet"));
+        assert_eq!(
+            (h.id.as_str(), h.medium.as_str()),
+            ("70000007", "medium_heat_outlet")
+        );
         assert_eq!(r.records.len(), 2);
         assert_eq!(
             (r.records[0].quantity.as_str(), r.records[0].unit.as_str()),
@@ -1069,7 +1223,10 @@ mod tests {
     fn raw_send_returns_reply() {
         let mut m = master();
         let ack = m.raw_send(&[0x10, 0x40, 0x01, 0x41, 0x16]).unwrap();
-        assert!(matches!(ack, crate::mbus::master::Reply::Frame(crate::mbus::frame::Frame::Ack)));
+        assert!(matches!(
+            ack,
+            crate::mbus::master::Reply::Frame(crate::mbus::frame::Frame::Ack)
+        ));
         let none = m.raw_send(&[0x10, 0x40, 0x63, 0xA3, 0x16]).unwrap();
         assert!(matches!(none, crate::mbus::master::Reply::None));
     }
@@ -1192,9 +1349,14 @@ mod tests {
         let r = m.read_meter(&Target::parse("10000011").unwrap()).unwrap();
         assert_eq!(r.header.unwrap().id, "10000011");
         // gleiche ID, verschiedene Hersteller: nur ID ist mehrdeutig, volle Adresse eindeutig
-        let e = m.read_meter(&Target::parse("77777777").unwrap()).unwrap_err().to_string();
+        let e = m
+            .read_meter(&Target::parse("77777777").unwrap())
+            .unwrap_err()
+            .to_string();
         assert!(e.contains("16-stellig"), "{e}");
-        let r = m.read_meter(&Target::parse("777777776A490107").unwrap()).unwrap();
+        let r = m
+            .read_meter(&Target::parse("777777776A490107").unwrap())
+            .unwrap();
         assert_eq!(r.header.unwrap().manufacturer, "ZRI");
         // Wackelkontakt: ohne Wiederholung übersehen, mit Wiederholung gefunden
         let mut found = |retries| {
@@ -1217,7 +1379,11 @@ mod tests {
         m.scan_primary(0, 12, 0, &mut |p| {
             if let Progress::Hit(h) = p {
                 if h.status != "ok" {
-                    why.push((h.primary_address.unwrap(), h.reason.unwrap_or_default(), h.raw.is_some()));
+                    why.push((
+                        h.primary_address.unwrap(),
+                        h.reason.unwrap_or_default(),
+                        h.raw.is_some(),
+                    ));
                 }
             }
             true
@@ -1237,7 +1403,12 @@ mod tests {
     }
 
     fn master_for(key: &str, baud: u32) -> Master {
-        Master::new(Box::new(super::open(key, baud).unwrap()), baud, 50, Arc::new(FrameLog::default()))
+        Master::new(
+            Box::new(super::open(key, baud).unwrap()),
+            baud,
+            50,
+            Arc::new(FrameLog::default()),
+        )
     }
 
     #[test]
@@ -1286,12 +1457,30 @@ mod tests {
         let ok = SimMeter::new(1, "12345678", "KAM", "heat");
         assert!(ok.check().is_ok());
         for bad in [
-            SimMeter { id: "1234".into(), ..ok.clone() },
-            SimMeter { manufacturer: "ka".into(), ..ok.clone() },
-            SimMeter { primary: 251, ..ok.clone() },
-            SimMeter { medium: "lava".into(), ..ok.clone() },
-            SimMeter { baud: Some(1234), ..ok.clone() },
-            SimMeter { fault: "kaputt".into(), ..ok.clone() },
+            SimMeter {
+                id: "1234".into(),
+                ..ok.clone()
+            },
+            SimMeter {
+                manufacturer: "ka".into(),
+                ..ok.clone()
+            },
+            SimMeter {
+                primary: 251,
+                ..ok.clone()
+            },
+            SimMeter {
+                medium: "lava".into(),
+                ..ok.clone()
+            },
+            SimMeter {
+                baud: Some(1234),
+                ..ok.clone()
+            },
+            SimMeter {
+                fault: "kaputt".into(),
+                ..ok.clone()
+            },
         ] {
             assert!(bad.check().is_err(), "{bad:?}");
         }
@@ -1305,7 +1494,11 @@ mod tests {
             let mut db = crate::db::Db::open(&dir).unwrap();
             let key = db.sim_create("Test Anlage", Some("ok10")).unwrap();
             assert_eq!(key, "test-anlage");
-            let mut meters = super::all().into_iter().find(|s| s.key == key).unwrap().meters;
+            let mut meters = super::all()
+                .into_iter()
+                .find(|s| s.key == key)
+                .unwrap()
+                .meters;
             meters.truncate(3);
             meters[2].fault = "busy".into();
             db.sim_save(&key, "Test Anlage", &meters).unwrap();

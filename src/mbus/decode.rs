@@ -175,7 +175,10 @@ fn application_error(d: &[u8]) -> String {
     let text = match code {
         0 => tr("nicht näher bezeichnet", "unspecified"),
         1 => tr("CI-Feld nicht unterstützt", "unimplemented CI field"),
-        2 => tr("Puffer zu lang, abgeschnitten", "buffer too long, truncated"),
+        2 => tr(
+            "Puffer zu lang, abgeschnitten",
+            "buffer too long, truncated",
+        ),
         3 => tr("zu viele Datensätze", "too many records"),
         4 => tr("Datensatz vorzeitig beendet", "premature end of record"),
         5 => tr("mehr als 10 DIFE", "more than 10 DIFEs"),
@@ -186,7 +189,10 @@ fn application_error(d: &[u8]) -> String {
     };
     format!(
         "{} {code:02X}: {text}",
-        tr("Zähler meldet Anwendungsfehler", "Meter reports application error")
+        tr(
+            "Zähler meldet Anwendungsfehler",
+            "Meter reports application error"
+        )
     )
 }
 
@@ -581,8 +587,22 @@ mod tests {
     fn fixed_binary_and_historic() {
         // Status 0xC0: binär, Stichtagswerte; Medium Wasser (7); Einheiten 100 l (2B), 3E
         let d = [
-            0x01, 0x00, 0x00, 0x10, 0x05, 0xC0, 0xC0 | 0x2B, 0x40 | 0x3E, 0x10, 0x00, 0x00,
-            0x00, 0x20, 0x00, 0x00, 0x00,
+            0x01,
+            0x00,
+            0x00,
+            0x10,
+            0x05,
+            0xC0,
+            0xC0 | 0x2B,
+            0x40 | 0x3E,
+            0x10,
+            0x00,
+            0x00,
+            0x00,
+            0x20,
+            0x00,
+            0x00,
+            0x00,
         ];
         let t = decode_rsp_ud(0x73, &d).unwrap();
         let h = t.header.unwrap();

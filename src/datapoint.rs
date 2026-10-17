@@ -78,10 +78,18 @@ pub fn key_label(key: &str, lang: Lang) -> String {
         s += &format!(" · {} {}", if de { "Tarif" } else { "tariff" }, p.tariff);
     }
     if p.storage != "0" {
-        s += &format!(" · {} {}", if de { "Speicher" } else { "storage" }, p.storage);
+        s += &format!(
+            " · {} {}",
+            if de { "Speicher" } else { "storage" },
+            p.storage
+        );
     }
     if p.subunit != "0" {
-        s += &format!(" · {} {}", if de { "Untereinheit" } else { "subunit" }, p.subunit);
+        s += &format!(
+            " · {} {}",
+            if de { "Untereinheit" } else { "subunit" },
+            p.subunit
+        );
     }
     s
 }
@@ -238,7 +246,12 @@ CREATE TABLE IF NOT EXISTS exchanges (
 ";
 
 /// Qualität eines Datenpunkts: "none" (noch kein Wert), "good", "stale", "disturbed", "invalid"
-pub fn quality(dp: &Datapoint, meter: &Meter, plan: Plan, now: chrono::NaiveDateTime) -> &'static str {
+pub fn quality(
+    dp: &Datapoint,
+    meter: &Meter,
+    plan: Plan,
+    now: chrono::NaiveDateTime,
+) -> &'static str {
     let Some(time) = dp.last_time.as_deref().and_then(plan::parse_time) else {
         return "none";
     };
@@ -280,7 +293,8 @@ pub fn check(key: &str, value: f64, last_good: Option<f64>, status: u8) -> Optio
 // ---------------------------------------------------------------- CSV
 
 /// Spalten der CSV (Reihenfolge fest, Kopfzeile wird beim Import übersprungen)
-const CSV_HEAD_DE: &str = "Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv;MQTT;Topic";
+const CSV_HEAD_DE: &str =
+    "Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv;MQTT;Topic";
 const CSV_HEAD_EN: &str = "No;Line;Meter;Address;Key;Name;Unit;Factor;Send;Active;MQTT;Topic";
 
 fn csv_field(s: &str) -> String {
@@ -381,7 +395,9 @@ pub struct ImportResult {
 
 impl Db {
     pub(crate) fn dp_by_meter(&self, meter_id: i64) -> Result<Vec<Datapoint>> {
-        let mut st = self.conn.prepare("SELECT * FROM datapoints WHERE meter_id = ?1 ORDER BY no")?;
+        let mut st = self
+            .conn
+            .prepare("SELECT * FROM datapoints WHERE meter_id = ?1 ORDER BY no")?;
         let rows = st.query_map([meter_id], dp_of)?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
@@ -390,7 +406,13 @@ impl Db {
         self.conn
             .query_row("SELECT * FROM datapoints WHERE id = ?1", [id], dp_of)
             .optional()?
-            .ok_or_else(|| anyhow!("{} {id}: {}", tr("Datenpunkt", "Datapoint"), tr("nicht gefunden", "not found")))
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} {id}: {}",
+                    tr("Datenpunkt", "Datapoint"),
+                    tr("nicht gefunden", "not found")
+                )
+            })
     }
 
     fn project_of_meter(&self, meter_id: i64) -> Result<i64> {
@@ -411,8 +433,10 @@ impl Db {
             [project_id],
             |r| r.get(0),
         )?;
-        self.conn
-            .execute("UPDATE projects SET dp_next = ?2 WHERE id = ?1", params![project_id, no + 1])?;
+        self.conn.execute(
+            "UPDATE projects SET dp_next = ?2 WHERE id = ?1",
+            params![project_id, no + 1],
+        )?;
         Ok(no)
     }
 
@@ -444,8 +468,11 @@ impl Db {
     /// Bezeichnung, Wert, ob schon Datenpunkt und ob Hauptwert (Vorschlag)
     pub fn dp_candidates(&self, meter_id: i64, lang: Lang) -> Result<Value> {
         let meter = self.meter(meter_id)?;
-        let existing: HashMap<String, i64> =
-            self.dp_by_meter(meter_id)?.into_iter().map(|d| (d.key, d.id)).collect();
+        let existing: HashMap<String, i64> = self
+            .dp_by_meter(meter_id)?
+            .into_iter()
+            .map(|d| (d.key, d.id))
+            .collect();
         let reading = self.latest_reading(meter_id)?;
         let main = reading.as_ref().and_then(crate::db::main_value).map(key_of);
         let mut seen = std::collections::HashSet::new();
@@ -483,12 +510,23 @@ impl Db {
 
     /// Auswahl eines Zählers setzen: fehlende Datenpunkte anlegen, abgewählte löschen
     #[cfg(test)]
-    pub fn dp_select(&mut self, meter_id: i64, keys: &[String], lang: Lang) -> Result<(usize, usize)> {
+    pub fn dp_select(
+        &mut self,
+        meter_id: i64,
+        keys: &[String],
+        lang: Lang,
+    ) -> Result<(usize, usize)> {
         self.dp_select_mqtt(meter_id, keys, false, lang)
     }
 
     /// Wie `dp_select`; neue Datenpunkte auf Wunsch gleich per MQTT
-    pub fn dp_select_mqtt(&mut self, meter_id: i64, keys: &[String], mqtt: bool, lang: Lang) -> Result<(usize, usize)> {
+    pub fn dp_select_mqtt(
+        &mut self,
+        meter_id: i64,
+        keys: &[String],
+        mqtt: bool,
+        lang: Lang,
+    ) -> Result<(usize, usize)> {
         let meter = self.meter(meter_id)?;
         self.tx(|db| {
             let mut added = 0;
@@ -503,7 +541,8 @@ impl Db {
             let mut removed = 0;
             for d in db.dp_by_meter(meter_id)? {
                 if !keys.contains(&d.key) {
-                    db.conn.execute("DELETE FROM datapoints WHERE id = ?1", [d.id])?;
+                    db.conn
+                        .execute("DELETE FROM datapoints WHERE id = ?1", [d.id])?;
                     removed += 1;
                 }
             }
@@ -520,10 +559,17 @@ impl Db {
             bail!("send: {}", d.send);
         }
         if !d.factor.is_finite() || d.factor == 0.0 {
-            bail!(tr("Faktor muss eine Zahl ungleich 0 sein", "Factor must be a non-zero number"));
+            bail!(tr(
+                "Faktor muss eine Zahl ungleich 0 sein",
+                "Factor must be a non-zero number"
+            ));
         }
         let old = self.dp(id)?;
-        let topic = d.mqtt_topic.as_deref().map(str::trim).filter(|t| !t.is_empty());
+        let topic = d
+            .mqtt_topic
+            .as_deref()
+            .map(str::trim)
+            .filter(|t| !t.is_empty());
         if let Some(t) = topic {
             crate::mqtt::check_topic(t)?;
         }
@@ -534,7 +580,15 @@ impl Db {
                last_good = CASE WHEN ?7 THEN NULL ELSE last_good END,
                invalid = CASE WHEN ?7 THEN NULL ELSE invalid END
              WHERE id = ?1",
-            params![id, d.name.trim(), d.unit.trim(), d.factor, d.send, d.active, reset],
+            params![
+                id,
+                d.name.trim(),
+                d.unit.trim(),
+                d.factor,
+                d.send,
+                d.active,
+                reset
+            ],
         )?;
         if reset {
             if let Some(r) = self.latest_reading(old.meter_id)? {
@@ -560,15 +614,24 @@ impl Db {
             let mut n = 0;
             for id in ids {
                 n += match action {
-                    "on" => db.conn.execute("UPDATE datapoints SET active = 1 WHERE id = ?1", [id])?,
-                    "off" => db.conn.execute("UPDATE datapoints SET active = 0 WHERE id = ?1", [id])?,
-                    "delete" => db.conn.execute("DELETE FROM datapoints WHERE id = ?1", [id])?,
+                    "on" => db
+                        .conn
+                        .execute("UPDATE datapoints SET active = 1 WHERE id = ?1", [id])?,
+                    "off" => db
+                        .conn
+                        .execute("UPDATE datapoints SET active = 0 WHERE id = ?1", [id])?,
+                    "delete" => db
+                        .conn
+                        .execute("DELETE FROM datapoints WHERE id = ?1", [id])?,
                     "mqtt:on" | "mqtt:off" => {
                         db.dp_set_mqtt(*id, action == "mqtt:on")?;
                         1
                     }
                     a => match a.strip_prefix("send:").filter(|m| SEND_MODES.contains(m)) {
-                        Some(m) => db.conn.execute("UPDATE datapoints SET send = ?2 WHERE id = ?1", params![id, m])?,
+                        Some(m) => db.conn.execute(
+                            "UPDATE datapoints SET send = ?2 WHERE id = ?1",
+                            params![id, m],
+                        )?,
                         None => bail!("action: {a}"),
                     },
                 };
@@ -603,7 +666,11 @@ impl Db {
             params![topic, id],
             |r| r.get(0),
         )?;
-        Ok(if taken { format!("{topic}-{}", d.no) } else { topic })
+        Ok(if taken {
+            format!("{topic}-{}", d.no)
+        } else {
+            topic
+        })
     }
 
     /// MQTT für einen Datenpunkt ein- oder ausschalten; beim Einschalten Topic erzeugen (falls
@@ -620,7 +687,8 @@ impl Db {
                 params![id, topic],
             )?;
         } else {
-            self.conn.execute("UPDATE datapoints SET mqtt = 0 WHERE id = ?1", [id])?;
+            self.conn
+                .execute("UPDATE datapoints SET mqtt = 0 WHERE id = ?1", [id])?;
         }
         Ok(())
     }
@@ -636,7 +704,8 @@ impl Db {
             let d: Datapoint = serde_json::from_value(v.clone())?;
             let quality = v["quality"].as_str().unwrap_or("none");
             let id = v["id"].as_i64().unwrap_or(0);
-            let (Some(value), Some(topic)) = (v["last_value"].as_f64(), d.mqtt_topic.as_deref()) else {
+            let (Some(value), Some(topic)) = (v["last_value"].as_f64(), d.mqtt_topic.as_deref())
+            else {
                 continue;
             };
             if !d.mqtt || !d.active || quality == "none" {
@@ -650,7 +719,9 @@ impl Db {
             if sent.as_deref() == Some(quality) {
                 continue;
             }
-            let utc = v["last_utc"].as_i64().unwrap_or_else(crate::clock::utc_secs);
+            let utc = v["last_utc"]
+                .as_i64()
+                .unwrap_or_else(crate::clock::utc_secs);
             self.mqtt_enqueue(topic, &mqtt_payload(&d, value, quality, utc, unsure))?;
             self.conn.execute(
                 "UPDATE datapoints SET mqtt_quality = ?2, mqtt_value = ?3 WHERE id = ?1",
@@ -663,7 +734,12 @@ impl Db {
 
     /// Neue Auslesung auf die Datenpunkte des Zählers übertragen. `store`: Wert auch in die
     /// Wertetabelle (Verlauf, Weitergabe). Liefert Meldungen (Zählerstand gesunken).
-    pub(crate) fn dp_apply(&mut self, meter_id: i64, r: &MeterReading, store: bool) -> Result<Vec<String>> {
+    pub(crate) fn dp_apply(
+        &mut self,
+        meter_id: i64,
+        r: &MeterReading,
+        store: bool,
+    ) -> Result<Vec<String>> {
         let status = r.header.as_ref().map_or(0, |h| h.status);
         let utc = r.utc.unwrap_or_else(crate::clock::utc_secs);
         let mut notes = Vec::new();
@@ -671,7 +747,9 @@ impl Db {
             let Some(rec) = r.records.iter().find(|x| key_of(x) == dp.key) else {
                 continue;
             };
-            let Some(raw) = rec.value.as_f64() else { continue };
+            let Some(raw) = rec.value.as_f64() else {
+                continue;
+            };
             let value = raw * dp.factor + dp.shift;
             let invalid = check(&dp.key, value, dp.last_good, status);
             if invalid == Some("decreased") && dp.invalid.as_deref() != Some("decreased") {
@@ -684,7 +762,11 @@ impl Db {
                     tr("Zählertausch?", "meter replaced?")
                 ));
             }
-            let good = if invalid.is_none() { Some(value) } else { dp.last_good };
+            let good = if invalid.is_none() {
+                Some(value)
+            } else {
+                dp.last_good
+            };
             self.conn.execute(
                 "UPDATE datapoints SET last_value = ?2, last_time = ?3, last_utc = ?4, last_good = ?5, invalid = ?6,
                    last_unsure = ?7
@@ -701,7 +783,11 @@ impl Db {
             if self.mqtt_enabled && dp.mqtt && dp.active && store {
                 if let Some(topic) = dp.mqtt_topic.as_deref() {
                     let quality = if invalid.is_some() { "invalid" } else { "good" };
-                    let (sent_value, sent_quality, sent_day): (Option<f64>, Option<String>, Option<String>) = self.conn.query_row(
+                    let (sent_value, sent_quality, sent_day): (
+                        Option<f64>,
+                        Option<String>,
+                        Option<String>,
+                    ) = self.conn.query_row(
                         "SELECT mqtt_value, mqtt_quality, mqtt_day FROM datapoints WHERE id = ?1",
                         [dp.id],
                         |x| Ok((x.get(0)?, x.get(1)?, x.get(2)?)),
@@ -714,7 +800,10 @@ impl Db {
                         _ => true,
                     };
                     if send {
-                        self.mqtt_enqueue(topic, &mqtt_payload(&dp, value, quality, utc, r.time_unsure))?;
+                        self.mqtt_enqueue(
+                            topic,
+                            &mqtt_payload(&dp, value, quality, utc, r.time_unsure),
+                        )?;
                         self.conn.execute(
                             "UPDATE datapoints SET mqtt_value = ?2, mqtt_quality = ?3, mqtt_day = ?4 WHERE id = ?1",
                             params![dp.id, value, quality, day],
@@ -730,13 +819,16 @@ impl Db {
     /// Auslesung, wenn das Medium bekannt ist)
     pub(crate) fn dp_auto_templates(&mut self, meter_id: i64) -> Result<usize> {
         let meter = self.meter(meter_id)?;
-        let done: bool = self
-            .conn
-            .query_row("SELECT templated FROM meters WHERE id = ?1", [meter_id], |r| r.get(0))?;
+        let done: bool = self.conn.query_row(
+            "SELECT templated FROM meters WHERE id = ?1",
+            [meter_id],
+            |r| r.get(0),
+        )?;
         if done || meter.medium.is_none() {
             return Ok(0);
         }
-        self.conn.execute("UPDATE meters SET templated = 1 WHERE id = ?1", [meter_id])?;
+        self.conn
+            .execute("UPDATE meters SET templated = 1 WHERE id = ?1", [meter_id])?;
         let mut n = 0;
         for t in self.templates(meter.line_id)? {
             if t.auto && Some(&t.medium) == meter.medium.as_ref() {
@@ -753,7 +845,10 @@ impl Db {
         };
         let mut n = 0;
         for k in &t.keys {
-            if r.records.iter().any(|x| key_of(x) == *k && x.value.is_number()) {
+            if r.records
+                .iter()
+                .any(|x| key_of(x) == *k && x.value.is_number())
+            {
                 if let Some(id) = self.dp_create(meter, k, lang)? {
                     if t.mqtt {
                         self.dp_set_mqtt(id, true)?;
@@ -784,7 +879,15 @@ impl Db {
 
     /// Vorlage für ein Medium der Linie speichern und auf alle passenden Zähler anwenden.
     /// Liefert die Anzahl neuer Datenpunkte.
-    pub fn template_save(&mut self, line_id: i64, medium: &str, keys: &[String], auto: bool, mqtt: bool, lang: Lang) -> Result<usize> {
+    pub fn template_save(
+        &mut self,
+        line_id: i64,
+        medium: &str,
+        keys: &[String],
+        auto: bool,
+        mqtt: bool,
+        lang: Lang,
+    ) -> Result<usize> {
         self.tx(|db| {
             db.conn.execute(
                 "INSERT INTO dp_templates (line_id, medium, keys, auto, mqtt) VALUES (?1, ?2, ?3, ?4, ?5)
@@ -810,7 +913,8 @@ impl Db {
     }
 
     pub fn template_delete(&mut self, id: i64) -> Result<()> {
-        self.conn.execute("DELETE FROM dp_templates WHERE id = ?1", [id])?;
+        self.conn
+            .execute("DELETE FROM dp_templates WHERE id = ?1", [id])?;
         Ok(())
     }
 
@@ -830,7 +934,8 @@ impl Db {
         let mut out = Vec::new();
         for (lid, label, line_plan, project_plan) in lines {
             for m in self.meters(lid)? {
-                let (p, _) = plan::effective(m.plan.as_deref(), line_plan.as_deref(), &project_plan);
+                let (p, _) =
+                    plan::effective(m.plan.as_deref(), line_plan.as_deref(), &project_plan);
                 for d in self.dp_by_meter(m.id)? {
                     let q = quality(&d, &m, p, now);
                     let mut v = serde_json::to_value(&d)?;
@@ -860,7 +965,12 @@ impl Db {
 
     /// Zählertausch: Zählerstände laufen mit dem neuen Zähler durchgehend weiter. Liefert eine
     /// Zeile je Zählerstand (alter Endstand → neuer Anfangsstand).
-    pub fn exchange_meter(&mut self, meter_id: i64, new_address: &str, reading: &MeterReading) -> Result<Vec<String>> {
+    pub fn exchange_meter(
+        &mut self,
+        meter_id: i64,
+        new_address: &str,
+        reading: &MeterReading,
+    ) -> Result<Vec<String>> {
         let meter = self.meter(meter_id)?;
         let new_address = new_address.trim().to_ascii_uppercase();
         let target = Target::parse(&new_address)?;
@@ -869,7 +979,10 @@ impl Db {
             .iter()
             .any(|m| m.id != meter_id && crate::db::listed(m, &target))
         {
-            bail!(tr("Zähler mit dieser Adresse ist schon in der Liste", "A meter with this address is already in the list"));
+            bail!(tr(
+                "Zähler mit dieser Adresse ist schon in der Liste",
+                "A meter with this address is already in the list"
+            ));
         }
         let new_id = reading.header.as_ref().map(|h| h.id.clone());
         self.tx(|db| {
@@ -931,7 +1044,11 @@ impl Db {
     // ------------------------------------------------------------ CSV
 
     pub fn dp_csv(&self, project_id: i64, lang: Lang) -> Result<String> {
-        let mut out = String::from(if lang == Lang::De { CSV_HEAD_DE } else { CSV_HEAD_EN });
+        let mut out = String::from(if lang == Lang::De {
+            CSV_HEAD_DE
+        } else {
+            CSV_HEAD_EN
+        });
         out.push_str("\r\n");
         for v in self.dp_list(None, Some(project_id))? {
             let s = |k: &str| v[k].as_str().unwrap_or("").to_string();
@@ -945,11 +1062,26 @@ impl Db {
                 s("unit"),
                 v["factor"].as_f64().unwrap_or(1.0).to_string(),
                 s("send"),
-                (if v["active"].as_bool().unwrap_or(false) { "1" } else { "0" }).to_string(),
-                (if v["mqtt"].as_bool().unwrap_or(false) { "1" } else { "0" }).to_string(),
+                (if v["active"].as_bool().unwrap_or(false) {
+                    "1"
+                } else {
+                    "0"
+                })
+                .to_string(),
+                (if v["mqtt"].as_bool().unwrap_or(false) {
+                    "1"
+                } else {
+                    "0"
+                })
+                .to_string(),
                 s("mqtt_topic"),
             ];
-            out.push_str(&row.iter().map(|x| csv_field(x)).collect::<Vec<_>>().join(";"));
+            out.push_str(
+                &row.iter()
+                    .map(|x| csv_field(x))
+                    .collect::<Vec<_>>()
+                    .join(";"),
+            );
             out.push_str("\r\n");
         }
         Ok(out)
@@ -958,7 +1090,13 @@ impl Db {
     /// CSV einlesen: zuerst nur zeigen, was sich ändert (`apply` = false), dann übernehmen.
     /// Zuordnung über die Nummer; Zeilen ohne Nummer legen neue Datenpunkte an (Linie, Adresse,
     /// Kennung). Fehlende Zeilen löschen nichts.
-    pub fn dp_import(&mut self, project_id: i64, text: &str, apply: bool, lang: Lang) -> Result<ImportResult> {
+    pub fn dp_import(
+        &mut self,
+        project_id: i64,
+        text: &str,
+        apply: bool,
+        lang: Lang,
+    ) -> Result<ImportResult> {
         let existing: HashMap<i64, Value> = self
             .dp_list(None, Some(project_id))?
             .into_iter()
@@ -979,32 +1117,65 @@ impl Db {
                 continue; // Kopfzeile
             }
             if c.len() < 10 {
-                res.errors.push(format!("{} {row}: {}", tr("Zeile", "Row"), tr("zu wenige Spalten (10 erwartet)", "too few columns (10 expected)")));
+                res.errors.push(format!(
+                    "{} {row}: {}",
+                    tr("Zeile", "Row"),
+                    tr(
+                        "zu wenige Spalten (10 erwartet)",
+                        "too few columns (10 expected)"
+                    )
+                ));
                 continue;
             }
             let Some(factor) = parse_num(&col(7)).filter(|f| f.is_finite() && *f != 0.0) else {
-                res.errors.push(format!("{} {row}: {} „{}“", tr("Zeile", "Row"), tr("Faktor ungültig", "invalid factor"), col(7)));
+                res.errors.push(format!(
+                    "{} {row}: {} „{}“",
+                    tr("Zeile", "Row"),
+                    tr("Faktor ungültig", "invalid factor"),
+                    col(7)
+                ));
                 continue;
             };
             let send = col(8).to_lowercase();
             if !SEND_MODES.contains(&send.as_str()) {
-                res.errors.push(format!("{} {row}: {} „{}“ ({})", tr("Zeile", "Row"), tr("Weitergabe ungültig", "invalid send mode"), col(8), SEND_MODES.join("/")));
+                res.errors.push(format!(
+                    "{} {row}: {} „{}“ ({})",
+                    tr("Zeile", "Row"),
+                    tr("Weitergabe ungültig", "invalid send mode"),
+                    col(8),
+                    SEND_MODES.join("/")
+                ));
                 continue;
             }
             let Some(active) = parse_bool(&col(9)) else {
-                res.errors.push(format!("{} {row}: {} „{}“", tr("Zeile", "Row"), tr("Aktiv ungültig (1/0)", "invalid active (1/0)"), col(9)));
+                res.errors.push(format!(
+                    "{} {row}: {} „{}“",
+                    tr("Zeile", "Row"),
+                    tr("Aktiv ungültig (1/0)", "invalid active (1/0)"),
+                    col(9)
+                ));
                 continue;
             };
             // Spalten MQTT und Topic gibt es erst ab Phase 3; fehlen sie, bleibt es wie es ist
             let has_mqtt = c.len() >= 12;
-            let Some(mqtt) = (if has_mqtt { parse_bool(&col(10)) } else { Some(false) }) else {
-                res.errors.push(format!("{} {row}: {} „{}“", tr("Zeile", "Row"), tr("MQTT ungültig (1/0)", "invalid MQTT (1/0)"), col(10)));
+            let Some(mqtt) = (if has_mqtt {
+                parse_bool(&col(10))
+            } else {
+                Some(false)
+            }) else {
+                res.errors.push(format!(
+                    "{} {row}: {} „{}“",
+                    tr("Zeile", "Row"),
+                    tr("MQTT ungültig (1/0)", "invalid MQTT (1/0)"),
+                    col(10)
+                ));
                 continue;
             };
             let topic = Some(col(11)).filter(|t| has_mqtt && !t.is_empty());
             if let Some(t) = &topic {
                 if let Err(e) = crate::mqtt::check_topic(t) {
-                    res.errors.push(format!("{} {row}: {e:#}", tr("Zeile", "Row")));
+                    res.errors
+                        .push(format!("{} {row}: {e:#}", tr("Zeile", "Row")));
                     continue;
                 }
             }
@@ -1020,13 +1191,22 @@ impl Db {
                 ..Default::default()
             };
             if wanted.name.is_empty() {
-                res.errors.push(format!("{} {row}: {}", tr("Zeile", "Row"), tr("Name fehlt", "name missing")));
+                res.errors.push(format!(
+                    "{} {row}: {}",
+                    tr("Zeile", "Row"),
+                    tr("Name fehlt", "name missing")
+                ));
                 continue;
             }
             match parse_num(&col(0)).map(|x| x as i64) {
                 Some(no) => {
                     let Some(old) = existing.get(&no) else {
-                        res.errors.push(format!("{} {row}: {} {no} {}", tr("Zeile", "Row"), tr("Nr.", "No."), tr("gibt es im Projekt nicht", "does not exist in the project")));
+                        res.errors.push(format!(
+                            "{} {row}: {} {no} {}",
+                            tr("Zeile", "Row"),
+                            tr("Nr.", "No."),
+                            tr("gibt es im Projekt nicht", "does not exist in the project")
+                        ));
                         continue;
                     };
                     let mut changed = false;
@@ -1041,17 +1221,45 @@ impl Db {
                         }
                     };
                     let fields: [(&str, String, String); 7] = [
-                        ("name", old["name"].as_str().unwrap_or("").into(), wanted.name.clone()),
-                        ("unit", old["unit"].as_str().unwrap_or("").into(), wanted.unit.clone()),
-                        ("factor", old["factor"].as_f64().unwrap_or(1.0).to_string(), wanted.factor.to_string()),
-                        ("send", old["send"].as_str().unwrap_or("").into(), wanted.send.clone()),
-                        ("active", (old["active"].as_bool().unwrap_or(false) as u8).to_string(), (wanted.active as u8).to_string()),
-                        ("mqtt", (old["mqtt"].as_bool().unwrap_or(false) as u8).to_string(), (wanted.mqtt as u8).to_string()),
+                        (
+                            "name",
+                            old["name"].as_str().unwrap_or("").into(),
+                            wanted.name.clone(),
+                        ),
+                        (
+                            "unit",
+                            old["unit"].as_str().unwrap_or("").into(),
+                            wanted.unit.clone(),
+                        ),
+                        (
+                            "factor",
+                            old["factor"].as_f64().unwrap_or(1.0).to_string(),
+                            wanted.factor.to_string(),
+                        ),
+                        (
+                            "send",
+                            old["send"].as_str().unwrap_or("").into(),
+                            wanted.send.clone(),
+                        ),
+                        (
+                            "active",
+                            (old["active"].as_bool().unwrap_or(false) as u8).to_string(),
+                            (wanted.active as u8).to_string(),
+                        ),
+                        (
+                            "mqtt",
+                            (old["mqtt"].as_bool().unwrap_or(false) as u8).to_string(),
+                            (wanted.mqtt as u8).to_string(),
+                        ),
                         // leeres Topic in der Datei: vorhandenes behalten
                         (
                             "topic",
                             old["mqtt_topic"].as_str().unwrap_or("").into(),
-                            wanted.mqtt_topic.clone().or_else(|| old["mqtt_topic"].as_str().map(String::from)).unwrap_or_default(),
+                            wanted
+                                .mqtt_topic
+                                .clone()
+                                .or_else(|| old["mqtt_topic"].as_str().map(String::from))
+                                .unwrap_or_default(),
                         ),
                     ];
                     for (field, a, b) in fields {
@@ -1074,11 +1282,20 @@ impl Db {
                         .find(|(l, m)| *l == line && m.address == address)
                         .map(|(_, m)| m);
                     let Some(meter) = meter else {
-                        res.errors.push(format!("{} {row}: {} „{line}“ / „{address}“", tr("Zeile", "Row"), tr("Zähler nicht gefunden", "meter not found")));
+                        res.errors.push(format!(
+                            "{} {row}: {} „{line}“ / „{address}“",
+                            tr("Zeile", "Row"),
+                            tr("Zähler nicht gefunden", "meter not found")
+                        ));
                         continue;
                     };
                     if parts(&wanted.key).is_none() {
-                        res.errors.push(format!("{} {row}: {} „{}“", tr("Zeile", "Row"), tr("Kennung ungültig", "invalid key"), wanted.key));
+                        res.errors.push(format!(
+                            "{} {row}: {} „{}“",
+                            tr("Zeile", "Row"),
+                            tr("Kennung ungültig", "invalid key"),
+                            wanted.key
+                        ));
                         continue;
                     }
                     res.added.push(json!({ "meter": meter_label(&meter), "key": wanted.key, "name": wanted.name }));
@@ -1188,7 +1405,15 @@ mod tests {
         assert_eq!(check(k, 100.0, Some(100.0), 0), None);
         assert_eq!(check(k, 98.0, Some(99.0), 0), Some("decreased"));
         // Temperatur darf sinken
-        assert_eq!(check("instantaneous|0|0|0|flow_temperature|°C", 20.0, Some(60.0), 0), None);
+        assert_eq!(
+            check(
+                "instantaneous|0|0|0|flow_temperature|°C",
+                20.0,
+                Some(60.0),
+                0
+            ),
+            None
+        );
         // Zähler meldet Fehler im Status
         assert_eq!(check(k, 100.0, None, 0x10), Some("status"));
     }
@@ -1218,7 +1443,16 @@ mod tests {
     fn setup() -> (Db, i64, i64, MeterReading) {
         let mut db = Db::memory().unwrap();
         let line = db.active_line().unwrap().id;
-        let m = db.add_meter(line, Meter { address: "1".into(), name: "Whg 1".into(), ..Default::default() }).unwrap();
+        let m = db
+            .add_meter(
+                line,
+                Meter {
+                    address: "1".into(),
+                    name: "Whg 1".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         let r = heat_reading();
         db.record(line, &Target::Primary(1), Ok(&r), false).unwrap();
         (db, line, m.id, r)
@@ -1234,22 +1468,36 @@ mod tests {
         assert_eq!(main.len(), 1);
         assert_eq!(main[0]["key"], ENERGY);
         assert!(values.iter().all(|v| v["selected"] == false));
-        assert_eq!(db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap(), (1, 0));
+        assert_eq!(
+            db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap(),
+            (1, 0)
+        );
         let dp = &db.dp_by_meter(mid).unwrap()[0];
         assert_eq!(dp.name, "Whg 1 · Energie");
         assert_eq!(dp.no, 1);
         assert_eq!(dp.last_value, Some(123456.0));
         // neue Auslesung: Wert und Verlauf
-        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123460.0)), false).unwrap();
+        db.record(
+            line,
+            &Target::Primary(1),
+            Ok(&with_energy(&r, 123460.0)),
+            false,
+        )
+        .unwrap();
         let dp = &db.dp_by_meter(mid).unwrap()[0];
         assert_eq!(dp.last_value, Some(123460.0));
         assert!(dp.invalid.is_none());
         // Zählerstand sinkt: ungültig, Meldung, letzter guter Wert bleibt
-        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 5.0)), false).unwrap();
+        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 5.0)), false)
+            .unwrap();
         let dp = &db.dp_by_meter(mid).unwrap()[0];
         assert_eq!(dp.invalid.as_deref(), Some("decreased"));
         assert_eq!(dp.last_good, Some(123460.0));
-        assert!(db.notes.iter().any(|n| n.contains("gesunken")), "{:?}", db.notes);
+        assert!(
+            db.notes.iter().any(|n| n.contains("gesunken")),
+            "{:?}",
+            db.notes
+        );
         let m = db.meter(mid).unwrap();
         assert_eq!(quality(dp, &m, Plan::Off, crate::clock::now()), "invalid");
         // abwählen löscht, Nummer wird nicht wieder vergeben
@@ -1266,7 +1514,10 @@ mod tests {
         let mut new = with_energy(&r, 10.0);
         new.header.as_mut().unwrap().id = "99999999".into();
         let lines = db.exchange_meter(mid, "5", &new).unwrap();
-        assert!(lines[0].contains("123456") && lines[0].contains("10"), "{lines:?}");
+        assert!(
+            lines[0].contains("123456") && lines[0].contains("10"),
+            "{lines:?}"
+        );
         let dp = &db.dp_by_meter(mid).unwrap()[0];
         assert_eq!(dp.last_value, Some(123456.0));
         assert!(dp.invalid.is_none());
@@ -1274,9 +1525,19 @@ mod tests {
         assert_eq!(m.address, "5");
         assert_eq!(m.meter_id.as_deref(), Some("99999999"));
         // weiter: neuer Zähler bei 12 kWh → 123458
-        db.record(line, &Target::Primary(5), Ok(&with_energy(&new, 12.0)), false).unwrap();
+        db.record(
+            line,
+            &Target::Primary(5),
+            Ok(&with_energy(&new, 12.0)),
+            false,
+        )
+        .unwrap();
         assert_eq!(db.dp_by_meter(mid).unwrap()[0].last_value, Some(123458.0));
-        assert!(db.changes(1).unwrap().iter().any(|c| c.text.contains("getauscht")));
+        assert!(db
+            .changes(1)
+            .unwrap()
+            .iter()
+            .any(|c| c.text.contains("getauscht")));
     }
 
     #[test]
@@ -1298,13 +1559,22 @@ mod tests {
         new[5] = "Wohnung 1 Volumen".into();
         new[6] = "m³".into();
         new[7] = "1".into();
-        let text = format!("{}\n{}\n{}\n", csv.lines().next().unwrap(), c.join(";"), new.join(";"));
+        let text = format!(
+            "{}\n{}\n{}\n",
+            csv.lines().next().unwrap(),
+            c.join(";"),
+            new.join(";")
+        );
         let preview = db.dp_import(1, &text, false, Lang::De).unwrap();
         assert!(preview.errors.is_empty(), "{:?}", preview.errors);
         assert_eq!(preview.changes.len(), 4);
         assert_eq!(preview.added.len(), 1);
         assert!(!preview.applied);
-        assert_eq!(db.dp_by_meter(mid).unwrap().len(), 1, "Vorschau ändert nichts");
+        assert_eq!(
+            db.dp_by_meter(mid).unwrap().len(),
+            1,
+            "Vorschau ändert nichts"
+        );
         let done = db.dp_import(1, &text, true, Lang::De).unwrap();
         assert!(done.applied);
         let dps = db.dp_by_meter(mid).unwrap();
@@ -1315,7 +1585,9 @@ mod tests {
         assert_eq!(dps[0].last_value, Some(123.456));
         assert_eq!(dps[1].name, "Wohnung 1 Volumen");
         // fehlerhafte Zeile: nichts wird übernommen
-        let bad = db.dp_import(1, "99;x;x;x;x;x;x;1;every;1", true, Lang::De).unwrap();
+        let bad = db
+            .dp_import(1, "99;x;x;x;x;x;x;1;every;1", true, Lang::De)
+            .unwrap();
         assert!(!bad.applied && bad.errors.len() == 1);
     }
 
@@ -1324,16 +1596,27 @@ mod tests {
         let (mut db, line, mid, r) = setup();
         let medium = db.meter(mid).unwrap().medium.unwrap();
         db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
-        db.template_save(line, &medium, &[ENERGY.to_string()], true, false, Lang::De).unwrap();
+        db.template_save(line, &medium, &[ENERGY.to_string()], true, false, Lang::De)
+            .unwrap();
         // neuer Zähler gleicher Art: nach der ersten Auslesung hat er den Datenpunkt
-        let m2 = db.add_meter(line, Meter { address: "8".into(), ..Default::default() }).unwrap();
+        let m2 = db
+            .add_meter(
+                line,
+                Meter {
+                    address: "8".into(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
         let mut r2 = r.clone();
         r2.primary_address = 8;
-        db.record(line, &Target::Primary(8), Ok(&r2), false).unwrap();
+        db.record(line, &Target::Primary(8), Ok(&r2), false)
+            .unwrap();
         assert_eq!(db.dp_by_meter(m2.id).unwrap().len(), 1);
         // gelöscht bleibt gelöscht (Vorlage gilt nur einmal je Zähler)
         db.dp_select(m2.id, &[], Lang::De).unwrap();
-        db.record(line, &Target::Primary(8), Ok(&r2), false).unwrap();
+        db.record(line, &Target::Primary(8), Ok(&r2), false)
+            .unwrap();
         assert!(db.dp_by_meter(m2.id).unwrap().is_empty());
     }
 
@@ -1342,14 +1625,24 @@ mod tests {
         let (mut db, line, mid, _r) = setup();
         let medium = db.meter(mid).unwrap().medium.unwrap();
         db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
-        db.template_save(line, &medium, &[ENERGY.to_string()], true, false, Lang::De).unwrap();
+        db.template_save(line, &medium, &[ENERGY.to_string()], true, false, Lang::De)
+            .unwrap();
         let exported = db.export_project(1).unwrap();
         let pid = db.import_project(&exported).unwrap();
         let list = db.dp_list(None, Some(pid)).unwrap();
         assert_eq!(list.len(), 1);
         assert_eq!(list[0]["no"], 1);
         assert_eq!(list[0]["key"], ENERGY);
-        let new_line = db.tree().unwrap().into_iter().find(|p| p.project.id == pid).unwrap().gateways[0].lines[0].line.id;
+        let new_line = db
+            .tree()
+            .unwrap()
+            .into_iter()
+            .find(|p| p.project.id == pid)
+            .unwrap()
+            .gateways[0]
+            .lines[0]
+            .line
+            .id;
         assert_eq!(db.templates(new_line).unwrap().len(), 1);
     }
 
@@ -1371,18 +1664,37 @@ mod tests {
         assert_eq!(first["quality"], "good");
         assert_eq!(first["unit"], "kWh");
         // jede Auslesung
-        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123457.0)), false).unwrap();
+        db.record(
+            line,
+            &Target::Primary(1),
+            Ok(&with_energy(&r, 123457.0)),
+            false,
+        )
+        .unwrap();
         assert_eq!(q(&db).len(), 2);
         // nur bei Änderung: gleicher Wert nicht, anderer schon
         let mut d = db.dp(id).unwrap();
         d.send = "change".into();
         db.dp_update(id, &d).unwrap();
-        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123457.0)), false).unwrap();
+        db.record(
+            line,
+            &Target::Primary(1),
+            Ok(&with_energy(&r, 123457.0)),
+            false,
+        )
+        .unwrap();
         assert_eq!(q(&db).len(), 2);
-        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123458.0)), false).unwrap();
+        db.record(
+            line,
+            &Target::Primary(1),
+            Ok(&with_energy(&r, 123458.0)),
+            false,
+        )
+        .unwrap();
         assert_eq!(q(&db).len(), 3);
         // gesunken: geht als ungültig raus
-        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 1.0)), false).unwrap();
+        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 1.0)), false)
+            .unwrap();
         let last: Value = serde_json::from_str(&q(&db).last().unwrap().2).unwrap();
         assert_eq!(last["quality"], "invalid");
         // Zähler umbenannt: Topic bleibt
@@ -1392,7 +1704,13 @@ mod tests {
         assert_eq!(db.dp(id).unwrap().mqtt_topic.unwrap(), topic);
         // MQTT aus: nichts mehr
         db.mqtt_enabled = false;
-        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123460.0)), false).unwrap();
+        db.record(
+            line,
+            &Target::Primary(1),
+            Ok(&with_energy(&r, 123460.0)),
+            false,
+        )
+        .unwrap();
         assert_eq!(q(&db).len(), 4);
         // zweiter Datenpunkt mit gleichem Vorschlag bekommt ein eindeutiges Topic
         assert!(crate::mqtt::check_topic(&topic).is_ok());
@@ -1400,7 +1718,10 @@ mod tests {
 
     #[test]
     fn csv_split_handles_quotes() {
-        assert_eq!(csv_split(r#"1;"A; B";"say ""hi""";x"#), vec!["1", "A; B", "say \"hi\"", "x"]);
+        assert_eq!(
+            csv_split(r#"1;"A; B";"say ""hi""";x"#),
+            vec!["1", "A; B", "say \"hi\"", "x"]
+        );
         assert_eq!(parse_num("0,001"), Some(0.001));
         assert_eq!(parse_num("1'234.5"), Some(1234.5));
     }

@@ -32,9 +32,8 @@ impl Plan {
     pub fn parse(s: &str) -> Result<Plan> {
         let s = s.trim();
         let time = |t: &str| {
-            NaiveTime::parse_from_str(t.trim(), "%H:%M").map_err(|_| {
-                anyhow::anyhow!("{}: {t}", tr("Ungültige Uhrzeit", "Invalid time"))
-            })
+            NaiveTime::parse_from_str(t.trim(), "%H:%M")
+                .map_err(|_| anyhow::anyhow!("{}: {t}", tr("Ungültige Uhrzeit", "Invalid time")))
         };
         Ok(match s.split_once(' ') {
             Some(("daily", t)) => Plan::Daily(time(t)?),
@@ -42,7 +41,10 @@ impl Plan {
             None if s == "off" => Plan::Off,
             None if s == "hourly" => Plan::Hourly,
             None if s == "15min" => Plan::Quarter,
-            _ => bail!("{}: {s}", tr("Unbekannter Ausleseplan", "Unknown read plan")),
+            _ => bail!(
+                "{}: {s}",
+                tr("Unbekannter Ausleseplan", "Unknown read plan")
+            ),
         })
     }
 
@@ -168,7 +170,11 @@ pub fn parse_time(s: &str) -> Option<NaiveDateTime> {
 
 pub fn due(plan: Plan, state: &State, now: NaiveDateTime) -> Due {
     let Some(prev) = plan.prev_slot(now) else {
-        return if state.key.is_some() { Due::Reset } else { Due::No };
+        return if state.key.is_some() {
+            Due::Reset
+        } else {
+            Due::No
+        };
     };
     if state.key.as_deref() != Some(plan.key().as_str()) {
         return Due::Start(prev);
@@ -241,12 +247,21 @@ mod tests {
         let daily = Plan::parse("daily 00:05").unwrap();
         assert_eq!(daily.prev_slot(now), Some(t("2026-10-17 00:05")));
         assert_eq!(daily.next_slot(now), Some(t("2026-10-18 00:05")));
-        assert_eq!(daily.prev_slot(t("2026-10-17 00:04")), Some(t("2026-10-16 00:05")));
+        assert_eq!(
+            daily.prev_slot(t("2026-10-17 00:04")),
+            Some(t("2026-10-16 00:05"))
+        );
         let monthly = Plan::parse("monthly 00:05").unwrap();
         assert_eq!(monthly.prev_slot(now), Some(t("2026-10-01 00:05")));
         assert_eq!(monthly.next_slot(now), Some(t("2026-11-01 00:05")));
-        assert_eq!(monthly.prev_slot(t("2026-01-01 00:00")), Some(t("2025-12-01 00:05")));
-        assert_eq!(monthly.next_slot(t("2026-12-05 00:00")), Some(t("2027-01-01 00:05")));
+        assert_eq!(
+            monthly.prev_slot(t("2026-01-01 00:00")),
+            Some(t("2025-12-01 00:05"))
+        );
+        assert_eq!(
+            monthly.next_slot(t("2026-12-05 00:00")),
+            Some(t("2027-01-01 00:05"))
+        );
         assert_eq!(Plan::Off.prev_slot(now), None);
     }
 
@@ -254,7 +269,10 @@ mod tests {
     fn new_plan_starts_with_the_next_term() {
         let daily = Plan::parse("daily 00:05").unwrap();
         let now = t("2026-10-17 14:00");
-        assert_eq!(due(daily, &State::default(), now), Due::Start(t("2026-10-17 00:05")));
+        assert_eq!(
+            due(daily, &State::default(), now),
+            Due::Start(t("2026-10-17 00:05"))
+        );
         // anderer Plan als gemerkt: ebenfalls neu beginnen
         assert_eq!(
             due(daily, &st("hourly", "2026-10-17 14:00"), now),
@@ -267,7 +285,10 @@ mod tests {
         let daily = Plan::parse("daily 00:05").unwrap();
         let s = st("daily 00:05", "2026-10-17 00:05");
         assert_eq!(due(daily, &s, t("2026-10-17 23:59")), Due::No);
-        assert_eq!(due(daily, &s, t("2026-10-18 00:05")), Due::Read(t("2026-10-18 00:05")));
+        assert_eq!(
+            due(daily, &s, t("2026-10-18 00:05")),
+            Due::Read(t("2026-10-18 00:05"))
+        );
         let done = st("daily 00:05", "2026-10-18 00:05");
         assert_eq!(due(daily, &done, t("2026-10-18 00:06")), Due::No);
     }
@@ -277,9 +298,15 @@ mod tests {
         // über Nacht aus, 3 Tage verpasst: einmal lesen, Termin = letzter fälliger
         let daily = Plan::parse("daily 00:05").unwrap();
         let s = st("daily 00:05", "2026-10-14 00:05");
-        assert_eq!(due(daily, &s, t("2026-10-17 08:00")), Due::Read(t("2026-10-17 00:05")));
+        assert_eq!(
+            due(daily, &s, t("2026-10-17 08:00")),
+            Due::Read(t("2026-10-17 00:05"))
+        );
         let q = st("15min", "2026-10-17 06:00");
-        assert_eq!(due(Plan::Quarter, &q, t("2026-10-17 08:07")), Due::Read(t("2026-10-17 08:00")));
+        assert_eq!(
+            due(Plan::Quarter, &q, t("2026-10-17 08:07")),
+            Due::Read(t("2026-10-17 08:00"))
+        );
     }
 
     #[test]
@@ -287,7 +314,10 @@ mod tests {
         let mut s = st("hourly", "2026-10-17 10:00");
         s.pause = Some(pause_until(t("2026-10-17 10:00")));
         assert_eq!(due(Plan::Hourly, &s, t("2026-10-17 23:00")), Due::No);
-        assert_eq!(due(Plan::Hourly, &s, t("2026-10-18 00:00")), Due::Read(t("2026-10-18 00:00")));
+        assert_eq!(
+            due(Plan::Hourly, &s, t("2026-10-18 00:00")),
+            Due::Read(t("2026-10-18 00:00"))
+        );
     }
 
     #[test]
@@ -296,23 +326,45 @@ mod tests {
         let s = st("15min", "2026-10-25 02:45");
         assert_eq!(due(Plan::Quarter, &s, t("2026-10-25 02:05")), Due::No);
         assert_eq!(due(Plan::Quarter, &s, t("2026-10-25 02:50")), Due::No);
-        assert_eq!(due(Plan::Quarter, &s, t("2026-10-25 03:00")), Due::Read(t("2026-10-25 03:00")));
+        assert_eq!(
+            due(Plan::Quarter, &s, t("2026-10-25 03:00")),
+            Due::Read(t("2026-10-25 03:00"))
+        );
         // Uhr weit zurück (z.B. falsche Zeit korrigiert): Termine neu ausrichten statt warten
         let s = st("hourly", "2026-10-17 12:00");
-        assert_eq!(due(Plan::Hourly, &s, t("2026-10-16 08:30")), Due::Start(t("2026-10-16 08:00")));
+        assert_eq!(
+            due(Plan::Hourly, &s, t("2026-10-16 08:30")),
+            Due::Start(t("2026-10-16 08:00"))
+        );
     }
 
     #[test]
     fn turned_off_forgets_state() {
-        assert_eq!(due(Plan::Off, &st("hourly", "2026-10-17 12:00"), t("2026-10-17 13:00")), Due::Reset);
-        assert_eq!(due(Plan::Off, &State::default(), t("2026-10-17 13:00")), Due::No);
+        assert_eq!(
+            due(
+                Plan::Off,
+                &st("hourly", "2026-10-17 12:00"),
+                t("2026-10-17 13:00")
+            ),
+            Due::Reset
+        );
+        assert_eq!(
+            due(Plan::Off, &State::default(), t("2026-10-17 13:00")),
+            Due::No
+        );
     }
 
     #[test]
     fn inheritance() {
         assert_eq!(effective(None, None, "off"), (Plan::Off, "project"));
-        assert_eq!(effective(None, Some("hourly"), "off"), (Plan::Hourly, "line"));
-        assert_eq!(effective(Some("off"), Some("hourly"), "daily 00:05"), (Plan::Off, "meter"));
+        assert_eq!(
+            effective(None, Some("hourly"), "off"),
+            (Plan::Hourly, "line")
+        );
+        assert_eq!(
+            effective(Some("off"), Some("hourly"), "daily 00:05"),
+            (Plan::Off, "meter")
+        );
         assert_eq!(effective(None, None, "15min"), (Plan::Quarter, "project"));
     }
 

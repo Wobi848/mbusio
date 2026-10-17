@@ -68,7 +68,10 @@ pub fn analyze(bytes: &[u8]) -> Analysis {
             out.add(
                 &bytes[..1],
                 "ACK".into(),
-                tr("Quittung: Telegramm angenommen", "Acknowledge: telegram accepted"),
+                tr(
+                    "Quittung: Telegramm angenommen",
+                    "Acknowledge: telegram accepted",
+                ),
             );
             extra(&mut out, &bytes[1..]);
             tr("Quittung (E5)", "Acknowledge (E5)")
@@ -112,7 +115,14 @@ fn extra(out: &mut Out, rest: &[u8]) {
 }
 
 fn missing(out: &mut Out, name: String) {
-    out.bad(&[], name, tr("fehlt (Telegramm abgeschnitten)", "missing (telegram cut off)"));
+    out.bad(
+        &[],
+        name,
+        tr(
+            "fehlt (Telegramm abgeschnitten)",
+            "missing (telegram cut off)",
+        ),
+    );
 }
 
 fn control(c: u8) -> String {
@@ -141,7 +151,10 @@ fn control(c: u8) -> String {
 
 fn address(a: u8) -> String {
     match a {
-        0 => tr("0 (Werkseinstellung, nicht konfiguriert)", "0 (factory default, not configured)"),
+        0 => tr(
+            "0 (Werkseinstellung, nicht konfiguriert)",
+            "0 (factory default, not configured)",
+        ),
         1..=250 => format!("{a}"),
         251 | 252 => format!("{a} ({})", tr("reserviert", "reserved")),
         253 => tr(
@@ -160,7 +173,11 @@ fn address(a: u8) -> String {
 }
 
 fn short(out: &mut Out, b: &[u8]) -> String {
-    out.add(&b[..1], tr("Start", "Start"), tr("Kurztelegramm", "Short frame"));
+    out.add(
+        &b[..1],
+        tr("Start", "Start"),
+        tr("Kurztelegramm", "Short frame"),
+    );
     let names = [
         tr("Steuerfeld (C)", "Control (C)"),
         tr("Adresse (A)", "Address (A)"),
@@ -202,13 +219,21 @@ fn short(out: &mut Out, b: &[u8]) -> String {
 fn stop(out: &mut Out, b: &[u8], at: usize, name: String) {
     match b.get(at) {
         Some(0x16) => out.add(&b[at..at + 1], name, tr("stimmt", "correct")),
-        Some(_) => out.bad(&b[at..at + 1], name, tr("falsch, erwartet 16", "wrong, expected 16")),
+        Some(_) => out.bad(
+            &b[at..at + 1],
+            name,
+            tr("falsch, erwartet 16", "wrong, expected 16"),
+        ),
         None => missing(out, name),
     }
 }
 
 fn long(out: &mut Out, b: &[u8]) -> String {
-    out.add(&b[..1], tr("Start", "Start"), tr("Langtelegramm", "Long frame"));
+    out.add(
+        &b[..1],
+        tr("Start", "Start"),
+        tr("Langtelegramm", "Long frame"),
+    );
     let Some(&l) = b.get(1) else {
         missing(out, tr("Länge (L)", "Length (L)"));
         return tr("Langtelegramm (abgeschnitten)", "Long frame (cut off)");
@@ -216,16 +241,35 @@ fn long(out: &mut Out, b: &[u8]) -> String {
     out.add(
         &b[1..2],
         tr("Länge (L)", "Length (L)"),
-        format!("{l} {}", tr("Bytes von C bis Daten", "bytes from C to data")),
+        format!(
+            "{l} {}",
+            tr("Bytes von C bis Daten", "bytes from C to data")
+        ),
     );
     match b.get(2) {
-        Some(&l2) if l2 == l => out.add(&b[2..3], tr("Länge (Wiederholung)", "Length (repeat)"), tr("stimmt", "correct")),
-        Some(_) => out.bad(&b[2..3], tr("Länge (Wiederholung)", "Length (repeat)"), tr("weicht ab", "differs")),
+        Some(&l2) if l2 == l => out.add(
+            &b[2..3],
+            tr("Länge (Wiederholung)", "Length (repeat)"),
+            tr("stimmt", "correct"),
+        ),
+        Some(_) => out.bad(
+            &b[2..3],
+            tr("Länge (Wiederholung)", "Length (repeat)"),
+            tr("weicht ab", "differs"),
+        ),
         None => missing(out, tr("Länge (Wiederholung)", "Length (repeat)")),
     }
     match b.get(3) {
-        Some(0x68) => out.add(&b[3..4], tr("Start (Wiederholung)", "Start (repeat)"), "68".into()),
-        Some(_) => out.bad(&b[3..4], tr("Start (Wiederholung)", "Start (repeat)"), tr("falsch, erwartet 68", "wrong, expected 68")),
+        Some(0x68) => out.add(
+            &b[3..4],
+            tr("Start (Wiederholung)", "Start (repeat)"),
+            "68".into(),
+        ),
+        Some(_) => out.bad(
+            &b[3..4],
+            tr("Start (Wiederholung)", "Start (repeat)"),
+            tr("falsch, erwartet 68", "wrong, expected 68"),
+        ),
         None => missing(out, tr("Start (Wiederholung)", "Start (repeat)")),
     }
     let l = l as usize;
@@ -241,7 +285,12 @@ fn long(out: &mut Out, b: &[u8]) -> String {
         None => missing(out, tr("Adresse (A)", "Address (A)")),
     }
     let summary = match (c, a) {
-        (Some(&c), Some(&a)) => format!("{} · {} {}", control(c), tr("Adresse", "address"), address(a)),
+        (Some(&c), Some(&a)) => format!(
+            "{} · {} {}",
+            control(c),
+            tr("Adresse", "address"),
+            address(a)
+        ),
         _ => tr("Langtelegramm (abgeschnitten)", "Long frame (cut off)"),
     };
     if let Some(&ci) = ci {
@@ -265,7 +314,11 @@ fn long(out: &mut Out, b: &[u8]) -> String {
         Some(&cs) => {
             let want = checksum(body);
             if cs == want {
-                out.add(&b[cs_at..cs_at + 1], tr("Prüfsumme", "Checksum"), tr("stimmt", "correct"));
+                out.add(
+                    &b[cs_at..cs_at + 1],
+                    tr("Prüfsumme", "Checksum"),
+                    tr("stimmt", "correct"),
+                );
             } else {
                 out.bad(
                     &b[cs_at..cs_at + 1],
@@ -293,9 +346,18 @@ fn application(out: &mut Out, ci: u8, d: &[u8], _at: usize) {
         0x51 => tr("Daten an den Zähler", "Data to the meter"),
         0x52 => tr("Sekundäradresse selektieren", "Select secondary address"),
         0x70 => tr("Fehlermeldung des Zählers", "Error report from the meter"),
-        0x72 => tr("Antwort, variable Datenstruktur, langer Kopf", "Reply, variable data structure, long header"),
-        0x7A => tr("Antwort, variable Datenstruktur, kurzer Kopf", "Reply, variable data structure, short header"),
-        0x73 => tr("Antwort, feste Datenstruktur", "Reply, fixed data structure"),
+        0x72 => tr(
+            "Antwort, variable Datenstruktur, langer Kopf",
+            "Reply, variable data structure, long header",
+        ),
+        0x7A => tr(
+            "Antwort, variable Datenstruktur, kurzer Kopf",
+            "Reply, variable data structure, short header",
+        ),
+        0x73 => tr(
+            "Antwort, feste Datenstruktur",
+            "Reply, fixed data structure",
+        ),
         0xB8..=0xBF => format!(
             "{} {} Bd",
             tr("Baudrate umstellen auf", "Switch baud rate to"),
@@ -307,7 +369,11 @@ fn application(out: &mut Out, ci: u8, d: &[u8], _at: usize) {
     match ci {
         0x72 => {
             if d.len() < 12 {
-                out.bad(d, tr("Datenkopf", "Data header"), tr("zu kurz", "too short"));
+                out.bad(
+                    d,
+                    tr("Datenkopf", "Data header"),
+                    tr("zu kurz", "too short"),
+                );
                 return;
             }
             long_header(out, &d[..12]);
@@ -315,21 +381,63 @@ fn application(out: &mut Out, ci: u8, d: &[u8], _at: usize) {
         }
         0x7A => {
             if d.len() < 4 {
-                out.bad(d, tr("Datenkopf", "Data header"), tr("zu kurz", "too short"));
+                out.bad(
+                    d,
+                    tr("Datenkopf", "Data header"),
+                    tr("zu kurz", "too short"),
+                );
                 return;
             }
-            out.add(&d[..1], tr("Zugriffsnummer", "Access number"), d[0].to_string());
+            out.add(
+                &d[..1],
+                tr("Zugriffsnummer", "Access number"),
+                d[0].to_string(),
+            );
             status(out, d[1]);
             signature(out, &d[2..4]);
             records(out, &d[4..]);
         }
         0x52 if d.len() >= 8 => {
-            let wild = |s: String| if s.chars().all(|c| c == 'F') { tr("beliebig", "any") } else { s };
-            out.add(&d[..4], "ID".into(), wild(format!("{:02X}{:02X}{:02X}{:02X}", d[3], d[2], d[1], d[0])));
+            let wild = |s: String| {
+                if s.chars().all(|c| c == 'F') {
+                    tr("beliebig", "any")
+                } else {
+                    s
+                }
+            };
+            out.add(
+                &d[..4],
+                "ID".into(),
+                wild(format!("{:02X}{:02X}{:02X}{:02X}", d[3], d[2], d[1], d[0])),
+            );
             let man = u16::from_le_bytes([d[4], d[5]]);
-            out.add(&d[4..6], tr("Hersteller", "Manufacturer"), if man == 0xFFFF { tr("beliebig", "any") } else { tables::manufacturer(man) });
-            out.add(&d[6..7], tr("Version", "Version"), if d[6] == 0xFF { tr("beliebig", "any") } else { d[6].to_string() });
-            out.add(&d[7..8], "Medium".into(), if d[7] == 0xFF { tr("beliebig", "any") } else { label(tables::medium_key(d[7]), i18n::current()) });
+            out.add(
+                &d[4..6],
+                tr("Hersteller", "Manufacturer"),
+                if man == 0xFFFF {
+                    tr("beliebig", "any")
+                } else {
+                    tables::manufacturer(man)
+                },
+            );
+            out.add(
+                &d[6..7],
+                tr("Version", "Version"),
+                if d[6] == 0xFF {
+                    tr("beliebig", "any")
+                } else {
+                    d[6].to_string()
+                },
+            );
+            out.add(
+                &d[7..8],
+                "Medium".into(),
+                if d[7] == 0xFF {
+                    tr("beliebig", "any")
+                } else {
+                    label(tables::medium_key(d[7]), i18n::current())
+                },
+            );
         }
         0x51 => records(out, d),
         0x70 => {
@@ -366,13 +474,29 @@ fn long_header(out: &mut Out, h: &[u8]) {
     if id.chars().all(|c| c.is_ascii_digit()) {
         out.add(&h[..4], "ID".into(), id);
     } else {
-        out.bad(&h[..4], "ID".into(), format!("{id} ({})", tr("kein gültiges BCD", "not valid BCD")));
+        out.bad(
+            &h[..4],
+            "ID".into(),
+            format!("{id} ({})", tr("kein gültiges BCD", "not valid BCD")),
+        );
     }
     let man = u16::from_le_bytes([h[4], h[5]]);
-    out.add(&h[4..6], tr("Hersteller", "Manufacturer"), tables::manufacturer(man));
+    out.add(
+        &h[4..6],
+        tr("Hersteller", "Manufacturer"),
+        tables::manufacturer(man),
+    );
     out.add(&h[6..7], tr("Version", "Version"), h[6].to_string());
-    out.add(&h[7..8], "Medium".into(), label(tables::medium_key(h[7]), i18n::current()));
-    out.add(&h[8..9], tr("Zugriffsnummer", "Access number"), h[8].to_string());
+    out.add(
+        &h[7..8],
+        "Medium".into(),
+        label(tables::medium_key(h[7]), i18n::current()),
+    );
+    out.add(
+        &h[8..9],
+        tr("Zugriffsnummer", "Access number"),
+        h[8].to_string(),
+    );
     status(out, h[9]);
     signature(out, &h[10..12]);
 }
@@ -407,7 +531,10 @@ fn status(out: &mut Out, s: u8) {
         parts.push(tr("vorübergehender Fehler", "temporary error"));
     }
     if s & 0xE0 != 0 {
-        parts.push(tr("herstellerspezifische Bits", "manufacturer-specific bits"));
+        parts.push(tr(
+            "herstellerspezifische Bits",
+            "manufacturer-specific bits",
+        ));
     }
     let name = tr("Status", "Status");
     if parts.is_empty() {
@@ -467,7 +594,9 @@ mod tests {
     use super::*;
 
     fn bytes(h: &str) -> Vec<u8> {
-        h.split_whitespace().map(|x| u8::from_str_radix(x, 16).unwrap()).collect()
+        h.split_whitespace()
+            .map(|x| u8::from_str_radix(x, 16).unwrap())
+            .collect()
     }
 
     #[test]
@@ -476,16 +605,29 @@ mod tests {
             "68 1F 1F 68 08 02 72 78 56 34 12 24 40 01 07 55 00 00 00 03 13 15 31 00 DA 02 3B 13 01 8B 60 04 37 18 02 18 16",
         ));
         assert!(a.problems.is_empty(), "{:?}", a.problems);
-        assert!(a.fields.iter().any(|f| f.name == "ID" && f.value == "12345678"));
+        assert!(a
+            .fields
+            .iter()
+            .any(|f| f.name == "ID" && f.value == "12345678"));
         assert!(a.fields.iter().any(|f| f.value.contains("PAD")));
     }
 
     #[test]
     fn finds_checksum_truncation_and_extra_bytes() {
         let a = analyze(&bytes("10 7B 01 00 16"));
-        assert!(a.fields.iter().any(|f| f.bad && f.value.contains("7C")), "{:?}", a.fields);
+        assert!(
+            a.fields.iter().any(|f| f.bad && f.value.contains("7C")),
+            "{:?}",
+            a.fields
+        );
         let a = analyze(&bytes("68 1F 1F 68 08 02 72 78 56 34 12"));
-        assert!(a.problems.iter().any(|p| p.contains("abgeschnitten") || p.contains("cut off")), "{:?}", a.problems);
+        assert!(
+            a.problems
+                .iter()
+                .any(|p| p.contains("abgeschnitten") || p.contains("cut off")),
+            "{:?}",
+            a.problems
+        );
         let a = analyze(&bytes("E5 E5"));
         assert!(a.fields.iter().any(|f| f.bad));
         let a = analyze(&bytes("68 04 04 68 08 0B 70 08 8B 16"));

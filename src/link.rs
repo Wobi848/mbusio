@@ -91,7 +91,8 @@ impl TcpLink {
             .with_context(context)?
             .next()
             .with_context(context)?;
-        let stream = TcpStream::connect_timeout(&sock, Duration::from_secs(3)).with_context(context)?;
+        let stream =
+            TcpStream::connect_timeout(&sock, Duration::from_secs(3)).with_context(context)?;
         stream.set_nodelay(true)?;
         Ok(Self { stream })
     }
@@ -109,10 +110,18 @@ impl Link for TcpLink {
         match self.stream.read(buf) {
             Ok(0) => Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
-                tr("Gateway hat die Verbindung geschlossen", "Gateway closed the connection"),
+                tr(
+                    "Gateway hat die Verbindung geschlossen",
+                    "Gateway closed the connection",
+                ),
             )),
             Ok(n) => Ok(n),
-            Err(e) if matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => {
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+                ) =>
+            {
                 Ok(0)
             }
             Err(e) => Err(e),

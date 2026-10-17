@@ -147,16 +147,20 @@ fn run_command(args: &Args, cmd: &Cmd) -> anyhow::Result<()> {
             bauds,
         } => {
             let mut hits = Vec::new();
-            m.scan_with(choice(*all_bauds, bauds), &mut collect(&mut hits), &mut |m, p| {
-                m.scan_primary(*from, *to, *retries, p)
-            })?;
+            m.scan_with(
+                choice(*all_bauds, bauds),
+                &mut collect(&mut hits),
+                &mut |m, p| m.scan_primary(*from, *to, *retries, p),
+            )?;
             serde_json::to_value(hits)?
         }
         Cmd::ScanSecondary { all_bauds, bauds } => {
             let mut hits = Vec::new();
-            m.scan_with(choice(*all_bauds, bauds), &mut collect(&mut hits), &mut |m, p| {
-                m.scan_secondary(p)
-            })?;
+            m.scan_with(
+                choice(*all_bauds, bauds),
+                &mut collect(&mut hits),
+                &mut |m, p| m.scan_secondary(p),
+            )?;
             serde_json::to_value(hits)?
         }
         Cmd::BusBauds => serde_json::json!({ "bauds": m.bus_bauds(&[])? }),
@@ -210,7 +214,8 @@ fn open_browser(url: &str) {
             .spawn()
     } else if cfg!(target_os = "macos") {
         std::process::Command::new("open").arg(url).spawn()
-    } else if std::env::var_os("DISPLAY").is_some() || std::env::var_os("WAYLAND_DISPLAY").is_some() {
+    } else if std::env::var_os("DISPLAY").is_some() || std::env::var_os("WAYLAND_DISPLAY").is_some()
+    {
         std::process::Command::new("xdg-open").arg(url).spawn()
     } else {
         return;
@@ -296,7 +301,10 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
         // Port belegt: meist läuft mbusio schon (zweiter Doppelklick), dann nur den Browser öffnen
         Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !args.no_browser => {
             let url = format!("http://localhost:{}", args.http_port);
-            println!("Port {} belegt, mbusio läuft vermutlich schon / already running: {url}", args.http_port);
+            println!(
+                "Port {} belegt, mbusio läuft vermutlich schon / already running: {url}",
+                args.http_port
+            );
             open_browser(&url);
             return Ok(());
         }

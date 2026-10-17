@@ -32,7 +32,11 @@ const GB: u64 = 1024 * 1024 * 1024;
 /// Prozent nach Konzept; auf grossen Platten zählt zusätzlich der absolute Platz, sonst würde
 /// ein Laptop mit 2 TB schon bei 400 GB frei warnen
 pub fn level_of(free: u64, total: u64) -> Level {
-    let pct = if total == 0 { 100.0 } else { free as f64 * 100.0 / total as f64 };
+    let pct = if total == 0 {
+        100.0
+    } else {
+        free as f64 * 100.0 / total as f64
+    };
     if (pct < 5.0 && free < GB) || free < 200 * 1024 * 1024 {
         Level::Full
     } else if (pct < 20.0 && free < 10 * GB) || free < GB {
@@ -47,7 +51,11 @@ pub fn check(dir: &Path, db_bytes: u64) -> DiskState {
     match (fs4::available_space(dir), fs4::total_space(dir)) {
         (Ok(free), Ok(total)) => DiskState {
             level: level_of(free, total),
-            free_pct: if total == 0 { 100.0 } else { free as f64 * 100.0 / total as f64 },
+            free_pct: if total == 0 {
+                100.0
+            } else {
+                free as f64 * 100.0 / total as f64
+            },
             free_bytes: free,
             db_bytes,
         },

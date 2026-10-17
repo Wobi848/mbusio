@@ -215,7 +215,9 @@ fn run(inner: Arc<Inner>) {
                         w(Err(tr("Verbindung getrennt", "Disconnected")));
                     }
                     if master.take().is_some() {
-                        inner.log.push("INFO", tr("Verbindung getrennt", "Disconnected"));
+                        inner
+                            .log
+                            .push("INFO", tr("Verbindung getrennt", "Disconnected"));
                     }
                     *inner.status.lock().unwrap() = LineStatus::default();
                     return;
@@ -343,7 +345,9 @@ mod tests {
     fn reads_and_reports_status() {
         let s = sim();
         let r = s
-            .run(Lang::De, |m| m.read_meter(&crate::mbus::master::Target::Primary(1)))
+            .run(Lang::De, |m| {
+                m.read_meter(&crate::mbus::master::Target::Primary(1))
+            })
             .unwrap();
         assert_eq!(r.header.unwrap().id, "12345678");
         // "arbeitet" geht erst kurz nach dem Ergebnis aus

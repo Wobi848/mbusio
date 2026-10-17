@@ -107,8 +107,8 @@ fn system_source() -> Option<&'static str> {
         if ntp {
             return Some("ntp");
         }
-        let rtc = std::fs::read_to_string("/sys/class/rtc/rtc0/hctosys")
-            .is_ok_and(|s| s.trim() == "1");
+        let rtc =
+            std::fs::read_to_string("/sys/class/rtc/rtc0/hctosys").is_ok_and(|s| s.trim() == "1");
         rtc.then_some("rtc")
     } else {
         Some("system")
@@ -154,7 +154,10 @@ pub fn set_from_browser(epoch_ms: i64) -> Option<f64> {
 /// Uhrzeit aus einer Quelle übernehmen ("browser", "mqtt"); eine echte Systemquelle (NTP,
 /// Uhr-Modul) hat Vorrang und wird nicht überschrieben
 pub fn set_from(source: &str, epoch_ms: i64) -> Option<f64> {
-    if matches!(CLOCK.lock().unwrap().state.source.as_deref(), Some("ntp" | "rtc" | "system")) {
+    if matches!(
+        CLOCK.lock().unwrap().state.source.as_deref(),
+        Some("ntp" | "rtc" | "system")
+    ) {
         return Some(0.0);
     }
     let browser = chrono::DateTime::from_timestamp_millis(epoch_ms)?.with_timezone(&Local);

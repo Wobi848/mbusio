@@ -9,8 +9,8 @@ use serde::Serialize;
 
 use super::decode::{decode_rsp_ud, Header, Record};
 use super::frame::{
-    self, hex, Frame, Parse, ADDR_BROADCAST, ADDR_BROADCAST_REPLY, ADDR_SELECTED, CI_APP_RESET, CI_DATA_SEND,
-    CI_SELECT,
+    self, hex, Frame, Parse, ADDR_BROADCAST, ADDR_BROADCAST_REPLY, ADDR_SELECTED, CI_APP_RESET,
+    CI_DATA_SEND, CI_SELECT,
 };
 use crate::i18n::tr;
 use crate::link::Link;
@@ -183,20 +183,40 @@ impl MeterReading {
 
     /// Gegenstück zu `raw_bytes`: Auslesung aus gespeicherten Rohtelegrammen wiederherstellen.
     /// Ein späterer, besserer Decoder gilt so auch für alte Daten.
-    pub fn from_raw(raw: &[u8], timestamp: String, utc: Option<i64>, target: String, time_unsure: bool) -> Result<MeterReading> {
+    pub fn from_raw(
+        raw: &[u8],
+        timestamp: String,
+        utc: Option<i64>,
+        target: String,
+        time_unsure: bool,
+    ) -> Result<MeterReading> {
         let mut frames = Vec::new();
         let mut i = 0;
         while i < raw.len() {
             match frame::parse(&raw[i..]) {
-                frame::Parse::Complete(Frame::Long { address, ci, data, .. }, n) => {
+                frame::Parse::Complete(
+                    Frame::Long {
+                        address, ci, data, ..
+                    },
+                    n,
+                ) => {
                     frames.push((ci, data, raw[i..i + n].to_vec(), address));
                     i += n;
                 }
-                _ => bail!("{}", tr("Gespeichertes Telegramm unlesbar", "Stored telegram unreadable")),
+                _ => bail!(
+                    "{}",
+                    tr(
+                        "Gespeichertes Telegramm unlesbar",
+                        "Stored telegram unreadable"
+                    )
+                ),
             }
         }
         let primary = frames.first().map_or(0, |f| f.3);
-        let mut r = MeterReading::decode(frames.into_iter().map(|(c, d, b, _)| (c, d, b)).collect(), primary)?;
+        let mut r = MeterReading::decode(
+            frames.into_iter().map(|(c, d, b, _)| (c, d, b)).collect(),
+            primary,
+        )?;
         r.timestamp = timestamp;
         r.utc = utc;
         r.target = target;
@@ -347,10 +367,8 @@ impl Master {
         self.link.set_baud(baud)?;
         self.baud = baud;
         (self.timeout, self.inter_byte) = timings(baud, self.timeout_ms);
-        self.log.push(
-            "INFO",
-            format!("{} {baud} Bd", tr("Baudrate", "Baud rate")),
-        );
+        self.log
+            .push("INFO", format!("{} {baud} Bd", tr("Baudrate", "Baud rate")));
         Ok(())
     }
 
@@ -743,7 +761,11 @@ impl Master {
     /// `bauds` leer = alle Standard-Baudraten. Die Oberfläche fragt einzeln ab, um den
     /// Fortschritt zu zeigen.
     pub fn bus_bauds(&mut self, bauds: &[u32]) -> Result<Vec<u32>> {
-        let bauds = if bauds.is_empty() { &BAUD_RATES[..] } else { bauds };
+        let bauds = if bauds.is_empty() {
+            &BAUD_RATES[..]
+        } else {
+            bauds
+        };
         if let Some(b) = bauds.iter().find(|b| !BAUD_RATES.contains(b)) {
             bail!(
                 "{}: {b}",
@@ -1064,7 +1086,11 @@ impl Master {
                             if hit.id.is_none() && !m[..8].contains('F') {
                                 hit.id = Some(m[..8].to_string());
                             }
-                            let hit = if status == "ok" { hit } else { self.explain(hit) };
+                            let hit = if status == "ok" {
+                                hit
+                            } else {
+                                self.explain(hit)
+                            };
                             progress(Progress::Hit(hit));
                             false
                         }

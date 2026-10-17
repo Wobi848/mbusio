@@ -95,7 +95,10 @@ impl MqttConfig {
         if self.enabled && self.host.trim().is_empty() {
             bail!(tr("Broker-Adresse fehlt", "Broker address missing"));
         }
-        if self.base.trim().is_empty() || self.base.contains(['+', '#']) || self.base.starts_with('/') {
+        if self.base.trim().is_empty()
+            || self.base.contains(['+', '#'])
+            || self.base.starts_with('/')
+        {
             bail!(tr(
                 "Basis-Topic ungültig (nicht leer, ohne + und #, nicht mit / beginnen)",
                 "Invalid base topic (not empty, no + or #, must not start with /)"
@@ -112,7 +115,9 @@ impl MqttConfig {
             .ok()
             .or_else(|| std::env::var("COMPUTERNAME").ok())
             .unwrap_or_default();
-        format!("mbusio-{}", slug(host.trim())).trim_end_matches('-').to_string()
+        format!("mbusio-{}", slug(host.trim()))
+            .trim_end_matches('-')
+            .to_string()
     }
 
     fn topic(&self, rel: &str) -> String {
@@ -144,7 +149,12 @@ pub fn slug(s: &str) -> String {
 
 /// Topic (relativ zum Basis-Topic) prüfen: nicht leer, keine Platzhalter, keine leeren Teile
 pub fn check_topic(rel: &str) -> Result<()> {
-    if rel.is_empty() || rel.contains(['+', '#']) || rel.starts_with('/') || rel.ends_with('/') || rel.contains("//") {
+    if rel.is_empty()
+        || rel.contains(['+', '#'])
+        || rel.starts_with('/')
+        || rel.ends_with('/')
+        || rel.contains("//")
+    {
         bail!("{}: „{rel}“", tr("Topic ungültig", "Invalid topic"));
     }
     Ok(())
@@ -193,12 +203,15 @@ impl Db {
     }
 
     fn mqtt_done(&mut self, id: i64) -> Result<()> {
-        self.conn.execute("DELETE FROM mqtt_queue WHERE id = ?1", [id])?;
+        self.conn
+            .execute("DELETE FROM mqtt_queue WHERE id = ?1", [id])?;
         Ok(())
     }
 
     pub fn mqtt_queued(&self) -> Result<i64> {
-        Ok(self.conn.query_row("SELECT COUNT(*) FROM mqtt_queue", [], |r| r.get(0))?)
+        Ok(self
+            .conn
+            .query_row("SELECT COUNT(*) FROM mqtt_queue", [], |r| r.get(0))?)
     }
 
     /// Warteschlange begrenzen; liefert die Anzahl verworfener Nachrichten
@@ -244,7 +257,7 @@ pub fn connect_packet(client_id: &str, user: &str, pass: &str, will_topic: &str)
     let mut b = Vec::new();
     put_str(&mut b, "MQTT");
     b.push(4); // 3.1.1
-    // clean session, Will (QoS 1, retained), Benutzer/Passwort falls angegeben
+               // clean session, Will (QoS 1, retained), Benutzer/Passwort falls angegeben
     let mut flags = 0x02 | 0x04 | 0x08 | 0x20;
     if !user.is_empty() {
         flags |= 0x80;
@@ -341,7 +354,12 @@ impl rustls::client::danger::ServerCertVerifier for NoVerify {
         cert: &rustls::pki_types::CertificateDer<'_>,
         dss: &rustls::DigitallySignedStruct,
     ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        rustls::crypto::verify_tls12_signature(message, cert, dss, &self.0.signature_verification_algorithms)
+        rustls::crypto::verify_tls12_signature(
+            message,
+            cert,
+            dss,
+            &self.0.signature_verification_algorithms,
+        )
     }
 
     fn verify_tls13_signature(
@@ -350,7 +368,12 @@ impl rustls::client::danger::ServerCertVerifier for NoVerify {
         cert: &rustls::pki_types::CertificateDer<'_>,
         dss: &rustls::DigitallySignedStruct,
     ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        rustls::crypto::verify_tls13_signature(message, cert, dss, &self.0.signature_verification_algorithms)
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &self.0.signature_verification_algorithms,
+        )
     }
 
     fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
@@ -361,7 +384,8 @@ impl rustls::client::danger::ServerCertVerifier for NoVerify {
 fn tls_config(c: &MqttConfig) -> Result<rustls::ClientConfig> {
     use rustls::pki_types::pem::PemObject;
     let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let builder = rustls::ClientConfig::builder_with_provider(provider.clone()).with_safe_default_protocol_versions()?;
+    let builder = rustls::ClientConfig::builder_with_provider(provider.clone())
+        .with_safe_default_protocol_versions()?;
     if c.insecure {
         return Ok(builder
             .dangerous()
@@ -376,7 +400,10 @@ fn tls_config(c: &MqttConfig) -> Result<rustls::ClientConfig> {
             roots.add(cert.context(tr("CA-Zertifikat unlesbar", "CA certificate unreadable"))?)?;
         }
         if roots.is_empty() {
-            bail!(tr("Kein Zertifikat im CA-Feld (PEM erwartet)", "No certificate in the CA field (PEM expected)"));
+            bail!(tr(
+                "Kein Zertifikat im CA-Feld (PEM erwartet)",
+                "No certificate in the CA field (PEM expected)"
+            ));
         }
     }
     Ok(builder.with_root_certificates(roots).with_no_client_auth())
@@ -419,13 +446,22 @@ impl Session {
             last_sent: Instant::now(),
             inbox: Vec::new(),
         };
-        s.send(&connect_packet(&c.client_id(), &c.username, &c.password, &c.topic("status")))?;
+        s.send(&connect_packet(
+            &c.client_id(),
+            &c.username,
+            &c.password,
+            &c.topic("status"),
+        ))?;
         let (h, body) = s
             .wait(|h, _| h >> 4 == 2, Duration::from_secs(10))?
             .ok_or_else(|| anyhow!(tr("Keine Antwort vom Broker", "No answer from broker")))?;
         let rc = body.get(1).copied().unwrap_or(0xFF);
         if h >> 4 != 2 || rc != 0 {
-            bail!("{}: {}", tr("Broker lehnt ab", "Broker refuses"), connack_error(rc));
+            bail!(
+                "{}: {}",
+                tr("Broker lehnt ab", "Broker refuses"),
+                connack_error(rc)
+            );
         }
         Ok(s)
     }
@@ -459,9 +495,10 @@ impl Session {
                             start += 2;
                             self.send(&packet(0x40, &pid))?;
                         }
-                        if let (Ok(topic), Some(payload)) =
-                            (String::from_utf8(body.get(2..2 + tl).unwrap_or_default().to_vec()), body.get(start..))
-                        {
+                        if let (Ok(topic), Some(payload)) = (
+                            String::from_utf8(body.get(2..2 + tl).unwrap_or_default().to_vec()),
+                            body.get(start..),
+                        ) {
                             self.inbox.push((topic, payload.to_vec()));
                         }
                     }
@@ -474,16 +511,27 @@ impl Session {
             }
             let mut tmp = [0u8; 4096];
             match self.stream.read(&mut tmp) {
-                Ok(0) => bail!(tr("Broker hat die Verbindung getrennt", "Broker closed the connection")),
+                Ok(0) => bail!(tr(
+                    "Broker hat die Verbindung getrennt",
+                    "Broker closed the connection"
+                )),
                 Ok(n) => self.buf.extend_from_slice(&tmp[..n]),
-                Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                    ) => {}
                 Err(e) => return Err(e.into()),
             }
         }
     }
 
     /// Warten, bis ein passendes Paket kommt (andere werden übergangen)
-    fn wait(&mut self, want: impl Fn(u8, &[u8]) -> bool, max: Duration) -> Result<Option<(u8, Vec<u8>)>> {
+    fn wait(
+        &mut self,
+        want: impl Fn(u8, &[u8]) -> bool,
+        max: Duration,
+    ) -> Result<Option<(u8, Vec<u8>)>> {
         let until = Instant::now() + max;
         while Instant::now() < until {
             if let Some((h, body)) = self.read_packet(until - Instant::now())? {
@@ -504,7 +552,10 @@ impl Session {
             Duration::from_secs(15),
         )?;
         if ack.is_none() {
-            bail!(tr("Broker bestätigt nicht (Zeitüberschreitung)", "Broker does not acknowledge (timeout)"));
+            bail!(tr(
+                "Broker bestätigt nicht (Zeitüberschreitung)",
+                "Broker does not acknowledge (timeout)"
+            ));
         }
         Ok(())
     }
@@ -513,7 +564,12 @@ impl Session {
         let pid = self.pid();
         self.send(&subscribe_packet(topic, pid))?;
         self.wait(|h, _| h >> 4 == 9, Duration::from_secs(10))?
-            .ok_or_else(|| anyhow!(tr("Abonnieren nicht bestätigt", "Subscription not acknowledged")))?;
+            .ok_or_else(|| {
+                anyhow!(tr(
+                    "Abonnieren nicht bestätigt",
+                    "Subscription not acknowledged"
+                ))
+            })?;
         Ok(())
     }
 
@@ -556,9 +612,17 @@ pub struct MqttState {
 pub fn parse_time(payload: &[u8]) -> Option<i64> {
     let s = std::str::from_utf8(payload).ok()?.trim().trim_matches('"');
     if let Ok(n) = s.parse::<f64>() {
-        return Some(if n > 1e11 { n as i64 } else { (n * 1000.0) as i64 });
+        return Some(if n > 1e11 {
+            n as i64
+        } else {
+            (n * 1000.0) as i64
+        });
     }
-    Some(chrono::DateTime::parse_from_rfc3339(s).ok()?.timestamp_millis())
+    Some(
+        chrono::DateTime::parse_from_rfc3339(s)
+            .ok()?
+            .timestamp_millis(),
+    )
 }
 
 fn set_status(st: &crate::web::AppState, f: impl FnOnce(&mut MqttStatus)) {
@@ -575,7 +639,12 @@ pub fn run(st: crate::web::AppState) {
         let version = st.mqtt.version.load(Ordering::SeqCst);
         let cfg = st.db.lock().unwrap().mqtt_config();
         if !cfg.enabled || cfg.host.trim().is_empty() {
-            set_status(&st, |s| *s = MqttStatus { state: "off".into(), ..Default::default() });
+            set_status(&st, |s| {
+                *s = MqttStatus {
+                    state: "off".into(),
+                    ..Default::default()
+                }
+            });
             std::thread::sleep(Duration::from_millis(500));
             continue;
         }
@@ -610,12 +679,25 @@ pub fn run(st: crate::web::AppState) {
 }
 
 /// Verbunden: Warteschlange abarbeiten, Uhrzeit annehmen, bis die Einstellungen sich ändern
-fn session(st: &crate::web::AppState, cfg: &MqttConfig, mut s: Session, version: u64) -> Result<()> {
+fn session(
+    st: &crate::web::AppState,
+    cfg: &MqttConfig,
+    mut s: Session,
+    version: u64,
+) -> Result<()> {
     s.publish(&cfg.topic("status"), b"online")?;
     if cfg.time_sync {
         s.subscribe(&cfg.topic("time"))?;
     }
-    st.log.push("INFO", format!("MQTT {} {}:{}", tr("verbunden mit", "connected to"), cfg.host.trim(), cfg.port));
+    st.log.push(
+        "INFO",
+        format!(
+            "MQTT {} {}:{}",
+            tr("verbunden mit", "connected to"),
+            cfg.host.trim(),
+            cfg.port
+        ),
+    );
     set_status(st, |x| {
         x.state = "connected".into();
         x.error = None;
@@ -643,17 +725,30 @@ fn session(st: &crate::web::AppState, cfg: &MqttConfig, mut s: Session, version:
                     Some(ms) => {
                         let was = crate::clock::state();
                         if let Some(off) = crate::clock::set_from("mqtt", ms) {
-                            if was.source.as_deref() != Some("mqtt") || (off - was.offset_s).abs() >= 2.0 {
+                            if was.source.as_deref() != Some("mqtt")
+                                || (off - was.offset_s).abs() >= 2.0
+                            {
                                 st.log.push(
                                     "INFO",
-                                    format!("{} ({:+.0} s)", tr("Uhrzeit vom Leitsystem (MQTT) übernommen", "Time taken from control system (MQTT)"), off),
+                                    format!(
+                                        "{} ({:+.0} s)",
+                                        tr(
+                                            "Uhrzeit vom Leitsystem (MQTT) übernommen",
+                                            "Time taken from control system (MQTT)"
+                                        ),
+                                        off
+                                    ),
                                 );
                             }
                         }
                     }
                     None => st.log.push(
                         "INFO",
-                        format!("MQTT {}: {}", topic, tr("Uhrzeit unlesbar", "time unreadable")),
+                        format!(
+                            "MQTT {}: {}",
+                            topic,
+                            tr("Uhrzeit unlesbar", "time unreadable")
+                        ),
                     ),
                 }
             }
@@ -695,7 +790,10 @@ mod tests {
     fn time_payloads() {
         assert_eq!(parse_time(b"1760000000"), Some(1_760_000_000_000));
         assert_eq!(parse_time(b"1760000000123"), Some(1_760_000_000_123));
-        assert_eq!(parse_time(b"\"2026-10-17T12:00:00Z\""), Some(1_792_238_400_000));
+        assert_eq!(
+            parse_time(b"\"2026-10-17T12:00:00Z\""),
+            Some(1_792_238_400_000)
+        );
         assert_eq!(parse_time(b"morgen"), None);
     }
 
@@ -725,7 +823,9 @@ mod tests {
                             let tl = u16::from_be_bytes([body[0], body[1]]) as usize;
                             let topic = String::from_utf8(body[2..2 + tl].to_vec()).unwrap();
                             let pid = [body[2 + tl], body[3 + tl]];
-                            g.lock().unwrap().push((topic, String::from_utf8(body[4 + tl..].to_vec()).unwrap()));
+                            g.lock()
+                                .unwrap()
+                                .push((topic, String::from_utf8(body[4 + tl..].to_vec()).unwrap()));
                             c.write_all(&[0x40, 2, pid[0], pid[1]]).unwrap();
                         }
                         8 => {
@@ -762,7 +862,13 @@ mod tests {
         s.publish("m/a", b"1").unwrap();
         s.publish("m/b", b"2").unwrap();
         s.disconnect();
-        assert_eq!(*got.lock().unwrap(), vec![("m/a".to_string(), "1".to_string()), ("m/b".to_string(), "2".to_string())]);
+        assert_eq!(
+            *got.lock().unwrap(),
+            vec![
+                ("m/a".to_string(), "1".to_string()),
+                ("m/b".to_string(), "2".to_string())
+            ]
+        );
     }
 
     #[test]
@@ -788,9 +894,17 @@ mod debug_broker {
     #[test]
     #[ignore]
     fn receives_subscribed_message() {
-        let Ok(addr) = std::env::var("MBUSIO_TEST_BROKER") else { return };
+        let Ok(addr) = std::env::var("MBUSIO_TEST_BROKER") else {
+            return;
+        };
         let (host, port) = addr.split_once(':').unwrap();
-        let cfg = MqttConfig { enabled: true, host: host.into(), port: port.parse().unwrap(), base: "dbg".into(), ..Default::default() };
+        let cfg = MqttConfig {
+            enabled: true,
+            host: host.into(),
+            port: port.parse().unwrap(),
+            base: "dbg".into(),
+            ..Default::default()
+        };
         let mut s = Session::connect(&cfg).unwrap();
         s.subscribe("dbg/time").unwrap();
         std::process::Command::new("mosquitto_pub")
@@ -803,7 +917,13 @@ mod debug_broker {
                 break;
             }
         }
-        println!("inbox: {:?}", s.inbox.iter().map(|(t, p)| (t.clone(), String::from_utf8_lossy(p).to_string())).collect::<Vec<_>>());
+        println!(
+            "inbox: {:?}",
+            s.inbox
+                .iter()
+                .map(|(t, p)| (t.clone(), String::from_utf8_lossy(p).to_string()))
+                .collect::<Vec<_>>()
+        );
         assert!(!s.inbox.is_empty());
     }
 }
