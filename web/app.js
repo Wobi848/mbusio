@@ -49,6 +49,8 @@ const UI = {
     project_imported: (n) => `Projekt „${n}“ importiert`,
     gw_add: "+ Gateway",
     gw_new: (n) => `Gateway ${n}`,
+    move_up: "Nach oben",
+    move_down: "Nach unten",
     ln_add: "+ Linie",
     ln_new: (n) => `Linie ${n}`,
     ln_use: "Wählen",
@@ -360,6 +362,8 @@ const UI = {
     project_imported: (n) => `Project “${n}” imported`,
     gw_add: "+ Gateway",
     gw_new: (n) => `Gateway ${n}`,
+    move_up: "Move up",
+    move_down: "Move down",
     ln_add: "+ Line",
     ln_new: (n) => `Line ${n}`,
     ln_use: "Select",
@@ -1854,6 +1858,8 @@ const svg = (d) =>
   `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICON_EDIT = svg('<path d="M4 20h4L19 9l-4-4L4 16z"/>');
 const ICON_DEL = svg('<path d="M6 6l12 12M18 6L6 18"/>');
+const ICON_UP = svg('<path d="M6 15l6-6 6 6"/>');
+const ICON_DOWN = svg('<path d="M6 9l6 6 6-6"/>');
 const ICON_CHART = svg('<path d="M4 19h16M5 15l4-5 4 3 6-7"/>');
 const ICON_ALERT = svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/>');
 
@@ -2390,18 +2396,23 @@ function renderTree() {
     .join("");
   $("project-export").href = `api/projects/${a.project.id}/export` + (token ? `?token=${encodeURIComponent(token)}` : "");
   const node = activeProjectNode();
+  // Pfeile zum Verschieben; ganz oben/unten ausgegraut
+  const moveBtns = (kind, id, k, n) =>
+    `<button class="icon-btn" data-${kind}-move="-1" data-id="${id}" ${k === 0 ? "disabled" : ""} title="${esc(t("move_up"))}" aria-label="${esc(t("move_up"))}">${ICON_UP}</button>` +
+    `<button class="icon-btn" data-${kind}-move="1" data-id="${id}" ${k === n - 1 ? "disabled" : ""} title="${esc(t("move_down"))}" aria-label="${esc(t("move_down"))}">${ICON_DOWN}</button>`;
   $("tree").innerHTML =
     node.gateways
       .map(
-        (g) => `<div class="gw">
+        (g, gk) => `<div class="gw">
       <div class="gw-head">
         <h3>${esc(g.name)}</h3>${g.address ? `<span class="hint mono">${esc(g.address)}</span>` : ""}
         <span class="spacer"></span>
+        ${node.gateways.length > 1 ? moveBtns("gw", g.id, gk, node.gateways.length) : ""}
         <button class="icon-btn" data-gw-edit="${g.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
         <button class="icon-btn" data-gw-del="${g.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>
       </div>
       ${g.lines
-        .map((l) => {
+        .map((l, lk) => {
           const active = l.id === a.line.id;
           return `<div class="ln${active ? " active" : ""}">
           <span>${active ? `<span class="badge-active">${esc(t("ln_active"))}</span>` : `<button class="small ghost" data-ln-use="${l.id}">${esc(t("ln_use"))}</button>`}</span>
@@ -2415,6 +2426,7 @@ function renderTree() {
               : ""
           }</span>
           <span class="actions">
+            ${g.lines.length > 1 ? moveBtns("ln", l.id, lk, g.lines.length) : ""}
             <button class="icon-btn" data-ln-edit="${l.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
             <button class="icon-btn" data-ln-del="${l.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>
           </span>
@@ -2485,6 +2497,12 @@ $("tree").addEventListener("click", (ev) => {
   const b = ev.target.closest("button");
   if (!b) return;
   const d = b.dataset;
+  if (d.gwMove || d.lnMove) {
+    return guarded(b, async () => {
+      await api(`${d.gwMove ? "gateways" : "lines"}/${d.id}/move`, { method: "POST", body: { dir: Number(d.gwMove || d.lnMove) } });
+      await loadTree();
+    });
+  }
   const id = Number(d.lnUse || d.lnEdit || d.lnDel || d.lnAdd || d.gwEdit || d.gwDel || 0);
   if (d.lnUse) return guarded(b, () => activateLine(id));
   if (d.lnEdit) {

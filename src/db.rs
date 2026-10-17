@@ -407,6 +407,15 @@ impl Db {
                 "ALTER TABLE lines ADD COLUMN addressing TEXT NOT NULL DEFAULT 'secondary'",
             )?;
         }
+        for table in ["gateways", "lines"] {
+            if !has(&self.conn, table, "position")? {
+                // Reihenfolge zum Sortieren; bisher galt die Reihenfolge des Anlegens
+                self.conn.execute_batch(&format!(
+                    "ALTER TABLE {table} ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
+                     UPDATE {table} SET position = id;"
+                ))?;
+            }
+        }
         if !has(&self.conn, "meters", "secondary_address")? {
             // aus der Adresse selbst oder der letzten Auslesung nachtragen
             self.conn.execute_batch(
@@ -543,7 +552,8 @@ impl Db {
             g.name.trim().to_string()
         };
         self.conn.execute(
-            "INSERT INTO gateways (project_id, name, address, note) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO gateways (project_id, name, address, note, position)
+             VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(position), 0) + 1 FROM gateways WHERE project_id = ?1))",
             params![project_id, name, g.address.trim(), g.note],
         )?;
         let id = self.conn.last_insert_rowid();
@@ -579,6 +589,41 @@ impl Db {
         self.gateway(id)
     }
 
+    /// Gateway (table "gateways", Eltern "project_id") bzw. Linie ("lines", "gateway_id") um eine
+    /// Stelle nach oben (-1) oder unten (+1) schieben
+    fn move_row(&mut self, table: &str, parent: &str, id: i64, dir: i64) -> Result<()> {
+        let parent_id: i64 = self
+            .conn
+            .query_row(&format!("SELECT {parent} FROM {table} WHERE id = ?1"), [id], |r| r.get(0))
+            .optional()?
+            .ok_or_else(|| not_found(table, id))?;
+        let mut st = self
+            .conn
+            .prepare(&format!("SELECT id FROM {table} WHERE {parent} = ?1 ORDER BY position, id"))?;
+        let mut ids: Vec<i64> = st.query_map([parent_id], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+        drop(st);
+        let k = ids.iter().position(|x| *x == id).unwrap_or(0);
+        let j = k as i64 + dir.signum();
+        if j < 0 || j >= ids.len() as i64 {
+            return Ok(());
+        }
+        ids.swap(k, j as usize);
+        let tx = self.conn.transaction()?;
+        for (pos, row) in ids.iter().enumerate() {
+            tx.execute(&format!("UPDATE {table} SET position = ?2 WHERE id = ?1"), params![row, pos as i64 + 1])?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn move_gateway(&mut self, id: i64, dir: i64) -> Result<()> {
+        self.move_row("gateways", "project_id", id, dir)
+    }
+
+    pub fn move_line(&mut self, id: i64, dir: i64) -> Result<()> {
+        self.move_row("lines", "gateway_id", id, dir)
+    }
+
     pub fn delete_gateway(&mut self, id: i64) -> Result<()> {
         if self.conn.execute("DELETE FROM gateways WHERE id = ?1", [id])? == 0 {
             return Err(not_found("Gateway", id));
@@ -605,7 +650,8 @@ impl Db {
         self.gateway(gateway_id)?;
         Self::check_line(&l)?;
         self.conn.execute(
-            "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms, position)
+             VALUES (?1, ?2, ?3, ?4, ?5, (SELECT COALESCE(MAX(position), 0) + 1 FROM lines WHERE gateway_id = ?1))",
             params![gateway_id, l.name.trim(), l.connection.trim(), l.baud, l.timeout_ms as i64],
         )?;
         self.line(self.conn.last_insert_rowid())
@@ -708,7 +754,7 @@ impl Db {
     fn lines_of_project(&self, project_id: i64) -> Result<Vec<Line>> {
         let mut st = self.conn.prepare(
             "SELECT lines.* FROM lines JOIN gateways ON gateways.id = lines.gateway_id
-             WHERE gateways.project_id = ?1 ORDER BY gateways.id, lines.id",
+             WHERE gateways.project_id = ?1 ORDER BY gateways.position, gateways.id, lines.position, lines.id",
         )?;
         let rows = st.query_map([project_id], line_of)?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -745,7 +791,9 @@ impl Db {
         let mut ps = self.conn.prepare("SELECT * FROM projects ORDER BY name COLLATE NOCASE, id")?;
         let projects: Vec<Project> = ps.query_map([], project_of)?.collect::<rusqlite::Result<_>>()?;
         for project in projects {
-            let mut gs = self.conn.prepare("SELECT * FROM gateways WHERE project_id = ?1 ORDER BY id")?;
+            let mut gs = self
+                .conn
+                .prepare("SELECT * FROM gateways WHERE project_id = ?1 ORDER BY position, id")?;
             let gateways: Vec<Gateway> =
                 gs.query_map([project.id], gateway_of)?.collect::<rusqlite::Result<_>>()?;
             let mut gnodes = Vec::new();
@@ -754,7 +802,7 @@ impl Db {
                     "SELECT lines.*,
                        (SELECT COUNT(*) FROM meters WHERE line_id = lines.id) AS n,
                        (SELECT MAX(last_read) FROM meters WHERE line_id = lines.id) AS lr
-                     FROM lines WHERE gateway_id = ?1 ORDER BY id",
+                     FROM lines WHERE gateway_id = ?1 ORDER BY position, id",
                 )?;
                 let lines = ls
                     .query_map([gateway.id], |r| {
@@ -1150,15 +1198,16 @@ impl Db {
         for g in v["gateways"].as_array().into_iter().flatten() {
             let gw: Gateway = serde_json::from_value(g["gateway"].clone())?;
             tx.execute(
-                "INSERT INTO gateways (project_id, name, address, note) VALUES (?1, ?2, ?3, ?4)",
+                "INSERT INTO gateways (project_id, name, address, note, position)
+                 VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(position), 0) + 1 FROM gateways WHERE project_id = ?1))",
                 params![pid, gw.name, gw.address, gw.note],
             )?;
             let gid = tx.last_insert_rowid();
             for l in g["lines"].as_array().into_iter().flatten() {
                 let line: Line = serde_json::from_value(l["line"].clone())?;
                 tx.execute(
-                    "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms, addressing)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms, addressing, position)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, (SELECT COALESCE(MAX(position), 0) + 1 FROM lines WHERE gateway_id = ?1))",
                     params![gid, line.name, line.connection, line.baud, line.timeout_ms as i64, line.addressing],
                 )?;
                 let lid = tx.last_insert_rowid();
@@ -1239,6 +1288,29 @@ mod tests {
         assert_eq!(db.meters(l1).unwrap().len(), 3);
         assert_eq!(db.clear_meters(l1).unwrap(), 3);
         assert_eq!(db.meters(l2).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn gateways_and_lines_can_be_reordered() {
+        let mut db = Db::memory().unwrap();
+        let p = db.active().unwrap().project.id;
+        let g2 = db.create_gateway(p, Gateway { name: "B".into(), ..Default::default() }).unwrap();
+        let g3 = db.create_gateway(p, Gateway { name: "C".into(), ..Default::default() }).unwrap();
+        let names = |db: &Db| -> Vec<String> {
+            db.tree().unwrap()[0].gateways.iter().map(|g| g.gateway.name.clone()).collect()
+        };
+        assert_eq!(names(&db), ["Gateway 1", "B", "C"]);
+        db.move_gateway(g3.id, -1).unwrap();
+        assert_eq!(names(&db), ["Gateway 1", "C", "B"]);
+        db.move_gateway(g3.id, -1).unwrap();
+        db.move_gateway(g3.id, -1).unwrap(); // schon oben: nichts passiert
+        assert_eq!(names(&db), ["C", "Gateway 1", "B"]);
+        db.move_gateway(g2.id, 1).unwrap(); // schon unten
+        assert_eq!(names(&db), ["C", "Gateway 1", "B"]);
+        let l2 = db.create_line(g2.id, Line { name: "L2".into(), baud: 2400, ..Default::default() }).unwrap();
+        db.move_line(l2.id, -1).unwrap();
+        let lines: Vec<String> = db.tree().unwrap()[0].gateways[2].lines.iter().map(|l| l.line.name.clone()).collect();
+        assert_eq!(lines[0], "L2");
     }
 
     #[test]

@@ -207,6 +207,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/lines/{id}/activate", post(line_activate))
         .route("/api/lines/{id}/issues", put(line_issues))
         .route("/api/lines/{id}/addressing", put(line_addressing))
+        .route("/api/lines/{id}/move", post(line_move))
+        .route("/api/gateways/{id}/move", post(gateway_move))
         .route("/api/report", get(report))
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .fallback(static_file)
@@ -1101,6 +1103,22 @@ fn disconnect_bus(st: &AppState) {
     }
     *st.conn.lock().unwrap() = None;
     *st.job.lock().unwrap() = JobStatus::default();
+}
+
+#[derive(Deserialize)]
+struct MoveReq {
+    /// -1 nach oben, +1 nach unten
+    dir: i64,
+}
+
+async fn gateway_move(State(st): State<AppState>, Path(id): Path<i64>, Json(r): Json<MoveReq>) -> ApiResult<serde_json::Value> {
+    st.db.lock().unwrap().move_gateway(id, r.dir).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+async fn line_move(State(st): State<AppState>, Path(id): Path<i64>, Json(r): Json<MoveReq>) -> ApiResult<serde_json::Value> {
+    st.db.lock().unwrap().move_line(id, r.dir).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 #[derive(Deserialize)]

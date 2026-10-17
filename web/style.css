@@ -891,3 +891,4 @@ th.sorted { color: var(--accent); }
 .history table td { font-variant-numeric: tabular-nums; }
 
 .remember-mode { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.icon-btn:disabled { opacity: .25; cursor: default; }
