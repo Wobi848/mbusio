@@ -88,6 +88,18 @@ const UI = {
     fix_baud: "Baudrate ändern",
     config_baud_note: (b) => `Zähler läuft mit ${b} Bd – Befehle werden mit ${b} Bd gesendet.`,
     remember_all: "Alle merken",
+    remember_via: "Merken über",
+    mode_sa_title: "Sekundäradresse: eindeutig und bleibt gleich, auch wenn die PA geändert wird (empfohlen)",
+    mode_pa_title: "Primäradresse: wenn ein Leitsystem oder Gateway die Zähler über die PA abfragt",
+    confirm_mode: (m, n) => `Linie auf „Merken über ${m}“ umstellen?\n\nDie ${n} Zähler der Liste werden mit umgestellt, soweit sie eindeutig sind.`,
+    mode_done: (m, n) => `Merken über ${m} · ${n} Zähler umgestellt`,
+    mode_kept: (n) => `${n} nicht umstellbar`,
+    remember_skipped: (n) => `${n} nicht eindeutig, nicht gemerkt (zuerst „Alle beheben“)`,
+    skip_pa_unknown: "Primäradresse unbekannt: nicht über PA merkbar",
+    skip_pa_zero: "PA 0 ist der Werkszustand: zuerst „PA ändern“",
+    skip_pa_dup: (pa) => `PA ${pa} ist doppelt: zuerst „PA ändern“`,
+    skip_sa_unknown: "Sekundäradresse unbekannt: nicht über SA merkbar",
+    skip_sa_dup: "Sekundäradresse nicht eindeutig (gleiche ID und Hersteller): Linie auf „Merken über PA“ umstellen",
     spot_pa: (id, a) => `Zähler ${id} bekommt die freie Adresse ${a}. Jetzt „Setzen“ drücken.`,
     spot_baud: (id, from, to) => `Zähler ${id} läuft mit ${from} Bd. Jetzt „Umstellen“ drücken, dann läuft er mit ${to} Bd wie der Bus.`,
     spot_done_pa: (id, a) => `✓ Erledigt: Zähler ${id} hat jetzt Adresse ${a}.`,
@@ -387,6 +399,18 @@ const UI = {
     fix_baud: "Change baud rate",
     config_baud_note: (b) => `Meter runs at ${b} Bd – commands are sent at ${b} Bd.`,
     remember_all: "Remember all",
+    remember_via: "Remember by",
+    mode_sa_title: "Secondary address: unique and stays the same when the PA is changed (recommended)",
+    mode_pa_title: "Primary address: when a control system or gateway polls the meters by PA",
+    confirm_mode: (m, n) => `Switch the line to “Remember by ${m}”?\n\nThe ${n} meters in the list are switched too, where unique.`,
+    mode_done: (m, n) => `Remember by ${m} · ${n} meters switched`,
+    mode_kept: (n) => `${n} could not be switched`,
+    remember_skipped: (n) => `${n} not unique, not remembered (“Fix all” first)`,
+    skip_pa_unknown: "Primary address unknown: cannot remember by PA",
+    skip_pa_zero: "PA 0 is the factory default: “Change PA” first",
+    skip_pa_dup: (pa) => `PA ${pa} is duplicated: “Change PA” first`,
+    skip_sa_unknown: "Secondary address unknown: cannot remember by SA",
+    skip_sa_dup: "Secondary address not unique (same ID and manufacturer): switch the line to “Remember by PA”",
     spot_pa: (id, a) => `Meter ${id} gets the free address ${a}. Now press “Set”.`,
     spot_baud: (id, from, to) => `Meter ${id} runs at ${from} Bd. Now press “Switch”, then it runs at ${to} Bd like the bus.`,
     spot_done_pa: (id, a) => `✓ Done: meter ${id} now has address ${a}.`,
@@ -1164,9 +1188,32 @@ function hitAddress(h) {
   return String(h.primary_address);
 }
 
+/// Wie die aktive Linie Zähler merkt: "secondary" (SA) oder "primary" (PA)
+const addressing = () => tree?.active.line.addressing || "secondary";
+
+/// Adresse zum Merken nach der Einstellung der Linie; null + Grund, wenn sie nicht eindeutig ist
+function rememberAddress(h) {
+  const hits = lastJob?.hits || [];
+  if (addressing() === "primary") {
+    const pa = h.primary_address;
+    if (pa == null) return { reason: t("skip_pa_unknown") };
+    if (pa === 0) return { reason: t("skip_pa_zero") };
+    if (hits.filter((x) => x.status === "ok" && x.baud === h.baud && x.primary_address === pa).length > 1)
+      return { reason: t("skip_pa_dup", pa) };
+    return { address: String(pa) };
+  }
+  // Platzhalter (F) z.B. bei alten Zählern ohne Herstellerkennung: geht, solange eindeutig
+  const sa = h.secondary_address;
+  if (!sa || /^F{8}/.test(sa)) return { reason: t("skip_sa_unknown") };
+  if (hits.filter((x) => x.secondary_address === sa).length > 1) return { reason: t("skip_sa_dup") };
+  return { address: sa };
+}
+
 function meterFromHit(h) {
   return {
-    address: hitAddress(h),
+    address: rememberAddress(h).address,
+    secondary_address: h.secondary_address || null,
+    primary_address: h.primary_address,
     // eigene Baudrate nur merken, wenn sie vom Bus abweicht
     baud: h.baud && h.baud !== connBaud ? h.baud : null,
     meter_id: h.id,
@@ -1316,11 +1363,32 @@ async function runPlan() {
   renderPlan();
 }
 
+function renderRememberMode() {
+  document.querySelectorAll(".remember-mode [data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === addressing()));
+}
+
+document.querySelector(".remember-mode").addEventListener("click", (ev) => {
+  const mode = ev.target.closest("[data-mode]")?.dataset.mode;
+  if (!mode || mode === addressing() || !tree) return;
+  if (meters.length && !confirm(t("confirm_mode", mode === "primary" ? "PA" : "SA", meters.length))) return;
+  guarded(ev.target.closest("button"), async () => {
+    const r = await api(`lines/${tree.active.line.id}/addressing`, { method: "PUT", body: { mode } });
+    await loadMeters();
+    renderRememberMode();
+    const msg = t("mode_done", mode === "primary" ? "PA" : "SA", r.changed);
+    if (r.kept.length) toast(`${msg} · ${t("mode_kept", r.kept.length)}: ${r.kept.join("; ")}`, true);
+    else toast(msg);
+  });
+});
+
 $("remember-all").onclick = () =>
   guarded($("remember-all"), async () => {
-    const list = (lastJob?.hits || []).filter((h) => h.status === "ok").map(meterFromHit);
+    // nur Zähler, die nach der Einstellung der Linie eindeutig sind: keine gemischte Liste
+    const ok = (lastJob?.hits || []).filter((h) => h.status === "ok");
+    const list = ok.filter((h) => rememberAddress(h).address).map(meterFromHit);
+    const skipped = ok.length - list.length;
     const r = await api("meters/import", { method: "POST", body: { meters: list } });
-    toast(t("remembered_all", r.added, list.length - r.added));
+    toast(t("remembered_all", r.added, list.length - r.added) + (skipped ? " · " + t("remember_skipped", skipped) : ""), skipped > 0);
     await loadMeters();
   });
 
@@ -1420,6 +1488,8 @@ $("hits").addEventListener("click", (ev) => {
   if (d.remember !== undefined) {
     const h = lastJob.hits[Number(d.remember)];
     guarded(btn, async () => {
+      const a = rememberAddress(h);
+      if (!a.address) throw new Error(a.reason);
       await api("meters", { method: "POST", body: meterFromHit(h) });
       toast(t("remembered"));
       await loadMeters();
@@ -1802,7 +1872,15 @@ function renderMeters() {
   table.querySelector("tbody").innerHTML = meters
     .map((m) => {
       // ID nur zusätzlich zeigen, wenn die Adresse nicht schon die ID ist
-      const info = [m.meter_id !== m.address ? m.meter_id : null, m.manufacturer].filter(Boolean).join(" · ");
+      // die jeweils andere Adresse klein dazu: bei SA die PA, bei PA die ID
+      const viaPa = /^\d+$/.test(m.address);
+      const info = [
+        !viaPa && m.primary_address != null ? `PA ${m.primary_address}` : null,
+        m.meter_id !== m.address ? m.meter_id : null,
+        m.manufacturer,
+      ]
+        .filter(Boolean)
+        .join(" · ");
       const sub = (text) => (text ? `<span class="sub">${esc(text)}</span>` : "");
       return `<tr>
         <td class="wrap"><span class="name">${esc(m.name || "–")}</span>${sub(m.note)}</td>
@@ -2301,6 +2379,7 @@ function activeProjectNode() {
 
 function renderTree() {
   if (!tree) return;
+  renderRememberMode();
   const a = tree.active;
   $("h-project").textContent = a.project.name;
   $("project-sub").textContent = [a.project.customer, a.project.site].filter(Boolean).join(" · ");

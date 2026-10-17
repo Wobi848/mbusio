@@ -889,3 +889,5 @@ th.sorted { color: var(--accent); }
 .chart-tip span { color: var(--muted); }
 .chart-tip .key { display: inline-block; width: 12px; height: 2px; background: var(--series); vertical-align: middle; margin-right: 6px; }
 .history table td { font-variant-numeric: tabular-nums; }
+
+.remember-mode { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }

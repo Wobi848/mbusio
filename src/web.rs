@@ -206,6 +206,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/lines/{id}", put(line_update).delete(line_delete))
         .route("/api/lines/{id}/activate", post(line_activate))
         .route("/api/lines/{id}/issues", put(line_issues))
+        .route("/api/lines/{id}/addressing", put(line_addressing))
         .route("/api/report", get(report))
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .fallback(static_file)
@@ -1100,6 +1101,23 @@ fn disconnect_bus(st: &AppState) {
     }
     *st.conn.lock().unwrap() = None;
     *st.job.lock().unwrap() = JobStatus::default();
+}
+
+#[derive(Deserialize)]
+struct AddressingReq {
+    mode: String,
+}
+
+/// Merken über SA oder PA; stellt die Zählerliste der Linie mit um
+async fn line_addressing(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(req): Json<AddressingReq>,
+) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    let (changed, kept) = st.db.lock().unwrap().set_addressing(id, &req.mode).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "changed": changed, "kept": kept })))
 }
 
 /// Auffälligkeiten der Linie merken (berechnet die Oberfläche aus dem letzten Scan)

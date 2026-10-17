@@ -95,6 +95,13 @@ pub struct Line {
     pub baud: u32,
     #[serde(default)]
     pub timeout_ms: u64,
+    /// Wie Zähler dieser Linie gemerkt werden: "secondary" (SA) oder "primary" (PA)
+    #[serde(default = "default_addressing")]
+    pub addressing: String,
+}
+
+fn default_addressing() -> String {
+    "secondary".into()
 }
 
 fn default_baud() -> u32 {
@@ -127,6 +134,9 @@ pub struct Meter {
     /// Primäradresse bei der letzten Auslesung
     #[serde(default)]
     pub primary_address: Option<u8>,
+    /// Volle Sekundäradresse (16 Hex), sobald bekannt; erlaubt das Umstellen PA ↔ SA
+    #[serde(default)]
+    pub secondary_address: Option<String>,
     #[serde(default)]
     pub last_read: Option<String>,
     /// Hauptwert der letzten Auslesung, z.B. "123.456 m³"
@@ -308,6 +318,7 @@ fn line_of(r: &Row) -> rusqlite::Result<Line> {
         connection: r.get("connection")?,
         baud: r.get("baud")?,
         timeout_ms: r.get::<_, i64>("timeout_ms")? as u64,
+        addressing: r.get("addressing")?,
     })
 }
 
@@ -324,6 +335,7 @@ fn meter_of(r: &Row) -> rusqlite::Result<Meter> {
         manufacturer: r.get("manufacturer")?,
         medium: r.get("medium")?,
         primary_address: r.get("primary_address")?,
+        secondary_address: r.get("secondary_address")?,
         last_read: r.get("last_read")?,
         last_value: r.get("last_value")?,
         last_quantity: r.get("last_quantity")?,
@@ -389,6 +401,23 @@ impl Db {
         if !has(&self.conn, "lines", "issues")? {
             // Auffälligkeiten des letzten Scans: {"count": n, "items": [...]}
             self.conn.execute_batch("ALTER TABLE lines ADD COLUMN issues TEXT")?;
+        }
+        if !has(&self.conn, "lines", "addressing")? {
+            self.conn.execute_batch(
+                "ALTER TABLE lines ADD COLUMN addressing TEXT NOT NULL DEFAULT 'secondary'",
+            )?;
+        }
+        if !has(&self.conn, "meters", "secondary_address")? {
+            // aus der Adresse selbst oder der letzten Auslesung nachtragen
+            self.conn.execute_batch(
+                "ALTER TABLE meters ADD COLUMN secondary_address TEXT;
+                 UPDATE meters SET secondary_address = address
+                   WHERE length(address) = 16 AND address NOT LIKE '%F%';
+                 UPDATE meters SET secondary_address = (
+                     SELECT json_extract(data, '$.header.secondary_address') FROM readings
+                     WHERE readings.meter = meters.id ORDER BY id DESC LIMIT 1)
+                   WHERE secondary_address IS NULL;",
+            )?;
         }
         Ok(())
     }
@@ -601,6 +630,64 @@ impl Db {
         self.line(id)
     }
 
+    /// Merken über SA oder PA umstellen und die Zählerliste mit umstellen, wo das eindeutig geht.
+    /// Liefert die Anzahl umgestellter Zähler und die, die bleiben mussten (mit Grund).
+    pub fn set_addressing(&mut self, id: i64, mode: &str) -> Result<(usize, Vec<String>)> {
+        if mode != "secondary" && mode != "primary" {
+            bail!("addressing: {mode}");
+        }
+        self.line(id)?;
+        self.conn
+            .execute("UPDATE lines SET addressing = ?2 WHERE id = ?1", params![id, mode])?;
+        let meters = self.meters(id)?;
+        let mut changed = 0;
+        let mut kept = Vec::new();
+        for m in &meters {
+            let name = m.meter_id.clone().unwrap_or_else(|| m.address.clone());
+            let target = if mode == "secondary" {
+                match &m.secondary_address {
+                    Some(sa) if meters.iter().filter(|x| x.secondary_address.as_ref() == Some(sa)).count() == 1 => {
+                        Some(sa.clone())
+                    }
+                    Some(_) => {
+                        kept.push(format!("{name}: {}", tr("Sekundäradresse nicht eindeutig", "secondary address not unique")));
+                        None
+                    }
+                    None => {
+                        kept.push(format!("{name}: {}", tr("Sekundäradresse unbekannt, einmal auslesen", "secondary address unknown, read once")));
+                        None
+                    }
+                }
+            } else {
+                match m.primary_address {
+                    Some(0) => {
+                        kept.push(format!("{name}: {}", tr("PA 0 (Werkszustand), zuerst PA ändern", "PA 0 (factory default), change PA first")));
+                        None
+                    }
+                    Some(pa) if meters.iter().filter(|x| x.primary_address == Some(pa)).count() == 1 => {
+                        Some(pa.to_string())
+                    }
+                    Some(pa) => {
+                        kept.push(format!("{name}: PA {pa} {}", tr("doppelt, zuerst PA ändern", "duplicate, change PA first")));
+                        None
+                    }
+                    None => {
+                        kept.push(format!("{name}: {}", tr("PA unbekannt, einmal auslesen", "PA unknown, read once")));
+                        None
+                    }
+                }
+            };
+            if let Some(t) = target {
+                if t != m.address {
+                    self.conn
+                        .execute("UPDATE meters SET address = ?2 WHERE id = ?1", params![m.id, t])?;
+                    changed += 1;
+                }
+            }
+        }
+        Ok((changed, kept))
+    }
+
     pub fn delete_line(&mut self, id: i64) -> Result<()> {
         if self.conn.execute("DELETE FROM lines WHERE id = ?1", [id])? == 0 {
             return Err(not_found(&tr("Linie", "Line"), id));
@@ -739,8 +826,8 @@ impl Db {
     fn insert_meter(&mut self, line_id: i64, m: &Meter) -> Result<i64> {
         self.conn.execute(
             "INSERT INTO meters (line_id, name, location, note, address, baud, meter_id, manufacturer,
-               medium, primary_address, last_read, last_value, last_quantity, last_error)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+               medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 line_id,
                 m.name,
@@ -755,7 +842,8 @@ impl Db {
                 m.last_read,
                 m.last_value,
                 m.last_quantity,
-                m.last_error
+                m.last_error,
+                m.secondary_address
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
@@ -833,7 +921,8 @@ impl Db {
                     "UPDATE meters SET last_read = ?2, last_error = NULL, primary_address = ?3,
                        meter_id = COALESCE(?4, meter_id), manufacturer = COALESCE(?5, manufacturer),
                        medium = COALESCE(?6, medium), last_value = COALESCE(?7, last_value),
-                       last_quantity = COALESCE(?8, last_quantity)
+                       last_quantity = COALESCE(?8, last_quantity),
+                       secondary_address = COALESCE(?9, secondary_address)
                      WHERE id = ?1",
                     params![
                         m.id,
@@ -843,7 +932,8 @@ impl Db {
                         h.map(|h| h.manufacturer.clone()).filter(|s| !s.is_empty()),
                         h.map(|h| h.medium.clone()),
                         main.map(|x| format!("{} {}", x.value_text, x.unit).trim().to_string()),
-                        main.map(|x| x.quantity.clone())
+                        main.map(|x| x.quantity.clone()),
+                        h.map(|h| h.secondary_address.clone())
                     ],
                 )?;
             }
@@ -1067,8 +1157,9 @@ impl Db {
             for l in g["lines"].as_array().into_iter().flatten() {
                 let line: Line = serde_json::from_value(l["line"].clone())?;
                 tx.execute(
-                    "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms) VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![gid, line.name, line.connection, line.baud, line.timeout_ms as i64],
+                    "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms, addressing)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![gid, line.name, line.connection, line.baud, line.timeout_ms as i64, line.addressing],
                 )?;
                 let lid = tx.last_insert_rowid();
                 line_ids.insert(format!("{} · {}", gw.name, line.name), lid);
@@ -1076,11 +1167,12 @@ impl Db {
                     let m: Meter = serde_json::from_value(entry["meter"].clone())?;
                     tx.execute(
                         "INSERT INTO meters (line_id, name, location, note, address, baud, meter_id, manufacturer,
-                           medium, primary_address, last_read, last_value, last_quantity, last_error)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                           medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                         params![
                             lid, m.name, m.location, m.note, m.address, m.baud, m.meter_id, m.manufacturer,
-                            m.medium, m.primary_address, m.last_read, m.last_value, m.last_quantity, m.last_error
+                            m.medium, m.primary_address, m.last_read, m.last_value, m.last_quantity, m.last_error,
+                            m.secondary_address
                         ],
                     )?;
                     let mid = tx.last_insert_rowid();
