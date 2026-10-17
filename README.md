@@ -1,89 +1,145 @@
 # mbusio
 
-M-Bus-Master mit Weboberfläche: Zähler suchen, auslesen, adressieren und exportieren.
-Eine einzige Binärdatei für Windows, Linux und Raspberry Pi, die Oberfläche ist eingebaut.
+M-Bus-Master mit Weboberfläche für Inbetriebnahme und Service: Zähler suchen, Fehler finden und
+beheben, auslesen, dokumentieren. Eine einzige Datei für Windows, Linux und Raspberry Pi, ohne
+Installation; die Oberfläche läuft im Browser, auch auf dem Handy.
 
 *English below.*
 
+## So arbeitet man damit
+
+Die Oberfläche ist in vier Schritte gegliedert:
+
+1. **Projekt** – Projekt (Kunde, Objekt) → Gateways → Linien. Jede Linie ist ein M-Bus-Strang mit
+   eigenem Anschluss und eigener Zählerliste. Linie wählen verbindet sofort.
+2. **Scan** – auf welchen Baudraten antworten Geräte („Prüfen“), dann Primär- oder Sekundärscan.
+   Die Trefferliste zeigt Auffälligkeiten (doppelte Adressen, fremde Baudrate, Zähler ohne Daten)
+   mit **„Warum?“** und behebt sie auf Wunsch mit **„Alle beheben“**.
+3. **Zähler** – gefundene Zähler merken, benennen, alle auslesen, Verlauf ansehen, exportieren.
+4. **Werkzeuge** – einzelnen Zähler auslesen, Adresse/Baudrate ändern, Reset, Telegramm-Log und
+   Telegramm-Analyse.
+
+Unten zeigt eine Statusleiste immer, was der Bus gerade macht und wie viele Auffälligkeiten offen
+sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Bericht** (PDF) fürs Projekt.
+
 ## Funktionen
 
-- Serielle Schnittstelle (COM-Port, `/dev/ttyUSB0`, …), Baudrate 300–38400, 8E1, oder
-  **M-Bus-Gateway im Netzwerk** (`tcp://192.168.1.50:10001`)
-- **Primärscan** (Adressbereich wählbar, mit Wiederholungen); erkennt Kollisionen, wenn mehrere Zähler dieselbe Adresse haben
-- **Sekundärscan** (Wildcard-Suche über die ID), findet auch Zähler, die alle auf Adresse 0 stehen
-- **Auslesen**: alle Werte mit Einheit, Hersteller, Medium, Speicher-/Tarifnummer; Multi-Telegramm-Antworten werden zusammengeführt
-- **Primäradresse setzen** über Primär- oder Sekundäradresse, mit anschliessender Kontrolle;
-  bricht ab, wenn die neue Adresse belegt ist oder mehrere Zähler auf der alten stehen
-- **Baudrate** eines Zählers suchen (300–38400 Bd durchprobieren) und am Zähler umstellen
-- **Gemischte Baudraten auf einem Bus**: prüfen, auf welchen Baudraten Geräte antworten, und
-  Primär- oder Sekundärscan auf den gewählten Baudraten; geschätzte Höchstdauer des Primärscans
-- **Application Reset** senden
-- **Projekte, Gateways, Linien**: Projekt (Kunde, Objekt) → Gateway (z.B. IP) → Linie (Anschluss,
-  Baudrate). Jede Linie hat ihre eigene Zählerliste, ihren letzten Scan und ihre Auslesungen;
-  beim Wechsel der Linie verbindet mbusio automatisch. Projekte als Datei exportieren/importieren
-- **Zählerliste** je Linie: Zähler merken, mit Name, Ort und Notiz versehen, gesammelt auslesen
-  (auch mit unterschiedlichen Baudraten auf einem Bus)
-- **Alles wird gespeichert** (SQLite, eine Datei `mbusio.db`): Auslesungen mit Verlauf, letzter Scan,
-  Änderungsprotokoll
-- **Verlauf** je Zähler: Zählerstand (oder jeder andere Wert) über die Zeit als Diagramm oder Tabelle,
-  mit Differenz und Verbrauch pro Tag, als CSV
-- Trefferliste **sortierbar** (Klick auf die Spaltenüberschrift)
-- **Telegramm senden** (Experten): beliebige Bytes senden, Antwort wird decodiert
-- **Prüfung der Trefferliste**: doppelte Primäradressen und IDs sowie Zähler auf fremder
-  Baudrate werden markiert, mit Knopf zum Beheben („PA ändern“, „Baudrate ändern“)
-- **„Warum?“** bei Kollision und „Keine Daten“: Ursache in einfachen Worten (Prüfsumme, abgeschnitten,
-  Fehlertelegramm, falsche Adresse …) mit Tipp, was zu tun ist
-- **„Alle beheben“**: Plan zum Abhaken für abweichende Baudraten und doppelte PA, freie Adressen
-  werden auf dem Bus gesucht, jede Änderung am Zähler kontrolliert und im Bericht protokolliert
-- **Telegramm-Analyse**: jede Zeile im Telegramm-Log anklicken oder Hex einfügen, das Telegramm
-  wird Byte für Byte erklärt, auch gestörte (Prüfsumme, fehlende oder überzählige Bytes)
-- **Bericht** für den Kunden: Zählerliste mit Kunde, Objekt, Bearbeiter und Werten, optional mit
-  allen Messwerten, im Browser drucken oder als PDF speichern
-- **Export** als CSV (Semikolon, Excel-tauglich) oder JSON
-- **Telegramm-Log** mit allen gesendeten und empfangenen Bytes, wichtig für die Fehlersuche an echter Hardware
-- **Kommandozeile** für Skripte, Ergebnis als JSON (siehe unten)
-- **Simulator** mit 20 virtuellen Zählern und typischen Fehlern aus der Praxis zum Üben ohne Hardware
-- Oberfläche auf **Deutsch und Englisch**, auch auf dem Handy bedienbar
+### Verbindung und Suche
+
+- Serielle Schnittstelle (COM-Port, `/dev/ttyUSB0`, …) oder M-Bus-Gateway im Netzwerk
+  (`tcp://192.168.1.50:10001`), Baudrate 300–38400, 8E1
+- Primärscan (Bereich, Wiederholungen, geschätzte Höchstdauer) und Sekundärscan (Suche über die ID)
+- Busse mit gemischten Baudraten: prüfen, wo Geräte antworten, und nur dort scannen
+- Trefferliste sortierbar, Sekundäradresse lesbar zerlegt oder als 16 Hex-Zeichen
+
+### Fehler finden und beheben
+
+- Erkennt Kollisionen, doppelte Primäradressen, doppelte IDs (Hinweis, wenn nur die Hersteller
+  verschieden sind), Zähler auf fremder Baudrate und Zähler ohne brauchbare Daten
+- „Warum?“ nennt die Ursache in einfachen Worten (Prüfsumme, abgeschnitten, falsche Adresse,
+  Fehlermeldung des Zählers …) mit Tipp, was zu tun ist
+- „PA ändern“ sucht eine freie Adresse auf dem Bus; „Baudrate ändern“ stellt auf die Bus-Baudrate um
+- „Alle beheben“: Plan zum Abhaken, jede Änderung wird am Zähler kontrolliert und protokolliert
+- Sicherheitsprüfungen: keine Adressänderung auf belegte Adressen oder wenn mehrere Zähler
+  antworten; Auslesen über eine Primäradresse mit mehreren Zählern wird abgelehnt
+
+### Zähler, Auslesen, Verlauf
+
+- Auslesen aller Werte mit Einheit, Speicher, Tarif; Antworten über mehrere Telegramme;
+  variable und feste Datenstruktur (alte Zähler), Fehlermeldungen des Zählers
+- Zählerliste je Linie, gemerkt **über SA oder PA** (einstellbar je Linie, keine gemischten Listen)
+- „Alle auslesen“, auch mit unterschiedlichen Baudraten auf einem Bus
+- Verlauf je Zähler als Diagramm oder Tabelle mit Differenz und Verbrauch pro Tag, als CSV
+- Baudrate suchen und umstellen, Application Reset, Telegramme senden (Experten)
+
+### Dokumentation
+
+- Bericht je Projekt mit Kunde, Objekt, Bearbeiter, allen Linien und Zählern, optional mit allen
+  Messwerten, offenen Auffälligkeiten (ausblendbar) und durchgeführten Änderungen; drucken oder
+  als PDF speichern
+- Export der Messwerte als CSV (Semikolon, Excel) oder JSON; Projekte als Datei exportieren und
+  importieren (z.B. vom PC auf den Raspberry Pi)
+- Telegramm-Log; jede TX/RX-Zeile anklicken erklärt das Telegramm Byte für Byte
+
+### Allgemein
+
+- Alles wird gespeichert (SQLite, eine Datei `mbusio.db`)
+- Deutsch und Englisch, hell/dunkel, fürs Handy angepasst
+- Kommandozeile für Skripte mit JSON-Ausgabe
+- Simulator mit 20 virtuellen Zählern und typischen Fehlern aus der Praxis
 
 ## Hardware
 
 Ein normaler USB-Seriell-Adapter genügt nicht: M-Bus braucht einen **Pegelwandler / M-Bus-Master**
-(z.B. USB-M-Bus-Master mit 3–60 Zählern), der die Busspannung liefert. mbusio spricht diesen
-Wandler über seine serielle Schnittstelle an.
+(z.B. USB-M-Bus-Master für 3–60 Zähler), der die Busspannung liefert. mbusio spricht diesen
+Wandler über seine serielle Schnittstelle an, oder ein M-Bus-Gateway über TCP.
 
 ## Starten
 
-Fertige Binärdateien gibt es unter *Actions → Build → Artifacts* bzw. bei Releases (Tag `v*`).
-Beim Start öffnet sich die Weboberfläche im Browser (abschalten mit `--no-browser`).
+Fertige Programme gibt es bei den [Releases](https://github.com/Wobi848/mbusio/releases):
+`mbusio-windows-x86_64.exe`, `mbusio-linux-x86_64`, `mbusio-raspberrypi-arm64` (Raspberry Pi OS
+64-Bit) und `mbusio-raspberrypi-armv7` (32-Bit). Beim Start öffnet sich der Browser mit
+`http://localhost:8080`; die zuletzt aktive Linie wird automatisch wieder verbunden.
 
 ### Windows ohne Adminrechte
 
-mbusio braucht keine Installation: `mbusio-windows-x86_64.exe` in einen beliebigen Ordner legen
-und doppelklicken. Bei der SmartScreen-Warnung „Weitere Informationen → Trotzdem ausführen“.
-Ein zweiter Doppelklick öffnet nur wieder den Browser.
+Keine Installation nötig: die .exe in einen beliebigen Ordner legen und doppelklicken. Bei der
+SmartScreen-Warnung „Weitere Informationen → Trotzdem ausführen“. Ein zweiter Doppelklick öffnet
+nur wieder den Browser.
 
-- **Portabel** (z.B. USB-Stick): Ordner `mbusio-data` neben die .exe legen, dann liegt die
-  Datenbank mit allen Projekten dort statt in `%APPDATA%\mbusio`.
+- **Portabel** (z.B. USB-Stick): Ordner `mbusio-data` neben die .exe legen, dann liegen alle
+  Projekte dort statt in `%APPDATA%\mbusio`.
 - Der **Treiber des USB-M-Bus-Masters** braucht beim Installieren Adminrechte. Viele Adapter
   (FTDI) erkennt Windows von selbst; im Geräte-Manager muss ein COM-Port erscheinen.
 - Ohne `--lan` starten, sonst verlangt die Windows-Firewall eine Freigabe (Adminrechte).
 
+### Raspberry Pi als Dienst
+
 ```sh
-mbusio                      # Weboberfläche auf http://localhost:8080
-mbusio --port SIMULATOR     # direkt mit dem Simulator verbinden
-mbusio --port /dev/ttyUSB0 --baud 2400
-mbusio --list-ports
+sudo usermod -aG dialout pi        # Zugriff auf /dev/ttyUSB0, danach neu anmelden
+sudo install -m 755 mbusio-raspberrypi-arm64 /usr/local/bin/mbusio
 ```
 
+```ini
+# /etc/systemd/system/mbusio.service
+[Unit]
+Description=mbusio
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/mbusio --lan --token GEHEIM --no-browser --data-dir /home/pi/mbusio-data
+User=pi
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```sh
+sudo systemctl enable --now mbusio
+```
+
+Dann im Handy- oder Laptop-Browser `http://<IP des Pi>:8080` öffnen.
+
+### Optionen
+
 | Option | Bedeutung |
-|---|---|
+| --- | --- |
 | `--http-port 8080` | Port der Weboberfläche |
 | `--lan` | auch aus dem Netzwerk erreichbar (sonst nur `127.0.0.1`) |
-| `--token GEHEIM` | Zugriffsschlüssel für die API, empfohlen mit `--lan` (auch per `MBUSIO_TOKEN`) |
-| `--port`, `--baud` | beim Start direkt verbinden (`--port tcp://IP:Port` für Netzwerk-Gateways) |
-| `--data-dir` | Ordner für die Datenbank `mbusio.db` (Standard: `mbusio-data` neben dem Programm, falls vorhanden, sonst `~/.local/share/mbusio` bzw. `%APPDATA%\mbusio`). Eine `meters.json` aus Version 0.3 wird beim ersten Start übernommen |
-| `--no-browser` | Browser beim Start nicht öffnen |
+| `--token GEHEIM` | Zugriffsschlüssel, empfohlen mit `--lan` (auch per `MBUSIO_TOKEN`) |
+| `--port`, `--baud` | beim Start mit diesem Anschluss verbinden statt mit der zuletzt aktiven Linie |
 | `--timeout-ms` | Antwort-Timeout, `0` = automatisch aus der Baudrate |
+| `--data-dir` | Ordner für `mbusio.db` (Standard: `mbusio-data` neben dem Programm, falls vorhanden, sonst `~/.local/share/mbusio` bzw. `%APPDATA%\mbusio`) |
+| `--no-browser` | Browser beim Start nicht öffnen |
+| `--list-ports` | serielle Schnittstellen auflisten |
+
+### Daten und Sicherung
+
+Alle Projekte, Zählerlisten, Auslesungen (mit Verlauf), letzten Scans und Änderungen liegen in
+**einer Datei** `mbusio.db` (SQLite). Zum Sichern mbusio beenden und die Datei kopieren, oder ein
+Projekt über „Exportieren“ als JSON-Datei sichern. Eine `meters.json` aus Version 0.3 wird beim
+ersten Start ins Projekt „Standard“ übernommen.
 
 ### Kommandozeile
 
@@ -103,38 +159,12 @@ mbusio --port /dev/ttyUSB0 reset 5
 mbusio --port tcp://192.168.1.50:10001 raw "10 40 05 45 16"
 ```
 
-### Raspberry Pi (headless)
-
-```sh
-sudo usermod -aG dialout $USER     # Zugriff auf /dev/ttyUSB0, danach neu anmelden
-./mbusio-raspberrypi-arm64 --lan --token GEHEIM
-```
-
-Dann im Handy-Browser `http://<IP des Pi>:8080` öffnen. Als Dienst mit systemd:
-
-```ini
-# /etc/systemd/system/mbusio.service
-[Unit]
-Description=mbusio
-After=network.target
-
-[Service]
-ExecStart=/usr/local/bin/mbusio --lan --token GEHEIM
-User=pi
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
-
-`arm64` ist für Raspberry Pi OS 64-Bit, `armv7` für 32-Bit.
-
 ## Simulator
 
-Port `SIMULATOR` wählen. Belegung:
+Als Anschluss `SIMULATOR` eintragen. Belegung:
 
 | Adresse | Zähler | Besonderheit |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Wärmezähler, ID 12345678 | Antwort in zwei Telegrammen |
 | 2 | Elektrizitätszähler, ID 87654321 | Tarife, Spannung, Strom, Firmware-Text |
 | 3 | Wasserzähler, ID 30000001 | |
@@ -155,15 +185,22 @@ Baudratenwechsel und Application Reset werden wie bei echten Zählern quittiert.
 
 ## Erster Test mit echter Hardware
 
-1. Verbinden mit 2400 Baud (manche Zähler: 300 oder 9600)
-2. Telegramm-Log aufklappen
-3. Einen bekannten Zähler über seine Primäradresse auslesen
-4. Bei Problemen das Log (TX/RX-Zeilen) mitschicken
+1. Linie anlegen, Anschluss eintragen (z.B. `COM3` oder `/dev/ttyUSB0`), Baudrate 2400
+2. Im Scan „Prüfen“: auf welchen Baudraten antworten Geräte?
+3. Einen bekannten Zähler unter „Werkzeuge“ über seine Primäradresse auslesen
+4. Bei Problemen: Telegramm-Log aufklappen, Zeilen anklicken (Analyse) und die TX/RX-Zeilen mitschicken
+
+## Bekannte Grenzen
+
+- Antworten zwei Zähler exakt gleichzeitig mit einer Quittung (`E5`), sieht das manchmal wie eine
+  einzige Antwort aus. Der Sekundärscan ist deshalb der sichere Weg, alle Zähler zu finden.
+- Telegramme mit umgekehrter Byte-Reihenfolge (CI 76/77) werden nicht unterstützt.
+- Die ID eines Zählers lässt sich nicht ändern; das kann nur die Software des Herstellers.
 
 ## Entwicklung
 
 ```sh
-cargo test            # Frames, Decoder, Scans und Adressierung gegen den Simulator
+cargo test                     # Frames, Decoder, Analyse, Scans, Adressierung, Datenbank
 cargo run -- --port SIMULATOR
 ```
 
@@ -171,37 +208,35 @@ Aufbau:
 
 - `src/mbus/frame.rs`: Telegramme bauen und prüfen (EN 13757-2)
 - `src/mbus/decode.rs`, `tables.rs`: Datensätze decodieren (EN 13757-3)
-- `src/mbus/master.rs`: Scan, Auslesen, Adressierung
+- `src/mbus/master.rs`: Scan, Auslesen, Adressierung, Baudrate, Ursachen von Störungen
+- `src/mbus/analyze.rs`: Telegramm-Analyse Byte für Byte
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim.rs`: Simulator, alle hinter demselben `Link`-Trait
 - `src/db.rs`: Datenbank (Projekte, Gateways, Linien, Zähler, Auslesungen, Änderungen)
-- `src/mbus/analyze.rs`: Telegramm-Analyse
-- `src/web.rs`: HTTP-API; `web/`: Oberfläche (wird in die Binärdatei eingebettet)
-- `src/i18n.rs`: Übersetzungen der Messgrössen; UI-Texte in `web/app.js`
+- `src/web.rs`: HTTP-API; `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
+- `src/i18n.rs`: Übersetzungen der Messgrössen; UI-Texte in `web/app.js` und `web/report.js`
 
-Der Decoder ist eine Eigenentwicklung. Das Crate `m-bus-parser` war vor Version 1.0 und
-auf mehrere Crates mit wechselnder API verteilt, deshalb habe ich es nicht übernommen.
-Getestet wird der Decoder gegen das Referenztelegramm aus der M-Bus-Dokumentation.
-
-Funktionsumfang wie libmbus: Primär-/Sekundärscan, Auslesen mit mehreren Telegrammen,
-Primäradresse setzen, Baudrate umstellen, Application Reset, Rohtelegramme, serielle und
-TCP-Verbindung, variable und feste Datenstruktur. Nicht unterstützt: Telegramme mit
-umgekehrter Byte-Reihenfolge (CI 76/77), die in der Praxis kaum vorkommen.
+Der Decoder ist eine Eigenentwicklung und wird gegen das Referenztelegramm aus der
+M-Bus-Dokumentation getestet. Funktionsumfang wie libmbus: Primär-/Sekundärscan, Auslesen mit
+mehreren Telegrammen, Primäradresse setzen, Baudrate umstellen, Application Reset,
+Rohtelegramme, serielle und TCP-Verbindung, variable und feste Datenstruktur.
 
 ---
 
 ## English
 
-M-Bus master with a built-in web UI: scan for meters, read them, set addresses, export.
-One binary for Windows, Linux and Raspberry Pi.
+M-Bus master with a built-in web UI for commissioning and service: find meters, find and fix
+problems, read them, document the job. One binary for Windows, Linux and Raspberry Pi, no
+installation; the UI runs in the browser, phones included.
 
-- Primary scan (with collision detection) and secondary scan (wildcard search)
-- Read all values with units, manufacturer and medium; multi-telegram responses are merged
-- Set the primary address (via primary or secondary address), verified afterwards
-- Detect and switch a meter's baud rate, application reset, raw telegrams
-- Buses with mixed baud rates: check which baud rates have devices, scan on all of them
-- Meter list with names and locations, read all at once (mixed baud rates supported)
+- Four steps: **Project** (customer, site → gateways → lines), **Scan** (check baud rates, primary
+  and secondary scan, issues with “Why?” and “Fix all”), **Meters** (meter list, read all, history,
+  export), **Tools** (read one meter, change address/baud rate, reset, telegram log and analysis)
+- Detects collisions, duplicate addresses and IDs, meters on another baud rate and meters without
+  usable data; explains the cause and fixes what can be fixed, verified on the meter
+- Meter list per line, remembered by secondary or primary address (set per line)
+- History per meter as chart or table, CSV; project report as PDF with changes made and open issues
 - Serial port or network gateway (`tcp://host:port`), command line with JSON output
-- CSV/JSON export, telegram log, built-in simulator, UI in German and English
+- Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with 20 meters
 
 ```sh
 mbusio                                  # http://localhost:8080
@@ -209,7 +244,6 @@ mbusio --port SIMULATOR                 # try it without hardware
 mbusio --lan --token SECRET             # reachable from the LAN, protected by a token
 ```
 
-You need an M-Bus level converter / master. A plain USB-serial adapter is not enough.
-
-No installation or admin rights needed: the .exe runs from any folder and opens the browser.
-Put a folder `mbusio-data` next to it to keep the meter list there (portable, e.g. USB stick).
+You need an M-Bus level converter / master; a plain USB-serial adapter is not enough. No admin
+rights needed on Windows: the .exe runs from any folder. Put a folder `mbusio-data` next to it to
+keep all data there (portable, e.g. USB stick).
