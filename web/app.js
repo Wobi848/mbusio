@@ -38,6 +38,17 @@ const UI = {
       "„Prüfen“ fragt in wenigen Sekunden alle Baudraten ab und markiert die, auf denen Geräte antworten (●). Gescannt wird nur auf den markierten Baudraten.",
     bauds_all: "Alle",
     busbar_view: "Ansehen",
+    tab_project: "Projekt",
+    scan_primary_short: "Jede Adresse einzeln abfragen. Schnell.",
+    scan_secondary_short: "Über die ID suchen. Findet auch Zähler mit gleicher PA.",
+    reset_short: "Kommunikation des Zählers zurücksetzen.",
+    tab_scan: "Scan",
+    tab_meters: "Zähler",
+    tab_tools: "Werkzeuge",
+    help_toggle: "Erklärungen ein-/ausblenden",
+    conn_change: "Ändern",
+    conn_summary: (p, b) => `Verbunden: ${p} · ${b} Bd`,
+    gw_sum: (n, issues) => `${n} Linie${n === 1 ? "" : "n"}` + (issues ? ` · ⚠ ${issues}` : ""),
     project: "Projekt",
     crumb_title: "Projekt › Gateway › Linie: hier wechseln",
     project_switch: "Projekt wechseln",
@@ -351,6 +362,17 @@ const UI = {
       "“Check” polls all baud rates in a few seconds and selects those where devices answer (●). The scan only runs at the selected baud rates.",
     bauds_all: "All",
     busbar_view: "View",
+    tab_project: "Project",
+    scan_primary_short: "Poll every address one by one. Fast.",
+    scan_secondary_short: "Search by ID. Also finds meters sharing a PA.",
+    reset_short: "Reset the meter's communication.",
+    tab_scan: "Scan",
+    tab_meters: "Meters",
+    tab_tools: "Tools",
+    help_toggle: "Show/hide explanations",
+    conn_change: "Change",
+    conn_summary: (p, b) => `Connected: ${p} · ${b} Bd`,
+    gw_sum: (n, issues) => `${n} line${n === 1 ? "" : "s"}` + (issues ? ` · ⚠ ${issues}` : ""),
     project: "Project",
     crumb_title: "Project › gateway › line: switch here",
     project_switch: "Switch project",
@@ -709,6 +731,8 @@ let lastJob = null;
 let currentJobKind = null;
 let connBaud = null;
 let activeLineId = null;
+/// Verbindungsformular trotz Verbindung offen ("Ändern")
+let connEditing = false;
 /// zuletzt gespeicherte Auffälligkeiten (nur bei Änderung neu speichern)
 let savedIssues = null;
 
@@ -836,6 +860,10 @@ async function refreshStatus() {
   connBaud = s.connection?.baud ?? null;
   conn = s.connection;
   activeLineId = s.active?.line.id ?? null;
+  // verbunden: Verbindung als eine Zeile, Formular erst auf "Ändern"
+  $("sec-conn").classList.toggle("compact", connected && !connEditing);
+  $("conn-summary").hidden = !connected || connEditing;
+  if (connected) $("conn-summary-text").textContent = t("conn_summary", s.connection.port, s.connection.baud);
   // "Baudrate abweichend" hängt von der Bus-Baudrate ab: Trefferliste neu zeichnen, wenn sie sich ändert
   if (connBaud !== prevBaud && lastJob) renderJob(lastJob);
   renderBusbar();
@@ -861,6 +889,7 @@ $("connect").onclick = () =>
       body: { port, baud: Number($("baud").value), timeout_ms: Number($("timeout").value) || 0 },
     });
     toast(t("connected_to", port));
+    connEditing = false;
     await refreshStatus();
   });
 
@@ -1503,6 +1532,7 @@ $("hits").addEventListener("click", (ev) => {
   if (!d.read) return;
   $("read-addr").value = d.read;
   $("set-old").value = d.read;
+  reveal($("sec-read"), "start");
   readMeter(Number(d.baud) || null);
 });
 
@@ -1705,7 +1735,7 @@ function spotlight(tileId, buttonId, text) {
   c.className = "callout";
   c.innerHTML = `<p>${esc(text)}</p><a href="#hits">${esc(t("back_to_hits"))}</a>`;
   $(tileId).querySelector("h3").after(c);
-  $(tileId).scrollIntoView({ behavior: "smooth", block: "center" });
+  reveal($(tileId), "center");
 }
 
 /// Nach Erfolg: grüne Bestätigung stehen lassen, Hervorhebung aufheben
@@ -2088,7 +2118,7 @@ async function analyzeHex(hex) {
         .map((f) => `<tr${f.bad ? ' class="bad"' : ""}><td class="bytes">${esc(f.bytes || "–")}</td><td>${esc(f.name)}</td><td>${esc(f.value)}</td></tr>`)
         .join("")}</tbody>
     </table></div>`;
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  reveal(el, "start");
 }
 
 $("clear-log").onclick = async () => {
@@ -2373,6 +2403,8 @@ window.addEventListener("resize", () => {
 // ------------------------------------------------------------ Projekte, Gateways, Linien
 
 let tree = null;
+/// zusätzlich aufgeklappte Gateways (das der aktiven Linie ist immer offen)
+const openGateways = new Set();
 
 async function loadTree() {
   tree = await api("projects");
@@ -2403,9 +2435,14 @@ function renderTree() {
   $("tree").innerHTML =
     node.gateways
       .map(
-        (g, gk) => `<div class="gw">
+        (g, gk) => {
+          // eingeklappt, ausser beim Gateway der aktiven Linie oder wenn aufgeklappt
+          const open = g.id === a.gateway.id || openGateways.has(g.id);
+          const issues = g.lines.reduce((n, l) => n + (l.issues?.count || 0), 0);
+          return `<div class="gw${open ? "" : " collapsed"}">
       <div class="gw-head">
-        <h3>${esc(g.name)}</h3>${g.address ? `<span class="hint mono">${esc(g.address)}</span>` : ""}
+        <h3 data-gw-toggle="${g.id}" role="button" tabindex="0" aria-expanded="${open}"><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>${esc(g.name)}</h3>${g.address ? `<span class="hint mono">${esc(g.address)}</span>` : ""}
+        ${open ? "" : `<span class="gw-sum">${esc(t("gw_sum", g.lines.length, issues))}</span>`}
         <span class="spacer"></span>
         ${node.gateways.length > 1 ? moveBtns("gw", g.id, gk, node.gateways.length) : ""}
         <button class="icon-btn" data-gw-edit="${g.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
@@ -2434,7 +2471,8 @@ function renderTree() {
         })
         .join("")}
       <div class="gw-foot"><button class="small quiet" data-ln-add="${g.id}">${esc(t("ln_add"))}</button></div>
-    </div>`
+    </div>`;
+        }
       )
       .join("") + `<div><button class="small ghost" data-gw-add>${esc(t("gw_add"))}</button></div>`;
 }
@@ -2494,6 +2532,15 @@ function openTreeForm(kind, data, onSave) {
 }
 
 $("tree").addEventListener("click", (ev) => {
+  const toggle = ev.target.closest("[data-gw-toggle]");
+  if (toggle) {
+    const id = Number(toggle.dataset.gwToggle);
+    if (id === tree.active.gateway.id) return;
+    if (openGateways.has(id)) openGateways.delete(id);
+    else openGateways.add(id);
+    renderTree();
+    return;
+  }
   const b = ev.target.closest("button");
   if (!b) return;
   const d = b.dataset;
@@ -2606,6 +2653,66 @@ try {
 } catch {
   /* privater Modus */
 }
+
+// ------------------------------------------------------------ Reiter, Hilfe, Verbindung
+
+const TABS = ["project", "scan", "meters", "tools"];
+
+function showTab(name) {
+  if (!TABS.includes(name)) name = "scan";
+  document.querySelectorAll("main [data-tab]").forEach((s) => (s.hidden = s.dataset.tab !== name));
+  document.querySelectorAll("[data-tab-go]").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tabGo === name);
+    b.setAttribute("aria-selected", b.dataset.tabGo === name);
+  });
+  storageSet("tab", name);
+}
+
+/// Element zeigen: richtigen Reiter öffnen, dann hinscrollen
+function reveal(el, block = "nearest") {
+  if (!el) return;
+  const section = el.closest("[data-tab]");
+  if (section?.hidden) showTab(section.dataset.tab);
+  requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block }));
+}
+
+document.querySelectorAll("[data-tab-go]").forEach(
+  (b) =>
+    (b.onclick = () => {
+      showTab(b.dataset.tabGo);
+      window.scrollTo({ top: 0 });
+    })
+);
+
+// Links auf Bereiche (Statusleiste, Pfad, "zurück zur Trefferliste" …) öffnen den passenden Reiter
+document.addEventListener("click", (ev) => {
+  const a = ev.target.closest('a[href^="#"]');
+  if (!a || a.getAttribute("href") === "#") return;
+  const el = document.getElementById(a.getAttribute("href").slice(1));
+  if (!el || !el.closest("[data-tab]")) return;
+  ev.preventDefault();
+  reveal(el, "start");
+});
+
+$("help-toggle").onclick = () => {
+  const on = !document.body.classList.contains("show-help");
+  document.body.classList.toggle("show-help", on);
+  $("help-toggle").setAttribute("aria-pressed", on);
+  storageSet("help", on ? "1" : "0");
+};
+if (storageGet("help") === "1") {
+  document.body.classList.add("show-help");
+  $("help-toggle").setAttribute("aria-pressed", "true");
+}
+
+$("conn-edit").onclick = () => {
+  connEditing = true;
+  $("sec-conn").classList.remove("compact");
+  $("conn-summary").hidden = true;
+};
+$("conn-sum-disconnect").onclick = () => $("disconnect").click();
+
+showTab(storageGet("tab") || "scan");
 
 // ------------------------------------------------------------ Start
 

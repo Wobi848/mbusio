@@ -892,3 +892,58 @@ th.sorted { color: var(--accent); }
 
 .remember-mode { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .icon-btn:disabled { opacity: .25; cursor: default; }
+
+/* ------------------------------------------------------------ Reiter (Arbeitsschritte) */
+
+.tabs { gap: 4px; }
+.tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 12px; border: 0; border-radius: 9px; background: transparent;
+  color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.tab:hover { color: var(--text); background: var(--sunken); }
+.tab.active { color: var(--text); background: var(--sunken); box-shadow: inset 0 -2px 0 var(--accent); }
+.tab-no {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  font-size: 11px; font-weight: 700; background: var(--line); color: var(--muted);
+}
+.tab.active .tab-no { background: var(--accent); color: var(--accent-ink); }
+@media (max-width: 900px) {
+  .tab span:not(.tab-no) { display: none; }
+  .tab.active span { display: inline; }
+}
+
+/* Erklärtexte nur mit "?" */
+body:not(.show-help) .explain { display: none !important; }
+.help-toggle { font-weight: 700; font-size: 14px; }
+.help-toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* Verbindung kompakt, sobald verbunden */
+.conn-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; }
+.conn-summary #conn-summary-text { font-weight: 600; }
+.dot-ok { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
+#sec-conn.compact .conn-grid, #sec-conn.compact .card-head, #sec-conn.compact #conn-line { display: none; }
+#sec-conn.compact { padding-top: 14px; padding-bottom: 14px; }
+
+/* Projekt: nur das Gateway der aktiven Linie aufgeklappt */
+.gw.collapsed .ln, .gw.collapsed .gw-foot { display: none; }
+.gw.collapsed .gw-head { margin-bottom: 0; }
+.gw-head h3 { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.gw-head h3 .chev { transition: transform .15s; color: var(--muted); }
+.gw.collapsed .gw-head h3 .chev { transform: rotate(-90deg); }
+.gw-sum { font-size: 12px; color: var(--muted); }
+
+/* Kopfzeile: Reiter haben Vorrang, der Pfad schrumpft; Verbindung steht in der Statusleiste */
+#conn-badge { display: none; }
+.topbar-inner { gap: 18px; }
+.nav.tabs { flex: none; }
+.header-right { min-width: 0; gap: 10px; }
+.crumb { min-width: 0; flex: 0 1 auto; max-width: 340px; }
+@media (max-width: 1100px) { .crumb { max-width: 200px; } }
+
+@media (max-width: 560px) {
+  .theme-switch { display: none; }
+  .crumb span { display: none; }
+  .crumb { padding: 6px 8px; }
+  .topbar-inner { row-gap: 6px; }
+}

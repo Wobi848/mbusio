@@ -21,16 +21,15 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 8h18M3 16h18"/><circle cx="8" cy="8" r="2.2" fill="var(--surface)"/><circle cx="16" cy="16" r="2.2" fill="var(--surface)"/></svg>
       <span>mbusio</span>
     </a>
-    <nav class="nav" aria-label="Navigation">
-      <a href="#sec-scan" data-i18n="scan"></a>
-      <a href="#sec-meters" data-i18n="meters"></a>
-      <a href="#sec-read" data-i18n="nav_read"></a>
-      <a href="#sec-config" data-i18n="nav_config"></a>
-      <a href="#sec-export" data-i18n="nav_export"></a>
-      <a href="#sec-log" data-i18n="nav_log"></a>
+    <nav class="nav tabs" aria-label="Navigation" role="tablist">
+      <button class="tab" role="tab" data-tab-go="project"><span class="tab-no">1</span><span data-i18n="tab_project"></span></button>
+      <button class="tab" role="tab" data-tab-go="scan"><span class="tab-no">2</span><span data-i18n="tab_scan"></span></button>
+      <button class="tab" role="tab" data-tab-go="meters"><span class="tab-no">3</span><span data-i18n="tab_meters"></span></button>
+      <button class="tab" role="tab" data-tab-go="tools"><span class="tab-no">4</span><span data-i18n="tab_tools"></span></button>
     </nav>
     <div class="header-right">
       <a id="crumb" class="crumb" href="#sec-project" data-i18n-title="crumb_title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span id="crumb-text"></span></a>
+      <button id="help-toggle" class="icon-btn boxed help-toggle" type="button" data-i18n-title="help_toggle" aria-pressed="false">?</button>
       <span id="conn-badge" class="chip off"><span class="dot"></span><span class="chip-text" data-i18n="disconnected"></span></span>
       <div class="seg theme-switch" role="group" aria-label="Theme">
         <button data-theme-set="auto" data-i18n-title="theme_auto" aria-label="Auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
@@ -46,7 +45,7 @@
 </header>
 
 <main id="top">
-  <section class="card" id="sec-project" aria-labelledby="h-project">
+  <section class="card" id="sec-project" data-tab="project" aria-labelledby="h-project">
     <div class="card-head">
       <div class="head-text">
         <span class="eyebrow" data-i18n="project"></span>
@@ -69,9 +68,15 @@
     <form id="tree-form" class="tree-form" hidden></form>
   </section>
 
-  <section class="card" id="sec-conn" aria-labelledby="h-conn">
+  <section class="card" id="sec-conn" data-tab="scan" aria-labelledby="h-conn">
     <div class="card-head">
       <h2 id="h-conn" class="h-small" data-i18n="connection"></h2>
+    </div>
+    <div id="conn-summary" class="conn-summary" hidden>
+      <span class="dot-ok" aria-hidden="true"></span>
+      <span id="conn-summary-text"></span>
+      <button id="conn-edit" class="small quiet" data-i18n="conn_change"></button>
+      <button id="conn-sum-disconnect" class="small quiet" data-i18n="disconnect"></button>
     </div>
     <div class="conn-grid">
       <label><span data-i18n="port"></span>
@@ -96,11 +101,11 @@
         <button id="disconnect" class="ghost" disabled hidden data-i18n="disconnect"></button>
       </div>
     </div>
-    <p class="hint" data-i18n="connection_hint"></p>
+    <p class="hint explain" data-i18n="connection_hint"></p>
     <p id="conn-line" class="hint result"></p>
   </section>
 
-  <section class="card" id="sec-scan" aria-labelledby="h-scan">
+  <section class="card" id="sec-scan" data-tab="scan" aria-labelledby="h-scan">
     <div class="card-head">
       <h2 id="h-scan" data-i18n="scan"></h2>
     </div>
@@ -112,12 +117,13 @@
     </div>
     <p id="bauds-empty" class="hint warn" data-i18n="pick_baud" hidden></p>
     <p id="bus-bauds-result" class="hint result"></p>
-    <p class="hint baud-check-hint" data-i18n="scan_bauds_hint"></p>
+    <p class="hint baud-check-hint explain" data-i18n="scan_bauds_hint"></p>
     <div class="tiles">
       <div class="tile">
         <div>
           <h3 data-i18n="scan_primary"></h3>
-          <p class="hint" data-i18n="scan_primary_hint"></p>
+          <p class="hint" data-i18n="scan_primary_short"></p>
+          <p class="hint explain" data-i18n="scan_primary_hint"></p>
         </div>
         <div class="tile-row">
           <label><span data-i18n="from"></span> <input id="scan-from" class="mono" type="number" min="0" max="250" value="0"></label>
@@ -130,7 +136,8 @@
       <div class="tile">
         <div>
           <h3 data-i18n="scan_secondary"></h3>
-          <p class="hint" data-i18n="scan_secondary_hint"></p>
+          <p class="hint" data-i18n="scan_secondary_short"></p>
+          <p class="hint explain" data-i18n="scan_secondary_hint"></p>
         </div>
         <div class="tile-end">
           <button id="scan-secondary" class="ghost needs-conn" data-i18n="scan_secondary_start"></button>
@@ -161,12 +168,12 @@
     </div>
   </section>
 
-  <section class="card" id="sec-meters" aria-labelledby="h-meters">
+  <section class="card" id="sec-meters" data-tab="meters" aria-labelledby="h-meters">
     <div class="card-head">
       <div class="head-text">
         <h2 id="h-meters" data-i18n="meters"></h2>
-        <p class="hint" data-i18n="meters_hint"></p>
-        <p id="meters-file" class="hint mono"></p>
+        <p class="hint explain" data-i18n="meters_hint"></p>
+        <p id="meters-file" class="hint mono explain"></p>
       </div>
       <div class="head-actions">
         <label class="button small quiet file-button"><span data-i18n="import"></span><input id="meters-import" type="file" accept=".json,application/json" hidden></label>
@@ -210,7 +217,7 @@
     <div id="history" class="history" hidden></div>
   </section>
 
-  <section class="card" id="sec-read" aria-labelledby="h-read">
+  <section class="card" id="sec-read" data-tab="tools" aria-labelledby="h-read">
     <div class="card-head align-end">
       <h2 id="h-read" data-i18n="read_meter"></h2>
       <div class="head-actions grow">
@@ -221,11 +228,11 @@
     <div id="reading"></div>
   </section>
 
-  <section class="card" id="sec-config" aria-labelledby="h-config">
+  <section class="card" id="sec-config" data-tab="tools" aria-labelledby="h-config">
     <div class="card-head align-end">
       <div class="head-text">
         <h2 id="h-config" data-i18n="configure"></h2>
-        <p class="hint" data-i18n="set_hint"></p>
+        <p class="hint explain" data-i18n="set_hint"></p>
       </div>
       <div class="head-actions grow">
         <label class="addr"><span data-i18n="meter"></span> <input id="set-old" class="mono" data-i18n-ph="address_ph"></label>
@@ -255,11 +262,12 @@
           <button id="detect-baud" class="small quiet needs-conn" data-i18n="detect_baud"></button>
           <span id="detect-result" class="hint result"></span>
         </div>
-        <p class="hint" data-i18n="baud_hint"></p>
+        <p class="hint explain" data-i18n="baud_hint"></p>
       </div>
       <div class="tile">
         <h3 data-i18n="reset_title"></h3>
-        <p class="hint" data-i18n="reset_hint"></p>
+        <p class="hint" data-i18n="reset_short"></p>
+        <p class="hint explain" data-i18n="reset_hint"></p>
         <div class="tile-end start">
           <button id="app-reset" class="ghost danger needs-conn" data-i18n="reset"></button>
         </div>
@@ -267,8 +275,7 @@
     </div>
   </section>
 
-  <div class="split">
-    <section class="card" id="sec-export" aria-labelledby="h-export">
+    <section class="card" id="sec-export" data-tab="meters" aria-labelledby="h-export">
       <h2 id="h-export" class="h-small" data-i18n="readings_export"></h2>
       <p id="readings-count" class="count"></p>
       <div class="row">
@@ -278,7 +285,7 @@
       </div>
     </section>
 
-    <section class="card" id="sec-log">
+    <section class="card" id="sec-log" data-tab="tools">
       <details id="log-box">
         <summary>
           <h2 class="h-small" data-i18n="telegram_log"></h2>
@@ -290,7 +297,7 @@
         </div>
         <pre id="log" class="mono"></pre>
         <h3 data-i18n="raw_title"></h3>
-        <p class="hint" data-i18n="raw_hint"></p>
+        <p class="hint explain" data-i18n="raw_hint"></p>
         <div class="row">
           <label class="grow"><span data-i18n="raw_bytes"></span> <input id="raw-hex" class="mono" placeholder="10 40 01 41 16"></label>
           <button id="analyze" class="ghost" data-i18n="analyze"></button>
@@ -300,7 +307,6 @@
         <div id="analysis" class="analysis" hidden></div>
       </details>
     </section>
-  </div>
 </main>
 
 <div id="busbar" class="busbar" role="status" hidden>
