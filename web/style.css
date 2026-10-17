@@ -1004,3 +1004,23 @@ label.check.sub-check { margin-left: 24px; }
 .sim-many { display: inline-flex; gap: 6px; align-items: center; }
 .sim-many input { width: 56px; }
 .sim-many select { width: auto; }
+
+/* Zählerliste schnell füllen */
+#meters-table input.quick { display: block; width: 100%; min-width: 0; padding: 4px 6px; font-size: 13px; }
+#meters-table.quick-mode td:nth-child(1) { min-width: 200px; }
+#meters-table.quick-mode td:nth-child(2) { min-width: 220px; }
+.quick-loc input.quick { flex: 1; }
+#meters-table input.quick.sub-input { margin-top: 4px; font-size: 12px; color: var(--muted); }
+#meters-table input.quick.saved { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-soft); }
+.quick-loc { display: flex; gap: 4px; align-items: center; }
+#quick-toggle.on { background: var(--accent); color: var(--accent-ink); }
+#meters-table tr.live td { background: var(--accent-soft); }
+.live-btn.on { background: var(--accent); color: var(--accent-ink); }
+#list-paste { width: 100%; font-size: 12px; margin: 6px 0 10px; }
+.list-source { align-items: center; gap: 10px; }
+.list-h { font-size: 14px; margin: 10px 0 6px; }
+.list-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 10px; }
+.list-preview td { font-size: 12px; }
+.names-row { align-items: end; flex-wrap: wrap; }
+.names-row .grow { flex: 1; min-width: 220px; }
+@media (max-width: 900px) { .list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

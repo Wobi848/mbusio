@@ -177,8 +177,9 @@
         <p id="meters-file" class="hint mono explain"></p>
       </div>
       <div class="head-actions">
-        <label class="button small quiet file-button"><span data-i18n="import"></span><input id="meters-import" type="file" accept=".json,application/json" hidden></label>
-        <a id="meters-export" class="button small quiet" href="api/meters/export" data-i18n="export"></a>
+        <button id="list-open" class="small quiet" data-i18n="list_import"></button>
+        <a id="meters-export" class="button small quiet" href="api/meters/csv" data-i18n="export" data-i18n-title="list_export_title"></a>
+        <button id="quick-toggle" class="small quiet" data-i18n="quick_edit" data-i18n-title="quick_edit_title"></button>
         <a id="meters-report" class="button small ghost" href="report.html" target="_blank" rel="noopener" data-i18n="report" data-i18n-title="report_title"></a>
         <button id="meters-clear" class="small quiet danger" data-i18n="meters_clear" hidden></button>
         <button id="meter-add" class="small ghost" data-i18n="meter_add"></button>
@@ -186,6 +187,19 @@
       </div>
     </div>
     <div id="meters-job" class="hint" hidden></div>
+    <div id="list-panel" class="history" hidden>
+      <div class="history-head"><h3 data-i18n="list_title"></h3><span class="spacer"></span>
+        <button type="button" class="small quiet" id="list-close" data-i18n="history_close"></button></div>
+      <p class="hint" data-i18n="list_hint"></p>
+      <div class="row list-source">
+        <label class="button small ghost file-button"><span data-i18n="list_file"></span><input id="meters-import" type="file" accept=".csv,.txt,.tsv,.json,text/csv,application/json" hidden></label>
+        <span class="hint" data-i18n="list_or_paste"></span>
+      </div>
+      <textarea id="list-paste" class="mono" rows="4" data-i18n-ph="list_paste_ph"></textarea>
+      <div id="list-map"></div>
+      <div id="list-result"></div>
+    </div>
+    <div id="names-panel" class="history" hidden></div>
     <form id="meter-form" class="meter-form" hidden>
       <div class="form-grid">
         <label><span data-i18n="meter_name"></span> <input id="mf-name" data-i18n-ph="meter_name_ph"></label>
@@ -209,6 +223,7 @@
       </div>
     </form>
     <p id="meters-empty" class="empty" data-i18n="meters_empty"></p>
+    <datalist id="loc-list"></datalist>
     <div class="table-wrap">
       <table id="meters-table" hidden>
         <thead><tr>

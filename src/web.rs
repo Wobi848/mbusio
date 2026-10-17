@@ -337,6 +337,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/projects/{id}/plan", put(project_plan))
         .route("/api/projects/{id}/thin", put(project_thin))
         .route("/api/mqtt", get(mqtt_get).put(mqtt_put))
+        .route("/api/meters/import-list", post(meters_import_list))
+        .route("/api/meters/names", post(meters_names))
+        .route("/api/meters/csv", get(meters_csv))
         .route("/api/sim", get(sim_get).post(sim_create))
         .route("/api/sim/{key}", put(sim_save).delete(sim_delete))
         .route("/api/sim/{key}/use", post(sim_use))
@@ -1280,6 +1283,9 @@ struct TemplateOpt {
 #[derive(Deserialize)]
 struct SelectReq {
     keys: Vec<String>,
+    /// neue Datenpunkte gleich per MQTT weitergeben (auch in der Vorlage)
+    #[serde(default)]
+    mqtt: bool,
     /// zusätzlich als Vorlage für alle Zähler dieses Mediums auf der Linie
     #[serde(default)]
     template: Option<TemplateOpt>,
@@ -1294,15 +1300,16 @@ async fn meter_datapoints(
     let lang = lang_of(&headers);
     i18n::set(lang);
     let mut db = st.db.lock().unwrap();
-    let (added, removed) = db.dp_select(id, &r.keys, lang).map_err(bad_request)?;
+    let (added, removed) = db.dp_select_mqtt(id, &r.keys, r.mqtt, lang).map_err(bad_request)?;
     let mut others = 0;
     if let Some(t) = r.template {
         let m = db.meter(id)?;
         let Some(medium) = m.medium.clone() else {
             return Err(bad_request(tr("Medium unbekannt, Zähler zuerst auslesen", "Medium unknown, read the meter first")));
         };
-        others = db.template_save(m.line_id, &medium, &r.keys, t.auto, lang).map_err(bad_request)?;
+        others = db.template_save(m.line_id, &medium, &r.keys, t.auto, r.mqtt, lang).map_err(bad_request)?;
     }
+    db.mqtt_refresh()?;
     Ok(Json(json!({ "ok": true, "added": added, "removed": removed, "others": others })))
 }
 
@@ -1415,6 +1422,55 @@ async fn meter_exchange(
         st.log.push("INFO", n);
     }
     Ok(Json(json!({ "ok": true, "details": lines, "reading": reading })))
+}
+
+// ------------------------------------------------------------ Zählerliste schnell füllen
+
+#[derive(Deserialize)]
+struct ListImportReq {
+    rows: Vec<crate::meterlist::ListRow>,
+    #[serde(default)]
+    apply: bool,
+}
+
+/// Liste vom Kunden/Installateur: Zähler über die ID anlegen bzw. benennen (zuerst Vorschau)
+async fn meters_import_list(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<ListImportReq>) -> ApiResult<crate::meterlist::ListImport> {
+    i18n::set(lang_of(&headers));
+    let mut db = st.db.lock().unwrap();
+    let line = db.active_line()?.id;
+    Ok(Json(db.import_list(line, &r.rows, r.apply).map_err(bad_request)?))
+}
+
+#[derive(Deserialize)]
+struct NamesReq {
+    pattern: String,
+    /// nur diese Zähler; leer = alle
+    #[serde(default)]
+    ids: Option<Vec<i64>>,
+    /// nur Zähler ohne Namen
+    #[serde(default)]
+    only_empty: bool,
+    #[serde(default)]
+    apply: bool,
+}
+
+async fn meters_names(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<NamesReq>) -> ApiResult<serde_json::Value> {
+    let lang = lang_of(&headers);
+    i18n::set(lang);
+    let mut db = st.db.lock().unwrap();
+    let line = db.active_line()?.id;
+    let list = db.auto_names(line, &r.pattern, r.ids.as_deref(), r.only_empty, r.apply, lang)?;
+    Ok(Json(json!({ "ok": true, "names": list, "applied": r.apply })))
+}
+
+async fn meters_csv(State(st): State<AppState>, headers: HeaderMap, Query(q): Query<LangQuery>) -> Result<Response, ApiError> {
+    let lang = q.lang.as_deref().map(Lang::parse).unwrap_or_else(|| lang_of(&headers));
+    i18n::set(lang);
+    let db = st.db.lock().unwrap();
+    let line = db.active_line()?;
+    let body = format!("\u{feff}{}", db.meters_csv(line.id, lang)?);
+    let file: String = line.name.chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect();
+    Ok(download(body, "text/csv; charset=utf-8", &format!("mbusio-zaehler-{file}.csv")))
 }
 
 // ------------------------------------------------------------ Simulator

@@ -454,6 +454,53 @@ const UI = {
     reset_done: "Reset quittiert",
     meters: "Zählerliste",
     meters_hint: "Zähler merken, benennen und gesammelt auslesen. Die Liste wird auf dem Rechner gespeichert, auf dem mbusio läuft.",
+    list_import: "Liste importieren",
+    list_export_title: "Zählerliste als CSV für Excel, z.B. zum Ausfüllen lassen und wieder Einlesen",
+    list_title: "Zählerliste importieren",
+    list_hint:
+      "Liste vom Kunden oder Installateur einlesen: Zähler werden über ihre ID (Nummer auf dem Typenschild) angelegt oder benannt. Vorher zeigt mbusio, was sich ändert.",
+    list_file: "Datei wählen (CSV)",
+    list_or_paste: "oder in Excel die Zellen kopieren und unten einfügen",
+    list_paste_ph: "ID      Name      Ort\n71000001   Whg 1 Wärme   Haus A · Whg 1",
+    list_header: "Erste Zeile ist Überschrift",
+    list_map: "Spalten zuordnen",
+    list_f_id: "ID (Pflicht)",
+    list_f_name: "Name",
+    list_f_location: "Ort",
+    list_f_note: "Notiz",
+    list_f_pa: "Primäradresse",
+    list_unused: "– nicht verwenden –",
+    list_col: (n) => `Spalte ${n}`,
+    list_rows: (n) => `${n} Zeilen`,
+    list_check: "Prüfen",
+    list_apply: "Übernehmen",
+    list_need_id: "Bitte die Spalte mit der ID zuordnen.",
+    list_summary: (a, c, u) => `${a} neu · ${c} Änderungen · ${u} unverändert`,
+    list_new: "neu",
+    list_errors_note: "Wegen der Fehler wird nichts übernommen. Liste korrigieren und erneut prüfen.",
+    list_done: (a, c) => `Übernommen: ${a} neue Zähler, ${c} Änderungen`,
+    list_nothing: "Nichts zu tun: die Liste entspricht schon der Zählerliste.",
+    list_field_name: "Name",
+    list_field_location: "Ort",
+    list_field_note: "Notiz",
+    quick_edit: "Benennen",
+    quick_edit_title: "Name, Ort und Notiz direkt in der Tabelle eintragen (Enter = nächster Zähler)",
+    quick_done: "Fertig",
+    quick_saved: "gespeichert",
+    quick_same: "wie oben",
+    quick_names: "Namen erzeugen…",
+    names_title: "Namen erzeugen",
+    names_hint: "Platzhalter: {ort}, {medium}, {id}, {pa}, {nr} (laufende Nummer), {name} (bisheriger Name).",
+    names_pattern: "Muster",
+    names_only_empty: "nur Zähler ohne Namen",
+    names_preview: (n) => `${n} Zähler bekommen einen neuen Namen:`,
+    names_none: "Kein Zähler bekommt einen anderen Namen.",
+    names_apply: "Namen übernehmen",
+    names_done: (n) => `${n} Namen gesetzt`,
+    live: "Live",
+    live_title: "Diesen Zähler alle paar Sekunden neu auslesen, zum Vergleich mit der Anzeige am Zähler",
+    live_on: (n) => `Live: ${n} wird alle 4 s gelesen`,
+    dp_pick_mqtt: "neue Datenpunkte gleich per MQTT senden",
     meters_file: (p) => `Datei: ${p}`,
     meters_empty: "Noch keine Zähler. In der Scan-Liste „Merken“ klicken oder „Zähler hinzufügen“.",
     meter_add: "Zähler hinzufügen",
@@ -987,6 +1034,53 @@ const UI = {
     reset_done: "Reset acknowledged",
     meters: "Meter list",
     meters_hint: "Remember meters, name them and read them all at once. The list is stored on the computer running mbusio.",
+    list_import: "Import list",
+    list_export_title: "Meter list as CSV for Excel, e.g. to have it filled in and import it again",
+    list_title: "Import meter list",
+    list_hint:
+      "Read a list from the customer or installer: meters are created or named by their ID (number on the name plate). mbusio shows what changes first.",
+    list_file: "Choose file (CSV)",
+    list_or_paste: "or copy the cells in Excel and paste them below",
+    list_paste_ph: "ID      Name      Location\n71000001   Flat 1 heat   House A · Flat 1",
+    list_header: "First row is a header",
+    list_map: "Map columns",
+    list_f_id: "ID (required)",
+    list_f_name: "Name",
+    list_f_location: "Location",
+    list_f_note: "Note",
+    list_f_pa: "Primary address",
+    list_unused: "– not used –",
+    list_col: (n) => `Column ${n}`,
+    list_rows: (n) => `${n} rows`,
+    list_check: "Check",
+    list_apply: "Apply",
+    list_need_id: "Please map the column with the ID.",
+    list_summary: (a, c, u) => `${a} new · ${c} changes · ${u} unchanged`,
+    list_new: "new",
+    list_errors_note: "Nothing is applied because of the errors. Fix the list and check again.",
+    list_done: (a, c) => `Applied: ${a} new meters, ${c} changes`,
+    list_nothing: "Nothing to do: the list already matches the meter list.",
+    list_field_name: "Name",
+    list_field_location: "Location",
+    list_field_note: "Note",
+    quick_edit: "Name meters",
+    quick_edit_title: "Enter name, location and note directly in the table (Enter = next meter)",
+    quick_done: "Done",
+    quick_saved: "saved",
+    quick_same: "same as above",
+    quick_names: "Generate names…",
+    names_title: "Generate names",
+    names_hint: "Placeholders: {ort} (location), {medium}, {id}, {pa}, {nr} (running number), {name} (current name).",
+    names_pattern: "Pattern",
+    names_only_empty: "only meters without a name",
+    names_preview: (n) => `${n} meters get a new name:`,
+    names_none: "No meter gets a different name.",
+    names_apply: "Apply names",
+    names_done: (n) => `${n} names set`,
+    live: "Live",
+    live_title: "Read this meter every few seconds, to compare with the meter's display",
+    live_on: (n) => `Live: ${n} is read every 4 s`,
+    dp_pick_mqtt: "send new datapoints via MQTT right away",
     meters_file: (p) => `File: ${p}`,
     meters_empty: "No meters yet. Click “Remember” in the scan list or “Add meter”.",
     meter_add: "Add meter",
@@ -1224,10 +1318,10 @@ async function request(path, options = {}) {
 }
 
 function updateExportLinks() {
+  $("meters-export").href = `api/meters/csv?lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
   const extra = `&lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
   $("export-csv").href = "api/export?format=csv" + extra;
   $("export-json").href = "api/export?format=json" + extra;
-  $("meters-export").href = "api/meters/export" + (token ? `?token=${encodeURIComponent(token)}` : "");
 }
 
 function toast(msg, isError = false) {
@@ -2353,6 +2447,11 @@ $("app-reset").onclick = () =>
 
 let meters = [];
 let editingId = null;
+/// Schnellerfassung: Name, Ort, Notiz direkt in der Tabelle
+let quickEdit = false;
+/// Zähler, der gerade immer wieder gelesen wird
+let liveId = null;
+let liveTimer = null;
 
 const svg = (d) =>
   `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -2389,6 +2488,12 @@ function meterPlanCell(m) {
 
 function renderMeters() {
   const table = $("meters-table");
+  // beim Tippen nicht neu zeichnen (sonst geht die Eingabe verloren); danach nachholen
+  const typing = document.activeElement?.dataset?.q && table.contains(document.activeElement);
+  if (typing) {
+    document.activeElement.addEventListener("blur", () => setTimeout(renderMeters, 0), { once: true });
+    return;
+  }
   const withPlan = showPlanColumn();
   $("th-plan").hidden = !withPlan;
   table.hidden = meters.length === 0;
@@ -2407,9 +2512,16 @@ function renderMeters() {
         .filter(Boolean)
         .join(" · ");
       const sub = (text) => (text ? `<span class="sub">${esc(text)}</span>` : "");
-      return `<tr>
-        <td class="wrap"><span class="name">${esc(m.name || "–")}</span>${sub(m.note)}</td>
-        <td class="wrap">${esc(m.location)}</td>
+      const q = (f, v, extra = "", cls = "quick") => `<input class="${cls}" data-q="${f}" data-id="${m.id}" value="${esc(v)}" ${extra}>`;
+      const nameCell = quickEdit
+        ? `<td>${q("name", m.name, `placeholder="${esc(t("meter_name"))}" aria-label="${esc(t("meter_name"))}"`)}${q("note", m.note, `placeholder="${esc(t("meter_note"))}" aria-label="${esc(t("meter_note"))}"`, "quick sub-input")}</td>`
+        : `<td class="wrap"><span class="name">${esc(m.name || "–")}</span>${sub(m.note)}</td>`;
+      const locCell = quickEdit
+        ? `<td><div class="quick-loc">${q("location", m.location, `list="loc-list" placeholder="${esc(t("meter_location"))}" aria-label="${esc(t("meter_location"))}"`)}<button class="icon-btn" data-q-same="${m.id}" title="${esc(t("quick_same"))}" aria-label="${esc(t("quick_same"))}">${ICON_DOWN}</button></div></td>`
+        : `<td class="wrap">${esc(m.location)}</td>`;
+      return `<tr class="${liveId === m.id ? "live" : ""}">
+        ${nameCell}
+        ${locCell}
         <td class="mono">${esc(m.address)}${sub(info)}</td>
         <td>${esc(label(m.medium))}</td>
         <td class="num mono">${m.baud ?? ""}</td>
@@ -2419,6 +2531,7 @@ function renderMeters() {
         )}${m.last_error ? `<span class="err">${ICON_ALERT}${esc(m.last_error)}</span>` : ""}</td>
         <td><div class="actions">
           <button class="small quiet needs-conn" data-meter-read="${m.id}">${t("read")}</button>
+          <button class="small quiet needs-conn live-btn${liveId === m.id ? " on" : ""}" data-meter-live="${m.id}" title="${esc(t("live_title"))}">${esc(t("live"))}</button>
           <button class="small quiet" data-meter-values="${m.id}" title="${esc(t("dp_values_title"))}">${esc(t("dp_values_btn"))}</button>
           <button class="icon-btn" data-meter-hist="${m.id}" title="${esc(t("history"))}" aria-label="${esc(t("history"))}">${ICON_CHART}</button>
           <button class="icon-btn" data-meter-edit="${m.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
@@ -2427,6 +2540,11 @@ function renderMeters() {
       </tr>`;
     })
     .join("");
+  // Ortsvorschläge aus allen schon verwendeten Orten
+  renderLocList();
+  table.classList.toggle("quick-mode", quickEdit);
+  $("quick-toggle").textContent = t(quickEdit ? "quick_done" : "quick_edit");
+  $("quick-toggle").classList.toggle("on", quickEdit);
   updateButtons();
 }
 
@@ -2473,8 +2591,10 @@ $("meters-table").addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
   if (!btn) return;
   const d = btn.dataset;
-  const m = meters.find((x) => String(x.id) === (d.meterRead ?? d.meterEdit ?? d.meterDel ?? d.meterHist ?? d.meterValues));
+  if (d.qSame) return quickSame(Number(d.qSame));
+  const m = meters.find((x) => String(x.id) === (d.meterRead ?? d.meterEdit ?? d.meterDel ?? d.meterHist ?? d.meterValues ?? d.meterLive));
   if (!m) return;
+  if (d.meterLive) return toggleLive(m);
   if (d.meterEdit) return openMeterForm(m);
   if (d.meterValues) return guarded(btn, () => openPicker(m));
   if (d.meterHist) return guarded(btn, () => openHistory(m));
@@ -2525,6 +2645,15 @@ $("meters-import").onchange = (ev) => {
   const file = ev.target.files[0];
   ev.target.value = "";
   if (!file) return;
+  // CSV/Text: Liste mit Spaltenzuordnung; JSON: Zählerliste aus mbusio (wie bisher)
+  if (!/\.json$/i.test(file.name)) {
+    file.text().then((text) => {
+      $("list-paste").value = text;
+      $("list-result").innerHTML = "";
+      listLoad(text);
+    });
+    return;
+  }
   guarded($("meter-add"), async () => {
     let data;
     try {
@@ -2908,6 +3037,305 @@ window.addEventListener("resize", () => {
 
 // ------------------------------------------------------------ Projekte, Gateways, Linien
 
+// ------------------------------------------------------------ Zählerliste schnell füllen
+
+/// Tabelle aus CSV oder aus Excel kopiert (Tabulator); Trennzeichen wird erkannt
+function parseTable(text) {
+  text = text.replace(/^\uFEFF/, "");
+  const first = text.split(/\r?\n/)[0] || "";
+  const delim = ["\t", ";", ","].map((d) => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = [];
+  let row = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else quoted = false;
+      } else cur += c;
+    } else if (c === '"' && cur === "") quoted = true;
+    else if (c === delim) {
+      row.push(cur);
+      cur = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cur);
+      rows.push(row);
+      row = [];
+      cur = "";
+    } else cur += c;
+  }
+  if (cur || row.length) {
+    row.push(cur);
+    rows.push(row);
+  }
+  return rows.map((r) => r.map((x) => x.trim())).filter((r) => r.some(Boolean));
+}
+
+const LIST_FIELDS = ["id", "name", "location", "note", "pa"];
+const LIST_GUESS = {
+  id: /^(id|ident|z(ä|ae)hler.?(nr|nummer)|serien.?(nr|nummer)|fab(rikations)?.?(nr|nummer)|meter.?(id|no)|serial|nummer|nr\.?)$/i,
+  name: /^(name|bezeichnung|benennung|description)$/i,
+  location: /^(ort|lage|standort|einbauort|wohnung|whg|raum|location|place)$/i,
+  note: /^(notiz|bemerkung|kommentar|note|remark|comment)$/i,
+  pa: /^(pa|prim(ä|ae)r.?adr(esse)?|primary.?address|m-?bus.?adr(esse)?)$/i,
+};
+let listData = null;
+
+function listOpen() {
+  $("list-panel").hidden = false;
+  $("list-result").innerHTML = "";
+  $("list-panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/// Eingelesene Tabelle: Überschrift erkennen, Spalten zuordnen (geraten), Vorschau
+function listLoad(text) {
+  const rows = parseTable(text);
+  if (!rows.length) {
+    listData = null;
+    $("list-map").innerHTML = "";
+    return;
+  }
+  const looksId = (v) => /^\D{0,4}\d{5,8}$/.test(v.replace(/\s/g, ""));
+  const header = !rows[0].some(looksId) && rows.length > 1;
+  const cols = Math.max(...rows.map((r) => r.length));
+  const map = {};
+  if (header) rows[0].forEach((h, i) => LIST_FIELDS.forEach((f) => map[f] === undefined && LIST_GUESS[f].test(h.trim()) && (map[f] = i)));
+  // ohne Überschrift: Spalte mit den meisten ID-artigen Werten ist die ID
+  if (map.id === undefined) {
+    let best = -1;
+    let score = 0;
+    for (let c = 0; c < cols; c++) {
+      const n = rows.slice(header ? 1 : 0).filter((r) => looksId(r[c] || "")).length;
+      if (n > score) [best, score] = [c, n];
+    }
+    if (best >= 0) map.id = best;
+  }
+  listData = { rows, header, cols, map };
+  renderListMap();
+}
+
+function renderListMap() {
+  const d = listData;
+  const names = Array.from({ length: d.cols }, (_, i) => (d.header && d.rows[0][i]) || t("list_col", i + 1));
+  const data = d.rows.slice(d.header ? 1 : 0);
+  $("list-map").innerHTML = `<h3 class="list-h">${esc(t("list_map"))} <span class="hint">${esc(t("list_rows", data.length))}</span></h3>
+    <label class="check"><input type="checkbox" id="list-header" ${d.header ? "checked" : ""}> ${esc(t("list_header"))}</label>
+    <div class="form-grid list-grid">${LIST_FIELDS.map(
+      (f) => `<label><span>${esc(t("list_f_" + f))}</span><select data-list-f="${f}"><option value="">${esc(t("list_unused"))}</option>${names
+        .map((n, i) => `<option value="${i}" ${d.map[f] === i ? "selected" : ""}>${esc(n)}</option>`)
+        .join("")}</select></label>`
+    ).join("")}</div>
+    <div class="table-wrap"><table class="list-preview"><thead><tr>${LIST_FIELDS.map((f) => `<th>${esc(t("list_f_" + f))}</th>`).join("")}</tr></thead>
+    <tbody>${data
+      .slice(0, 4)
+      .map((r) => `<tr>${LIST_FIELDS.map((f) => `<td>${esc(d.map[f] !== undefined ? r[d.map[f]] || "" : "")}</td>`).join("")}</tr>`)
+      .join("")}</tbody></table></div>
+    <div class="row"><button type="button" id="list-check">${esc(t("list_check"))}</button></div>`;
+}
+
+function listRows() {
+  const d = listData;
+  return d.rows.slice(d.header ? 1 : 0).map((r) => Object.fromEntries(LIST_FIELDS.map((f) => [f, d.map[f] !== undefined ? r[d.map[f]] || "" : ""])));
+}
+
+async function listCheck(apply) {
+  if (listData?.map.id === undefined) throw new Error(t("list_need_id"));
+  const r = await api("meters/import-list", { method: "POST", body: { rows: listRows(), apply } });
+  if (r.applied) {
+    toast(t("list_done", r.added.length, r.changed.length));
+    $("list-panel").hidden = true;
+    $("list-paste").value = "";
+    listData = null;
+    $("list-map").innerHTML = "";
+    await loadMeters();
+    return;
+  }
+  const field = (f) => t("list_field_" + f);
+  const n = r.added.length + r.changed.length;
+  $("list-result").innerHTML = `<h3 class="list-h">${esc(t("list_summary", r.added.length, r.changed.length, r.unchanged))}</h3>
+    ${r.errors.length ? `<ul class="err-list">${r.errors.map((e) => `<li>${esc(e)}</li>`).join("")}</ul><p class="hint">${esc(t("list_errors_note"))}</p>` : ""}
+    ${r.warnings.length ? `<ul class="sim-warn">${r.warnings.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
+    ${!n && !r.errors.length ? `<p class="hint">${esc(t("list_nothing"))}</p>` : ""}
+    ${
+      n
+        ? `<div class="table-wrap"><table><tbody>${r.added
+            .map((a) => `<tr><td><span class="chip st-ok">${esc(t("list_new"))}</span></td><td class="mono">${esc(a.id)}</td><td>${esc(a.name)}</td><td>${esc(a.location)}</td></tr>`)
+            .join("")}${r.changed
+            .map((c) => `<tr><td>${esc(field(c.field))}</td><td class="mono">${esc(c.id)}</td><td>${esc(c.old || "–")} → <b>${esc(c.new)}</b></td><td></td></tr>`)
+            .join("")}</tbody></table></div>`
+        : ""
+    }
+    ${n && !r.errors.length ? `<div class="row"><button type="button" id="list-apply">${esc(t("list_apply"))}</button></div>` : ""}`;
+  $("list-result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+$("list-open").onclick = listOpen;
+$("list-close").onclick = () => ($("list-panel").hidden = true);
+$("list-paste").addEventListener("input", () => {
+  $("list-result").innerHTML = "";
+  listLoad($("list-paste").value);
+});
+$("list-map").addEventListener("change", (ev) => {
+  const el = ev.target;
+  if (el.id === "list-header") listData.header = el.checked;
+  else if (el.dataset.listF) {
+    const v = el.value === "" ? undefined : Number(el.value);
+    // jede Spalte nur einmal
+    for (const f of LIST_FIELDS) if (listData.map[f] === v && v !== undefined) delete listData.map[f];
+    listData.map[el.dataset.listF] = v;
+  }
+  $("list-result").innerHTML = "";
+  renderListMap();
+});
+$("list-panel").addEventListener("click", (ev) => {
+  if (ev.target.id === "list-check") guarded(ev.target, () => listCheck(false));
+  if (ev.target.id === "list-apply") guarded(ev.target, () => listCheck(true));
+});
+
+// Schnellerfassung
+$("quick-toggle").onclick = () => {
+  quickEdit = !quickEdit;
+  $("names-panel").hidden = !quickEdit;
+  if (quickEdit) renderNames();
+  renderMeters();
+  if (quickEdit) $("meters-table").querySelector("input.quick")?.focus();
+};
+
+async function quickSave(input) {
+  const m = meters.find((x) => x.id === Number(input.dataset.id));
+  const f = input.dataset.q;
+  const v = input.value.trim();
+  if (!m || m[f] === v) return;
+  const old = m[f];
+  // gleich übernehmen, damit ein Neuzeichnen den neuen Wert zeigt
+  m[f] = v;
+  try {
+    const saved = await api("meters/" + m.id, { method: "PUT", body: { ...m, [f]: v } });
+    Object.assign(m, saved);
+    input.classList.add("saved");
+    setTimeout(() => input.classList.remove("saved"), 900);
+    // neue Orte gleich als Vorschlag
+    if (f === "location") renderLocList();
+  } catch (e) {
+    m[f] = old;
+    input.value = old;
+    toast(e.message, true);
+  }
+}
+
+function renderLocList() {
+  $("loc-list").innerHTML = [...new Set(meters.map((m) => m.location).filter(Boolean))]
+    .sort()
+    .map((l) => `<option value="${esc(l)}">`)
+    .join("");
+}
+
+/// Ort vom Zähler darüber übernehmen
+function quickSame(id) {
+  const k = meters.findIndex((m) => m.id === id);
+  if (k < 1) return;
+  const input = $("meters-table").querySelector(`input[data-q=location][data-id="${id}"]`);
+  input.value = meters[k - 1].location;
+  quickSave(input);
+}
+
+$("meters-table").addEventListener("change", (ev) => {
+  if (ev.target.dataset.q) quickSave(ev.target);
+});
+$("meters-table").addEventListener("keydown", (ev) => {
+  const el = ev.target;
+  if (!el.dataset.q || ev.key !== "Enter") return;
+  ev.preventDefault();
+  // Enter: gleiches Feld beim nächsten Zähler (Shift: vorheriger)
+  const all = [...$("meters-table").querySelectorAll(`input[data-q=${el.dataset.q}]`)];
+  const next = all[all.indexOf(el) + (ev.shiftKey ? -1 : 1)];
+  quickSave(el);
+  if (next) {
+    next.focus();
+    next.select();
+  }
+});
+
+// Namen nach Muster
+function renderNames(preview = null) {
+  const box = $("names-panel");
+  const pattern = $("names-pattern")?.value ?? "{ort} {medium}";
+  const only = $("names-only")?.checked ?? false;
+  box.innerHTML = `<div class="history-head"><h3>${esc(t("names_title"))}</h3></div>
+    <p class="hint">${esc(t("names_hint"))}</p>
+    <div class="row names-row"><label class="grow"><span>${esc(t("names_pattern"))}</span> <input id="names-pattern" class="mono" value="${esc(pattern)}"></label>
+      <label class="check"><input type="checkbox" id="names-only" ${only ? "checked" : ""}> ${esc(t("names_only_empty"))}</label></div>
+    ${
+      preview
+        ? preview.length
+          ? `<p class="hint">${esc(t("names_preview", preview.length))}</p><div class="table-wrap"><table><tbody>${preview
+              .slice(0, 50)
+              .map((n) => `<tr><td class="mono">${esc(n.ident || "")}</td><td>${esc(n.old || "–")} → <b>${esc(n.new)}</b></td></tr>`)
+              .join("")}</tbody></table></div>
+            <div class="row"><button type="button" id="names-apply">${esc(t("names_apply"))}</button></div>`
+          : `<p class="hint">${esc(t("names_none"))}</p>`
+        : `<div class="row"><button type="button" class="small ghost" id="names-preview">${esc(t("quick_names"))}</button></div>`
+    }`;
+}
+
+async function namesRun(apply) {
+  const body = { pattern: $("names-pattern").value, only_empty: $("names-only").checked, apply };
+  const r = await api("meters/names", { method: "POST", body });
+  if (apply) {
+    toast(t("names_done", r.names.length));
+    await loadMeters();
+    renderNames();
+  } else renderNames(r.names);
+}
+
+$("names-panel").addEventListener("click", (ev) => {
+  if (ev.target.id === "names-preview") guarded(ev.target, () => namesRun(false));
+  if (ev.target.id === "names-apply") guarded(ev.target, () => namesRun(true));
+});
+$("names-panel").addEventListener("input", (ev) => {
+  // Muster geändert: Vorschau neu
+  if (ev.target.id === "names-pattern" || ev.target.id === "names-only") renderNames();
+});
+
+// Live: einen Zähler immer wieder lesen
+function stopLive() {
+  clearInterval(liveTimer);
+  liveTimer = null;
+  liveId = null;
+}
+
+function toggleLive(m) {
+  if (liveId === m.id) {
+    stopLive();
+    return renderMeters();
+  }
+  stopLive();
+  liveId = m.id;
+  toast(t("live_on", m.name || m.meter_id || m.address));
+  let busy = false;
+  const tick = async () => {
+    if (busy || liveId !== m.id || jobRunning) return;
+    busy = true;
+    try {
+      await api(`meters/${m.id}/read`, { method: "POST" });
+    } catch {
+      /* Fehler steht beim Zähler */
+    }
+    busy = false;
+    if (liveId !== m.id) return;
+    meters = await api("meters").catch(() => meters);
+    renderMeters();
+  };
+  liveTimer = setInterval(tick, 4000);
+  tick();
+  renderMeters();
+}
+
 // ------------------------------------------------------------ Datenpunkte
 
 let datapoints = [];
@@ -3113,6 +3541,7 @@ function renderPicker() {
              <label class="check sub-check"><input type="checkbox" id="pick-auto" ${tpl?.auto ? "checked" : ""}> ${esc(t("dp_tpl_auto"))}</label>`
           : ""
       }
+      <label class="check"><input type="checkbox" id="pick-mqtt" ${tpl?.mqtt || mqttConfig?.enabled ? "checked" : ""}> ${esc(t("dp_pick_mqtt"))}</label>
       <div class="row"><button type="button" data-pick-save>${esc(t("save"))}</button></div>`
     }`;
   box.hidden = false;
@@ -3128,7 +3557,7 @@ $("dp-picker").addEventListener("click", (ev) => {
   guarded(b, async () => {
     const keys = [...$("dp-picker").querySelectorAll(".dp-pick input:checked")].map((x) => x.value);
     const tplOn = $("pick-tpl")?.checked;
-    const body = { keys, template: tplOn ? { auto: !!$("pick-auto")?.checked } : null };
+    const body = { keys, mqtt: !!$("pick-mqtt")?.checked, template: tplOn ? { auto: !!$("pick-auto")?.checked } : null };
     const r = await api(`meters/${picker.meter.id}/datapoints`, { method: "PUT", body });
     toast(t("dp_saved", r.added, r.removed, r.others));
     picker = null;
@@ -3867,6 +4296,10 @@ function showTab(name) {
     b.setAttribute("aria-selected", b.dataset.tabGo === name);
   });
   storageSet("tab", name);
+  if (name !== "meters" && liveId) {
+    stopLive();
+    renderMeters();
+  }
   if (name === "sim") loadSim().catch((e) => toast(e.message, true));
 }
 

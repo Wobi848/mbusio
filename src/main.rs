@@ -6,6 +6,7 @@ mod i18n;
 mod line;
 mod link;
 mod mbus;
+mod meterlist;
 mod mqtt;
 mod plan;
 mod scheduler;

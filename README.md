@@ -52,6 +52,22 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - Verlauf je Zähler als Diagramm oder Tabelle mit Differenz und Verbrauch pro Tag, als CSV
 - Baudrate suchen und umstellen, Application Reset, Telegramme senden (Experten)
 
+### Zählerliste schnell füllen
+
+- **Liste importieren:** Liste vom Kunden oder Installateur als CSV-Datei, oder in Excel die
+  Zellen kopieren und einfügen. Spalten werden erkannt (ID/Zählernummer, Name/Bezeichnung,
+  Ort/Wohnung, Notiz, PA) und lassen sich zuordnen. Zuordnung über die **ID auf dem
+  Typenschild**: fehlende Zähler werden angelegt, vorhandene benannt; leere Zellen ändern nichts.
+  Vorher zeigt mbusio, was neu ist und was sich ändert, und warnt bei IDs, die im letzten Scan
+  nicht gefunden wurden oder schon auf einer anderen Linie stehen
+- **Exportieren:** Zählerliste als CSV für Excel (ID, PA, Hersteller, Medium, Name, Ort, Notiz,
+  Sekundäradresse, letzter Wert), z.B. zum Ausfüllen lassen und wieder Einlesen
+- **Benennen:** Name, Ort und Notiz direkt in der Tabelle; Enter springt zum nächsten Zähler,
+  gespeichert wird sofort. Ortsvorschläge und „wie oben“
+- **Namen erzeugen** nach Muster, z.B. `{ort} {medium}` → „Whg 3 Kaltwasser“ (Platzhalter
+  `{ort}`, `{medium}`, `{id}`, `{pa}`, `{nr}`, `{name}`), für alle oder nur Zähler ohne Namen
+- **Live:** einen Zähler alle 4 s lesen, um ihn am Display wiederzuerkennen
+
 ### Geplantes Auslesen (Dauerbetrieb)
 
 - **Ausleseplan** im Projekt, je Linie oder je Zähler: Aus, monatlich, täglich, stündlich, alle
@@ -82,7 +98,7 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - Je Zähler über **„Werte“** wählen, welche Werte Datenpunkte werden; der Hauptwert ist
   vorgeschlagen. Name, Einheit und Umrechnung (z.B. Wh → kWh mit Faktor 0.001) einstellbar
 - **Vorlage:** gleiche Auswahl für alle Zähler desselben Mediums auf der Linie, auf Wunsch auch für
-  Zähler, die später dazukommen
+  Zähler, die später dazukommen, und auf Wunsch gleich per MQTT
 - **Stabile Kennung** aus der Bedeutung des Werts (Grösse, Einheit, Speicher, Tarif, Funktion),
   nicht aus der Position im Telegramm; **stabile Nummer** je Projekt, wird nie neu vergeben
 - **Qualität** je Datenpunkt: gut, veraltet (älter als 3 Termine), gestört (Zähler antwortet
@@ -298,6 +314,7 @@ Aufbau:
 - `src/db.rs`: Datenbank (Projekte, Gateways, Linien, Zähler, Auslesungen, Änderungen)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
 - `src/datapoint.rs`: Datenpunkte, Qualität, Plausibilität, Zählertausch, Vorlagen, CSV
+- `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export
 - `src/mqtt.rs`: MQTT-Ausgang (eigener kleiner Client für MQTT 3.1.1, TLS mit rustls),
   Warteschlange in der Datenbank
 - `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
@@ -330,6 +347,9 @@ installation; the UI runs in the browser, phones included.
 - Datapoints: choose per meter which values are passed on (templates per medium, stable keys and
   numbers, quality, “counter decreased” check, meter replacement with continuous counters, CSV
   export/import with preview)
+- Fill the meter list fast: import the customer's list (CSV or pasted from Excel, matched by the ID
+  on the name plate, with preview), edit names and locations directly in the table, generate names
+  from a pattern, export as CSV, read one meter live to identify it
 - MQTT output: one retained topic per datapoint with JSON (value, unit, UTC time, quality), QoS 1,
   status topic with last will, persistent queue with in-order redelivery, TLS, user/password,
   optional time from the control system

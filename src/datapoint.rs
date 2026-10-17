@@ -187,6 +187,9 @@ pub struct Template {
     /// auch auf später hinzukommende Zähler anwenden
     #[serde(default)]
     pub auto: bool,
+    /// neue Datenpunkte gleich per MQTT weitergeben
+    #[serde(default)]
+    pub mqtt: bool,
 }
 
 pub const SCHEMA: &str = "
@@ -479,12 +482,23 @@ impl Db {
     }
 
     /// Auswahl eines Zählers setzen: fehlende Datenpunkte anlegen, abgewählte löschen
+    #[cfg(test)]
     pub fn dp_select(&mut self, meter_id: i64, keys: &[String], lang: Lang) -> Result<(usize, usize)> {
+        self.dp_select_mqtt(meter_id, keys, false, lang)
+    }
+
+    /// Wie `dp_select`; neue Datenpunkte auf Wunsch gleich per MQTT
+    pub fn dp_select_mqtt(&mut self, meter_id: i64, keys: &[String], mqtt: bool, lang: Lang) -> Result<(usize, usize)> {
         let meter = self.meter(meter_id)?;
         self.tx(|db| {
             let mut added = 0;
             for k in keys {
-                added += db.dp_create(&meter, k, lang)?.is_some() as usize;
+                if let Some(id) = db.dp_create(&meter, k, lang)? {
+                    if mqtt {
+                        db.dp_set_mqtt(id, true)?;
+                    }
+                    added += 1;
+                }
             }
             let mut removed = 0;
             for d in db.dp_by_meter(meter_id)? {
@@ -740,7 +754,12 @@ impl Db {
         let mut n = 0;
         for k in &t.keys {
             if r.records.iter().any(|x| key_of(x) == *k && x.value.is_number()) {
-                n += self.dp_create(meter, k, lang)?.is_some() as usize;
+                if let Some(id) = self.dp_create(meter, k, lang)? {
+                    if t.mqtt {
+                        self.dp_set_mqtt(id, true)?;
+                    }
+                    n += 1;
+                }
             }
         }
         Ok(n)
@@ -749,7 +768,7 @@ impl Db {
     pub fn templates(&self, line_id: i64) -> Result<Vec<Template>> {
         let mut st = self
             .conn
-            .prepare("SELECT id, line_id, medium, keys, auto FROM dp_templates WHERE line_id = ?1 ORDER BY id")?;
+            .prepare("SELECT id, line_id, medium, keys, auto, mqtt FROM dp_templates WHERE line_id = ?1 ORDER BY id")?;
         let rows = st.query_map([line_id], |r| {
             Ok(Template {
                 id: r.get(0)?,
@@ -757,6 +776,7 @@ impl Db {
                 medium: r.get(2)?,
                 keys: serde_json::from_str(&r.get::<_, String>(3)?).unwrap_or_default(),
                 auto: r.get(4)?,
+                mqtt: r.get(5)?,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -764,12 +784,12 @@ impl Db {
 
     /// Vorlage für ein Medium der Linie speichern und auf alle passenden Zähler anwenden.
     /// Liefert die Anzahl neuer Datenpunkte.
-    pub fn template_save(&mut self, line_id: i64, medium: &str, keys: &[String], auto: bool, lang: Lang) -> Result<usize> {
+    pub fn template_save(&mut self, line_id: i64, medium: &str, keys: &[String], auto: bool, mqtt: bool, lang: Lang) -> Result<usize> {
         self.tx(|db| {
             db.conn.execute(
-                "INSERT INTO dp_templates (line_id, medium, keys, auto) VALUES (?1, ?2, ?3, ?4)
-                 ON CONFLICT(line_id, medium) DO UPDATE SET keys = excluded.keys, auto = excluded.auto",
-                params![line_id, medium, serde_json::to_string(keys)?, auto],
+                "INSERT INTO dp_templates (line_id, medium, keys, auto, mqtt) VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(line_id, medium) DO UPDATE SET keys = excluded.keys, auto = excluded.auto, mqtt = excluded.mqtt",
+                params![line_id, medium, serde_json::to_string(keys)?, auto, mqtt],
             )?;
             let t = Template {
                 id: 0,
@@ -777,6 +797,7 @@ impl Db {
                 medium: medium.into(),
                 keys: keys.to_vec(),
                 auto,
+                mqtt,
             };
             let mut n = 0;
             for m in db.meters(line_id)? {
@@ -1133,8 +1154,8 @@ impl Db {
 
     pub(crate) fn template_import(&mut self, line_id: i64, t: &Template) -> Result<()> {
         self.conn.execute(
-            "INSERT OR IGNORE INTO dp_templates (line_id, medium, keys, auto) VALUES (?1, ?2, ?3, ?4)",
-            params![line_id, t.medium, serde_json::to_string(&t.keys)?, t.auto],
+            "INSERT OR IGNORE INTO dp_templates (line_id, medium, keys, auto, mqtt) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![line_id, t.medium, serde_json::to_string(&t.keys)?, t.auto, t.mqtt],
         )?;
         Ok(())
     }
@@ -1303,7 +1324,7 @@ mod tests {
         let (mut db, line, mid, r) = setup();
         let medium = db.meter(mid).unwrap().medium.unwrap();
         db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
-        db.template_save(line, &medium, &[ENERGY.to_string()], true, Lang::De).unwrap();
+        db.template_save(line, &medium, &[ENERGY.to_string()], true, false, Lang::De).unwrap();
         // neuer Zähler gleicher Art: nach der ersten Auslesung hat er den Datenpunkt
         let m2 = db.add_meter(line, Meter { address: "8".into(), ..Default::default() }).unwrap();
         let mut r2 = r.clone();
@@ -1321,7 +1342,7 @@ mod tests {
         let (mut db, line, mid, _r) = setup();
         let medium = db.meter(mid).unwrap().medium.unwrap();
         db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
-        db.template_save(line, &medium, &[ENERGY.to_string()], true, Lang::De).unwrap();
+        db.template_save(line, &medium, &[ENERGY.to_string()], true, false, Lang::De).unwrap();
         let exported = db.export_project(1).unwrap();
         let pid = db.import_project(&exported).unwrap();
         let list = db.dp_list(None, Some(pid)).unwrap();
