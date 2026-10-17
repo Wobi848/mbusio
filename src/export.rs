@@ -52,12 +52,45 @@ pub fn description(quantity: &str, notes: &[String], lang: Lang) -> String {
     s
 }
 
-fn field(s: &str) -> String {
+/// Ein CSV-Feld (Semikolon, Excel): Anführungszeichen, wo nötig
+pub fn field(s: &str) -> String {
     if s.contains([';', '"', '\n', '\r']) {
         format!("\"{}\"", s.replace('"', "\"\""))
     } else {
         s.to_string()
     }
+}
+
+/// Eine Zeile aus Feldern, mit Zeilenende für Excel
+pub fn row<S: AsRef<str>>(fields: &[S]) -> String {
+    let mut out = fields
+        .iter()
+        .map(|s| field(s.as_ref()))
+        .collect::<Vec<_>>()
+        .join(";");
+    out.push_str("\r\n");
+    out
+}
+
+/// Gegenstück zu `field`: eine CSV-Zeile mit Semikolon in Felder zerlegen
+pub fn split_line(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut quoted = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' if quoted && chars.peek() == Some(&'"') => {
+                cur.push('"');
+                chars.next();
+            }
+            '"' => quoted = !quoted,
+            ';' if !quoted => out.push(std::mem::take(&mut cur)),
+            _ => cur.push(c),
+        }
+    }
+    out.push(cur);
+    out.into_iter().map(|s| s.trim().to_string()).collect()
 }
 
 pub fn csv(readings: &[MeterReading], lang: Lang) -> String {
@@ -101,8 +134,7 @@ pub fn csv(readings: &[MeterReading], lang: Lang) -> String {
                 rec.vif.clone(),
                 rec.raw.clone(),
             ];
-            out.push_str(&row.iter().map(|s| field(s)).collect::<Vec<_>>().join(";"));
-            out.push_str("\r\n");
+            out.push_str(&self::row(&row));
         }
     }
     out

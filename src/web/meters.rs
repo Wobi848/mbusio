@@ -177,13 +177,6 @@ pub(super) async fn meters_read_all(
     })
 }
 
-pub(super) async fn meters_export(State(st): State<AppState>) -> Result<Response, ApiError> {
-    let db = st.db.lock().unwrap();
-    let body = serde_json::to_string_pretty(&json!({ "meters": db.meters(db.active_line()?.id)? }))
-        .unwrap_or_default();
-    Ok(download(body, "application/json", "mbusio-meters.json"))
-}
-
 #[derive(Deserialize)]
 pub(super) struct ImportReq {
     meters: Vec<Meter>,

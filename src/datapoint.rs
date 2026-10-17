@@ -297,35 +297,6 @@ const CSV_HEAD_DE: &str =
     "Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv;MQTT;Topic";
 const CSV_HEAD_EN: &str = "No;Line;Meter;Address;Key;Name;Unit;Factor;Send;Active;MQTT;Topic";
 
-fn csv_field(s: &str) -> String {
-    if s.contains([';', '"', '\n']) {
-        format!("\"{}\"", s.replace('"', "\"\""))
-    } else {
-        s.to_string()
-    }
-}
-
-/// Eine CSV-Zeile mit Semikolon, Anführungszeichen wie Excel
-fn csv_split(line: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut cur = String::new();
-    let mut quoted = false;
-    let mut chars = line.chars().peekable();
-    while let Some(c) = chars.next() {
-        match c {
-            '"' if quoted && chars.peek() == Some(&'"') => {
-                cur.push('"');
-                chars.next();
-            }
-            '"' => quoted = !quoted,
-            ';' if !quoted => out.push(std::mem::take(&mut cur)),
-            _ => cur.push(c),
-        }
-    }
-    out.push(cur);
-    out.into_iter().map(|s| s.trim().to_string()).collect()
-}
-
 fn parse_num(s: &str) -> Option<f64> {
     // Excel mit deutschem Gebietsschema schreibt Komma
     s.trim().replace(',', ".").replace('\'', "").parse().ok()
@@ -1076,13 +1047,7 @@ impl Db {
                 .to_string(),
                 s("mqtt_topic"),
             ];
-            out.push_str(
-                &row.iter()
-                    .map(|x| csv_field(x))
-                    .collect::<Vec<_>>()
-                    .join(";"),
-            );
-            out.push_str("\r\n");
+            out.push_str(&crate::export::row(&row));
         }
         Ok(out)
     }
@@ -1110,7 +1075,7 @@ impl Db {
             if line.trim().is_empty() {
                 continue;
             }
-            let c = csv_split(line);
+            let c = crate::export::split_line(line);
             let row = n + 1;
             let col = |i: usize| c.get(i).cloned().unwrap_or_default();
             if n == 0 && parse_num(&col(0)).is_none() && !col(0).is_empty() {
@@ -1548,7 +1513,7 @@ mod tests {
         assert!(csv.starts_with("Nr;Linie;Zähler"));
         // in Excel geändert: Name, Faktor (mit Komma), inaktiv; dazu ein neuer Wert ohne Nummer
         let row = csv.lines().nth(1).unwrap();
-        let mut c = csv_split(row);
+        let mut c = crate::export::split_line(row);
         c[5] = "Wohnung 1 Energie".into();
         c[6] = "MWh".into();
         c[7] = "0,001".into();
@@ -1719,7 +1684,7 @@ mod tests {
     #[test]
     fn csv_split_handles_quotes() {
         assert_eq!(
-            csv_split(r#"1;"A; B";"say ""hi""";x"#),
+            crate::export::split_line(r#"1;"A; B";"say ""hi""";x"#),
             vec!["1", "A; B", "say \"hi\"", "x"]
         );
         assert_eq!(parse_num("0,001"), Some(0.001));

@@ -331,7 +331,6 @@ pub fn router(state: AppState) -> Router {
         .route("/api/meters/read-all", post(meters_read_all))
         .route("/api/meters/{id}/read", post(meters_read_one))
         .route("/api/meters/{id}/history", get(meter_history))
-        .route("/api/meters/export", get(meters_export))
         .route("/api/meters/import", post(meters_import))
         .route("/api/readings", get(readings).delete(clear_readings))
         .route("/api/export", get(export_readings))

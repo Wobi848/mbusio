@@ -17,10 +17,26 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
       - run: cargo test
       - run: cargo clippy --all-targets -- -D warnings
+
+  # Oberfläche im Browser bedienen (tests/ui), gegen den Simulator
+  ui:
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: cargo build
+      - run: npm install --no-save playwright@1.62.1 && npx playwright install --with-deps chromium
+      - run: node tests/ui/run.mjs
 
   build:
     needs: test

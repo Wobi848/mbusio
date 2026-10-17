@@ -94,14 +94,6 @@ pub fn render_name(pattern: &str, m: &Meter, nr: usize, lang: Lang) -> String {
     s
 }
 
-fn csv_field(s: &str) -> String {
-    if s.contains([';', '"', '\n']) {
-        format!("\"{}\"", s.replace('"', "\"\""))
-    } else {
-        s.to_string()
-    }
-}
-
 impl Db {
     /// Liste einlesen: zuerst Vorschau (`apply` = false), dann übernehmen. Zuordnung über die ID;
     /// leere Zellen ändern nichts.
@@ -323,13 +315,7 @@ impl Db {
                 m.secondary_address.clone().unwrap_or_default(),
                 m.last_value.clone().unwrap_or_default(),
             ];
-            out.push_str(
-                &row.iter()
-                    .map(|x| csv_field(x))
-                    .collect::<Vec<_>>()
-                    .join(";"),
-            );
-            out.push_str("\r\n");
+            out.push_str(&crate::export::row(&row));
         }
         Ok(out)
     }
