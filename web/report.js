@@ -7,6 +7,7 @@ const TEXT = {
     print: "Drucken / Als PDF speichern",
     with_details: "Alle Messwerte anhängen",
     changes: "Durchgeführte Änderungen",
+    open_issues: "Offene Auffälligkeiten",
     project: "Projekt",
     lines: "Linien",
     th_line: "Gateway › Linie",
@@ -59,6 +60,7 @@ const TEXT = {
     print: "Print / save as PDF",
     with_details: "Attach all readings",
     changes: "Changes made",
+    open_issues: "Open issues",
     project: "Project",
     lines: "lines",
     th_line: "Gateway › line",
@@ -216,7 +218,7 @@ function renderTable() {
   let n = 0;
   return data.gateways
     .flatMap((g) => g.lines.map((l) => ({ g, l })))
-    .filter(({ l }) => l.meters.length)
+    .filter(({ l }) => l.meters.length || l.issues?.count)
     .map(({ g, l }) => {
       const rows = l.meters
         .map(({ meter: m }) => {
@@ -237,9 +239,12 @@ function renderTable() {
           </tr>`;
         })
         .join("");
-      return `<h3 class="line-head">${esc(g.gateway.name)} › ${esc(l.line.name)}${
+      const head = `<h3 class="line-head">${esc(g.gateway.name)} › ${esc(l.line.name)}${
         l.line.connection ? ` <span class="small inline">${esc(l.line.connection)} · ${l.line.baud} Bd</span>` : ""
-      }</h3>
+      }</h3>`;
+      // Linie ohne Zähler, aber mit Auffälligkeiten: keine leere Tabelle
+      if (!l.meters.length) return head + issuesBlock(l.issues);
+      return `${head}
       <table>
         <thead><tr>
           <th class="num">${t("th_no")}</th><th>${t("th_name")}</th><th>${t("th_id")}</th><th>${t("th_medium")}</th>
@@ -247,9 +252,17 @@ function renderTable() {
           <th>${t("th_read")}</th><th>${t("th_status")}</th>
         </tr></thead>
         <tbody>${rows}</tbody>
-      </table>`;
+      </table>${issuesBlock(l.issues)}`;
     })
     .join("");
+}
+
+/// Offene Auffälligkeiten der Linie aus dem letzten Scan
+function issuesBlock(issues) {
+  if (!issues?.count) return "";
+  return `<div class="issues"><b>${t("open_issues")} (${issues.count})</b><ul>${issues.items
+    .map((x) => `<li>${esc(x)}</li>`)
+    .join("")}</ul></div>`;
 }
 
 function renderDetails() {
@@ -300,11 +313,13 @@ function render() {
   const ok = list.filter((m) => m.last_read && !m.last_error).length;
   const err = list.filter((m) => m.last_error).length;
   const lines = data.gateways.reduce((n, g) => n + g.lines.length, 0);
+  const open = data.gateways.reduce((n, g) => n + g.lines.reduce((k, l) => k + (l.issues?.count || 0), 0), 0);
   const meta = [
     [t("project"), data.project.name],
     [t("date"), new Date().toLocaleString(lang === "de" ? "de-CH" : "en-GB")],
     [t("lines"), `${data.gateways.length} Gateway · ${lines} ${t("lines")}`],
     [t("count"), `${list.length} · ${ok} ${t("ok_count")}` + (err ? ` · ${err} ${t("err_count")}` : "")],
+    [t("open_issues"), String(open)],
   ];
   $("meta").innerHTML = meta.map(([k, v]) => `<span>${esc(k)}: <b>${esc(v)}</b></span>`).join("");
   $("table").innerHTML = renderTable();

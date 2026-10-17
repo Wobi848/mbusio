@@ -205,6 +205,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/gateways/{id}/lines", post(line_create))
         .route("/api/lines/{id}", put(line_update).delete(line_delete))
         .route("/api/lines/{id}/activate", post(line_activate))
+        .route("/api/lines/{id}/issues", put(line_issues))
         .route("/api/report", get(report))
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .fallback(static_file)
@@ -1099,6 +1100,16 @@ fn disconnect_bus(st: &AppState) {
     }
     *st.conn.lock().unwrap() = None;
     *st.job.lock().unwrap() = JobStatus::default();
+}
+
+/// Auffälligkeiten der Linie merken (berechnet die Oberfläche aus dem letzten Scan)
+async fn line_issues(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(v): Json<serde_json::Value>,
+) -> ApiResult<serde_json::Value> {
+    st.db.lock().unwrap().set_issues(id, &v).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 /// Linie aktivieren und, wenn sie eine Verbindung hat, gleich damit verbinden

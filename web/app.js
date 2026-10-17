@@ -55,6 +55,8 @@ const UI = {
     ln_active: "Aktiv",
     ln_no_conn: "Anschluss noch nicht festgelegt",
     ln_info: (n, read) => `${n} Zähler` + (read ? ` · gelesen ${read}` : ""),
+    ln_issues: (n) => `${n} Auffälligkeit${n === 1 ? "" : "en"}`,
+    ln_no_issues: "keine Auffälligkeiten",
     confirm_gw_delete: (n) => `Gateway „${n}“ mit allen Linien und Zählern löschen?`,
     confirm_ln_delete: (n) => `Linie „${n}“ mit allen Zählern und Auslesungen löschen?`,
     form_project: "Projekt",
@@ -103,7 +105,6 @@ const UI = {
     warn_dup_id: (id, n) => `ID ${id}: ${n} Zähler mit gleicher ID und gleichem Hersteller – vom Hersteller umprogrammieren lassen`,
     warn_collision_pa: (pa, b) => `PA ${pa} (${b} Bd): mehrere Zähler antworten gleichzeitig – Empfehlung: Sekundärscan, dann „PA ändern“`,
     warn_collision_id: (id) => `ID ${id}: mehrere Zähler mit derselben ID – mit dem Primärscan einzeln finden`,
-    warn_no_data: (n) => `${n} Zähler antworten, liefern aber keine brauchbaren Daten – „Warum?“ in der Zeile zeigt die Ursache`,
     why: "Warum?",
     history: "Verlauf",
     history_title: (n) => `Verlauf: ${n}`,
@@ -353,6 +354,8 @@ const UI = {
     ln_active: "Active",
     ln_no_conn: "Connection not set yet",
     ln_info: (n, read) => `${n} meters` + (read ? ` · read ${read}` : ""),
+    ln_issues: (n) => `${n} issue${n === 1 ? "" : "s"}`,
+    ln_no_issues: "no issues",
     confirm_gw_delete: (n) => `Delete gateway “${n}” with all lines and meters?`,
     confirm_ln_delete: (n) => `Delete line “${n}” with all meters and readings?`,
     form_project: "Project",
@@ -401,7 +404,6 @@ const UI = {
     warn_dup_id: (id, n) => `ID ${id}: ${n} meters with the same ID and manufacturer – have the manufacturer reprogram them`,
     warn_collision_pa: (pa, b) => `PA ${pa} (${b} Bd): several meters answer at once – recommendation: secondary scan, then “Change PA”`,
     warn_collision_id: (id) => `ID ${id}: several meters with the same ID – find them one by one with the primary scan`,
-    warn_no_data: (n) => `${n} meter(s) answer but deliver no usable data – “Why?” in the row shows the cause`,
     why: "Why?",
     history: "History",
     history_title: (n) => `History: ${n}`,
@@ -678,6 +680,20 @@ let lastJob = null;
 /// Art des zuletzt angezeigten Jobs (auch "Alle auslesen"), z.B. für die Abbruch-Frage
 let currentJobKind = null;
 let connBaud = null;
+let activeLineId = null;
+/// zuletzt gespeicherte Auffälligkeiten (nur bei Änderung neu speichern)
+let savedIssues = null;
+
+function saveIssues(items) {
+  if (!activeLineId) return;
+  const body = { count: items.length, items };
+  const text = JSON.stringify(body);
+  if (text === savedIssues) return;
+  savedIssues = text;
+  request(`lines/${activeLineId}/issues`, { method: "PUT", body })
+    .then(() => tree && loadTree())
+    .catch(() => {});
+}
 let checking = false;
 let conn = null;
 let baudsTouched = false;
@@ -791,6 +807,7 @@ async function refreshStatus() {
   const prevBaud = connBaud;
   connBaud = s.connection?.baud ?? null;
   conn = s.connection;
+  activeLineId = s.active?.line.id ?? null;
   // "Baudrate abweichend" hängt von der Bus-Baudrate ab: Trefferliste neu zeichnen, wenn sie sich ändert
   if (connBaud !== prevBaud && lastJob) renderJob(lastJob);
   renderBusbar();
@@ -1006,12 +1023,17 @@ function renderHitsWarn(hits, a) {
     if (h.primary_address != null) items.push(t("warn_collision_pa", h.primary_address, h.baud));
     else if (h.id) items.push(t("warn_collision_id", h.id));
   }
-  const noData = hits.filter((h) => h.status === "no_data").length;
-  if (noData) items.push(t("warn_no_data", noData));
+  // Zähler ohne Daten einzeln, mit Ursache (auch für den Bericht verständlich)
+  for (const h of hits.filter((x) => x.status === "no_data")) {
+    const name = h.id || `PA ${h.primary_address}`;
+    items.push(`${name}: ${explainReason(h.reason)[0]}`);
+  }
   if (a.otherBaud) items.push(t("warn_other_baud", a.otherBaud, connBaud));
   const el = $("hits-warn");
   el.hidden = items.length === 0;
   issueCount = items.length;
+  // erst wenn der Scan durch ist: bei der Linie merken (Projekt-Karte, Bericht)
+  if (!lastJob?.running) saveIssues(items);
   renderBusbar();
   el.innerHTML = items.length
     ? `<b>⚠ ${esc(t("warn_title"))}</b><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` +
@@ -2306,7 +2328,13 @@ function renderTree() {
           <span>${active ? `<span class="badge-active">${esc(t("ln_active"))}</span>` : `<button class="small ghost" data-ln-use="${l.id}">${esc(t("ln_use"))}</button>`}</span>
           <span class="ln-name">${esc(l.name)}</span>
           <span class="ln-conn">${l.connection ? `${esc(l.connection)} · ${l.baud} Bd` : esc(t("ln_no_conn"))}</span>
-          <span class="ln-info">${esc(t("ln_info", l.meters, l.last_read))}</span>
+          <span class="ln-info">${esc(t("ln_info", l.meters, l.last_read))}${
+            l.issues
+              ? l.issues.count
+                ? ` <span class="chip st-collision" title="${esc(l.issues.items.join("\n"))}">⚠ ${esc(t("ln_issues", l.issues.count))}</span>`
+                : ` <span class="chip st-ok">✓ ${esc(t("ln_no_issues"))}</span>`
+              : ""
+          }</span>
           <span class="actions">
             <button class="icon-btn" data-ln-edit="${l.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
             <button class="icon-btn" data-ln-del="${l.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>

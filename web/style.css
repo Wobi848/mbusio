@@ -845,6 +845,7 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 .ln .ln-name { font-weight: 650; }
 .ln .ln-conn { font-family: var(--mono); font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ln .ln-info { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.ln .ln-info .chip { margin-left: 6px; }
 .ln .badge-active { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
 .gw-foot { margin-top: 8px; }
 .tree-form { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; }

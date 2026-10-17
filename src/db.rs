@@ -154,6 +154,8 @@ pub struct LineInfo {
     pub meters: i64,
     pub last_read: Option<String>,
     pub scanned: Option<String>,
+    /// Auffälligkeiten des letzten Scans: {"count": n, "items": [...]}
+    pub issues: Option<Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -367,7 +369,27 @@ impl Db {
         self.conn
             .execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
         self.conn.execute_batch(SCHEMA)?;
+        self.migrate()?;
         self.ensure_active()?;
+        Ok(())
+    }
+
+    /// Spalten, die nach der ersten Version dazugekommen sind
+    fn migrate(&mut self) -> Result<()> {
+        let has = |conn: &Connection, table: &str, col: &str| -> Result<bool> {
+            let mut st = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+            let names = st.query_map([], |r| r.get::<_, String>(1))?;
+            for n in names {
+                if n? == col {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        };
+        if !has(&self.conn, "lines", "issues")? {
+            // Auffälligkeiten des letzten Scans: {"count": n, "items": [...]}
+            self.conn.execute_batch("ALTER TABLE lines ADD COLUMN issues TEXT")?;
+        }
         Ok(())
     }
 
@@ -654,6 +676,9 @@ impl Db {
                             meters: r.get("n")?,
                             last_read: r.get("lr")?,
                             scanned: r.get("scanned")?,
+                            issues: r
+                                .get::<_, Option<String>>("issues")?
+                                .and_then(|t| serde_json::from_str(&t).ok()),
                         })
                     })?
                     .collect::<rusqlite::Result<_>>()?;
@@ -919,6 +944,17 @@ impl Db {
         })
     }
 
+    pub fn set_issues(&mut self, line_id: i64, issues: &Value) -> Result<()> {
+        if self
+            .conn
+            .execute("UPDATE lines SET issues = ?2 WHERE id = ?1", params![line_id, issues.to_string()])?
+            == 0
+        {
+            return Err(not_found(&tr("Linie", "Line"), line_id));
+        }
+        Ok(())
+    }
+
     pub fn add_change(&mut self, line_id: i64, text: &str) -> Result<()> {
         self.conn.execute(
             "INSERT INTO changes (line_id, time, text) VALUES (?1, ?2, ?3)",
@@ -971,7 +1007,7 @@ impl Db {
                     let reading = self.latest_reading(m.id)?;
                     meters.push(json!({ "meter": m, "reading": reading }));
                 }
-                lines.push(json!({ "line": l.line, "meters": meters }));
+                lines.push(json!({ "line": l.line, "meters": meters, "issues": l.issues }));
             }
             gateways.push(json!({ "gateway": g.gateway, "lines": lines }));
         }
@@ -1147,9 +1183,11 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("mbusio-db-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("meters.json"), r#"{"meters":[{"address":"5","name":"Alt"}]}"#).unwrap();
-        let db = Db::open(&dir).unwrap();
+        let mut db = Db::open(&dir).unwrap();
         let line = db.active_line().unwrap().id;
         assert_eq!(db.meters(line).unwrap()[0].name, "Alt");
+        db.set_issues(line, &json!({ "count": 2, "items": ["a", "b"] })).unwrap();
+        assert_eq!(db.tree().unwrap()[0].gateways[0].lines[0].issues.as_ref().unwrap()["count"], 2);
         assert!(dir.join("meters.json.imported").exists());
         drop(db);
         // zweiter Start: nichts doppelt
