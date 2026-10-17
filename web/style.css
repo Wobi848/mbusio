@@ -796,3 +796,16 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 .fix-plan li label { flex: 1 1 auto; min-width: 0; }
 .fix-plan li input[type="checkbox"] { width: 16px; height: 16px; flex: none; margin: 0; accent-color: var(--accent); }
 .plan-st { font-size: 14px; }
+
+/* Telegramm-Analyse */
+#log span.log-TX, #log span.log-RX { cursor: pointer; }
+#log span.log-TX:hover, #log span.log-RX:hover { background: var(--sunken); }
+.analysis { margin-top: 12px; }
+.analysis h4 { margin: 0 0 6px; font-size: 14px; }
+.analysis .problems { margin: 6px 0 10px; padding: 8px 12px 8px 28px; border-radius: 8px; background: var(--err-soft); color: var(--err); font-size: 13px; }
+.analysis .clean { color: var(--ok); font-weight: 600; font-size: 13px; margin: 6px 0 10px; }
+.analysis table td { white-space: normal; vertical-align: top; }
+.analysis td.bytes { font-family: var(--mono); font-size: 12px; color: var(--muted); max-width: 260px; word-break: break-all; }
+.analysis tr.bad td { color: var(--err); }
+.analysis tr.bad td.bytes { color: var(--err); }
+.why .analyze-link { font-weight: 600; margin-left: 8px; }

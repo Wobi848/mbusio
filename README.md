@@ -23,6 +23,12 @@ Eine einzige Binärdatei für Windows, Linux und Raspberry Pi, die Oberfläche i
 - **Telegramm senden** (Experten): beliebige Bytes senden, Antwort wird decodiert
 - **Prüfung der Trefferliste**: doppelte Primäradressen und IDs sowie Zähler auf fremder
   Baudrate werden markiert, mit Knopf zum Beheben („PA ändern“, „Baudrate ändern“)
+- **„Warum?“** bei Kollision und „Keine Daten“: Ursache in einfachen Worten (Prüfsumme, abgeschnitten,
+  Fehlertelegramm, falsche Adresse …) mit Tipp, was zu tun ist
+- **„Alle beheben“**: Plan zum Abhaken für abweichende Baudraten und doppelte PA, freie Adressen
+  werden auf dem Bus gesucht, jede Änderung am Zähler kontrolliert und im Bericht protokolliert
+- **Telegramm-Analyse**: jede Zeile im Telegramm-Log anklicken oder Hex einfügen, das Telegramm
+  wird Byte für Byte erklärt, auch gestörte (Prüfsumme, fehlende oder überzählige Bytes)
 - **Bericht** für den Kunden: Zählerliste mit Kunde, Objekt, Bearbeiter und Werten, optional mit
   allen Messwerten, im Browser drucken oder als PDF speichern
 - **Export** als CSV (Semikolon, Excel-tauglich) oder JSON

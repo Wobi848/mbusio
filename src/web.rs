@@ -173,6 +173,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/free-address", post(free_address))
         .route("/api/reset", post(app_reset))
         .route("/api/raw", post(raw_send))
+        .route("/api/analyze", post(analyze))
         .route(
             "/api/meters",
             get(meters_list).post(meters_add).delete(meters_clear),
@@ -657,6 +658,13 @@ pub fn parse_hex(text: &str) -> anyhow::Result<Vec<u8>> {
         .step_by(2)
         .map(|k| u8::from_str_radix(&digits[k..k + 2], 16).unwrap())
         .collect())
+}
+
+/// Telegramm erklären, ohne etwas zu senden
+async fn analyze(headers: HeaderMap, Json(req): Json<RawReq>) -> ApiResult<crate::mbus::analyze::Analysis> {
+    i18n::set(lang_of(&headers));
+    let bytes = parse_hex(&req.hex).map_err(bad_request)?;
+    Ok(Json(crate::mbus::analyze::analyze(&bytes)))
 }
 
 async fn raw_send(

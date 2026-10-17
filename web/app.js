@@ -196,8 +196,16 @@ const UI = {
     job_read_all: "Alle auslesen",
     read_all_done: "Zählerliste ausgelesen",
     read_all_cancelled: "Auslesen der Zählerliste abgebrochen",
-    raw_title: "Telegramm senden (Experten)",
-    raw_hint: "Bytes werden unverändert gesendet, die Prüfsumme muss stimmen. Beispiel: 10 40 01 41 16 = SND_NKE an Adresse 1.",
+    raw_title: "Telegramm analysieren / senden",
+    raw_hint: "Bytes eingeben oder oben eine TX/RX-Zeile anklicken. „Analysieren“ erklärt das Telegramm Byte für Byte, „Senden“ schickt es unverändert an den Bus (Experten). Beispiel: 10 40 01 41 16.",
+    analyze: "Analysieren",
+    an_problems: "Probleme",
+    an_clean: "✓ Telegramm in Ordnung",
+    an_bytes: "Bytes",
+    an_field: "Feld",
+    an_meaning: "Bedeutung",
+    log_click: "Klicken zum Analysieren",
+    why_analyze: "Telegramm analysieren",
     raw_bytes: "Bytes (Hex)",
     send: "Senden",
     raw_none: "Keine Antwort",
@@ -434,8 +442,16 @@ const UI = {
     job_read_all: "Read all",
     read_all_done: "Meter list read",
     read_all_cancelled: "Reading the meter list cancelled",
-    raw_title: "Send telegram (experts)",
-    raw_hint: "Bytes are sent unchanged, the checksum must be correct. Example: 10 40 01 41 16 = SND_NKE to address 1.",
+    raw_title: "Analyse / send telegram",
+    raw_hint: "Enter bytes or click a TX/RX line above. “Analyse” explains the telegram byte by byte, “Send” sends it unchanged to the bus (experts). Example: 10 40 01 41 16.",
+    analyze: "Analyse",
+    an_problems: "Problems",
+    an_clean: "✓ Telegram is fine",
+    an_bytes: "Bytes",
+    an_field: "Field",
+    an_meaning: "Meaning",
+    log_click: "Click to analyse",
+    why_analyze: "Analyse telegram",
     raw_bytes: "Bytes (hex)",
     send: "Send",
     raw_none: "No reply",
@@ -841,7 +857,7 @@ function whyRow(h, cols) {
   return `<tr class="why-row"><td colspan="${cols}"><div class="why">
     <p><b>${esc(what)}</b></p>
     <p><span class="why-label">${esc(t("why_tip"))}</span> ${esc(tip)}</p>
-    ${h.raw ? `<p class="why-raw"><span class="why-label">${esc(t("why_raw"))}:</span> <code>${esc(h.raw)}</code></p>` : ""}
+    ${h.raw ? `<p class="why-raw"><span class="why-label">${esc(t("why_raw"))}:</span> <code>${esc(h.raw)}</code><a href="#analysis" class="analyze-link" data-analyze="${esc(h.raw)}">${esc(t("why_analyze"))} →</a></p>` : ""}
   </div></td></tr>`;
 }
 
@@ -1174,6 +1190,12 @@ $("sa-raw").onchange = () => {
 };
 
 $("hits").addEventListener("click", (ev) => {
+  const an = ev.target.closest("[data-analyze]");
+  if (an) {
+    ev.preventDefault();
+    analyzeHex(an.dataset.analyze).catch((e) => toast(e.message, true));
+    return;
+  }
   const btn = ev.target.closest("button");
   if (!btn) return;
   const d = btn.dataset;
@@ -1746,7 +1768,13 @@ async function pollLog() {
   const pre = $("log");
   pre.insertAdjacentHTML(
     "beforeend",
-    entries.map((e) => `<span class="log-${e.dir}">${e.time} ${e.dir.padEnd(4)} ${esc(e.text)}</span>\n`).join("")
+    entries
+      .map((e) => {
+        // TX/RX-Zeilen anklicken: Telegramm analysieren
+        const bytes = e.dir === "TX" || e.dir === "RX" ? ` data-hex="${esc(e.text)}" title="${esc(t("log_click"))}"` : "";
+        return `<span class="log-${e.dir}"${bytes}>${e.time} ${e.dir.padEnd(4)} ${esc(e.text)}</span>\n`;
+      })
+      .join("")
   );
   while (pre.childElementCount > 1000) pre.firstElementChild.remove();
   if ($("log-follow").checked) pre.scrollTop = pre.scrollHeight;
@@ -1767,7 +1795,37 @@ $("raw-send").onclick = () =>
     out.textContent = lines.join("\n");
     out.hidden = false;
   });
-$("raw-hex").addEventListener("keydown", (e) => e.key === "Enter" && $("raw-send").click());
+$("raw-hex").addEventListener("keydown", (e) => e.key === "Enter" && $("analyze").click());
+
+$("analyze").onclick = () => guarded($("analyze"), () => analyzeHex($("raw-hex").value.trim()));
+
+$("log").addEventListener("click", (ev) => {
+  const hex = ev.target.closest("[data-hex]")?.dataset.hex;
+  if (hex) analyzeHex(hex).catch((e) => toast(e.message, true));
+});
+
+/// Telegramm erklären lassen und unter dem Log anzeigen (sendet nichts)
+async function analyzeHex(hex) {
+  if (!hex) return;
+  const box = $("log-box");
+  if (!box.open) box.open = true;
+  $("raw-hex").value = hex;
+  const a = await api("analyze", { method: "POST", body: { hex } });
+  const el = $("analysis");
+  el.hidden = false;
+  el.innerHTML = `
+    <h4>${esc(a.summary)}</h4>
+    ${a.problems.length
+      ? `<ul class="problems">${a.problems.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`
+      : `<p class="clean">${esc(t("an_clean"))}</p>`}
+    <div class="table-wrap"><table>
+      <thead><tr><th>${esc(t("an_bytes"))}</th><th>${esc(t("an_field"))}</th><th>${esc(t("an_meaning"))}</th></tr></thead>
+      <tbody>${a.fields
+        .map((f) => `<tr${f.bad ? ' class="bad"' : ""}><td class="bytes">${esc(f.bytes || "–")}</td><td>${esc(f.name)}</td><td>${esc(f.value)}</td></tr>`)
+        .join("")}</tbody>
+    </table></div>`;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 $("clear-log").onclick = async () => {
   await api("log", { method: "DELETE" }).catch(() => {});
