@@ -800,8 +800,17 @@ mod tests {
         assert_eq!(st, vec!["no_data"]);
         let e = m.read_meter(&Target::Primary(12)).unwrap_err().to_string();
         assert!(e.contains("13"), "{e}");
-        // zwei Zähler auf Adresse 10: Kollision
-        assert!(m.read_meter(&Target::Primary(10)).is_err());
+        // zwei Zähler auf Adresse 10: Kollision. Nicht über read_meter prüfen: überlagerte
+        // Telegramme ergeben je nach Zählerstand zufällig ein gültiges (wie am echten Bus)
+        let mut st = Vec::new();
+        m.scan_primary(10, 10, 0, &mut |p| {
+            if let Progress::Hit(h) = p {
+                st.push(h.status);
+            }
+            true
+        })
+        .unwrap();
+        assert_eq!(st, vec!["collision"]);
         // Wackelkontakt: ohne Wiederholung übersehen, mit Wiederholung gefunden
         let mut found = |retries| {
             let mut n = 0;
