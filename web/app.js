@@ -39,6 +39,12 @@ const UI = {
     bauds_all: "Alle",
     busbar_view: "Ansehen",
     dup_pa: "PA doppelt",
+    other_baud: "Baudrate abweichend",
+    other_baud_title: (b, bus) => `Zähler läuft mit ${b} Bd, der Bus mit ${bus} Bd. Empfehlung: auf ${bus} Bd umstellen.`,
+    fix_baud: "Baudrate ändern",
+    config_baud_note: (b) => `Zähler läuft mit ${b} Bd – Befehle werden mit ${b} Bd gesendet.`,
+    remember_all: "Alle merken",
+    remembered_all: (n, skipped) => `${n} Zähler übernommen` + (skipped ? `, ${skipped} schon in der Liste` : ""),
     dup_id: "ID doppelt",
     dup_pa_title: (pa, n) => `${n} Zähler stehen auf PA ${pa}. Über die ID neu adressieren.`,
     dup_id_title: "Mehrere Zähler mit dieser ID: über die volle Sekundäradresse ansprechen.",
@@ -46,7 +52,7 @@ const UI = {
     warn_title: "Auffälligkeiten",
     warn_dup_pa: (pa, b, ids) => `PA ${pa} (${b} Bd): ${ids.length} Zähler – ${ids.join(", ")}`,
     warn_dup_id: (id, n) => `ID ${id}: ${n} Zähler`,
-    warn_other_baud: (n, b) => `${n} Zähler nicht auf der eingestellten Baudrate (${b} Bd)`,
+    warn_other_baud: (n, b) => `${n} Zähler nicht auf der eingestellten Baudrate (${b} Bd) – Empfehlung: „Baudrate ändern“`,
     warn_fix_hint: "„PA ändern“ sucht eine freie Adresse auf dem Bus und trägt sie mit der ID unter „Zähler einstellen“ ein.",
     job_done: (k, n) => `${k} fertig · ${n} Treffer`,
     job_cancelled: (k, n) => `${k} abgebrochen · ${n} Treffer`,
@@ -114,6 +120,8 @@ const UI = {
     meter_add: "Zähler hinzufügen",
     meters_read_all: "Alle auslesen",
     meters_clear: "Liste leeren",
+    report: "Bericht (PDF)",
+    report_title: "Bericht für den Kunden: drucken oder als PDF speichern",
     confirm_meters_clear: (n) => `Alle ${n} Zähler aus der Liste löschen?\n\nDas lässt sich nicht rückgängig machen. Tipp: vorher „Exportieren“.`,
     meters_cleared: (n) => `${n} Zähler gelöscht`,
     export: "Exportieren",
@@ -217,6 +225,12 @@ const UI = {
     bauds_all: "All",
     busbar_view: "View",
     dup_pa: "Duplicate PA",
+    other_baud: "Different baud rate",
+    other_baud_title: (b, bus) => `Meter runs at ${b} Bd, the bus at ${bus} Bd. Recommendation: switch it to ${bus} Bd.`,
+    fix_baud: "Change baud rate",
+    config_baud_note: (b) => `Meter runs at ${b} Bd – commands are sent at ${b} Bd.`,
+    remember_all: "Remember all",
+    remembered_all: (n, skipped) => `${n} meters added` + (skipped ? `, ${skipped} already in the list` : ""),
     dup_id: "Duplicate ID",
     dup_pa_title: (pa, n) => `${n} meters are on PA ${pa}. Readdress them by ID.`,
     dup_id_title: "Several meters with this ID: use the full secondary address.",
@@ -224,7 +238,7 @@ const UI = {
     warn_title: "Issues",
     warn_dup_pa: (pa, b, ids) => `PA ${pa} (${b} Bd): ${ids.length} meters – ${ids.join(", ")}`,
     warn_dup_id: (id, n) => `ID ${id}: ${n} meters`,
-    warn_other_baud: (n, b) => `${n} meters not at the configured baud rate (${b} Bd)`,
+    warn_other_baud: (n, b) => `${n} meter(s) not at the configured baud rate (${b} Bd) – recommendation: “Change baud rate”`,
     warn_fix_hint: "“Change PA” finds a free address on the bus and fills it in with the ID under “Configure meter”.",
     job_done: (k, n) => `${k} done · ${n} hits`,
     job_cancelled: (k, n) => `${k} cancelled · ${n} hits`,
@@ -292,6 +306,8 @@ const UI = {
     meter_add: "Add meter",
     meters_read_all: "Read all",
     meters_clear: "Clear list",
+    report: "Report (PDF)",
+    report_title: "Report for the customer: print or save as PDF",
     confirm_meters_clear: (n) => `Delete all ${n} meters from the list?\n\nThis cannot be undone. Tip: “Export” first.`,
     meters_cleared: (n) => `${n} meters deleted`,
     export: "Export",
@@ -760,15 +776,23 @@ function renderJob(job) {
       const fixTarget = dupId ? h.secondary_address : h.id || h.secondary_address;
       const fix =
         dupPa && fixTarget
-          ? `<button class="small ghost needs-conn" data-fix="${esc(fixTarget)}">${t("fix_pa")}</button>`
+          ? `<button class="small ghost needs-conn" data-fix="${esc(fixTarget)}" data-from="${other ? h.baud : ""}">${t("fix_pa")}</button>`
           : "";
+      // Empfehlung: Zähler auf die Baudrate des Busses umstellen
+      const fixBaud =
+        other && h.status === "ok" && fixTarget
+          ? `<button class="small ghost needs-conn" data-fixbaud="${esc(fixTarget)}" data-from="${h.baud}">${t("fix_baud")}</button>`
+          : "";
+      const otherChip = other && h.status === "ok"
+        ? ` <span class="chip st-collision" title="${esc(t("other_baud_title", h.baud, connBaud))}">${t("other_baud")}</span>`
+        : "";
       return `<tr${anim}>
         <td class="num mono${dupPa ? " st-other" : ""}"${dupPa ? ` title="${esc(t("dup_pa_title", h.primary_address, paCount))}"` : ""}>${h.primary_address ?? "–"}${dupPa ? " ⚠" : ""}</td>
         <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
         ${sa}
         <td>${esc(label(h.medium))}</td>
-        <td><span class="chip st-${h.status}">${t("st_" + h.status)}</span>${warnChips}</td>
-        <td><div class="actions">${fix}${
+        <td><span class="chip st-${h.status}">${t("st_" + h.status)}</span>${warnChips}${otherChip}</td>
+        <td><div class="actions">${fix}${fixBaud}${
           target !== ""
             ? `<button class="small quiet needs-conn" data-read="${esc(target)}" data-baud="${h.baud ?? ""}">${t("read")}</button>
                <button class="small ghost" data-remember="${i}">${t("remember")}</button>`
@@ -780,6 +804,26 @@ function renderJob(job) {
   updateButtons();
 }
 
+/// Eintrag für die Zählerliste aus einem Treffer
+function meterFromHit(h) {
+  return {
+    address: h.secondary_address || String(h.primary_address),
+    // eigene Baudrate nur merken, wenn sie vom Bus abweicht
+    baud: h.baud && h.baud !== connBaud ? h.baud : null,
+    meter_id: h.id,
+    manufacturer: h.manufacturer || null,
+    medium: h.medium,
+  };
+}
+
+$("remember-all").onclick = () =>
+  guarded($("remember-all"), async () => {
+    const list = (lastJob?.hits || []).filter((h) => h.status === "ok").map(meterFromHit);
+    const r = await api("meters/import", { method: "POST", body: { meters: list } });
+    toast(t("remembered_all", r.added, list.length - r.added));
+    await loadMeters();
+  });
+
 $("sa-raw").checked = storageGet("sa_raw") === "1";
 $("sa-raw").onchange = () => {
   storageSet("sa_raw", $("sa-raw").checked ? "1" : "0");
@@ -790,11 +834,19 @@ $("hits").addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
   if (!btn) return;
   const d = btn.dataset;
+  if (d.fixbaud) {
+    // Zähler unter "Zähler einstellen" eintragen, Ziel = Baudrate des Busses
+    setConfigTarget(d.fixbaud, Number(d.from));
+    $("new-baud").value = connBaud;
+    document.getElementById("sec-config").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("switch-baud").focus({ preventScroll: true });
+    return;
+  }
   if (d.fix) {
     // Zähler unter "Zähler einstellen" eintragen; freie Adresse fragt der Bus, nicht die Trefferliste:
     // Zähler ohne Daten haben dort keine PA, belegen sie aber trotzdem
     guarded(btn, async () => {
-      $("set-old").value = d.fix;
+      setConfigTarget(d.fix, Number(d.from) || null);
       $("set-new").value = "";
       const skip = [...new Set(lastJob.hits.map((h) => h.primary_address).filter((a) => a != null && a > 0))];
       const r = await api("free-address", { method: "POST", body: { from: 1, skip } });
@@ -808,17 +860,7 @@ $("hits").addEventListener("click", (ev) => {
   if (d.remember !== undefined) {
     const h = lastJob.hits[Number(d.remember)];
     guarded(btn, async () => {
-      await api("meters", {
-        method: "POST",
-        body: {
-          address: h.secondary_address || String(h.primary_address),
-          // eigene Baudrate nur merken, wenn sie vom Bus abweicht
-          baud: h.baud && h.baud !== connBaud ? h.baud : null,
-          meter_id: h.id,
-          manufacturer: h.manufacturer || null,
-          medium: h.medium,
-        },
-      });
+      await api("meters", { method: "POST", body: meterFromHit(h) });
       toast(t("remembered"));
       await loadMeters();
     });
@@ -1016,6 +1058,32 @@ $("read-addr").addEventListener("keydown", (e) => e.key === "Enter" && readMeter
 
 // ------------------------------------------------------------ Zähler einstellen
 
+/// Baudrate, mit der der eingetragene Zähler läuft (null = wie der Bus)
+let configBaud = null;
+
+function setConfigTarget(address, baud = null) {
+  $("set-old").value = address;
+  setConfigBaud(baud);
+}
+
+function setConfigBaud(baud) {
+  configBaud = baud && baud !== connBaud ? baud : null;
+  const note = $("config-baud-note");
+  note.hidden = !configBaud;
+  note.textContent = configBaud ? t("config_baud_note", configBaud) : "";
+}
+
+// Wer selbst eine andere Adresse eintippt, meint einen Zähler auf der Bus-Baudrate
+$("set-old").addEventListener("input", () => setConfigBaud(null));
+
+/// Treffer der letzten Suche zu einer eingegebenen Adresse
+function hitFor(address) {
+  const key = address.toUpperCase();
+  return lastJob?.kind !== "read_all"
+    ? lastJob?.hits.find((h) => h.id === key || h.secondary_address === key || String(h.primary_address) === key)
+    : null;
+}
+
 function configTarget() {
   const address = $("set-old").value.trim();
   if (!address) throw new Error(t("enter_address"));
@@ -1033,12 +1101,11 @@ $("set-addr").onclick = () =>
     const newAddr = $("set-new").value;
     if (!address || newAddr === "") throw new Error(t("enter_both"));
     if (!confirm(t("confirm_set", address, newAddr))) return;
-    await api("set-address", { method: "POST", body: { address, new_address: Number(newAddr) } });
+    await api("set-address", { method: "POST", body: { address, new_address: Number(newAddr), from_baud: configBaud } });
     toast(t("address_set", newAddr));
     // Trefferliste nachführen, damit die Warnung "PA doppelt" ohne neuen Scan verschwindet
-    const key = address.toUpperCase();
-    const hit = lastJob?.hits.find((h) => h.id === key || h.secondary_address === key || String(h.primary_address) === key);
-    if (hit && lastJob.kind !== "read_all") {
+    const hit = hitFor(address);
+    if (hit) {
       hit.primary_address = Number(newAddr);
       renderJob(lastJob);
     }
@@ -1049,10 +1116,17 @@ $("switch-baud").onclick = () =>
     const address = configTarget();
     const baud = Number($("new-baud").value);
     if (!confirm(t("confirm_switch", address, baud))) return;
-    await api("switch-baud", { method: "POST", body: { address, baud } });
+    await api("switch-baud", { method: "POST", body: { address, baud, from_baud: configBaud } });
+    setConfigBaud(baud);
+    const hit = hitFor(address);
+    if (hit) {
+      hit.baud = baud;
+      renderJob(lastJob);
+    }
     const m = listedMeter(address);
     if (m) {
-      await api("meters/" + m.id, { method: "PUT", body: { ...m, baud } });
+      // eigene Baudrate nur speichern, wenn sie vom Bus abweicht
+      await api("meters/" + m.id, { method: "PUT", body: { ...m, baud: baud === connBaud ? null : baud } });
       await loadMeters();
       toast(t("baud_switched_list", baud));
     } else {
@@ -1068,7 +1142,13 @@ $("detect-baud").onclick = () =>
     try {
       const r = await api("detect-baud", { method: "POST", body: { address } });
       out.textContent = r.bauds.length ? t("detect_found", r.bauds.join(", ")) : t("detect_none");
-      if (r.bauds.length) $("new-baud").value = r.bauds[0];
+      if (r.bauds.length && !r.bauds.includes(connBaud)) {
+        // läuft woanders: Befehle mit seiner Baudrate senden, Umstellen auf den Bus vorschlagen
+        setConfigBaud(r.bauds[0]);
+        $("new-baud").value = connBaud;
+      } else if (r.bauds.length) {
+        setConfigBaud(null);
+      }
     } catch (e) {
       out.textContent = "";
       throw e;
@@ -1079,7 +1159,7 @@ $("app-reset").onclick = () =>
   guarded($("app-reset"), async () => {
     const address = configTarget();
     if (!confirm(t("confirm_reset", address))) return;
-    await api("reset", { method: "POST", body: { address } });
+    await api("reset", { method: "POST", body: { address, from_baud: configBaud } });
     toast(t("reset_done"));
   });
 

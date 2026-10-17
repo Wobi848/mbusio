@@ -706,4 +706,14 @@ mod tests {
         assert_eq!(m.free_primary(1, &[]).unwrap(), 6);
         assert_eq!(m.free_primary(1, &[6]).unwrap(), 8);
     }
+
+    #[test]
+    fn switch_meter_on_other_baud_to_bus_baud() {
+        let mut m = master();
+        // Zähler 6 läuft mit 2400, Bus mit 9600: Befehl mit 2400 senden, Kontrolle mit 9600
+        m.set_baud(2400).unwrap();
+        m.switch_baud(&Target::Primary(6), 9600).unwrap();
+        m.set_baud(9600).unwrap();
+        assert_eq!(m.bus_bauds(&[]).unwrap(), vec![9600]);
+    }
 }

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mbusio – Bericht</title>
+<style>
+  /* Bericht: immer hell, für A4 gedruckt bzw. als PDF gespeichert */
+  :root { --text: #121614; --muted: #59625e; --line: #d5dad7; --accent: #0f766e; --err: #b42318; --warn: #a85000; color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: #e9ecea; }
+  .toolbar {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line);
+  }
+  .toolbar .grow { flex: 1; }
+  .toolbar label { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+  button { font: inherit; font-weight: 600; border: 1px solid var(--line); background: #fff; color: var(--text); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .page { max-width: 210mm; margin: 16px auto; background: #fff; padding: 16mm 14mm; box-shadow: 0 4px 18px rgba(0, 0, 0, .12); }
+  h1 { font-size: 20px; margin: 0 0 2px; }
+  h2 { font-size: 14px; margin: 22px 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 14px; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; margin-bottom: 14px; }
+  .field span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .field input, .field textarea {
+    width: 100%; font: inherit; color: var(--text); border: 0; border-bottom: 1px solid var(--line);
+    padding: 3px 0; background: transparent; resize: vertical;
+  }
+  .field input:focus, .field textarea:focus { outline: none; border-bottom-color: var(--accent); }
+  .field.wide { grid-column: 1 / -1; }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px 22px; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .meta b { color: var(--text); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; }
+  .small { display: block; color: var(--muted); font-size: 10.5px; }
+  .ok { color: var(--accent); font-weight: 600; }
+  .err { color: var(--err); font-weight: 600; }
+  .none { color: var(--muted); }
+  .detail { break-inside: avoid; margin-top: 14px; }
+  .details-section { break-before: page; }
+  .details-section h2 { margin-top: 0; }
+  .detail h3 { font-size: 12.5px; margin: 0 0 4px; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 40px; break-inside: avoid; }
+  .sign div { border-top: 1px solid var(--text); padding-top: 4px; font-size: 11px; color: var(--muted); }
+  .foot { margin-top: 22px; font-size: 10.5px; color: var(--muted); }
+  .empty { color: var(--muted); padding: 10px 0; }
+  @page { size: A4; margin: 12mm; }
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none; }
+    .page { margin: 0; padding: 0; box-shadow: none; max-width: none; }
+    .field input, .field textarea { border-bottom-color: transparent; resize: none; overflow: hidden; }
+    .field.blank { display: none; }
+    tr { break-inside: avoid; }
+  }
+  @media (max-width: 640px) {
+    .page { padding: 16px; margin: 0; }
+    .fields { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="primary" id="print" data-t="print"></button>
+  <label><input type="checkbox" id="details"> <span data-t="with_details"></span></label>
+  <span class="grow"></span>
+  <button id="close" data-t="close"></button>
+</div>
+<div class="page">
+  <h1 data-t="title"></h1>
+  <p class="sub" data-t="subtitle"></p>
+  <div class="fields">
+    <label class="field"><span data-t="customer"></span><input id="f-customer"></label>
+    <label class="field"><span data-t="site"></span><input id="f-site"></label>
+    <label class="field"><span data-t="technician"></span><input id="f-technician"></label>
+    <label class="field"><span data-t="order"></span><input id="f-order"></label>
+    <label class="field wide"><span data-t="remarks"></span><textarea id="f-remarks" rows="2"></textarea></label>
+  </div>
+  <div class="meta" id="meta"></div>
+  <h2 data-t="meters"></h2>
+  <div id="table"></div>
+  <div id="details-out"></div>
+  <div class="sign">
+    <div data-t="sign_tech"></div>
+    <div data-t="sign_customer"></div>
+  </div>
+  <p class="foot" id="foot"></p>
+</div>
+<script src="report.js"></script>
+</body>
+</html>

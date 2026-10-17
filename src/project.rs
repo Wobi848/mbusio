@@ -30,6 +30,9 @@ pub struct Meter {
     pub manufacturer: Option<String>,
     #[serde(default)]
     pub medium: Option<String>,
+    /// Primäradresse bei der letzten Auslesung
+    #[serde(default)]
+    pub primary_address: Option<u8>,
     #[serde(default)]
     pub last_read: Option<String>,
     /// Hauptwert der letzten Auslesung, z.B. "123.456 m³"
@@ -232,6 +235,7 @@ impl Store {
         match result {
             Ok(r) => {
                 m.last_read = Some(r.timestamp.clone());
+                m.primary_address = Some(r.primary_address);
                 m.last_error = None;
                 if let Some(h) = &r.header {
                     m.meter_id = Some(h.id.clone());

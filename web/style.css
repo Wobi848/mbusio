@@ -738,3 +738,6 @@ body.has-busbar #toast { bottom: 76px; }
 .hits-warn ul { margin: 4px 0 0; padding-left: 18px; }
 .hits-warn .hint { color: inherit; margin-top: 6px; }
 td .chip + .chip { margin-left: 4px; }
+
+.hits-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+#config-baud-note { margin-top: 6px; }

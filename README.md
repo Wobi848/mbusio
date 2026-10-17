@@ -21,6 +21,10 @@ Eine einzige Binärdatei für Windows, Linux und Raspberry Pi, die Oberfläche i
 - **Zählerliste**: Zähler merken, mit Name, Ort und Notiz versehen, gesammelt auslesen
   (auch mit unterschiedlichen Baudraten auf einem Bus), als JSON exportieren und importieren
 - **Telegramm senden** (Experten): beliebige Bytes senden, Antwort wird decodiert
+- **Prüfung der Trefferliste**: doppelte Primäradressen und IDs sowie Zähler auf fremder
+  Baudrate werden markiert, mit Knopf zum Beheben („PA ändern“, „Baudrate ändern“)
+- **Bericht** für den Kunden: Zählerliste mit Kunde, Objekt, Bearbeiter und Werten, optional mit
+  allen Messwerten, im Browser drucken oder als PDF speichern
 - **Export** als CSV (Semikolon, Excel-tauglich) oder JSON
 - **Telegramm-Log** mit allen gesendeten und empfangenen Bytes, wichtig für die Fehlersuche an echter Hardware
 - **Kommandozeile** für Skripte, Ergebnis als JSON (siehe unten)

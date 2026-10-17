@@ -120,7 +120,10 @@
       <div id="job-progress" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar-fill"></div></div>
     </div>
     <div id="hits-warn" class="hits-warn" role="alert" hidden></div>
-    <label class="inline hits-opt" hidden><input id="sa-raw" type="checkbox" class="switch"> <span data-i18n="sa_raw"></span></label>
+    <div class="hits-opt hits-tools" hidden>
+      <label class="inline"><input id="sa-raw" type="checkbox" class="switch"> <span data-i18n="sa_raw"></span></label>
+      <button id="remember-all" class="small ghost" data-i18n="remember_all"></button>
+    </div>
     <div class="table-wrap">
       <table id="hits" hidden>
         <thead></thead>
@@ -139,6 +142,7 @@
       <div class="head-actions">
         <label class="button small quiet file-button"><span data-i18n="import"></span><input id="meters-import" type="file" accept=".json,application/json" hidden></label>
         <a id="meters-export" class="button small quiet" href="api/meters/export" data-i18n="export"></a>
+        <a id="meters-report" class="button small ghost" href="report.html" target="_blank" rel="noopener" data-i18n="report" data-i18n-title="report_title"></a>
         <button id="meters-clear" class="small quiet danger" data-i18n="meters_clear" hidden></button>
         <button id="meter-add" class="small ghost" data-i18n="meter_add"></button>
         <button id="meters-read-all" class="small needs-conn" data-i18n="meters_read_all"></button>
@@ -195,6 +199,7 @@
       </div>
       <div class="head-actions grow">
         <label class="addr"><span data-i18n="meter"></span> <input id="set-old" class="mono" data-i18n-ph="address_ph"></label>
+        <p id="config-baud-note" class="hint warn" hidden></p>
       </div>
     </div>
     <div class="tiles three">

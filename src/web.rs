@@ -503,14 +503,7 @@ async fn read(
     let target = parse_target(&req.address)?;
     let t = target.clone();
     let baud = req.baud;
-    let result = with_bus(&st, lang_of(&headers), move |m| {
-        let home = m.baud();
-        m.set_baud(baud.unwrap_or(home))?;
-        let r = m.read_meter(&t);
-        m.set_baud(home)?;
-        r
-    })
-    .await;
+    let result = with_bus(&st, lang_of(&headers), move |m| at_baud(m, baud, |m| m.read_meter(&t))).await;
     // Ergebnis auch in der Zählerliste vermerken, falls der Zähler dort steht
     match &result {
         Ok(r) => {
@@ -529,6 +522,22 @@ async fn read(
 struct SetAddressReq {
     address: String,
     new_address: u8,
+    /// Zähler läuft mit anderer Baudrate als der Bus
+    #[serde(default)]
+    from_baud: Option<u32>,
+}
+
+/// Führt `f` mit der Baudrate `baud` aus (falls angegeben) und stellt danach die alte wieder her.
+fn at_baud<T>(
+    m: &mut Master,
+    baud: Option<u32>,
+    f: impl FnOnce(&mut Master) -> anyhow::Result<T>,
+) -> anyhow::Result<T> {
+    let home = m.baud();
+    m.set_baud(baud.unwrap_or(home))?;
+    let r = f(m);
+    m.set_baud(home)?;
+    r
 }
 
 async fn set_address(
@@ -538,7 +547,10 @@ async fn set_address(
 ) -> ApiResult<serde_json::Value> {
     let target = parse_target(&req.address)?;
     let new = req.new_address;
-    with_bus(&st, lang_of(&headers), move |m| m.set_primary(&target, new)).await?;
+    with_bus(&st, lang_of(&headers), move |m| {
+        at_baud(m, req.from_baud, |m| m.set_primary(&target, new))
+    })
+    .await?;
     Ok(Json(json!({ "ok": true, "new_address": new })))
 }
 
@@ -546,6 +558,9 @@ async fn set_address(
 struct SwitchBaudReq {
     address: String,
     baud: u32,
+    /// Baudrate, mit der der Zähler heute läuft (sonst die des Busses)
+    #[serde(default)]
+    from_baud: Option<u32>,
 }
 
 async fn switch_baud(
@@ -555,7 +570,10 @@ async fn switch_baud(
 ) -> ApiResult<serde_json::Value> {
     let target = parse_target(&req.address)?;
     let baud = req.baud;
-    with_bus(&st, lang_of(&headers), move |m| m.switch_baud(&target, baud)).await?;
+    with_bus(&st, lang_of(&headers), move |m| {
+        at_baud(m, req.from_baud, |m| m.switch_baud(&target, baud))
+    })
+    .await?;
     Ok(Json(json!({ "ok": true, "baud": baud })))
 }
 
@@ -574,6 +592,8 @@ struct ResetReq {
     address: String,
     #[serde(default)]
     subcode: Option<u8>,
+    #[serde(default)]
+    from_baud: Option<u32>,
 }
 
 async fn app_reset(
@@ -583,7 +603,10 @@ async fn app_reset(
 ) -> ApiResult<serde_json::Value> {
     let target = parse_target(&req.address)?;
     let sub = req.subcode;
-    with_bus(&st, lang_of(&headers), move |m| m.application_reset(&target, sub)).await?;
+    with_bus(&st, lang_of(&headers), move |m| {
+        at_baud(m, req.from_baud, |m| m.application_reset(&target, sub))
+    })
+    .await?;
     Ok(Json(json!({ "ok": true })))
 }
 
