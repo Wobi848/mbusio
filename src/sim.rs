@@ -636,7 +636,11 @@ mod tests {
     #[test]
     fn bus_bauds_finds_mixed_bus() {
         let mut m = master();
-        assert_eq!(m.bus_bauds().unwrap(), vec![2400, 9600]);
+        assert_eq!(m.bus_bauds(&[]).unwrap(), vec![2400, 9600]);
+        // einzeln abfragen wie die Oberfläche
+        assert_eq!(m.bus_bauds(&[2400]).unwrap(), vec![2400]);
+        assert_eq!(m.bus_bauds(&[300]).unwrap(), Vec::<u32>::new());
+        assert!(m.bus_bauds(&[1234]).is_err());
         assert_eq!(m.baud(), 9600);
     }
 

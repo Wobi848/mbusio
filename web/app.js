@@ -40,6 +40,11 @@ const UI = {
     pick_baud: "Mindestens eine Baudrate markieren",
     estimate: (t) => `Primärscan dauert höchstens ca. ${t}`,
     bus_bauds_busy: "Prüfe 300 bis 38400 Bd …",
+    bus_bauds_step: (b, k, n, found) => `Prüfe ${b} Bd … (${k}/${n})` + (found.length ? ` · Antwort auf ${found.join(", ")} Bd` : ""),
+    bus_bauds_checking: "Prüfe …",
+    theme_auto: "Design wie System",
+    theme_light: "Hell",
+    theme_dark: "Dunkel",
     bus_bauds_none: "Auf keiner Baudrate antwortet ein Gerät",
     bus_bauds_found: (l, b) => `Geräte antworten auf: ${l} Bd` + (l.split(", ").some((x) => Number(x) !== b) ? " – Achtung, nicht nur auf der eingestellten Baudrate!" : ""),
     duration: (s) => (s < 90 ? `${Math.ceil(s)} s` : `${Math.ceil(s / 60)} min`),
@@ -187,6 +192,11 @@ const UI = {
     pick_baud: "Select at least one baud rate",
     estimate: (t) => `Primary scan takes at most about ${t}`,
     bus_bauds_busy: "Checking 300 to 38400 Bd …",
+    bus_bauds_step: (b, k, n, found) => `Checking ${b} Bd … (${k}/${n})` + (found.length ? ` · answer at ${found.join(", ")} Bd` : ""),
+    bus_bauds_checking: "Checking …",
+    theme_auto: "Theme like system",
+    theme_light: "Light",
+    theme_dark: "Dark",
     bus_bauds_none: "No device answers at any baud rate",
     bus_bauds_found: (l, b) => `Devices answer at: ${l} Bd` + (l.split(", ").some((x) => Number(x) !== b) ? " – note: not only at the configured baud rate!" : ""),
     duration: (s) => (s < 90 ? `${Math.ceil(s)} s` : `${Math.ceil(s / 60)} min`),
@@ -351,6 +361,16 @@ async function setLang(l) {
 
 document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => setLang(b.dataset.lang)));
 
+// Design: auto (wie System), hell oder dunkel; das Setzen beim Laden steht in index.html
+function setTheme(theme) {
+  if (theme === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  storageSet("theme", theme);
+  document.querySelectorAll("[data-theme-set]").forEach((b) => b.classList.toggle("active", b.dataset.themeSet === theme));
+}
+document.querySelectorAll("[data-theme-set]").forEach((b) => (b.onclick = () => setTheme(b.dataset.themeSet)));
+setTheme(["light", "dark"].includes(storageGet("theme")) ? storageGet("theme") : "auto");
+
 // ------------------------------------------------------------ Helfer
 
 const $ = (id) => document.getElementById(id);
@@ -360,6 +380,7 @@ let logSeq = 0;
 let lastReading = null;
 let lastJob = null;
 let connBaud = null;
+let checking = false;
 let conn = null;
 let baudsTouched = false;
 const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
@@ -418,7 +439,7 @@ async function guarded(button, fn) {
 }
 
 function updateButtons() {
-  document.querySelectorAll(".needs-conn").forEach((b) => (b.disabled = !connected || jobRunning));
+  document.querySelectorAll(".needs-conn").forEach((b) => (b.disabled = !connected || jobRunning || checking));
   $("connect").disabled = jobRunning;
   $("disconnect").disabled = !connected || jobRunning;
   $("connect").hidden = connected;
@@ -638,11 +659,8 @@ function pickedBauds() {
   return list;
 }
 
-function setPickedBauds(list, found = null) {
-  $("scan-bauds").querySelectorAll("input").forEach((i) => {
-    i.checked = list.includes(Number(i.value));
-    if (found) i.nextElementSibling.classList.toggle("found", found.includes(Number(i.value)));
-  });
+function setPickedBauds(list) {
+  $("scan-bauds").querySelectorAll("input").forEach((i) => (i.checked = list.includes(Number(i.value))));
   updateEstimate();
 }
 
@@ -668,23 +686,41 @@ $("scan-bauds").addEventListener("change", () => {
 });
 ["scan-from", "scan-to", "scan-retries"].forEach((id) => $(id).addEventListener("input", updateEstimate));
 
-$("bus-bauds").onclick = () =>
-  guarded($("bus-bauds"), async () => {
-    const out = $("bus-bauds-result");
-    out.textContent = t("bus_bauds_busy");
-    try {
-      const r = await api("bus-bauds", { method: "POST" });
-      out.textContent = r.bauds.length ? t("bus_bauds_found", r.bauds.join(", "), connBaud) : t("bus_bauds_none");
-      // gefundene Baudraten für den Scan markieren
-      if (r.bauds.length) {
-        baudsTouched = true;
-        setPickedBauds(r.bauds, r.bauds);
-      }
-    } catch (e) {
-      out.textContent = "";
-      throw e;
+/// Baudraten einzeln abfragen, damit man sieht, was passiert
+$("bus-bauds").onclick = async () => {
+  const btn = $("bus-bauds");
+  const out = $("bus-bauds-result");
+  const chip = (b) => $("scan-bauds").querySelector(`input[value="${b}"] + span`);
+  const found = [];
+  checking = true;
+  updateButtons();
+  btn.textContent = t("bus_bauds_checking");
+  BAUDS.forEach((b) => chip(b).classList.remove("found", "none", "checking"));
+  try {
+    for (const [k, b] of BAUDS.entries()) {
+      out.textContent = t("bus_bauds_step", b, k + 1, BAUDS.length, found);
+      chip(b).classList.add("checking");
+      const r = await api("bus-bauds", { method: "POST", body: { bauds: [b] } });
+      chip(b).classList.remove("checking");
+      if (r.bauds.length) found.push(b);
+      chip(b).classList.add(r.bauds.length ? "found" : "none");
     }
-  });
+    out.textContent = found.length ? t("bus_bauds_found", found.join(", "), connBaud) : t("bus_bauds_none");
+    // gefundene Baudraten für den Scan markieren
+    if (found.length) {
+      baudsTouched = true;
+      setPickedBauds(found);
+    }
+  } catch (e) {
+    BAUDS.forEach((b) => chip(b).classList.remove("checking"));
+    out.textContent = "";
+    toast(e.message, true);
+  } finally {
+    checking = false;
+    btn.textContent = t("bus_bauds");
+    updateButtons();
+  }
+};
 
 $("scan-cancel").onclick = () => api("job/cancel", { method: "POST" }).catch((e) => toast(e.message, true));
 

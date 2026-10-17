@@ -603,17 +603,26 @@ impl Master {
 
     /// Auf welchen Baudraten antworten überhaupt Geräte? Je Baudrate ein Broadcast-Ping
     /// (alle Zähler quittieren) und eine Sekundär-Selektion mit lauter Platzhaltern.
-    pub fn bus_bauds(&mut self) -> Result<Vec<u32>> {
+    /// `bauds` leer = alle Standard-Baudraten. Die Oberfläche fragt einzeln ab, um den
+    /// Fortschritt zu zeigen.
+    pub fn bus_bauds(&mut self, bauds: &[u32]) -> Result<Vec<u32>> {
+        let bauds = if bauds.is_empty() { &BAUD_RATES[..] } else { bauds };
+        if let Some(b) = bauds.iter().find(|b| !BAUD_RATES.contains(b)) {
+            bail!(
+                "{}: {b}",
+                tr("Keine Standard-Baudrate", "Not a standard baud rate")
+            );
+        }
         let old = self.baud;
         self.link.set_baud(old)?;
-        let result = self.probe_bus_bauds();
+        let result = self.probe_bus_bauds(bauds);
         self.set_baud(old)?;
         result
     }
 
-    fn probe_bus_bauds(&mut self) -> Result<Vec<u32>> {
+    fn probe_bus_bauds(&mut self, bauds: &[u32]) -> Result<Vec<u32>> {
         let mut found = Vec::new();
-        for baud in BAUD_RATES {
+        for &baud in bauds {
             self.set_baud(baud)?;
             let any = !matches!(self.ping(ADDR_BROADCAST_REPLY)?, Reply::None)
                 || !matches!(self.select("FFFFFFFFFFFFFFFF")?, Reply::None);
@@ -706,7 +715,7 @@ impl Master {
                 }) {
                     return Ok(());
                 }
-                self.bus_bauds()?
+                self.bus_bauds(&[])?
             }
         };
         if list.is_empty() {

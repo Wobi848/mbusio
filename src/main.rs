@@ -144,7 +144,7 @@ fn run_command(args: &Args, cmd: &Cmd) -> anyhow::Result<()> {
             })?;
             serde_json::to_value(hits)?
         }
-        Cmd::BusBauds => serde_json::json!({ "bauds": m.bus_bauds()? }),
+        Cmd::BusBauds => serde_json::json!({ "bauds": m.bus_bauds(&[])? }),
         Cmd::Read { address } => serde_json::to_value(m.read_meter(&target(address)?)?)?,
         Cmd::SetAddress {
             address,

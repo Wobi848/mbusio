@@ -440,8 +440,19 @@ async fn scan_secondary(
     })
 }
 
-async fn bus_bauds(State(st): State<AppState>, headers: HeaderMap) -> ApiResult<serde_json::Value> {
-    let bauds = with_bus(&st, lang_of(&headers), |m| m.bus_bauds()).await?;
+#[derive(Deserialize, Default)]
+struct BusBaudsReq {
+    /// leer = alle Standard-Baudraten
+    #[serde(default)]
+    bauds: Vec<u32>,
+}
+
+async fn bus_bauds(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<BusBaudsReq>,
+) -> ApiResult<serde_json::Value> {
+    let bauds = with_bus(&st, lang_of(&headers), move |m| m.bus_bauds(&req.bauds)).await?;
     Ok(Json(json!({ "bauds": bauds })))
 }
 
