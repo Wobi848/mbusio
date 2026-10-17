@@ -27,6 +27,12 @@ const TEXT = {
     meters: "Zähler",
     date: "Datum",
     connection: "Verbindung",
+    plan: "Ausleseplan",
+    plan_monthly: "monatlich am 1.,",
+    plan_daily: "täglich",
+    plan_hourly: "stündlich",
+    plan_15min: "alle 15 min",
+    time_unsure: "Zeit unsicher",
     count: "Zähler",
     ok_count: "gelesen",
     err_count: "mit Fehler",
@@ -81,6 +87,12 @@ const TEXT = {
     meters: "Meters",
     date: "Date",
     connection: "Connection",
+    plan: "Read plan",
+    plan_monthly: "monthly on the 1st,",
+    plan_daily: "daily",
+    plan_hourly: "hourly",
+    plan_15min: "every 15 min",
+    time_unsure: "time unsure",
     count: "meters",
     ok_count: "read",
     err_count: "with errors",
@@ -214,6 +226,18 @@ function allMeters() {
   return out;
 }
 
+/// "daily 00:05" → "täglich 00:05"
+function planText(key) {
+  const [kind, time] = key.split(" ");
+  return `${t("plan_" + kind)}${time ? " " + time : ""}`;
+}
+
+/// Ausleseplan der Linie (eigener oder vom Projekt), nur wenn eingeschaltet
+function planNote(l) {
+  const key = l.line.plan || data.project.plan || "off";
+  return key === "off" ? "" : ` <span class="small inline">· ${t("plan")}: ${esc(planText(key))}</span>`;
+}
+
 function renderTable() {
   const list = allMeters();
   if (!list.length) return `<p class="empty">${t("empty")}</p>`;
@@ -223,7 +247,7 @@ function renderTable() {
     .filter(({ l }) => l.meters.length || (issuesShown() && l.issues?.count))
     .map(({ g, l }) => {
       const rows = l.meters
-        .map(({ meter: m }) => {
+        .map(({ meter: m, reading: r }) => {
           n += 1;
           // ID steht auf dem Zähler, deshalb vorne; volle Adresse klein darunter
           const main = m.meter_id || m.address;
@@ -236,14 +260,16 @@ function renderTable() {
             <td class="num mono">${m.primary_address ?? ""}</td>
             <td class="num mono">${m.baud ?? l.line.baud}</td>
             <td class="num">${esc(m.last_value ?? "")}<span class="small">${esc(m.last_value ? label(m.last_quantity) : "")}</span></td>
-            <td class="mono">${esc(m.last_read ?? "")}</td>
+            <td class="mono">${esc(m.last_read ?? "")}${
+              r?.time_unsure && r.timestamp === m.last_read ? `<span class="small">${t("time_unsure")}</span>` : ""
+            }</td>
             <td>${status(m)}</td>
           </tr>`;
         })
         .join("");
       const head = `<h3 class="line-head">${esc(g.gateway.name)} › ${esc(l.line.name)}${
         l.line.connection ? ` <span class="small inline">${esc(l.line.connection)} · ${l.line.baud} Bd</span>` : ""
-      }</h3>`;
+      }${planNote(l)}</h3>`;
       // Linie ohne Zähler, aber mit Auffälligkeiten: keine leere Tabelle
       if (!l.meters.length) return issuesShown() ? head + issuesBlock(l.issues) : "";
       return `${head}
@@ -276,7 +302,7 @@ function renderDetails() {
     allMeters()
       .map(({ meter: m, reading: r, line }, i) => {
         const head = `<h3>${i + 1}. ${esc(m.name || m.meter_id || m.address)} <span class="small inline">${esc(line.name)}${
-          r ? " · " + esc(r.timestamp) : ""
+          r ? " · " + esc(r.timestamp) + (r.time_unsure ? ` (${t("time_unsure")})` : "") : ""
         }</span></h3>`;
         if (!r) return `<div class="detail">${head}<p class="empty">${t("no_details")}</p></div>`;
         const rows = r.records

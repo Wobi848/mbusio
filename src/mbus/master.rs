@@ -42,7 +42,7 @@ impl FrameLog {
         let seq = g.0;
         g.1.push_back(LogEntry {
             seq,
-            time: chrono::Local::now().format("%H:%M:%S%.3f").to_string(),
+            time: crate::clock::now().format("%H:%M:%S%.3f").to_string(),
             dir,
             text,
         });
@@ -123,7 +123,26 @@ pub struct MeterReading {
     pub header: Option<Header>,
     pub records: Vec<Record>,
     pub raw_frames: Vec<String>,
+    /// Uhrzeit beim Auslesen nicht bestätigt (siehe `clock`): Zeitstempel kann falsch sein
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub time_unsure: bool,
 }
+
+/// Der Zähler meldet selbst einen Fehler (Fehlertelegramm CI 70), z.B. 08 beschäftigt,
+/// 09 zu viele Auslesungen
+#[derive(Debug)]
+pub struct MeterRefused {
+    pub code: u8,
+    pub text: String,
+}
+
+impl std::fmt::Display for MeterRefused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.text)
+    }
+}
+
+impl std::error::Error for MeterRefused {}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ScanHit {
@@ -497,7 +516,10 @@ impl Master {
             let t = decode_rsp_ud(ci, &data).map_err(|e| {
                 // Fehlertelegramm: der Zähler meldet selbst einen Fehler, kein Decodierproblem
                 if ci == 0x70 {
-                    anyhow!("{e}")
+                    anyhow::Error::new(MeterRefused {
+                        code: data.first().copied().unwrap_or(0),
+                        text: e,
+                    })
                 } else {
                     anyhow!("{}: {e}", tr("Decodierfehler", "Decoding error"))
                 }
@@ -508,7 +530,8 @@ impl Master {
             records.extend(t.records);
         }
         Ok(MeterReading {
-            timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            timestamp: crate::clock::stamp(),
+            time_unsure: !crate::clock::confirmed(),
             target: target.label(),
             primary_address: primary,
             header,

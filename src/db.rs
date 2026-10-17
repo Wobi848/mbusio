@@ -13,6 +13,7 @@ use serde_json::{json, Value};
 
 use crate::i18n::tr;
 use crate::mbus::master::{mask_matches, MeterReading, Target, BAUD_RATES};
+use crate::plan::{self, Plan};
 
 /// Name des Ordners neben dem Programm für den portablen Betrieb
 pub const PORTABLE_DIR: &str = "mbusio-data";
@@ -65,6 +66,18 @@ pub struct Project {
     pub remarks: String,
     #[serde(default)]
     pub created: String,
+    /// Ausleseplan als Vorgabe für alle Linien (siehe `plan::Plan`), Standard "off"
+    #[serde(default = "default_plan")]
+    pub plan: String,
+}
+
+fn default_plan() -> String {
+    "off".into()
+}
+
+/// Gespeicherter Plan in der Normalform; Unbekanntes (z.B. aus einer Datei) fällt weg
+fn valid_plan(s: Option<&str>) -> Option<String> {
+    Some(Plan::parse(s?).ok()?.key())
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -98,6 +111,9 @@ pub struct Line {
     /// Wie Zähler dieser Linie gemerkt werden: "secondary" (SA) oder "primary" (PA)
     #[serde(default = "default_addressing")]
     pub addressing: String,
+    /// Eigener Ausleseplan; None = wie Projekt
+    #[serde(default)]
+    pub plan: Option<String>,
 }
 
 fn default_addressing() -> String {
@@ -147,7 +163,27 @@ pub struct Meter {
     pub last_quantity: Option<String>,
     #[serde(default)]
     pub last_error: Option<String>,
+    /// Eigener Ausleseplan; None = wie Linie
+    #[serde(default)]
+    pub plan: Option<String>,
+    /// Zustand im Plan (nur lesen): Plan und zuletzt erledigter Termin dazu
+    #[serde(default, skip_deserializing)]
+    pub plan_key: Option<String>,
+    #[serde(default, skip_deserializing)]
+    pub plan_slot: Option<String>,
+    /// ausgesetzt bis, weil der Zähler abgelehnt hat (beschäftigt, zu viele Auslesungen)
+    #[serde(default, skip_deserializing)]
+    pub plan_pause: Option<String>,
+    /// Termine nacheinander nicht gelesen; ab 3 gilt der Zähler als gestört
+    #[serde(default, skip_deserializing)]
+    pub plan_fails: i64,
+    /// gemessene Dauer einer Auslesung (gleitender Mittelwert), für die Buslast
+    #[serde(default, skip_deserializing)]
+    pub plan_ms: Option<f64>,
 }
+
+/// Ab so vielen verpassten Terminen nacheinander gilt ein Zähler als gestört
+pub const DISTURBED_AFTER: i64 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Change {
@@ -166,6 +202,8 @@ pub struct LineInfo {
     pub scanned: Option<String>,
     /// Auffälligkeiten des letzten Scans: {"count": n, "items": [...]}
     pub issues: Option<Value>,
+    /// Ausleseplan der Linie mit nächstem Termin und letztem Ergebnis
+    pub plan_info: Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -180,6 +218,24 @@ pub struct ProjectNode {
     #[serde(flatten)]
     pub project: Project,
     pub gateways: Vec<GatewayNode>,
+}
+
+/// Eine Linie mit dem gültigen Plan je Zähler
+pub struct PlannedLine {
+    pub line: Line,
+    /// "Gateway › Linie" fürs Protokoll
+    pub label: String,
+    pub meters: Vec<(Meter, Plan)>,
+}
+
+/// Ausgang eines Termins für einen Zähler
+pub enum PlanOutcome {
+    /// gelesen, so lange hat es gedauert
+    Read { ms: f64 },
+    /// nicht gelesen (auch nach Wiederholung)
+    Failed,
+    /// Zähler hat abgelehnt (beschäftigt, zu viele Auslesungen): ausgesetzt bis
+    Refused { until: String },
 }
 
 /// Wo die aktive Linie hängt, für Kopfzeile und Bericht
@@ -297,6 +353,7 @@ fn project_of(r: &Row) -> rusqlite::Result<Project> {
         order_no: r.get("order_no")?,
         remarks: r.get("remarks")?,
         created: r.get("created")?,
+        plan: r.get("plan")?,
     })
 }
 
@@ -319,6 +376,7 @@ fn line_of(r: &Row) -> rusqlite::Result<Line> {
         baud: r.get("baud")?,
         timeout_ms: r.get::<_, i64>("timeout_ms")? as u64,
         addressing: r.get("addressing")?,
+        plan: r.get("plan")?,
     })
 }
 
@@ -340,6 +398,12 @@ fn meter_of(r: &Row) -> rusqlite::Result<Meter> {
         last_value: r.get("last_value")?,
         last_quantity: r.get("last_quantity")?,
         last_error: r.get("last_error")?,
+        plan: r.get("plan")?,
+        plan_key: r.get("plan_key")?,
+        plan_slot: r.get("plan_slot")?,
+        plan_pause: r.get("plan_pause")?,
+        plan_fails: r.get("plan_fails")?,
+        plan_ms: r.get("plan_ms")?,
     })
 }
 
@@ -426,6 +490,20 @@ impl Db {
                      SELECT json_extract(data, '$.header.secondary_address') FROM readings
                      WHERE readings.meter = meters.id ORDER BY id DESC LIMIT 1)
                    WHERE secondary_address IS NULL;",
+            )?;
+        }
+        if !has(&self.conn, "projects", "plan")? {
+            // Ausleseplan (Dauerbetrieb); Standard überall aus
+            self.conn.execute_batch(
+                "ALTER TABLE projects ADD COLUMN plan TEXT NOT NULL DEFAULT 'off';
+                 ALTER TABLE lines ADD COLUMN plan TEXT;
+                 ALTER TABLE lines ADD COLUMN plan_result TEXT;
+                 ALTER TABLE meters ADD COLUMN plan TEXT;
+                 ALTER TABLE meters ADD COLUMN plan_key TEXT;
+                 ALTER TABLE meters ADD COLUMN plan_slot TEXT;
+                 ALTER TABLE meters ADD COLUMN plan_pause TEXT;
+                 ALTER TABLE meters ADD COLUMN plan_fails INTEGER NOT NULL DEFAULT 0;
+                 ALTER TABLE meters ADD COLUMN plan_ms REAL;",
             )?;
         }
         Ok(())
@@ -804,7 +882,7 @@ impl Db {
                        (SELECT MAX(last_read) FROM meters WHERE line_id = lines.id) AS lr
                      FROM lines WHERE gateway_id = ?1 ORDER BY position, id",
                 )?;
-                let lines = ls
+                let mut lines: Vec<LineInfo> = ls
                     .query_map([gateway.id], |r| {
                         Ok(LineInfo {
                             line: line_of(r)?,
@@ -814,9 +892,17 @@ impl Db {
                             issues: r
                                 .get::<_, Option<String>>("issues")?
                                 .and_then(|t| serde_json::from_str(&t).ok()),
+                            plan_info: r
+                                .get::<_, Option<String>>("plan_result")?
+                                .and_then(|t| serde_json::from_str(&t).ok())
+                                .unwrap_or(Value::Null),
                         })
                     })?
                     .collect::<rusqlite::Result<_>>()?;
+                for l in &mut lines {
+                    let result = std::mem::take(&mut l.plan_info);
+                    l.plan_info = self.line_plan_info(&l.line, &project.plan, result)?;
+                }
                 gnodes.push(GatewayNode { gateway, lines });
             }
             out.push(ProjectNode {
@@ -874,8 +960,8 @@ impl Db {
     fn insert_meter(&mut self, line_id: i64, m: &Meter) -> Result<i64> {
         self.conn.execute(
             "INSERT INTO meters (line_id, name, location, note, address, baud, meter_id, manufacturer,
-               medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+               medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address, plan)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 line_id,
                 m.name,
@@ -891,7 +977,8 @@ impl Db {
                 m.last_value,
                 m.last_quantity,
                 m.last_error,
-                m.secondary_address
+                m.secondary_address,
+                valid_plan(m.plan.as_deref())
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
@@ -1126,6 +1213,185 @@ impl Db {
         )?)
     }
 
+    // ------------------------------------------------------------ Ausleseplan
+
+    pub fn set_project_plan(&mut self, id: i64, plan: &str) -> Result<()> {
+        let key = Plan::parse(plan)?.key();
+        if self.conn.execute("UPDATE projects SET plan = ?2 WHERE id = ?1", params![id, key])? == 0 {
+            return Err(not_found(&tr("Projekt", "Project"), id));
+        }
+        Ok(())
+    }
+
+    /// None = wie Projekt
+    pub fn set_line_plan(&mut self, id: i64, plan: Option<&str>) -> Result<()> {
+        let key = plan.map(|p| Plan::parse(p).map(|p| p.key())).transpose()?;
+        if self.conn.execute("UPDATE lines SET plan = ?2 WHERE id = ?1", params![id, key])? == 0 {
+            return Err(not_found(&tr("Linie", "Line"), id));
+        }
+        Ok(())
+    }
+
+    /// None = wie Linie
+    pub fn set_meter_plan(&mut self, id: i64, plan: Option<&str>) -> Result<()> {
+        let key = plan.map(|p| Plan::parse(p).map(|p| p.key())).transpose()?;
+        if self.conn.execute("UPDATE meters SET plan = ?2 WHERE id = ?1", params![id, key])? == 0 {
+            return Err(anyhow!("{} {id}", tr("Zähler nicht in der Liste:", "Meter not in list:")));
+        }
+        Ok(())
+    }
+
+    /// Vorgabe des Projekts, zu dem die Linie gehört
+    pub fn project_plan_of_line(&self, line_id: i64) -> Result<String> {
+        Ok(self.conn.query_row(
+            "SELECT projects.plan FROM lines JOIN gateways ON gateways.id = lines.gateway_id
+             JOIN projects ON projects.id = gateways.project_id WHERE lines.id = ?1",
+            [line_id],
+            |r| r.get(0),
+        )?)
+    }
+
+    /// Alle Linien aller Projekte mit dem gültigen Plan je Zähler (für den Zeitplan)
+    pub fn planned(&self) -> Result<Vec<PlannedLine>> {
+        let mut st = self.conn.prepare(
+            "SELECT lines.*, projects.plan AS project_plan, gateways.name AS gateway_name
+             FROM lines JOIN gateways ON gateways.id = lines.gateway_id
+             JOIN projects ON projects.id = gateways.project_id ORDER BY lines.id",
+        )?;
+        let rows: Vec<(Line, String, String)> = st
+            .query_map([], |r| Ok((line_of(r)?, r.get("project_plan")?, r.get("gateway_name")?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut out = Vec::new();
+        for (line, project_plan, gateway) in rows {
+            let meters = self
+                .meters(line.id)?
+                .into_iter()
+                .map(|m| {
+                    let (p, _) = plan::effective(m.plan.as_deref(), line.plan.as_deref(), &project_plan);
+                    (m, p)
+                })
+                .collect();
+            out.push(PlannedLine {
+                label: format!("{gateway} › {}", line.name),
+                line,
+                meters,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Plan neu (oder Uhr weit zurück): auf diesen Termin setzen, ohne auszulesen
+    pub fn plan_start(&mut self, meter_id: i64, key: &str, slot: &str) -> Result<()> {
+        self.conn.execute(
+            "UPDATE meters SET plan_key = ?2, plan_slot = ?3, plan_pause = NULL, plan_fails = 0 WHERE id = ?1",
+            params![meter_id, key, slot],
+        )?;
+        Ok(())
+    }
+
+    /// Plan aus: Zustand vergessen
+    pub fn plan_reset(&mut self, meter_id: i64) -> Result<()> {
+        self.conn.execute(
+            "UPDATE meters SET plan_key = NULL, plan_slot = NULL, plan_pause = NULL, plan_fails = 0 WHERE id = ?1",
+            [meter_id],
+        )?;
+        Ok(())
+    }
+
+    /// Termin erledigt; liefert die Anzahl verpasster Termine nacheinander
+    pub fn plan_done(&mut self, meter_id: i64, slot: &str, outcome: PlanOutcome) -> Result<i64> {
+        match outcome {
+            PlanOutcome::Read { ms } => self.conn.execute(
+                "UPDATE meters SET plan_slot = ?2, plan_fails = 0, plan_pause = NULL,
+                   plan_ms = CASE WHEN plan_ms IS NULL THEN ?3 ELSE plan_ms * 0.7 + ?3 * 0.3 END
+                 WHERE id = ?1",
+                params![meter_id, slot, ms],
+            )?,
+            PlanOutcome::Failed => self.conn.execute(
+                "UPDATE meters SET plan_slot = ?2, plan_fails = plan_fails + 1 WHERE id = ?1",
+                params![meter_id, slot],
+            )?,
+            PlanOutcome::Refused { until } => self.conn.execute(
+                "UPDATE meters SET plan_slot = ?2, plan_pause = ?3 WHERE id = ?1",
+                params![meter_id, slot, until],
+            )?,
+        };
+        Ok(self
+            .conn
+            .query_row("SELECT plan_fails FROM meters WHERE id = ?1", [meter_id], |r| r.get(0))
+            .optional()?
+            .unwrap_or(0))
+    }
+
+    /// Ergebnis des letzten Termins einer Linie: {"time", "ok", "total", "error"}
+    pub fn set_plan_result(&mut self, line_id: i64, result: &Value) -> Result<()> {
+        self.conn.execute(
+            "UPDATE lines SET plan_result = ?2 WHERE id = ?1",
+            params![line_id, result.to_string()],
+        )?;
+        Ok(())
+    }
+
+    /// Plan eines Zählers für die Oberfläche: gültiger Plan, woher, nächster Termin, Zustand
+    pub fn meter_plan_info(m: &Meter, line_plan: Option<&str>, project_plan: &str, now: chrono::NaiveDateTime) -> Value {
+        let (p, source) = plan::effective(m.plan.as_deref(), line_plan, project_plan);
+        let pause = m.plan_pause.as_deref().and_then(plan::parse_time).filter(|t| *t > now);
+        let next = p.next_slot(now).map(|n| match pause {
+            Some(t) => p.next_slot(t - chrono::Duration::seconds(1)).unwrap_or(n).max(n),
+            None => n,
+        });
+        json!({
+            "effective": p.key(),
+            "source": source,
+            "next": next.map(|t| t.format(plan::SLOT_FORMAT).to_string()),
+            "paused_until": pause.map(|t| t.format(plan::SLOT_FORMAT).to_string()),
+            "fails": m.plan_fails,
+            "disturbed": p != Plan::Off && m.plan_fails >= DISTURBED_AFTER,
+        })
+    }
+
+    /// Plan einer Linie für die Projekt-Karte: eigener bzw. geerbter Plan, nächster Termin,
+    /// Ergebnis des letzten Termins, gestörte und ausgesetzte Zähler, Buslast
+    fn line_plan_info(&self, line: &Line, project_plan: &str, result: Value) -> Result<Value> {
+        let now = crate::clock::now();
+        let (own, source) = plan::effective(None, line.plan.as_deref(), project_plan);
+        let mut planned = 0;
+        let mut disturbed = 0;
+        let mut paused = 0;
+        let mut next: Option<String> = None;
+        let mut items = Vec::new();
+        for m in self.meters(line.id)? {
+            let info = Self::meter_plan_info(&m, line.plan.as_deref(), project_plan, now);
+            let p = Plan::parse(info["effective"].as_str().unwrap_or("off")).unwrap_or(Plan::Off);
+            if p == Plan::Off {
+                continue;
+            }
+            planned += 1;
+            disturbed += info["disturbed"].as_bool().unwrap_or(false) as i64;
+            paused += !info["paused_until"].is_null() as i64;
+            if let Some(n) = info["next"].as_str() {
+                if next.as_deref().is_none_or(|x| n < x) {
+                    next = Some(n.to_string());
+                }
+            }
+            let baud = m.baud.unwrap_or(line.baud);
+            items.push((p, m.plan_ms.unwrap_or_else(|| plan::estimate_ms(baud))));
+        }
+        let load = plan::bus_load(items);
+        Ok(json!({
+            "own": line.plan,
+            "effective": own.key(),
+            "source": source,
+            "meters": planned,
+            "next": next,
+            "result": result,
+            "disturbed": disturbed,
+            "paused": paused,
+            "load": load,
+            "load_warn": load > plan::LOAD_WARN,
+        }))
+    }
+
     // ------------------------------------------------------------ Bericht, Export, Import
 
     /// Alles für den Bericht: Projekt, Gateways, Linien, Zähler mit neuester Auslesung, Änderungen
@@ -1181,8 +1447,8 @@ impl Db {
         }
         let tx = self.conn.transaction()?;
         tx.execute(
-            "INSERT INTO projects (name, customer, site, technician, order_no, remarks, created)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO projects (name, customer, site, technician, order_no, remarks, created, plan)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 project.name,
                 project.customer,
@@ -1190,7 +1456,8 @@ impl Db {
                 project.technician,
                 project.order_no,
                 project.remarks,
-                if project.created.is_empty() { now() } else { project.created.clone() }
+                if project.created.is_empty() { now() } else { project.created.clone() },
+                valid_plan(Some(&project.plan)).unwrap_or_else(default_plan)
             ],
         )?;
         let pid = tx.last_insert_rowid();
@@ -1206,9 +1473,10 @@ impl Db {
             for l in g["lines"].as_array().into_iter().flatten() {
                 let line: Line = serde_json::from_value(l["line"].clone())?;
                 tx.execute(
-                    "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms, addressing, position)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, (SELECT COALESCE(MAX(position), 0) + 1 FROM lines WHERE gateway_id = ?1))",
-                    params![gid, line.name, line.connection, line.baud, line.timeout_ms as i64, line.addressing],
+                    "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms, addressing, plan, position)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, (SELECT COALESCE(MAX(position), 0) + 1 FROM lines WHERE gateway_id = ?1))",
+                    params![gid, line.name, line.connection, line.baud, line.timeout_ms as i64, line.addressing,
+                        valid_plan(line.plan.as_deref())],
                 )?;
                 let lid = tx.last_insert_rowid();
                 line_ids.insert(format!("{} · {}", gw.name, line.name), lid);
@@ -1216,12 +1484,12 @@ impl Db {
                     let m: Meter = serde_json::from_value(entry["meter"].clone())?;
                     tx.execute(
                         "INSERT INTO meters (line_id, name, location, note, address, baud, meter_id, manufacturer,
-                           medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                           medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address, plan)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                         params![
                             lid, m.name, m.location, m.note, m.address, m.baud, m.meter_id, m.manufacturer,
                             m.medium, m.primary_address, m.last_read, m.last_value, m.last_quantity, m.last_error,
-                            m.secondary_address
+                            m.secondary_address, valid_plan(m.plan.as_deref())
                         ],
                     )?;
                     let mid = tx.last_insert_rowid();

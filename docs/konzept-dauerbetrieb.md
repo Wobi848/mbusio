@@ -1,6 +1,6 @@
 # Konzept: Dauerbetrieb und Datenweitergabe
 
-Stand: 17.10.2026 · Status: **abgestimmt, Phase 1 bereit** · gilt für mbusio ab Version 0.5
+Stand: 17.10.2026 · Status: **abgestimmt, Phase 1 in Arbeit** (Linien-Dienst ✓, Ausleseplan und Zeit ✓, kompakte Speicherung offen) · gilt für mbusio ab Version 0.5
 
 Dieses Dokument beschreibt, wie mbusio vom Inbetriebnahme-Werkzeug zu einem Dienst wird, der
 Zähler dauerhaft und zuverlässig ausliest und die Werte weitergibt. Umgesetzt wird in Phasen;
@@ -389,6 +389,17 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 - Reihenfolge der Ausgänge: **MQTT, dann Modbus TCP**; BACnet später nach Bedarf.
 
 **Offen:** keine Punkte, die Phase 1 blockieren.
+
+**Umsetzungsnotizen** (Phase 1, Schritt 2):
+- Termine und Zeitstempel sind vorerst Ortszeit (wie alle bisherigen Daten). Doppelte Zeitstempel
+  bei Sommerzeit-Ende werden vermieden, weil Rücksprünge bis 2 h ausgesessen werden; der Umstieg
+  auf UTC kommt mit der kompakten Speicherung (Schritt 3).
+- „Uhrzeit vom Gerät übernehmen“ stellt nicht die Systemuhr (bräuchte Root-Rechte), sondern
+  mbusio rechnet mit der Abweichung weiter. Bestätigt danach NTP oder ein Uhr-Modul die Zeit,
+  gilt wieder die Systemuhr.
+- Linie „gestört“ (kein Zähler hat geantwortet) und gestörte/ausgesetzte Zähler erscheinen in der
+  Projekt-Karte, der Zählerliste und im Protokoll; in die Scan-Auffälligkeiten (Statusleiste)
+  fliessen sie nicht ein, weil diese aus dem letzten Scan berechnet werden.
 
 ## 11. Phasenplan
 

@@ -1,9 +1,12 @@
+mod clock;
 mod db;
 mod export;
 mod i18n;
 mod line;
 mod link;
 mod mbus;
+mod plan;
+mod scheduler;
 mod sim;
 mod web;
 
@@ -46,6 +49,10 @@ struct Args {
     /// Browser beim Start nicht öffnen
     #[arg(long)]
     no_browser: bool,
+    /// Systemuhr nie als bestätigt ansehen (Auslesungen gelten als „Zeit unsicher“, bis die
+    /// Uhrzeit im Browser übernommen wird)
+    #[arg(long)]
+    untrusted_clock: bool,
     /// Befehle ohne Weboberfläche: Ergebnis als JSON auf stdout
     #[command(subcommand)]
     cmd: Option<Cmd>,
@@ -290,6 +297,14 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
             return Err(e).with_context(|| format!("Cannot listen on {host}:{}", args.http_port))
         }
     };
+    // Zeitplan erst, wenn sicher nur dieses mbusio läuft
+    if args.untrusted_clock {
+        clock::distrust_system();
+    }
+    let st = state.clone();
+    std::thread::Builder::new()
+        .name("plan".into())
+        .spawn(move || scheduler::run(st))?;
     let port = listener.local_addr()?.port();
     let url = format!("http://localhost:{port}");
     println!("mbusio {}: {url}", env!("CARGO_PKG_VERSION"));

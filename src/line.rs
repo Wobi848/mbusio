@@ -66,6 +66,7 @@ struct Inner {
     wake: Condvar,
     stop: AtomicBool,
     status: Mutex<LineStatus>,
+    thread: Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
 /// Griff auf den Dienst einer Linie; billig zu klonen.
@@ -89,13 +90,19 @@ impl LineService {
             wake: Condvar::new(),
             stop: AtomicBool::new(false),
             status: Mutex::default(),
+            thread: Mutex::default(),
         });
         let worker = inner.clone();
-        std::thread::Builder::new()
+        let handle = std::thread::Builder::new()
             .name(format!("line-{line_id}"))
             .spawn(move || run(worker))
             .expect("thread");
+        *inner.thread.lock().unwrap() = Some(handle);
         LineService { inner }
+    }
+
+    pub fn conf(&self) -> &LineConf {
+        &self.inner.conf
     }
 
     pub fn status(&self) -> LineStatus {
@@ -112,7 +119,6 @@ impl LineService {
     }
 
     /// Geplante Auslesung: kommt nach allen Aufträgen aus der Bedienung
-    #[allow(dead_code)]
     pub fn submit_planned(&self, work: Work) {
         self.inner.queues.lock().unwrap().planned.push_back(work);
         self.inner.wake.notify_one();
@@ -151,6 +157,25 @@ impl LineService {
     pub fn stop(&self) {
         self.inner.stop.store(true, Ordering::SeqCst);
         self.inner.wake.notify_all();
+    }
+
+    /// Beenden und warten, bis die Verbindung zu ist (höchstens `max`), z.B. bevor derselbe
+    /// Anschluss neu geöffnet wird. Liefert false, wenn der laufende Auftrag länger dauert.
+    pub fn stop_wait(&self, max: Duration) -> bool {
+        self.stop();
+        let Some(handle) = self.inner.thread.lock().unwrap().take() else {
+            return true;
+        };
+        let until = Instant::now() + max;
+        while !handle.is_finished() {
+            if Instant::now() >= until {
+                // weiterlaufen lassen; er beendet sich nach dem laufenden Auftrag selbst
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let _ = handle.join();
+        true
     }
 }
 

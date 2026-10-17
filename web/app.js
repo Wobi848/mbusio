@@ -68,6 +68,54 @@ const UI = {
     ln_active: "Aktiv",
     ln_no_conn: "Anschluss noch nicht festgelegt",
     ln_info: (n, read) => `${n} Zähler` + (read ? ` · gelesen ${read}` : ""),
+    plan: "Ausleseplan",
+    plan_time: "Uhrzeit",
+    plan_opt_off: "Aus (nur von Hand)",
+    plan_opt_monthly: "Monatlich (am 1.)",
+    plan_opt_daily: "Täglich",
+    plan_opt_hourly: "Stündlich",
+    plan_opt_15min: "Alle 15 min",
+    plan_inherit_project: (x) => `Wie Projekt (${x})`,
+    plan_inherit_line: (x) => `Wie Linie (${x})`,
+    plan_off: "aus",
+    plan_monthly: (time) => `monatlich am 1., ${time}`,
+    plan_daily: (time) => `täglich ${time}`,
+    plan_hourly: "stündlich",
+    plan_15min: "alle 15 min",
+    plan_hint_project:
+      "Vorgabe für alle Linien des Projekts. Standard ist Aus: geplant ausgelesen wird nur, was man bewusst einschaltet. Batteriezähler nicht öfter als nötig auslesen, meist reicht 1× täglich.",
+    plan_hint_line: "Gilt für alle Zähler der Linie, die keinen eigenen Plan haben.",
+    plan_hint_meter: "Nur nötig, wenn dieser Zähler anders ausgelesen werden soll als die Linie.",
+    plan_next: (x) => `nächster ${x}`,
+    plan_meters_own: (n) => `${n} Zähler mit eigenem Plan`,
+    plan_last: (ok, n) => `zuletzt ${ok}/${n} gelesen`,
+    plan_disturbed: (n) => `${n} gestört`,
+    plan_paused: (n) => `${n} ausgesetzt`,
+    plan_load: (p) => `Buslast ${p} %`,
+    plan_load_title:
+      "Die geplanten Auslesungen brauchen fast die ganze Buszeit dieser Linie. Seltener auslesen oder Zähler auf mehrere Linien verteilen.",
+    plan_held: "pausiert, von Hand getrennt",
+    plan_held_title: "Der Ausleseplan läuft weiter, sobald die Linie wieder verbunden wird.",
+    plan_offline: "nicht verbunden",
+    plan_line_down: "Linie gestört: kein Zähler hat geantwortet",
+    plan_running: (label, d, n) => `Plan ${label} liest · ${d}/${n}`,
+    plan_saved_warn: (w) => `Gespeichert. Achtung: ${w}`,
+    plan_paused_disconnect: "Getrennt. Der Ausleseplan dieser Linie ist pausiert, bis wieder verbunden wird.",
+    col_plan: "Plan",
+    meter_disturbed: "gestört",
+    meter_disturbed_title: (n) => `${n} Termine nacheinander nicht gelesen. Wird weiter versucht.`,
+    meter_paused: (x) => `ausgesetzt bis ${x}`,
+    meter_paused_title:
+      "Der Zähler hat abgelehnt (beschäftigt oder zu viele Auslesungen). Nächster Versuch am nächsten Tag.",
+    day_today: "heute",
+    day_tomorrow: "morgen",
+    time_unsure: "Uhrzeit nicht bestätigt",
+    time_unsure_title:
+      "Weder Zeitserver noch Uhr-Modul bestätigen die Uhrzeit. Werte werden trotzdem gelesen, aber als „Zeit unsicher“ gekennzeichnet. Klicken, um die Uhrzeit dieses Geräts zu übernehmen.",
+    confirm_time: (x) => `Uhrzeit dieses Geräts übernehmen?\n\n${x}\n\nNeue Auslesungen gelten danach als zeitlich sicher (bis zum nächsten Neustart von mbusio).`,
+    time_taken: (s) => (s ? `Uhrzeit übernommen (Korrektur ${s > 0 ? "+" : ""}${s} s)` : "Uhrzeit bestätigt"),
+    reading_time_unsure: "Zeit unsicher",
+    reading_time_unsure_title: "Beim Auslesen war die Uhrzeit von mbusio nicht bestätigt; der Zeitstempel kann falsch sein.",
     ln_issues: (n) => `${n} Auffälligkeit${n === 1 ? "" : "en"}`,
     ln_no_issues: "keine Auffälligkeiten",
     confirm_gw_delete: (n) => `Gateway „${n}“ mit allen Linien und Zählern löschen?`,
@@ -392,6 +440,54 @@ const UI = {
     ln_active: "Active",
     ln_no_conn: "Connection not set yet",
     ln_info: (n, read) => `${n} meters` + (read ? ` · read ${read}` : ""),
+    plan: "Read plan",
+    plan_time: "Time",
+    plan_opt_off: "Off (manual only)",
+    plan_opt_monthly: "Monthly (on the 1st)",
+    plan_opt_daily: "Daily",
+    plan_opt_hourly: "Hourly",
+    plan_opt_15min: "Every 15 min",
+    plan_inherit_project: (x) => `Like project (${x})`,
+    plan_inherit_line: (x) => `Like line (${x})`,
+    plan_off: "off",
+    plan_monthly: (time) => `monthly on the 1st, ${time}`,
+    plan_daily: (time) => `daily ${time}`,
+    plan_hourly: "hourly",
+    plan_15min: "every 15 min",
+    plan_hint_project:
+      "Default for all lines of the project. Off by default: only what you switch on deliberately is read on schedule. Don't read battery meters more often than needed; once a day is usually enough.",
+    plan_hint_line: "Applies to all meters of the line that have no plan of their own.",
+    plan_hint_meter: "Only needed if this meter should be read differently from its line.",
+    plan_next: (x) => `next ${x}`,
+    plan_meters_own: (n) => `${n} meters with their own plan`,
+    plan_last: (ok, n) => `last ${ok}/${n} read`,
+    plan_disturbed: (n) => `${n} disturbed`,
+    plan_paused: (n) => `${n} suspended`,
+    plan_load: (p) => `bus load ${p} %`,
+    plan_load_title:
+      "The planned reads need almost all the bus time of this line. Read less often or split the meters across lines.",
+    plan_held: "paused, disconnected by hand",
+    plan_held_title: "The read plan continues as soon as the line is connected again.",
+    plan_offline: "not connected",
+    plan_line_down: "Line disturbed: no meter answered",
+    plan_running: (label, d, n) => `Plan ${label} reading · ${d}/${n}`,
+    plan_saved_warn: (w) => `Saved. Note: ${w}`,
+    plan_paused_disconnect: "Disconnected. The read plan of this line is paused until you connect again.",
+    col_plan: "Plan",
+    meter_disturbed: "disturbed",
+    meter_disturbed_title: (n) => `${n} terms in a row not read. Still being retried.`,
+    meter_paused: (x) => `suspended until ${x}`,
+    meter_paused_title:
+      "The meter refused (busy or too many readouts). Next attempt on the next day.",
+    day_today: "today",
+    day_tomorrow: "tomorrow",
+    time_unsure: "Time not confirmed",
+    time_unsure_title:
+      "Neither a time server nor a clock module confirms the time. Values are still read, but marked as “time unsure”. Click to take the time from this device.",
+    confirm_time: (x) => `Take the time from this device?\n\n${x}\n\nNew readings then count as reliably timed (until mbusio restarts).`,
+    time_taken: (s) => (s ? `Time taken (correction ${s > 0 ? "+" : ""}${s} s)` : "Time confirmed"),
+    reading_time_unsure: "time unsure",
+    reading_time_unsure_title: "When this was read, mbusio's time was not confirmed; the timestamp may be wrong.",
     ln_issues: (n) => `${n} issue${n === 1 ? "" : "s"}`,
     ln_no_issues: "no issues",
     confirm_gw_delete: (n) => `Delete gateway “${n}” with all lines and meters?`,
@@ -733,6 +829,10 @@ let connBaud = null;
 let activeLineId = null;
 /// Verbindungsformular trotz Verbindung offen ("Ändern")
 let connEditing = false;
+/// laufende geplante Auslesungen, Zustand der Uhrzeit, irgendwo ein Plan eingeschaltet
+let planRuns = [];
+let timeState = null;
+let planActive = false;
 /// zuletzt gespeicherte Auffälligkeiten (nur bei Änderung neu speichern)
 let savedIssues = null;
 
@@ -860,6 +960,12 @@ async function refreshStatus() {
   connBaud = s.connection?.baud ?? null;
   conn = s.connection;
   activeLineId = s.active?.line.id ?? null;
+  // Termin fertig geworden: Zählerliste und Projekt-Karte zeigen das neue Ergebnis
+  const runsBefore = planRuns.length;
+  planRuns = s.plans || [];
+  timeState = s.time;
+  planActive = !!s.plan_active;
+  if (runsBefore && !planRuns.length) loadMeters().catch(() => {});
   // verbunden: Verbindung als eine Zeile, Formular erst auf "Ändern"
   $("sec-conn").classList.toggle("compact", connected && !connEditing);
   $("conn-summary").hidden = !connected || connEditing;
@@ -895,9 +1001,21 @@ $("connect").onclick = () =>
 
 $("disconnect").onclick = () =>
   guarded($("disconnect"), async () => {
-    await api("disconnect", { method: "POST" });
+    const r = await api("disconnect", { method: "POST" });
+    if (r.plan_paused) toast(t("plan_paused_disconnect"));
+    await refreshStatus();
+    loadTree().catch(() => {});
+  });
+
+$("busbar-time").onclick = () => {
+  const now = new Date();
+  if (!confirm(t("confirm_time", now.toLocaleString(lang === "de" ? "de-CH" : "en-GB")))) return;
+  guarded($("busbar-time"), async () => {
+    const r = await api("time", { method: "POST", body: { epoch_ms: Date.now() } });
+    toast(t("time_taken", Math.round(r.offset_s)));
     await refreshStatus();
   });
+};
 
 $("refresh-ports").onclick = () => loadPorts().catch((e) => toast(e.message, true));
 
@@ -927,11 +1045,19 @@ function busbar(state) {
 /// Die Leiste ist immer da: im Ruhezustand Verbindung bzw. "Nicht verbunden"
 function renderBusbar() {
   const el = $("busbar");
-  const state = busbarState || {
-    text: connected && conn ? t("idle_ready", conn.port, conn.baud) : t("idle_off"),
-    idle: true,
-    off: !connected,
-  };
+  const run = planRuns[0];
+  const state =
+    busbarState ||
+    (run
+      ? { text: t("plan_running", run.label, run.done, run.total), frac: run.total ? run.done / run.total : 0, idle: true }
+      : {
+          text: connected && conn ? t("idle_ready", conn.port, conn.baud) : t("idle_off"),
+          idle: true,
+          off: !connected,
+        });
+  // Uhrzeit nur ein Thema, wenn geplant ausgelesen wird
+  const tm = $("busbar-time");
+  tm.hidden = !(planActive && timeState && !timeState.confirmed);
   el.hidden = false;
   document.body.classList.add("has-busbar");
   el.classList.toggle("idle", !!state.idle);
@@ -1661,7 +1787,7 @@ function renderReading(r) {
     ["meta_secondary", h.secondary_address],
     ["meta_access", h.access_no],
     ["meta_status", h.status !== undefined ? "0x" + h.status.toString(16).padStart(2, "0").toUpperCase() : undefined],
-    ["meta_time", r.timestamp],
+    ["meta_time", r.timestamp + (r.time_unsure ? ` (${t("reading_time_unsure")})` : "")],
   ]
     .filter(([, v]) => v !== undefined && v !== null)
     .map(([k, v]) => `<div><span>${t(k)}</span><span class="mono">${esc(v)}</span></div>`)
@@ -1900,8 +2026,26 @@ async function loadMeters() {
   if (tree) await loadTree().catch(() => {});
 }
 
+/// Plan-Spalte nur, wenn auf der Linie überhaupt etwas geplant ist
+const showPlanColumn = () => meters.some((m) => m.plan || (m.plan_info && m.plan_info.effective !== "off"));
+
+function meterPlanCell(m) {
+  const pi = m.plan_info || {};
+  const own = !!m.plan;
+  if (pi.effective === "off") return `<td><span class="${own ? "" : "muted"}">${esc(t("plan_off"))}</span></td>`;
+  const chips = [
+    pi.disturbed ? `<span class="chip st-collision" title="${esc(t("meter_disturbed_title", pi.fails))}">${esc(t("meter_disturbed"))}</span>` : "",
+    pi.paused_until ? `<span class="chip st-no_data" title="${esc(t("meter_paused_title"))}">${esc(t("meter_paused", slotText(pi.paused_until)))}</span>` : "",
+  ].join("");
+  return `<td class="wrap"><span class="${own ? "" : "muted"}">${esc(planText(pi.effective))}</span>${chips}${
+    pi.next ? `<span class="sub">${esc(t("plan_next", slotText(pi.next)))}</span>` : ""
+  }</td>`;
+}
+
 function renderMeters() {
   const table = $("meters-table");
+  const withPlan = showPlanColumn();
+  $("th-plan").hidden = !withPlan;
   table.hidden = meters.length === 0;
   $("meters-clear").hidden = meters.length === 0;
   $("meters-empty").hidden = meters.length > 0;
@@ -1924,6 +2068,7 @@ function renderMeters() {
         <td class="mono">${esc(m.address)}${sub(info)}</td>
         <td>${esc(label(m.medium))}</td>
         <td class="num mono">${m.baud ?? ""}</td>
+        ${withPlan ? meterPlanCell(m) : ""}
         <td class="wrap">${m.last_value ? `<span class="val">${esc(m.last_value)}</span>` : ""}${sub(
           [m.last_value ? label(m.last_quantity) : "", m.last_read].filter(Boolean).join(" · ")
         )}${m.last_error ? `<span class="err">${ICON_ALERT}${esc(m.last_error)}</span>` : ""}</td>
@@ -1946,6 +2091,9 @@ function openMeterForm(m) {
   $("mf-address").value = m?.address ?? "";
   $("mf-baud").value = m?.baud ?? "";
   $("mf-note").value = m?.note ?? "";
+  const line = tree ? findLine(activeLineId) : null;
+  $("mf-plan").innerHTML = planField(m?.plan ?? null, t("plan_inherit_line", planText(line?.plan_info?.effective || "off")), t("plan_hint_meter"));
+  wirePlanField($("mf-plan"));
   $("meter-form").hidden = false;
   $("mf-name").focus();
 }
@@ -1965,8 +2113,9 @@ $("meter-form").onsubmit = (ev) => {
       baud: $("mf-baud").value ? Number($("mf-baud").value) : null,
       note: $("mf-note").value.trim(),
     };
-    if (editingId === null) await api("meters", { method: "POST", body });
-    else await api("meters/" + editingId, { method: "PUT", body });
+    const saved = editingId === null ? await api("meters", { method: "POST", body }) : await api("meters/" + editingId, { method: "PUT", body });
+    const plan = planFrom(Object.fromEntries(new FormData($("meter-form")).entries()));
+    if (plan !== (old.plan ?? null)) await savePlan("meters/" + saved.id, plan);
     $("meter-form").hidden = true;
     toast(t("meter_saved"));
     await loadMeters();
@@ -2165,7 +2314,9 @@ function historySeries() {
   return hist.points
     .map((p) => {
       const v = p.values.find((x) => x.key === hist.key);
-      return v ? { time: parseTime(p.timestamp), ts: p.timestamp, value: v.value, text: v.text, unit: v.unit } : null;
+      return v
+        ? { time: parseTime(p.timestamp), ts: p.timestamp, unsure: p.time_unsure, value: v.value, text: v.text, unit: v.unit }
+        : null;
     })
     .filter(Boolean);
 }
@@ -2217,7 +2368,10 @@ function historyTable(series) {
   const rows = series
     .map((p, i) => {
       const d = i ? p.value - series[i - 1].value : null;
-      return `<tr><td class="mono">${esc(p.ts)}</td><td class="num">${esc(p.text)} ${esc(p.unit)}</td><td class="num">${
+      const unsure = p.unsure
+        ? ` <span class="chip st-collision" title="${esc(t("reading_time_unsure_title"))}">${esc(t("reading_time_unsure"))}</span>`
+        : "";
+      return `<tr><td class="mono">${esc(p.ts)}${unsure}</td><td class="num">${esc(p.text)} ${esc(p.unit)}</td><td class="num">${
         d === null ? "" : (d > 0 ? "+" : "") + formatNum(d)
       }</td></tr>`;
     })
@@ -2402,6 +2556,86 @@ window.addEventListener("resize", () => {
 
 // ------------------------------------------------------------ Projekte, Gateways, Linien
 
+// ------------------------------------------------------------ Ausleseplan
+
+const PLAN_KINDS = ["off", "monthly", "daily", "hourly", "15min"];
+const ICON_CLOCK = svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
+
+/// "daily 00:05" → "täglich 00:05"
+function planText(key) {
+  if (!key) return "";
+  const [kind, time] = key.split(" ");
+  return kind === "daily" || kind === "monthly" ? t("plan_" + kind, time) : t("plan_" + kind);
+}
+
+/// "2026-10-18 00:05:00" → "heute 00:05", "morgen 00:05" oder "20.10. 00:05"
+function slotText(s) {
+  if (!s) return "";
+  const d = parseTime(s);
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const days = Math.round((day(d) - day(new Date())) / 86400000);
+  const hm = s.slice(11, 16);
+  if (days === 0) return `${t("day_today")} ${hm}`;
+  if (days === 1) return `${t("day_tomorrow")} ${hm}`;
+  return `${d.getDate()}.${d.getMonth() + 1}. ${hm}`;
+}
+
+/// Auswahl des Plans für Formulare; `inherit` = Text der Option "wie Projekt/Linie" (sonst keine)
+function planField(value, inherit, hint) {
+  const [kind, time] = value ? value.split(" ") : [inherit ? "" : "off", null];
+  const opts = (inherit ? [["", inherit]] : []).concat(PLAN_KINDS.map((k) => [k, t("plan_opt_" + k)]));
+  return `<div class="row plan-row">
+      <label><span>${esc(t("plan"))}</span><select name="plan_kind">${opts
+        .map(([v, l]) => `<option value="${v}" ${v === kind ? "selected" : ""}>${esc(l)}</option>`)
+        .join("")}</select></label>
+      <label class="plan-time"><span>${esc(t("plan_time"))}</span><input type="time" name="plan_time" value="${esc(time || "00:05")}"></label>
+    </div>${hint ? `<p class="hint plan-hint">${esc(hint)}</p>` : ""}`;
+}
+
+/// Uhrzeit nur bei täglich und monatlich
+function wirePlanField(root) {
+  const sel = root.querySelector("[name=plan_kind]");
+  const wrap = root.querySelector(".plan-time");
+  const update = () => (wrap.hidden = !["daily", "monthly"].includes(sel.value));
+  sel.addEventListener("change", update);
+  update();
+}
+
+/// Plan aus den Formularwerten; null = erben
+function planFrom(values) {
+  const k = values.plan_kind;
+  if (!k) return null;
+  return k === "daily" || k === "monthly" ? `${k} ${values.plan_time || "00:05"}` : k;
+}
+
+async function savePlan(path, plan) {
+  const r = await api(path + "/plan", { method: "PUT", body: { plan } });
+  if (r.warnings?.length) toast(t("plan_saved_warn", r.warnings.join(" ")), true);
+  // geerbte Pläne der Zähler ändern sich mit
+  await loadMeters().catch(() => {});
+}
+
+/// Zeile unter der Linie: Plan, nächster Termin, letztes Ergebnis, Störungen
+function linePlanHtml(l) {
+  const p = l.plan_info;
+  if (!p || !p.meters) return "";
+  const chip = (cls, text, title = "") => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(text)}</span>`;
+  const parts = [`<b>${esc(p.effective !== "off" ? planText(p.effective) : t("plan_meters_own", p.meters))}</b>`];
+  const svc = l.service;
+  if (l.held) parts.push(chip("st-no_data", t("plan_held"), t("plan_held_title")));
+  else if (svc && !svc.connected && svc.error) parts.push(chip("st-collision", t("plan_offline"), svc.error));
+  if (p.next && !l.held) parts.push(esc(t("plan_next", slotText(p.next))));
+  const r = p.result;
+  if (r && r.time && !r.offline) {
+    if (r.line_down) parts.push(chip("st-collision", t("plan_line_down"), r.error || ""));
+    else parts.push(chip(r.ok === r.total ? "st-ok" : "st-collision", t("plan_last", r.ok, r.total), `${r.time}${r.error ? "\n" + r.error : ""}`));
+  }
+  if (p.disturbed) parts.push(chip("st-collision", t("plan_disturbed", p.disturbed)));
+  if (p.paused) parts.push(chip("st-no_data", t("plan_paused", p.paused), t("meter_paused_title")));
+  if (p.load_warn) parts.push(chip("st-collision", t("plan_load", Math.round(p.load * 100)), t("plan_load_title")));
+  return `<div class="ln-plan">${ICON_CLOCK}${parts.join(" · ")}</div>`;
+}
+
 let tree = null;
 /// zusätzlich aufgeklappte Gateways (das der aktiven Linie ist immer offen)
 const openGateways = new Set();
@@ -2420,7 +2654,9 @@ function renderTree() {
   renderRememberMode();
   const a = tree.active;
   $("h-project").textContent = a.project.name;
-  $("project-sub").textContent = [a.project.customer, a.project.site].filter(Boolean).join(" · ");
+  $("project-sub").textContent = [a.project.customer, a.project.site, a.project.plan && a.project.plan !== "off" ? `${t("plan")}: ${planText(a.project.plan)}` : ""]
+    .filter(Boolean)
+    .join(" · ");
   $("crumb-text").textContent = `${a.project.name} › ${a.gateway.name} › ${a.line.name}`;
   $("conn-line").textContent = t("conn_line", `${a.gateway.name} › ${a.line.name}`);
   $("project-select").innerHTML = tree.projects
@@ -2467,6 +2703,7 @@ function renderTree() {
             <button class="icon-btn" data-ln-edit="${l.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
             <button class="icon-btn" data-ln-del="${l.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>
           </span>
+          ${linePlanHtml(l)}
         </div>`;
         })
         .join("")}
@@ -2506,17 +2743,20 @@ function openTreeForm(kind, data, onSave) {
   if (kind === "project") {
     body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("customer", "f_customer", data.customer)}</div>
       <div class="row">${field("site", "f_site", data.site)}${field("technician", "f_technician", data.technician)}${field("order_no", "f_order", data.order_no)}</div>
-      <div class="row">${field("remarks", "f_remarks", data.remarks)}</div>`;
+      <div class="row">${field("remarks", "f_remarks", data.remarks)}</div>
+      ${planField(data.plan || "off", null, t("plan_hint_project"))}`;
   } else if (kind === "gateway") {
     body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("address", "f_address", data.address, 'class="mono"')}${field("note", "f_note", data.note)}</div>`;
   } else {
     body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("connection", "f_connection", data.connection, `class="mono" placeholder="${esc(t("f_connection_ph"))}" list="port-list"`)}
-      <label><span>${esc(t("baud"))}</span><select name="baud">${BAUDS.map((b) => `<option ${b === (data.baud || 2400) ? "selected" : ""}>${b}</option>`).join("")}</select></label></div>`;
+      <label><span>${esc(t("baud"))}</span><select name="baud">${BAUDS.map((b) => `<option ${b === (data.baud || 2400) ? "selected" : ""}>${b}</option>`).join("")}</select></label></div>
+      ${planField(data.plan ?? null, t("plan_inherit_project", planText(tree.active.project.plan || "off")), t("plan_hint_line"))}`;
   }
   f.innerHTML = `<h3>${esc(t("form_" + kind))}</h3>${body}
     <datalist id="port-list">${[...$("port").options].map((o) => `<option value="${esc(o.value)}">`).join("")}</datalist>
     <div class="row"><button type="submit">${esc(t("save"))}</button><button type="button" class="quiet" data-form-cancel>${esc(t("cancel"))}</button></div>`;
   f.hidden = false;
+  if (f.querySelector("[name=plan_kind]")) wirePlanField(f);
   f.onsubmit = (ev) => {
     ev.preventDefault();
     const values = Object.fromEntries(new FormData(f).entries());
@@ -2556,6 +2796,8 @@ $("tree").addEventListener("click", (ev) => {
     const l = findLine(id);
     return openTreeForm("line", l, async (v) => {
       await api(`lines/${id}`, { method: "PUT", body: { name: v.name, connection: v.connection, baud: v.baud, timeout_ms: l.timeout_ms } });
+      const plan = planFrom(v);
+      if (plan !== (l.plan ?? null)) await savePlan(`lines/${id}`, plan);
       // aktive Linie mit neuem Anschluss: gleich neu verbinden
       if (id === tree.active.line.id && (v.connection !== l.connection || v.baud !== l.baud)) return activateLine(id, v.name);
       await loadTree();
@@ -2565,7 +2807,9 @@ $("tree").addEventListener("click", (ev) => {
     const g = findGateway(id);
     const prefill = g.address ? `tcp://${g.address}:` : "";
     return openTreeForm("line", { name: t("ln_new", g.lines.length + 1), connection: prefill, baud: 2400 }, async (v) => {
-      await api(`gateways/${id}/lines`, { method: "POST", body: v });
+      const created = await api(`gateways/${id}/lines`, { method: "POST", body: v });
+      const plan = planFrom(v);
+      if (plan !== null) await savePlan(`lines/${created.id}`, plan);
       await loadTree();
     });
   }
@@ -2613,6 +2857,9 @@ $("project-new").onclick = () =>
 $("project-edit").onclick = () =>
   openTreeForm("project", tree.active.project, async (v) => {
     await api(`projects/${tree.active.project.id}`, { method: "PUT", body: v });
+    const plan = planFrom(v);
+    if (plan !== (tree.active.project.plan || "off")) await savePlan(`projects/${tree.active.project.id}`, plan);
+    await loadMeters().catch(() => {});
     await loadTree();
   });
 

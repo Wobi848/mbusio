@@ -52,6 +52,23 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - Verlauf je Zähler als Diagramm oder Tabelle mit Differenz und Verbrauch pro Tag, als CSV
 - Baudrate suchen und umstellen, Application Reset, Telegramme senden (Experten)
 
+### Geplantes Auslesen (Dauerbetrieb, in Arbeit)
+
+- **Ausleseplan** im Projekt, je Linie oder je Zähler: Aus, monatlich, täglich, stündlich, alle
+  15 min. Linie und Zähler übernehmen den Plan von oben, solange sie keinen eigenen haben.
+  **Standard ist überall Aus**; geplant gelesen wird nur, was man bewusst einschaltet
+- Termine im Raster der Uhr; jede Linie hat ihre eigene Verbindung, Linien laufen gleichzeitig.
+  Bedienung (Scan, Auslesen, Adresse ändern) hat immer Vorrang, kein „Bus belegt“
+- Verpasste Termine (mbusio aus, Linie getrennt) werden einmal nachgeholt, mit echtem Zeitstempel
+- Fehler wird einmal wiederholt; nach 3 verpassten Terminen gilt ein Zähler als **gestört**.
+  Lehnt ein Zähler ab (beschäftigt, zu viele Auslesungen), wird er bis zum nächsten Tag ausgesetzt
+- Warnung, wenn die geplanten Auslesungen einer Linie nicht mehr in die Buszeit passen
+- **Uhrzeit:** ohne Zeitserver (NTP) oder Uhr-Modul gilt sie als unsicher; Werte werden dann als
+  „Zeit unsicher“ gekennzeichnet. „Uhrzeit nicht bestätigt“ unten in der Leiste übernimmt die
+  Uhrzeit des Laptops oder Handys
+- Konzept und nächste Schritte (kompakte Speicherung, MQTT, Modbus):
+  [docs/konzept-dauerbetrieb.md](docs/konzept-dauerbetrieb.md)
+
 ### Dokumentation
 
 - Bericht je Projekt mit Kunde, Objekt, Bearbeiter, allen Linien und Zählern, optional mit allen
@@ -133,6 +150,7 @@ Dann im Handy- oder Laptop-Browser `http://<IP des Pi>:8080` öffnen.
 | `--data-dir` | Ordner für `mbusio.db` (Standard: `mbusio-data` neben dem Programm, falls vorhanden, sonst `~/.local/share/mbusio` bzw. `%APPDATA%\mbusio`) |
 | `--no-browser` | Browser beim Start nicht öffnen |
 | `--list-ports` | serielle Schnittstellen auflisten |
+| `--untrusted-clock` | Systemuhr nie als bestätigt ansehen (alle Werte „Zeit unsicher“, bis die Uhrzeit im Browser übernommen wird) |
 
 ### Daten und Sicherung
 
@@ -234,6 +252,9 @@ installation; the UI runs in the browser, phones included.
 - Detects collisions, duplicate addresses and IDs, meters on another baud rate and meters without
   usable data; explains the cause and fixes what can be fixed, verified on the meter
 - Meter list per line, remembered by secondary or primary address (set per line)
+- Read plan per project, line or meter (off, monthly, daily, hourly, every 15 min; off by default),
+  each line on its own connection, manual work always first; missed terms caught up once, faulty
+  and refusing meters marked; readings flagged “time unsure” without a confirmed clock
 - History per meter as chart or table, CSV; project report as PDF with changes made and open issues
 - Serial port or network gateway (`tcp://host:port`), command line with JSON output
 - Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with 20 meters

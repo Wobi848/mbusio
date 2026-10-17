@@ -24,6 +24,8 @@ use crate::mbus::master::{
     mask_matches, Bauds, FrameLog, Master, MeterReading, Progress, Reply, ScanHit, Target,
 };
 use crate::db::{Db, Gateway, Line, Meter, Project};
+use crate::scheduler::Planner;
+use crate::clock;
 
 #[derive(RustEmbed)]
 #[folder = "web/"]
@@ -48,21 +50,28 @@ pub struct Shared {
     lines: Mutex<HashMap<i64, LineService>>,
     job: Mutex<JobStatus>,
     cancel: AtomicBool,
-    log: Arc<FrameLog>,
+    pub(crate) log: Arc<FrameLog>,
     /// Projekte, Linien, Zähler, Auslesungen; Zählerliste und Scan gelten für die aktive Linie
-    db: Mutex<Db>,
+    pub(crate) db: Mutex<Db>,
+    /// Zeitplan der geplanten Auslesungen
+    pub(crate) planner: Planner,
     /// Optionaler Zugriffsschlüssel für die API (bei LAN-Zugriff)
     token: Option<String>,
 }
 
 impl Shared {
     pub fn new(token: Option<String>, db: Db) -> Self {
+        Self::with_planner(token, db, Planner::default())
+    }
+
+    pub fn with_planner(token: Option<String>, db: Db, planner: Planner) -> Self {
         Shared {
             lines: Mutex::default(),
             job: Mutex::default(),
             cancel: AtomicBool::default(),
             log: Arc::default(),
             db: Mutex::new(db),
+            planner,
             token,
         }
     }
@@ -85,7 +94,13 @@ impl Shared {
     /// Linie mit diesem Anschluss verbinden; ein vorhandener Dienst der Linie wird ersetzt.
     /// Klappt die Verbindung nicht, bleibt die Linie getrennt und der Fehler kommt zurück.
     pub fn connect_line(&self, line_id: i64, conf: LineConf, lang: Lang) -> anyhow::Result<()> {
-        self.stop_line(line_id);
+        self.planner.release(line_id);
+        // läuft schon mit diesem Anschluss (z.B. wegen des Ausleseplans): weiter benutzen
+        let running = self.lines.lock().unwrap().get(&line_id).cloned();
+        if let Some(svc) = running.filter(|s| *s.conf() == conf) {
+            return svc.connect(lang);
+        }
+        self.stop_line_wait(line_id);
         let svc = LineService::start(line_id, conf, self.log.clone());
         match svc.connect(lang) {
             Ok(()) => {
@@ -105,15 +120,65 @@ impl Shared {
         }
     }
 
-    /// Alle Verbindungen trennen, z.B. weil ein anderes Projekt aktiv wird
-    fn stop_lines(&self) {
-        for (_, svc) in self.lines.lock().unwrap().drain() {
-            svc.stop();
+    /// Wie `stop_line`, wartet aber, bis der Anschluss wieder frei ist (vor dem Neuöffnen)
+    fn stop_line_wait(&self, line_id: i64) {
+        let old = self.lines.lock().unwrap().remove(&line_id);
+        if let Some(old) = old {
+            old.stop_wait(std::time::Duration::from_secs(15));
         }
     }
 
+    /// Verbindungen trennen, z.B. weil eine andere Linie aktiv wird. Linien mit eingeschaltetem
+    /// Ausleseplan bleiben verbunden.
+    fn stop_lines(&self) {
+        let keep = self.planner.planned_lines();
+        self.lines.lock().unwrap().retain(|id, svc| {
+            let k = keep.contains(id) && !self.planner.is_held(*id);
+            if !k {
+                svc.stop();
+            }
+            k
+        });
+    }
+
+    /// Dienst für den Zeitplan: läuft schon, oder wird mit dem Anschluss aus der Datenbank
+    /// gestartet (verbindet beim ersten Auftrag). Anschluss geändert: neu starten.
+    pub(crate) fn ensure_service(&self, line: &Line) -> Option<LineService> {
+        let conf = LineConf {
+            connection: line.connection.clone(),
+            baud: line.baud,
+            timeout_ms: line.timeout_ms,
+        };
+        let running = self.lines.lock().unwrap().get(&line.id).cloned();
+        match running {
+            Some(svc) if *svc.conf() == conf => return Some(svc),
+            // von Hand mit anderem Anschluss verbunden (aktive Linie): nicht dazwischenfunken
+            Some(svc) if self.line_id().ok() == Some(line.id) && svc.status().connected => {
+                return Some(svc);
+            }
+            Some(_) => self.stop_line_wait(line.id),
+            None => {}
+        }
+        let svc = LineService::start(line.id, conf, self.log.clone());
+        self.lines.lock().unwrap().insert(line.id, svc.clone());
+        Some(svc)
+    }
+
+    /// Dienste von Linien beenden, die weder einen Plan haben noch gerade angesehen werden
+    pub(crate) fn stop_unused_services(&self) {
+        let keep = self.planner.planned_lines();
+        let active = self.line_id().ok();
+        self.lines.lock().unwrap().retain(|id, svc| {
+            let k = keep.contains(id) || Some(*id) == active;
+            if !k {
+                svc.stop();
+            }
+            k
+        });
+    }
+
     /// Auslesung speichern (Verlauf und Zählerliste der Linie); Speicherfehler nur ins Log
-    fn record(&self, line: i64, target: &Target, result: Result<&MeterReading, String>) {
+    pub(crate) fn record(&self, line: i64, target: &Target, result: Result<&MeterReading, String>) {
         if let Err(e) = self.db.lock().unwrap().record(line, target, result) {
             self.log.push("INFO", format!("DB: {e:#}"));
         }
@@ -235,6 +300,10 @@ pub fn router(state: AppState) -> Router {
         .route("/api/lines/{id}/move", post(line_move))
         .route("/api/gateways/{id}/move", post(gateway_move))
         .route("/api/report", get(report))
+        .route("/api/projects/{id}/plan", put(project_plan))
+        .route("/api/lines/{id}/plan", put(line_plan))
+        .route("/api/meters/{id}/plan", put(meter_plan))
+        .route("/api/time", post(set_time))
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .fallback(static_file)
         .with_state(state)
@@ -274,6 +343,7 @@ async fn ports() -> Json<Vec<String>> {
 
 async fn status(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     let line = st.service().ok().map(|s| s.status());
+    let plans = st.planner.runs();
     let conn = line.as_ref().and_then(|l| l.connection.clone());
     let running = st.job.lock().unwrap().running;
     let db = st.db.lock().unwrap();
@@ -289,6 +359,12 @@ async fn status(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
         "active": active,
         // Zustand des Linien-Dienstes: arbeitet, Warteschlange, Verbindungsfehler
         "line": line,
+        // laufende geplante Auslesungen je Linie
+        "plans": plans,
+        "plan_active": st.planner.any_planned(),
+        "held": st.planner.is_held(active.line.id),
+        "time": clock::state(),
+        "now": clock::stamp(),
     })))
 }
 
@@ -330,8 +406,13 @@ async fn connect(
 
 async fn disconnect(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     ensure_idle(&st)?;
-    st.stop_line(st.line_id()?);
-    Ok(Json(json!({ "ok": true })))
+    let line = st.line_id()?;
+    // von Hand getrennt (z.B. um den Anschluss für ein anderes Programm frei zu machen):
+    // der Ausleseplan verbindet nicht von selbst wieder, bis man wieder verbindet
+    st.planner.hold(line);
+    let planned = st.planner.is_planned(line);
+    st.stop_line(line);
+    Ok(Json(json!({ "ok": true, "plan_paused": planned })))
 }
 
 fn start_job<F>(st: &AppState, kind: &str, lang: Lang, work: F) -> ApiResult<JobStatus>
@@ -795,9 +876,23 @@ async fn raw_send(
 
 // ------------------------------------------------------------ Zählerliste
 
-async fn meters_list(State(st): State<AppState>) -> ApiResult<Vec<Meter>> {
+/// Zählerliste der aktiven Linie, je Zähler mit seinem Plan (gültiger Plan, nächster Termin …)
+async fn meters_list(State(st): State<AppState>) -> ApiResult<Vec<serde_json::Value>> {
     let db = st.db.lock().unwrap();
-    Ok(Json(db.meters(db.active_line()?.id)?))
+    let line = db.active_line()?;
+    let project_plan = db.project_plan_of_line(line.id)?;
+    let now = clock::now();
+    let out = db
+        .meters(line.id)?
+        .into_iter()
+        .map(|m| {
+            let info = Db::meter_plan_info(&m, line.plan.as_deref(), &project_plan, now);
+            let mut v = serde_json::to_value(&m).unwrap_or_default();
+            v["plan_info"] = info;
+            v
+        })
+        .collect();
+    Ok(Json(out))
 }
 
 async fn meters_add(State(st): State<AppState>, Json(m): Json<Meter>) -> ApiResult<Meter> {
@@ -830,7 +925,7 @@ async fn meters_remove(
 }
 
 /// Liest einen Zähler der Liste, mit seiner eigenen Baudrate falls angegeben.
-fn read_listed(m: &mut Master, meter: &Meter, home: u32) -> anyhow::Result<(Target, MeterReading)> {
+pub(crate) fn read_listed(m: &mut Master, meter: &Meter, home: u32) -> anyhow::Result<(Target, MeterReading)> {
     let target = Target::parse(&meter.address)?;
     m.set_baud(meter.baud.unwrap_or(home))?;
     let r = m.read_meter(&target)?;
@@ -891,7 +986,7 @@ async fn meter_history(State(st): State<AppState>, Path(id): Path<i64>) -> ApiRe
                     })
                 })
                 .collect();
-            json!({ "timestamp": r.timestamp, "values": values })
+            json!({ "timestamp": r.timestamp, "time_unsure": r.time_unsure, "values": values })
         })
         .collect();
     Ok(Json(json!({ "meter": meter, "points": points })))
@@ -998,9 +1093,125 @@ async fn clear_readings(State(st): State<AppState>) -> ApiResult<serde_json::Val
 
 // ------------------------------------------------------------ Projekte, Gateways, Linien
 
+/// Zustand der Linien-Dienste in den Baum eintragen: verbunden, Fehler, von Hand getrennt
+fn annotate_lines(st: &AppState, tree: &mut serde_json::Value) {
+    let services = st.lines.lock().unwrap().clone();
+    for p in tree.as_array_mut().into_iter().flatten() {
+        for g in p["gateways"].as_array_mut().into_iter().flatten() {
+            for l in g["lines"].as_array_mut().into_iter().flatten() {
+                let Some(id) = l["id"].as_i64() else { continue };
+                l["service"] = json!(services.get(&id).map(|s| s.status()));
+                l["held"] = json!(st.planner.is_held(id));
+            }
+        }
+    }
+}
+
 async fn tree(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let (mut projects, active) = {
+        let db = st.db.lock().unwrap();
+        (serde_json::to_value(db.tree()?).unwrap_or_default(), db.active()?)
+    };
+    annotate_lines(&st, &mut projects);
+    Ok(Json(json!({ "projects": projects, "active": active })))
+}
+
+// ------------------------------------------------------------ Ausleseplan, Uhrzeit
+
+#[derive(Deserialize)]
+struct PlanReq {
+    /// "off", "daily 00:05", …; None = erben (bei Linie und Zähler)
+    plan: Option<String>,
+}
+
+/// Warnungen zur Buslast der Linien eines Projekts (nach dem Ändern eines Plans)
+fn load_warnings(st: &AppState, project_id: Option<i64>, line_id: Option<i64>) -> Result<Vec<String>, ApiError> {
     let db = st.db.lock().unwrap();
-    Ok(Json(json!({ "projects": db.tree()?, "active": db.active()? })))
+    let mut out = Vec::new();
+    for p in db.tree()? {
+        if project_id.is_some_and(|id| id != p.project.id) {
+            continue;
+        }
+        for g in &p.gateways {
+            for l in &g.lines {
+                if line_id.is_some_and(|id| id != l.line.id) {
+                    continue;
+                }
+                if l.plan_info["load_warn"].as_bool().unwrap_or(false) {
+                    out.push(format!(
+                        "{} › {}: {} {:.0} % {}",
+                        g.gateway.name,
+                        l.line.name,
+                        tr("geplante Auslesungen brauchen ca.", "planned reads need about"),
+                        l.plan_info["load"].as_f64().unwrap_or(0.0) * 100.0,
+                        tr(
+                            "der Buszeit. Seltener auslesen oder auf mehrere Linien verteilen.",
+                            "of the bus time. Read less often or split across lines."
+                        )
+                    ));
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+async fn project_plan(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(r): Json<PlanReq>,
+) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    let plan = r.plan.unwrap_or_else(|| "off".into());
+    st.db.lock().unwrap().set_project_plan(id, &plan).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "warnings": load_warnings(&st, Some(id), None)? })))
+}
+
+async fn line_plan(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(r): Json<PlanReq>,
+) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    st.db.lock().unwrap().set_line_plan(id, r.plan.as_deref()).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "warnings": load_warnings(&st, None, Some(id))? })))
+}
+
+async fn meter_plan(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(r): Json<PlanReq>,
+) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    let line = {
+        let mut db = st.db.lock().unwrap();
+        db.set_meter_plan(id, r.plan.as_deref()).map_err(bad_request)?;
+        db.meter(id)?.line_id
+    };
+    Ok(Json(json!({ "ok": true, "warnings": load_warnings(&st, None, Some(line))? })))
+}
+
+#[derive(Deserialize)]
+struct TimeReq {
+    /// Uhrzeit des Browsers, Millisekunden seit 1970 (UTC)
+    epoch_ms: i64,
+}
+
+/// „Uhrzeit vom Gerät übernehmen“
+async fn set_time(State(st): State<AppState>, Json(r): Json<TimeReq>) -> ApiResult<serde_json::Value> {
+    let offset = clock::set_from_browser(r.epoch_ms).ok_or_else(|| bad_request("epoch_ms"))?;
+    st.log.push(
+        "INFO",
+        if offset == 0.0 {
+            tr("Uhrzeit vom Gerät bestätigt", "Time confirmed by device")
+        } else {
+            format!("{} {offset:+.0} s", tr("Uhrzeit vom Gerät übernommen, Korrektur", "Time taken from device, correction"))
+        },
+    );
+    Ok(Json(json!({ "ok": true, "offset_s": offset, "time": clock::state() })))
 }
 
 /// Projekt anlegen und gleich seine erste Linie aktivieren
@@ -1078,8 +1289,8 @@ fn ensure_idle(st: &AppState) -> Result<(), ApiError> {
     Ok(())
 }
 
-/// Verbindungen trennen, z.B. weil eine andere Linie aktiv wird. (Ab den Ausleseplänen bleiben
-/// Linien mit aktivem Plan verbunden.)
+/// Verbindungen trennen, z.B. weil eine andere Linie aktiv wird; Linien mit eingeschaltetem
+/// Ausleseplan bleiben verbunden.
 fn disconnect_bus(st: &AppState) {
     st.stop_lines();
     *st.job.lock().unwrap() = JobStatus::default();
