@@ -19,6 +19,8 @@
 //! - Adr. 14 und 15: zwei Zähler mit derselben ID 77777777, verschiedene Hersteller
 //! - Adr. 16: Wackelkontakt, antwortet nur auf jedes zweite Telegramm, ID 16000016
 //! - Adr. 17 und 18: zwei Zähler mit derselben ID 88888888 und demselben Hersteller (echter Fehler)
+//! - Adr. 19: Batteriezähler mit Kontingent, ID 19000019: liefert 2 Auslesungen, danach
+//!   „zu viele Auslesungen“ (Fehlertelegramm CI 70, Code 09)
 //!
 //! Zähler hören nur Telegramme mit ihrer eigenen Baudrate. Baudratenwechsel (CI B8..BF)
 //! und Application Reset (CI 50) werden quittiert.
@@ -48,6 +50,8 @@ enum Fault {
     WrongAddress,
     /// Wackelkontakt: jedes zweite Telegramm kommt nicht an
     Flaky,
+    /// Kontingent aufgebraucht: nach 2 Auslesungen Fehlertelegramm CI 70 "zu viele Auslesungen"
+    TooMany,
 }
 
 #[derive(Clone, Copy)]
@@ -74,6 +78,8 @@ struct Slave {
     heard_last: bool,
     part: usize,
     last_fcb: Option<bool>,
+    /// für Fault::TooMany: bisherige Auslesungen
+    readouts: u32,
 }
 
 impl Slave {
@@ -93,6 +99,7 @@ impl Slave {
             heard_last: true,
             part: 0,
             last_fcb: None,
+            readouts: 0,
         }
     }
 
@@ -156,6 +163,17 @@ impl Slave {
                 ci: 0x70,
                 data: vec![0x08],
             };
+        }
+        if self.fault == Fault::TooMany {
+            self.readouts += 1;
+            if self.readouts > 2 {
+                return Frame::Long {
+                    control: 0x08,
+                    address: self.primary,
+                    ci: 0x70,
+                    data: vec![0x09],
+                };
+            }
         }
 
         if let Model::Fixed = self.model {
@@ -295,6 +313,7 @@ impl Simulator {
             Slave::new(16, 0x1600_0016, "SEN", 0x10, 0x16, Model::Water).with_fault(Fault::Flaky),
             Slave::new(17, 0x8888_8888, "SEN", 0x10, 0x07, Model::Water),
             Slave::new(18, 0x8888_8888, "SEN", 0x10, 0x07, Model::Water),
+            Slave::new(19, 0x1900_0019, "SEN", 0x10, 0x07, Model::Water).with_fault(Fault::TooMany),
         ]);
         for s in &mut slaves {
             s.baud = baud;
@@ -350,7 +369,7 @@ impl Simulator {
                     }
                     let mut bytes = slave.rsp_ud(fcb, elapsed).encode();
                     match slave.fault {
-                        Fault::None | Fault::Busy | Fault::WrongAddress | Fault::Flaky => {}
+                        Fault::None | Fault::Busy | Fault::WrongAddress | Fault::Flaky | Fault::TooMany => {}
                         Fault::Checksum => {
                             let n = bytes.len();
                             bytes[n - 2] ^= 0x5A;
@@ -484,7 +503,7 @@ impl Link for Simulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mbus::master::{Bauds, FrameLog, Master, Progress, Target};
+    use crate::mbus::master::{Bauds, FrameLog, Master, MeterReading, Progress, Target};
     use std::sync::Arc;
 
     fn master() -> Master {
@@ -548,6 +567,8 @@ mod tests {
                 ("12000012".into(), "ok"),
                 ("12345678".into(), "ok"),
                 ("12345699".into(), "ok"),
+                // Kontingent: die ersten Auslesungen klappen noch
+                ("19000019".into(), "ok"),
                 ("30000001".into(), "ok"),
                 // fehlerhafte Telegramme: gefunden, aber ohne Daten
                 ("40000004".into(), "no_data"),
@@ -574,6 +595,17 @@ mod tests {
             .records
             .iter()
             .any(|x| x.quantity == "flow_temperature" && x.value_text == "65.23"));
+    }
+
+    #[test]
+    fn raw_telegrams_round_trip() {
+        let mut m = master();
+        let r = m.read_meter(&Target::Primary(1)).unwrap();
+        let back = MeterReading::from_raw(&r.raw_bytes(), r.timestamp.clone(), r.utc, r.target.clone(), false).unwrap();
+        assert_eq!(back.raw_frames, r.raw_frames);
+        assert_eq!(back.primary_address, r.primary_address);
+        assert_eq!(serde_json::to_value(&back.records).unwrap(), serde_json::to_value(&r.records).unwrap());
+        assert_eq!(back.header.unwrap().secondary_address, r.header.unwrap().secondary_address);
     }
 
     #[test]

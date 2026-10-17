@@ -8,6 +8,7 @@ mod mbus;
 mod plan;
 mod scheduler;
 mod sim;
+mod storage;
 mod web;
 
 use std::path::PathBuf;
@@ -53,6 +54,9 @@ struct Args {
     /// Uhrzeit im Browser übernommen wird)
     #[arg(long)]
     untrusted_clock: bool,
+    /// Zeitraffer für Dauertests: Uhr läuft so viel schneller (z.B. 96 = ein Tag in 15 min)
+    #[arg(long, hide = true)]
+    time_scale: Option<f64>,
     /// Befehle ohne Weboberfläche: Ergebnis als JSON auf stdout
     #[command(subcommand)]
     cmd: Option<Cmd>,
@@ -300,6 +304,10 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
     // Zeitplan erst, wenn sicher nur dieses mbusio läuft
     if args.untrusted_clock {
         clock::distrust_system();
+    }
+    if let Some(f) = args.time_scale.filter(|f| *f > 1.0) {
+        clock::set_scale(f);
+        println!("Zeitraffer / time scale: {f}×");
     }
     let st = state.clone();
     std::thread::Builder::new()

@@ -126,6 +126,83 @@ pub struct MeterReading {
     /// Uhrzeit beim Auslesen nicht bestätigt (siehe `clock`): Zeitstempel kann falsch sein
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub time_unsure: bool,
+    /// Zeitpunkt in UTC (Sekunden seit 1970); eindeutig auch bei Sommerzeit-Ende
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub utc: Option<i64>,
+}
+
+impl MeterReading {
+    /// Antworttelegramme decodieren; Zeitstempel = jetzt
+    fn decode(frames: Vec<RawTelegram>, primary: u8) -> Result<MeterReading> {
+        let mut header = None;
+        let mut records = Vec::new();
+        let mut raw_frames = Vec::new();
+        for (ci, data, bytes) in frames {
+            raw_frames.push(hex(&bytes));
+            let t = decode_rsp_ud(ci, &data).map_err(|e| {
+                // Fehlertelegramm: der Zähler meldet selbst einen Fehler, kein Decodierproblem
+                if ci == 0x70 {
+                    anyhow::Error::new(MeterRefused {
+                        code: data.first().copied().unwrap_or(0),
+                        text: e,
+                    })
+                } else {
+                    anyhow!("{}: {e}", tr("Decodierfehler", "Decoding error"))
+                }
+            })?;
+            if header.is_none() {
+                header = t.header;
+            }
+            records.extend(t.records);
+        }
+        Ok(MeterReading {
+            timestamp: crate::clock::stamp(),
+            utc: Some(crate::clock::utc_secs()),
+            time_unsure: !crate::clock::confirmed(),
+            target: String::new(),
+            primary_address: primary,
+            header,
+            records,
+            raw_frames,
+        })
+    }
+
+    /// Rohtelegramme hintereinander, so wie sie kompakt gespeichert werden
+    pub fn raw_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        for f in &self.raw_frames {
+            let clean: Vec<u8> = f.bytes().filter(|b| b.is_ascii_hexdigit()).collect();
+            for pair in clean.chunks(2) {
+                if let Ok(b) = u8::from_str_radix(std::str::from_utf8(pair).unwrap_or("0"), 16) {
+                    out.push(b);
+                }
+            }
+        }
+        out
+    }
+
+    /// Gegenstück zu `raw_bytes`: Auslesung aus gespeicherten Rohtelegrammen wiederherstellen.
+    /// Ein späterer, besserer Decoder gilt so auch für alte Daten.
+    pub fn from_raw(raw: &[u8], timestamp: String, utc: Option<i64>, target: String, time_unsure: bool) -> Result<MeterReading> {
+        let mut frames = Vec::new();
+        let mut i = 0;
+        while i < raw.len() {
+            match frame::parse(&raw[i..]) {
+                frame::Parse::Complete(Frame::Long { address, ci, data, .. }, n) => {
+                    frames.push((ci, data, raw[i..i + n].to_vec(), address));
+                    i += n;
+                }
+                _ => bail!("{}", tr("Gespeichertes Telegramm unlesbar", "Stored telegram unreadable")),
+            }
+        }
+        let primary = frames.first().map_or(0, |f| f.3);
+        let mut r = MeterReading::decode(frames.into_iter().map(|(c, d, b, _)| (c, d, b)).collect(), primary)?;
+        r.timestamp = timestamp;
+        r.utc = utc;
+        r.target = target;
+        r.time_unsure = time_unsure;
+        Ok(r)
+    }
 }
 
 /// Der Zähler meldet selbst einen Fehler (Fehlertelegramm CI 70), z.B. 08 beschäftigt,
@@ -508,36 +585,9 @@ impl Master {
         }
         let address = self.address(target)?;
         let (primary, frames) = self.request_data(address, true)?;
-        let mut header = None;
-        let mut records = Vec::new();
-        let mut raw_frames = Vec::new();
-        for (ci, data, bytes) in frames {
-            raw_frames.push(hex(&bytes));
-            let t = decode_rsp_ud(ci, &data).map_err(|e| {
-                // Fehlertelegramm: der Zähler meldet selbst einen Fehler, kein Decodierproblem
-                if ci == 0x70 {
-                    anyhow::Error::new(MeterRefused {
-                        code: data.first().copied().unwrap_or(0),
-                        text: e,
-                    })
-                } else {
-                    anyhow!("{}: {e}", tr("Decodierfehler", "Decoding error"))
-                }
-            })?;
-            if header.is_none() {
-                header = t.header;
-            }
-            records.extend(t.records);
-        }
-        Ok(MeterReading {
-            timestamp: crate::clock::stamp(),
-            time_unsure: !crate::clock::confirmed(),
-            target: target.label(),
-            primary_address: primary,
-            header,
-            records,
-            raw_frames,
-        })
+        let mut r = MeterReading::decode(frames, primary)?;
+        r.target = target.label();
+        Ok(r)
     }
 
     pub fn set_primary(&mut self, target: &Target, new: u8) -> Result<()> {

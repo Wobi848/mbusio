@@ -179,7 +179,7 @@ impl Shared {
 
     /// Auslesung speichern (Verlauf und Zählerliste der Linie); Speicherfehler nur ins Log
     pub(crate) fn record(&self, line: i64, target: &Target, result: Result<&MeterReading, String>) {
-        if let Err(e) = self.db.lock().unwrap().record(line, target, result) {
+        if let Err(e) = self.db.lock().unwrap().record(line, target, result, false) {
             self.log.push("INFO", format!("DB: {e:#}"));
         }
     }
@@ -301,6 +301,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/gateways/{id}/move", post(gateway_move))
         .route("/api/report", get(report))
         .route("/api/projects/{id}/plan", put(project_plan))
+        .route("/api/projects/{id}/thin", put(project_thin))
         .route("/api/lines/{id}/plan", put(line_plan))
         .route("/api/meters/{id}/plan", put(meter_plan))
         .route("/api/time", post(set_time))
@@ -364,6 +365,7 @@ async fn status(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
         "plan_active": st.planner.any_planned(),
         "held": st.planner.is_held(active.line.id),
         "time": clock::state(),
+        "disk": st.planner.disk(),
         "now": clock::stamp(),
     })))
 }
@@ -1192,6 +1194,17 @@ async fn meter_plan(
         db.meter(id)?.line_id
     };
     Ok(Json(json!({ "ok": true, "warnings": load_warnings(&st, None, Some(line))? })))
+}
+
+#[derive(Deserialize)]
+struct ThinReq {
+    /// nach so vielen Tagen nur noch ein Wert pro Tag; None = alles behalten
+    days: Option<i64>,
+}
+
+async fn project_thin(State(st): State<AppState>, Path(id): Path<i64>, Json(r): Json<ThinReq>) -> ApiResult<serde_json::Value> {
+    st.db.lock().unwrap().set_thin_days(id, r.days).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 #[derive(Deserialize)]

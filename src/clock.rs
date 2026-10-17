@@ -9,7 +9,9 @@
 
 use std::sync::Mutex;
 
-use chrono::{Local, NaiveDateTime, TimeDelta};
+use std::time::Instant;
+
+use chrono::{DateTime, Local, NaiveDateTime, TimeDelta};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -29,6 +31,8 @@ struct Clock {
     offset: TimeDelta,
     /// Systemuhr nie als bestätigt ansehen (Test, oder wenn man ihr nicht traut)
     distrust_system: bool,
+    /// Zeitraffer für Dauertests: so viel schneller läuft die Uhr ab dem Start
+    scale: Option<(f64, DateTime<Local>, Instant)>,
 }
 
 static CLOCK: Mutex<Clock> = Mutex::new(Clock {
@@ -40,12 +44,38 @@ static CLOCK: Mutex<Clock> = Mutex::new(Clock {
     },
     offset: TimeDelta::zero(),
     distrust_system: false,
+    scale: None,
 });
+
+fn now_local() -> DateTime<Local> {
+    let c = CLOCK.lock().unwrap();
+    let base = match c.scale {
+        Some((f, wall, mono)) => {
+            wall + TimeDelta::milliseconds((mono.elapsed().as_secs_f64() * f * 1000.0) as i64)
+        }
+        None => Local::now(),
+    };
+    base + c.offset
+}
 
 /// Jetzt, Ortszeit, mit Korrektur
 pub fn now() -> NaiveDateTime {
-    let offset = CLOCK.lock().unwrap().offset;
-    Local::now().naive_local() + offset
+    now_local().naive_local()
+}
+
+/// Jetzt in UTC, Sekunden seit 1970
+pub fn utc_secs() -> i64 {
+    now_local().timestamp()
+}
+
+/// Zeitraffer (nur für Tests): die Uhr läuft `factor`-mal schneller
+pub fn set_scale(factor: f64) {
+    CLOCK.lock().unwrap().scale = Some((factor, Local::now(), Instant::now()));
+}
+
+/// Faktor des Zeitraffers, 1 = Echtzeit
+pub fn scale() -> f64 {
+    CLOCK.lock().unwrap().scale.map_or(1.0, |s| s.0)
 }
 
 /// Zeitstempel wie in der Datenbank

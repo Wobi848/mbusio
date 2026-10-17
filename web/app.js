@@ -88,6 +88,14 @@ const UI = {
     plan_hint_meter: "Nur nötig, wenn dieser Zähler anders ausgelesen werden soll als die Linie.",
     plan_next: (x) => `nächster ${x}`,
     plan_meters_own: (n) => `${n} Zähler mit eigenem Plan`,
+    thin: "Verlauf",
+    thin_off: "Alles behalten (Standard)",
+    thin_days: (n) => `Ab ${n} Tagen 1 Wert/Tag`,
+    thin_hint: "Nur bei häufigen Plänen nötig. Ohne diese Einstellung löscht mbusio nie Messwerte.",
+    disk_low: (p) => `Speicher knapp: ${p} % frei`,
+    disk_full: (p) => `Speicher voll: Messwerte werden nicht mehr gespeichert (${p} % frei)`,
+    disk_title:
+      "Platz schaffen: Messwerte exportieren und alte löschen, oder im Projekt „Verlauf“ ausdünnen. Gelesen und angezeigt wird weiterhin.",
     plan_last: (ok, n) => `zuletzt ${ok}/${n} gelesen`,
     plan_disturbed: (n) => `${n} gestört`,
     plan_paused: (n) => `${n} ausgesetzt`,
@@ -460,6 +468,14 @@ const UI = {
     plan_hint_meter: "Only needed if this meter should be read differently from its line.",
     plan_next: (x) => `next ${x}`,
     plan_meters_own: (n) => `${n} meters with their own plan`,
+    thin: "History",
+    thin_off: "Keep everything (default)",
+    thin_days: (n) => `After ${n} days 1 value/day`,
+    thin_hint: "Only needed with frequent plans. Without this setting mbusio never deletes readings.",
+    disk_low: (p) => `Storage low: ${p} % free`,
+    disk_full: (p) => `Storage full: readings are no longer stored (${p} % free)`,
+    disk_title:
+      "Free up space: export readings and delete old ones, or thin the history in the project. Reading and display continue.",
     plan_last: (ok, n) => `last ${ok}/${n} read`,
     plan_disturbed: (n) => `${n} disturbed`,
     plan_paused: (n) => `${n} suspended`,
@@ -833,6 +849,7 @@ let connEditing = false;
 let planRuns = [];
 let timeState = null;
 let planActive = false;
+let disk = null;
 /// zuletzt gespeicherte Auffälligkeiten (nur bei Änderung neu speichern)
 let savedIssues = null;
 
@@ -965,6 +982,7 @@ async function refreshStatus() {
   planRuns = s.plans || [];
   timeState = s.time;
   planActive = !!s.plan_active;
+  disk = s.disk;
   if (runsBefore && !planRuns.length) loadMeters().catch(() => {});
   // verbunden: Verbindung als eine Zeile, Formular erst auf "Ändern"
   $("sec-conn").classList.toggle("compact", connected && !connEditing);
@@ -1058,6 +1076,15 @@ function renderBusbar() {
   // Uhrzeit nur ein Thema, wenn geplant ausgelesen wird
   const tm = $("busbar-time");
   tm.hidden = !(planActive && timeState && !timeState.confirmed);
+  // Speicher: "knapp" nur im Dauerbetrieb wichtig, "voll" immer
+  const dk = $("busbar-disk");
+  const level = disk?.level || "ok";
+  dk.hidden = level === "ok" || (level === "low" && !planActive);
+  if (!dk.hidden) {
+    const pct = Math.round(disk.free_pct);
+    dk.textContent = level === "full" ? t("disk_full", pct) : t("disk_low", pct);
+    dk.classList.toggle("full", level === "full");
+  }
   el.hidden = false;
   document.body.classList.add("has-busbar");
   el.classList.toggle("idle", !!state.idle);
@@ -2393,10 +2420,13 @@ function niceTicks(lo, hi, n) {
   return out;
 }
 
-function axisNum(v) {
-  return Math.abs(v) >= 10000
+/// Achsenbeschriftung mit so vielen Stellen, wie der Abstand der Linien braucht (sonst stehen bei
+/// kleinen Änderungen grosser Zählerstände zweimal dieselben Zahlen da)
+function axisNum(v, step) {
+  const digits = Math.min(6, Math.max(0, -Math.floor(Math.log10(step || 1) + 1e-9)));
+  return Math.abs(v) >= 10000 && step >= 1000
     ? new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-GB", { notation: "compact", maximumFractionDigits: 1 }).format(v)
-    : formatNum(v, 3);
+    : new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-GB", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
 }
 
 function timeLabel(d, span) {
@@ -2420,13 +2450,14 @@ function drawChart(box, pts, name) {
     hi += Math.abs(hi) * 0.01 || 1;
   }
   const yt = niceTicks(lo, hi, 4);
+  const ystep = yt.length > 1 ? yt[1] - yt[0] : 1;
   lo = yt[0];
   hi = yt[yt.length - 1];
   const last = pts[pts.length - 1];
   const endText = `${last.text} ${last.unit}`;
   // Ränder aus der Länge der Beschriftungen, damit nichts abgeschnitten wird (Schätzung je Zeichen)
   const mg = {
-    l: Math.max(...yt.map((v) => axisNum(v).length)) * 6.6 + 14,
+    l: Math.max(...yt.map((v) => axisNum(v, ystep).length)) * 6.6 + 14,
     r: endText.length * 8.2 + 18,
     t: 14,
     b: 28,
@@ -2440,7 +2471,7 @@ function drawChart(box, pts, name) {
   const xt = [0, 1, 2, 3, 4].map((k) => new Date(t0 + (span * k) / 4));
   const showDots = pts.length <= 40;
   const grid = yt
-    .map((v) => `<line class="grid" x1="${mg.l}" x2="${mg.l + iw}" y1="${y(v)}" y2="${y(v)}"/><text x="${mg.l - 8}" y="${y(v) + 4}" text-anchor="end">${esc(axisNum(v))}</text>`)
+    .map((v) => `<line class="grid" x1="${mg.l}" x2="${mg.l + iw}" y1="${y(v)}" y2="${y(v)}"/><text x="${mg.l - 8}" y="${y(v) + 4}" text-anchor="end">${esc(axisNum(v, ystep))}</text>`)
     .join("");
   const xlab = (t1 === t0 ? [new Date(t0)] : xt)
     .map((d, k, a) => {
@@ -2744,7 +2775,10 @@ function openTreeForm(kind, data, onSave) {
     body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("customer", "f_customer", data.customer)}</div>
       <div class="row">${field("site", "f_site", data.site)}${field("technician", "f_technician", data.technician)}${field("order_no", "f_order", data.order_no)}</div>
       <div class="row">${field("remarks", "f_remarks", data.remarks)}</div>
-      ${planField(data.plan || "off", null, t("plan_hint_project"))}`;
+      ${planField(data.plan || "off", null, t("plan_hint_project"))}
+      <div class="row"><label><span>${esc(t("thin"))}</span><select name="thin">${[0, 30, 90, 365]
+        .map((d) => `<option value="${d}" ${d === (data.thin_days || 0) ? "selected" : ""}>${esc(d ? t("thin_days", d) : t("thin_off"))}</option>`)
+        .join("")}</select></label></div><p class="hint plan-hint">${esc(t("thin_hint"))}</p>`;
   } else if (kind === "gateway") {
     body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("address", "f_address", data.address, 'class="mono"')}${field("note", "f_note", data.note)}</div>`;
   } else {
@@ -2859,6 +2893,9 @@ $("project-edit").onclick = () =>
     await api(`projects/${tree.active.project.id}`, { method: "PUT", body: v });
     const plan = planFrom(v);
     if (plan !== (tree.active.project.plan || "off")) await savePlan(`projects/${tree.active.project.id}`, plan);
+    const thin = Number(v.thin) || null;
+    if (thin !== (tree.active.project.thin_days ?? null))
+      await api(`projects/${tree.active.project.id}/thin`, { method: "PUT", body: { days: thin } });
     await loadMeters().catch(() => {});
     await loadTree();
   });

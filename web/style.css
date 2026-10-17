@@ -862,6 +862,8 @@ td .chip { white-space: nowrap; }
   font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; border: 0; border-radius: 999px;
   padding: 3px 10px; background: var(--warn-soft); color: var(--warn);
 }
+#busbar-disk { cursor: help; }
+#busbar-disk.full { background: var(--err-soft); color: var(--err); }
 .gw-foot { margin-top: 8px; }
 .tree-form { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; }
 .tree-form h3 { margin: 0 0 8px; font-size: 14px; }

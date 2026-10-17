@@ -19,11 +19,12 @@ use crate::i18n::{self, tr, Lang};
 use crate::line::{is_link_error, Work};
 use crate::mbus::master::{Master, MeterReading, MeterRefused, Target};
 use crate::plan::{self, Due, Plan, SLOT_FORMAT};
+use crate::storage::{self, DiskState, Level};
 use crate::web::{read_listed, AppState};
 
 /// So oft wird geprüft, ob etwas fällig ist
 const TICK: Duration = Duration::from_secs(10);
-/// So oft wird die Zeitquelle geprüft
+/// So oft werden Zeitquelle und freier Speicher geprüft
 const CLOCK_CHECK: Duration = Duration::from_secs(60);
 
 /// Fortschritt eines Termins auf einer Linie (für die Statusleiste)
@@ -58,6 +59,10 @@ pub struct Planner {
     /// zum Erkennen von Uhrsprüngen: Uhrzeit und Monotonuhr bei der letzten Prüfung
     last_tick: Mutex<Option<(NaiveDateTime, Instant)>>,
     last_clock_check: Mutex<Option<Instant>>,
+    /// freier Speicher beim Datenordner
+    disk: Mutex<DiskState>,
+    /// wann zuletzt ausgedünnt wurde
+    last_thin: Mutex<Option<NaiveDateTime>>,
 }
 
 impl Default for Planner {
@@ -77,7 +82,13 @@ impl Planner {
             now,
             last_tick: Mutex::default(),
             last_clock_check: Mutex::default(),
+            disk: Mutex::default(),
+            last_thin: Mutex::default(),
         }
+    }
+
+    pub fn disk(&self) -> DiskState {
+        self.disk.lock().unwrap().clone()
     }
 
     /// Laufende Termine, für die Statusleiste
@@ -133,8 +144,48 @@ pub fn run(st: AppState) {
         if let Err(e) = tick(&st) {
             note(&st, format!("{}: {e:#}", tr("Zeitplan", "Schedule")));
         }
-        std::thread::sleep(TICK);
+        // im Zeitraffer öfter prüfen, sonst würden Termine übersprungen
+        std::thread::sleep(TICK.div_f64(clock::scale()).max(Duration::from_millis(500)));
     }
+}
+
+/// Freien Speicher prüfen; bei fast vollem Speicher keine Auslesungen mehr speichern
+fn check_disk(st: &AppState) {
+    let (dir, size) = {
+        let db = st.db.lock().unwrap();
+        (db.path().and_then(|p| p.parent()).map(|p| p.to_path_buf()), db.size())
+    };
+    let Some(dir) = dir else { return };
+    let new = storage::check(&dir, size);
+    let old = std::mem::replace(&mut *st.planner.disk.lock().unwrap(), new.clone());
+    st.db.lock().unwrap().readings_paused = new.level == Level::Full;
+    if new.level != old.level {
+        let msg = match new.level {
+            Level::Ok => tr("Speicher wieder in Ordnung", "Storage OK again"),
+            Level::Low => tr("Speicher wird knapp", "Storage running low"),
+            Level::Full => tr(
+                "Speicher fast voll: neue Auslesungen werden nicht mehr gespeichert",
+                "Storage almost full: new readings are no longer stored",
+            ),
+        };
+        note(st, format!("{msg} ({:.0} % {})", new.free_pct, tr("frei", "free")));
+    }
+}
+
+/// Verlauf ausdünnen, wo eingeschaltet (höchstens einmal pro Stunde)
+fn thin(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
+    {
+        let mut last = st.planner.last_thin.lock().unwrap();
+        if last.is_some_and(|t| (now - t).num_minutes().abs() < 60) {
+            return Ok(());
+        }
+        *last = Some(now);
+    }
+    let n = st.db.lock().unwrap().thin_readings(now)?;
+    if n > 0 {
+        note(st, format!("{}: {n} {}", tr("Verlauf ausgedünnt", "History thinned"), tr("Auslesungen gelöscht", "readings deleted")));
+    }
+    Ok(())
 }
 
 /// Zeitquelle prüfen und Sprünge der Uhr erkennen
@@ -146,11 +197,15 @@ fn check_clock(st: &AppState, now: NaiveDateTime) {
         if let Some(msg) = clock::check_system() {
             note(st, msg);
         }
+        drop(last);
+        check_disk(st);
+    } else {
+        drop(last);
     }
-    drop(last);
     let mut tick = p.last_tick.lock().unwrap();
     if let Some((wall, mono)) = *tick {
-        let expected = wall + chrono::Duration::from_std(mono.elapsed()).unwrap_or_default();
+        let elapsed = mono.elapsed().mul_f64(clock::scale());
+        let expected = wall + chrono::Duration::from_std(elapsed).unwrap_or_default();
         let jump = (now - expected).num_seconds();
         if jump.abs() > 60 {
             note(
@@ -173,25 +228,36 @@ fn check_clock(st: &AppState, now: NaiveDateTime) {
 pub fn tick(st: &AppState) -> anyhow::Result<()> {
     let now = (st.planner.now)();
     check_clock(st, now);
+    thin(st, now)?;
     let lines = st.db.lock().unwrap().planned()?;
     let mut planned = HashSet::new();
     for pl in lines {
         let mut due = Vec::new();
-        {
-            let mut db = st.db.lock().unwrap();
-            for (m, p) in &pl.meters {
-                let state = plan::State {
-                    key: m.plan_key.clone(),
-                    slot: m.plan_slot.as_deref().and_then(plan::parse_time),
-                    pause: m.plan_pause.as_deref().and_then(plan::parse_time),
-                };
-                match plan::due(*p, &state, now) {
-                    Due::No => {}
-                    Due::Reset => db.plan_reset(m.id)?,
-                    Due::Start(slot) => db.plan_start(m.id, &p.key(), &slot.format(SLOT_FORMAT).to_string())?,
-                    Due::Read(slot) => due.push((m.clone(), *p, slot)),
-                }
+        let mut changes = Vec::new();
+        for (m, p) in &pl.meters {
+            let state = plan::State {
+                key: m.plan_key.clone(),
+                slot: m.plan_slot.as_deref().and_then(plan::parse_time),
+                pause: m.plan_pause.as_deref().and_then(plan::parse_time),
+            };
+            match plan::due(*p, &state, now) {
+                Due::No => {}
+                Due::Read(slot) => due.push((m.clone(), *p, slot)),
+                d => changes.push((m.id, *p, d)),
             }
+        }
+        // Zustand der ganzen Linie in einem Schreibvorgang (schont die SD-Karte)
+        if !changes.is_empty() {
+            st.db.lock().unwrap().tx(|db| {
+                for (id, p, d) in &changes {
+                    match d {
+                        Due::Reset => db.plan_reset(*id)?,
+                        Due::Start(slot) => db.plan_start(*id, &p.key(), &slot.format(SLOT_FORMAT).to_string())?,
+                        _ => {}
+                    }
+                }
+                Ok(())
+            })?;
         }
         if pl.meters.iter().all(|(_, p)| *p == Plan::Off) {
             continue;
@@ -306,17 +372,24 @@ fn finish(
     let mut read = false;
     let mut attempted = true;
     let mut error = None;
+    // Auslesung, Zählerliste und Termin zusammen speichern: ganz oder gar nicht
+    let save = |result: Result<(&Target, &MeterReading), String>, outcome: PlanOutcome| {
+        st.db.lock().unwrap().tx(|db| {
+            match (result, &target) {
+                (Ok((t, r)), _) => db.record(line_id, t, Ok(r), true)?,
+                (Err(e), Ok(t)) => db.record(line_id, t, Err(e), true)?,
+                (Err(_), Err(_)) => {}
+            }
+            db.plan_done(meter.id, &slot, outcome)
+        })
+    };
     match outcome {
         Attempt::Read(t, r, ms) => {
-            st.record(line_id, &t, Ok(&r));
-            st.db.lock().unwrap().plan_done(meter.id, &slot, PlanOutcome::Read { ms })?;
+            save(Ok((&t, &r)), PlanOutcome::Read { ms })?;
             read = true;
         }
         Attempt::Failed(e) => {
-            if let Ok(t) = &target {
-                st.record(line_id, t, Err(e.clone()));
-            }
-            let fails = st.db.lock().unwrap().plan_done(meter.id, &slot, PlanOutcome::Failed)?;
+            let fails = save(Err(e.clone()), PlanOutcome::Failed)?;
             if fails == DISTURBED_AFTER {
                 note(
                     st,
@@ -332,11 +405,8 @@ fn finish(
             error = Some(e);
         }
         Attempt::Refused(e) => {
-            if let Ok(t) = &target {
-                st.record(line_id, t, Err(e.clone()));
-            }
             let until = plan::pause_until(now).format(SLOT_FORMAT).to_string();
-            st.db.lock().unwrap().plan_done(meter.id, &slot, PlanOutcome::Refused { until })?;
+            save(Err(e.clone()), PlanOutcome::Refused { until })?;
             note(
                 st,
                 format!(
@@ -562,6 +632,125 @@ mod tests {
         r.st.db.lock().unwrap().set_meter_plan(id, None).unwrap();
         r.tick();
         assert_eq!(r.readings("1"), 1);
+    }
+
+    /// Abnahmekriterium 6: Zähler mit "zu viele Auslesungen" wird für den Tag ausgesetzt
+    #[test]
+    fn meter_with_quota_is_suspended_until_next_day() {
+        let r = Rig::new(&["19"]);
+        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.tick();
+        for t in ["2026-10-17 11:00", "2026-10-17 12:00", "2026-10-17 13:00"] {
+            r.set_time(t);
+            r.tick();
+        }
+        // zwei Auslesungen gehen, die dritte lehnt der Zähler ab
+        assert_eq!(r.readings("19"), 2);
+        let m = r.meter("19");
+        assert_eq!(m.plan_pause.as_deref(), Some("2026-10-18 00:00:00"));
+        assert!(m.last_error.unwrap().contains("09"));
+        assert_eq!(m.plan_fails, 0, "Ablehnung ist kein Fehler des Zählers");
+        // bis Mitternacht wird er nicht mehr gefragt
+        r.set_time("2026-10-17 14:00");
+        r.tick();
+        assert_eq!(r.meter("19").plan_slot.as_deref(), Some("2026-10-17 13:00:00"));
+        r.set_time("2026-10-18 00:00");
+        r.tick();
+        assert_eq!(r.meter("19").plan_slot.as_deref(), Some("2026-10-18 00:00:00"));
+    }
+
+    /// Geplante Auslesungen werden kompakt gespeichert (Rohtelegramme) und beim Anzeigen
+    /// decodiert, mit denselben Werten wie beim Auslesen
+    #[test]
+    fn planned_readings_are_stored_compact() {
+        let r = Rig::new(&["1", "2"]);
+        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.tick();
+        r.set_time("2026-10-17 11:00");
+        r.tick();
+        let db = r.st.db.lock().unwrap();
+        let (data, raw): (String, Vec<u8>) = db
+            .conn_for_tests()
+            .query_row("SELECT data, raw FROM readings ORDER BY id LIMIT 1", [], |x| Ok((x.get(0)?, x.get(1)?)))
+            .unwrap();
+        assert!(data.is_empty());
+        assert!(raw.len() < 400, "Rohtelegramme {} Byte", raw.len());
+        drop(db);
+        let id = r.meter("1").id;
+        let h = r.st.db.lock().unwrap().meter_history(id, 10).unwrap();
+        assert_eq!(h.len(), 1);
+        assert_eq!(h[0].header.as_ref().unwrap().id, "12345678");
+        assert!(h[0].utc.is_some());
+        assert!(h[0].records.iter().any(|x| x.unit == "kWh"));
+        assert_eq!(r.meter("1").last_value.as_deref(), Some("123456 kWh"));
+    }
+
+    /// Abnahmekriterium 11: Speicher voll, Werte werden gelesen, aber nicht mehr gespeichert
+    #[test]
+    fn full_storage_keeps_reading_without_storing() {
+        let r = Rig::new(&["2"]);
+        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.tick();
+        r.st.db.lock().unwrap().readings_paused = true;
+        r.set_time("2026-10-17 11:00");
+        r.tick();
+        assert_eq!(r.readings("2"), 0);
+        let m = r.meter("2");
+        assert!(m.last_value.is_some() && m.last_error.is_none());
+        assert_eq!(m.plan_slot.as_deref(), Some("2026-10-17 11:00:00"));
+    }
+
+    /// Abnahmekriterium 8: Uhr springt zurück, kein doppelter Termin; danach geht es weiter
+    #[test]
+    fn clock_jump_back_realigns_without_duplicates() {
+        let r = Rig::new(&["1"]);
+        r.st.db.lock().unwrap().set_project_plan(1, "hourly").unwrap();
+        r.tick();
+        r.set_time("2026-10-17 11:00");
+        r.tick();
+        assert_eq!(r.readings("1"), 1);
+        // einen Tag zurück: neu ausrichten, nicht lesen
+        r.set_time("2026-10-16 11:30");
+        r.tick();
+        assert_eq!(r.readings("1"), 1);
+        assert_eq!(r.meter("1").plan_slot.as_deref(), Some("2026-10-16 11:00:00"));
+        r.set_time("2026-10-16 12:00");
+        r.tick();
+        assert_eq!(r.readings("1"), 2);
+    }
+
+    /// Abnahmekriterium 10 (Teil Rechenzeit): 20 Linien mit zusammen 2000 Zählern; eine Prüfung
+    /// muss schnell gehen, damit die Oberfläche bedienbar bleibt
+    #[test]
+    fn reference_scenario_tick_is_fast() {
+        let mut db = Db::memory().unwrap();
+        let gw = db.active().unwrap().gateway.id;
+        for l in 0..20 {
+            let line = db
+                .create_line(gw, Line { name: format!("L{l}"), baud: 2400, ..Default::default() })
+                .unwrap();
+            let meters = (0..100)
+                .map(|k| Meter { address: format!("{:08}", l * 1000 + k), ..Default::default() })
+                .collect();
+            db.import_meters(line.id, meters).unwrap();
+        }
+        db.set_project_plan(1, "daily 00:05").unwrap();
+        let st: AppState = Arc::new(Shared::with_planner(
+            None,
+            db,
+            Planner::with_clock(Box::new(|| at("2026-10-17 10:30"))),
+        ));
+        let t0 = Instant::now();
+        tick(&st).unwrap();
+        let first = t0.elapsed();
+        let t0 = Instant::now();
+        tick(&st).unwrap();
+        let again = t0.elapsed();
+        let tree = Instant::now();
+        st.db.lock().unwrap().tree().unwrap();
+        let tree = tree.elapsed();
+        println!("erste Prüfung {first:?}, weitere {again:?}, Projektbaum {tree:?}");
+        assert!(first < Duration::from_secs(5) && again < Duration::from_secs(2) && tree < Duration::from_secs(2));
     }
 
     #[test]

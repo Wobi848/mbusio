@@ -69,6 +69,9 @@ pub struct Project {
     /// Ausleseplan als Vorgabe für alle Linien (siehe `plan::Plan`), Standard "off"
     #[serde(default = "default_plan")]
     pub plan: String,
+    /// Verlauf ausdünnen: nach so vielen Tagen nur noch ein Wert pro Zähler und Tag; None = alles behalten
+    #[serde(default)]
+    pub thin_days: Option<i64>,
 }
 
 fn default_plan() -> String {
@@ -274,11 +277,53 @@ fn main_value(r: &MeterReading) -> Option<&crate::mbus::decode::Record> {
         .or_else(|| current().next())
 }
 
+// ---------------------------------------------------------------- Auslesungen lesen
+
+struct ReadingRow {
+    data: String,
+    raw: Option<Vec<u8>>,
+    timestamp: String,
+    utc: Option<i64>,
+    target: Option<String>,
+    time_unsure: bool,
+}
+
+fn reading_row(r: &Row) -> rusqlite::Result<ReadingRow> {
+    Ok(ReadingRow {
+        data: r.get("data")?,
+        raw: r.get("raw")?,
+        timestamp: r.get("timestamp")?,
+        utc: r.get("utc")?,
+        target: r.get("target")?,
+        time_unsure: r.get("time_unsure")?,
+    })
+}
+
+impl ReadingRow {
+    /// Vollständig gespeichert (JSON) oder aus den Rohtelegrammen decodiert
+    fn into_reading(self) -> Option<MeterReading> {
+        if !self.data.is_empty() {
+            return serde_json::from_str(&self.data).ok();
+        }
+        MeterReading::from_raw(
+            self.raw.as_deref()?,
+            self.timestamp,
+            self.utc,
+            self.target.unwrap_or_default(),
+            self.time_unsure,
+        )
+        .ok()
+    }
+}
+
 // ---------------------------------------------------------------- Datenbank
 
 pub struct Db {
     conn: Connection,
     path: Option<PathBuf>,
+    /// Speicher fast voll: keine neuen Auslesungen mehr speichern (Zählerliste wird weiter
+    /// aktualisiert), damit die Datenbank intakt und das Gerät bedienbar bleibt
+    pub readings_paused: bool,
 }
 
 const SCHEMA: &str = "
@@ -354,6 +399,7 @@ fn project_of(r: &Row) -> rusqlite::Result<Project> {
         remarks: r.get("remarks")?,
         created: r.get("created")?,
         plan: r.get("plan")?,
+        thin_days: r.get("thin_days")?,
     })
 }
 
@@ -420,6 +466,7 @@ impl Db {
         let mut db = Db {
             conn,
             path: Some(path),
+            readings_paused: false,
         };
         db.init()?;
         db.import_legacy(dir)?;
@@ -432,9 +479,15 @@ impl Db {
         let mut db = Db {
             conn: Connection::open_in_memory()?,
             path: None,
+            readings_paused: false,
         };
         db.init()?;
         Ok(db)
+    }
+
+    #[cfg(test)]
+    pub fn conn_for_tests(&self) -> &Connection {
+        &self.conn
     }
 
     pub fn path(&self) -> Option<&Path> {
@@ -443,7 +496,12 @@ impl Db {
 
     fn init(&mut self) -> Result<()> {
         self.conn
-            .execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
+            .execute_batch(
+                // WAL mit synchronous=NORMAL: nach Stromausfall bleibt die Datenbank intakt
+                // (höchstens die letzten Sekunden fehlen), viel weniger Schreibzugriffe auf die SD-Karte
+                "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
+                 PRAGMA busy_timeout = 5000;",
+            )?;
         self.conn.execute_batch(SCHEMA)?;
         self.migrate()?;
         self.ensure_active()?;
@@ -491,6 +549,20 @@ impl Db {
                      WHERE readings.meter = meters.id ORDER BY id DESC LIMIT 1)
                    WHERE secondary_address IS NULL;",
             )?;
+        }
+        if !has(&self.conn, "readings", "raw")? {
+            // kompakte Speicherung: Rohtelegramme statt JSON (data dann leer), Zeit auch in UTC
+            self.conn.execute_batch(
+                "ALTER TABLE readings ADD COLUMN raw BLOB;
+                 ALTER TABLE readings ADD COLUMN utc INTEGER;
+                 ALTER TABLE readings ADD COLUMN target TEXT;
+                 ALTER TABLE readings ADD COLUMN time_unsure INTEGER NOT NULL DEFAULT 0;
+                 CREATE INDEX IF NOT EXISTS readings_meter ON readings(meter, id);",
+            )?;
+        }
+        if !has(&self.conn, "projects", "thin_days")? {
+            // Verlauf ausdünnen: nach so vielen Tagen nur noch ein Wert pro Tag (NULL = alles behalten)
+            self.conn.execute_batch("ALTER TABLE projects ADD COLUMN thin_days INTEGER")?;
         }
         if !has(&self.conn, "projects", "plan")? {
             // Ausleseplan (Dauerbetrieb); Standard überall aus
@@ -1039,14 +1111,28 @@ impl Db {
     }
 
     /// Ergebnis einer Auslesung speichern: Verlauf und, falls in der Liste, beim Zähler.
-    pub fn record(&mut self, line_id: i64, target: &Target, result: Result<&MeterReading, String>) -> Result<()> {
+    /// `compact`: nur die Rohtelegramme (geplante Auslesungen), sonst zusätzlich alles als JSON.
+    pub fn record(&mut self, line_id: i64, target: &Target, result: Result<&MeterReading, String>, compact: bool) -> Result<()> {
         let meter = self.find_meter(line_id, target)?;
         match result {
             Ok(r) => {
-                self.conn.execute(
-                    "INSERT INTO readings (line_id, meter, timestamp, data) VALUES (?1, ?2, ?3, ?4)",
-                    params![line_id, meter.as_ref().map(|m| m.id), r.timestamp, serde_json::to_string(r)?],
-                )?;
+                if !self.readings_paused {
+                    let data = if compact { String::new() } else { serde_json::to_string(r)? };
+                    self.conn.execute(
+                        "INSERT INTO readings (line_id, meter, timestamp, data, raw, utc, target, time_unsure)
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                        params![
+                            line_id,
+                            meter.as_ref().map(|m| m.id),
+                            r.timestamp,
+                            data,
+                            r.raw_bytes(),
+                            r.utc,
+                            r.target,
+                            r.time_unsure
+                        ],
+                    )?;
+                }
                 let Some(m) = meter else {
                     return Ok(());
                 };
@@ -1086,14 +1172,23 @@ impl Db {
 
     /// Auslesungen der Linie, älteste zuerst (höchstens `limit` neueste)
     pub fn readings(&self, line_id: i64, limit: usize) -> Result<Vec<MeterReading>> {
-        let mut st = self.conn.prepare(
-            "SELECT data FROM (SELECT id, data FROM readings WHERE line_id = ?1 ORDER BY id DESC LIMIT ?2)
-             ORDER BY id",
-        )?;
-        let rows = st.query_map(params![line_id, limit as i64], |r| r.get::<_, String>(0))?;
+        self.query_readings("line_id", line_id, limit)
+    }
+
+    /// Auslesungen nach Linie oder Zähler; kompakt gespeicherte werden aus den Rohtelegrammen
+    /// decodiert, unlesbare übersprungen
+    fn query_readings(&self, column: &str, id: i64, limit: usize) -> Result<Vec<MeterReading>> {
+        let mut st = self.conn.prepare(&format!(
+            "SELECT * FROM (SELECT id, data, raw, timestamp, utc, target, time_unsure FROM readings
+               WHERE {column} = ?1 ORDER BY id DESC LIMIT ?2)
+             ORDER BY id"
+        ))?;
+        let rows = st.query_map(params![id, limit as i64], reading_row)?;
         let mut out = Vec::new();
-        for text in rows {
-            out.push(serde_json::from_str(&text?)?);
+        for row in rows {
+            if let Some(r) = row?.into_reading() {
+                out.push(r);
+            }
         }
         Ok(out)
     }
@@ -1110,32 +1205,66 @@ impl Db {
 
     /// Verlauf eines Zählers: seine Auslesungen, älteste zuerst (höchstens `limit` neueste)
     pub fn meter_history(&self, meter_id: i64, limit: usize) -> Result<Vec<MeterReading>> {
-        let mut st = self.conn.prepare(
-            "SELECT data FROM (SELECT id, data FROM readings WHERE meter = ?1 ORDER BY id DESC LIMIT ?2)
-             ORDER BY id",
-        )?;
-        let rows = st.query_map(params![meter_id, limit as i64], |r| r.get::<_, String>(0))?;
-        let mut out = Vec::new();
-        for text in rows {
-            out.push(serde_json::from_str(&text?)?);
-        }
-        Ok(out)
+        self.query_readings("meter", meter_id, limit)
     }
 
     /// Neueste Auslesung eines Zählers der Liste
     pub fn latest_reading(&self, meter_id: i64) -> Result<Option<MeterReading>> {
-        let text: Option<String> = self
+        Ok(self.query_readings("meter", meter_id, 1)?.pop())
+    }
+
+    /// Mehrere Änderungen ganz oder gar nicht (auch bei Stromausfall)
+    pub fn tx<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+        self.conn.execute_batch("BEGIN IMMEDIATE")?;
+        match f(self) {
+            Ok(v) => {
+                self.conn.execute_batch("COMMIT")?;
+                Ok(v)
+            }
+            Err(e) => {
+                let _ = self.conn.execute_batch("ROLLBACK");
+                Err(e)
+            }
+        }
+    }
+
+    /// Verlauf ausdünnen, wo im Projekt eingeschaltet: Auslesungen älter als `thin_days` bis auf
+    /// die erste je Zähler und Tag löschen. Liefert die Anzahl gelöschter Auslesungen.
+    pub fn thin_readings(&mut self, now: chrono::NaiveDateTime) -> Result<usize> {
+        let projects: Vec<(i64, i64)> = self
             .conn
-            .query_row(
-                "SELECT data FROM readings WHERE meter = ?1 ORDER BY id DESC LIMIT 1",
-                [meter_id],
-                |r| r.get(0),
-            )
-            .optional()?;
-        Ok(match text {
-            Some(t) => Some(serde_json::from_str(&t)?),
-            None => None,
-        })
+            .prepare("SELECT id, thin_days FROM projects WHERE thin_days > 0")?
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut n = 0;
+        for (project, days) in projects {
+            let cutoff = (now - chrono::Duration::days(days)).format("%Y-%m-%d 00:00:00").to_string();
+            n += self.conn.execute(
+                "DELETE FROM readings WHERE timestamp < ?2 AND meter IN (
+                   SELECT meters.id FROM meters JOIN lines ON lines.id = meters.line_id
+                   JOIN gateways ON gateways.id = lines.gateway_id WHERE gateways.project_id = ?1)
+                 AND id NOT IN (
+                   SELECT MIN(id) FROM readings WHERE timestamp < ?2 AND meter IS NOT NULL
+                   GROUP BY meter, substr(timestamp, 1, 10))",
+                params![project, cutoff],
+            )?;
+        }
+        Ok(n)
+    }
+
+    pub fn set_thin_days(&mut self, project_id: i64, days: Option<i64>) -> Result<()> {
+        let days = days.filter(|d| *d > 0);
+        if self.conn.execute("UPDATE projects SET thin_days = ?2 WHERE id = ?1", params![project_id, days])? == 0 {
+            return Err(not_found(&tr("Projekt", "Project"), project_id));
+        }
+        Ok(())
+    }
+
+    /// Grösse der Datenbank in Byte (mit WAL)
+    pub fn size(&self) -> u64 {
+        let Some(p) = &self.path else { return 0 };
+        let len = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0);
+        len(p) + len(&p.with_extension("db-wal"))
     }
 
     // ------------------------------------------------------------ Letzter Scan, Änderungen
@@ -1447,8 +1576,8 @@ impl Db {
         }
         let tx = self.conn.transaction()?;
         tx.execute(
-            "INSERT INTO projects (name, customer, site, technician, order_no, remarks, created, plan)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO projects (name, customer, site, technician, order_no, remarks, created, plan, thin_days)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 project.name,
                 project.customer,
@@ -1457,7 +1586,8 @@ impl Db {
                 project.order_no,
                 project.remarks,
                 if project.created.is_empty() { now() } else { project.created.clone() },
-                valid_plan(Some(&project.plan)).unwrap_or_else(default_plan)
+                valid_plan(Some(&project.plan)).unwrap_or_else(default_plan),
+                project.thin_days.filter(|d| *d > 0)
             ],
         )?;
         let pid = tx.last_insert_rowid();
@@ -1608,6 +1738,36 @@ mod tests {
         assert_eq!(r["gateways"][0]["lines"][0]["meters"][0]["meter"]["name"], "Whg 1");
         assert_eq!(r["changes"][0]["text"], "3: PA 0 → 3");
         assert!(db.import_project(&json!({ "format": "x" })).is_err());
+    }
+
+    #[test]
+    fn thinning_keeps_one_reading_per_day() {
+        let mut db = Db::memory().unwrap();
+        let line = db.active_line().unwrap().id;
+        let m = db.add_meter(line, meter("1")).unwrap();
+        for day in 1..=10 {
+            for hour in [0, 6, 12, 18] {
+                db.conn
+                    .execute(
+                        "INSERT INTO readings (line_id, meter, timestamp, data) VALUES (?1, ?2, ?3, '{}')",
+                        params![line, m.id, format!("2026-10-{day:02} {hour:02}:00:00")],
+                    )
+                    .unwrap();
+            }
+        }
+        let now = chrono::NaiveDateTime::parse_from_str("2026-10-10 12:00", "%Y-%m-%d %H:%M").unwrap();
+        // ausgeschaltet: nichts löschen
+        assert_eq!(db.thin_readings(now).unwrap(), 0);
+        db.set_thin_days(1, Some(5)).unwrap();
+        // älter als 5 Tage (vor dem 5.): Tag 1–4 je 3 von 4 weg
+        assert_eq!(db.thin_readings(now).unwrap(), 12);
+        let left: i64 = db.conn.query_row("SELECT COUNT(*) FROM readings", [], |r| r.get(0)).unwrap();
+        assert_eq!(left, 40 - 12);
+        let first: String = db
+            .conn
+            .query_row("SELECT timestamp FROM readings ORDER BY id LIMIT 1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(first, "2026-10-01 00:00:00");
     }
 
     #[test]

@@ -52,7 +52,7 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - Verlauf je Zähler als Diagramm oder Tabelle mit Differenz und Verbrauch pro Tag, als CSV
 - Baudrate suchen und umstellen, Application Reset, Telegramme senden (Experten)
 
-### Geplantes Auslesen (Dauerbetrieb, in Arbeit)
+### Geplantes Auslesen (Dauerbetrieb)
 
 - **Ausleseplan** im Projekt, je Linie oder je Zähler: Aus, monatlich, täglich, stündlich, alle
   15 min. Linie und Zähler übernehmen den Plan von oben, solange sie keinen eigenen haben.
@@ -66,7 +66,15 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - **Uhrzeit:** ohne Zeitserver (NTP) oder Uhr-Modul gilt sie als unsicher; Werte werden dann als
   „Zeit unsicher“ gekennzeichnet. „Uhrzeit nicht bestätigt“ unten in der Leiste übernimmt die
   Uhrzeit des Laptops oder Handys
-- Konzept und nächste Schritte (kompakte Speicherung, MQTT, Modbus):
+- **Speicherung:** geplante Auslesungen nur als Rohtelegramm (rund 100–250 Byte statt ~2 KB),
+  decodiert wird beim Anzeigen; Zeitstempel zusätzlich in UTC. Messwerte werden nie von selbst
+  gelöscht; optional je Projekt „Verlauf: nach 30/90/365 Tagen nur 1 Wert pro Tag“
+- **Speicherschutz:** wird der Platz knapp, warnt die Leiste unten; ist er fast voll, werden keine
+  neuen Auslesungen mehr gespeichert (Zählerliste und Anzeige laufen weiter), damit Datenbank und
+  Gerät bedienbar bleiben
+- Die Datenbank übersteht Absturz und Stromausfall (SQLite WAL, Transaktionen); nach dem Neustart
+  geht es von selbst weiter
+- Konzept und nächste Schritte (Datenpunkte, MQTT, Modbus):
   [docs/konzept-dauerbetrieb.md](docs/konzept-dauerbetrieb.md)
 
 ### Dokumentation
@@ -83,7 +91,7 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - Alles wird gespeichert (SQLite, eine Datei `mbusio.db`)
 - Deutsch und Englisch, hell/dunkel, fürs Handy angepasst
 - Kommandozeile für Skripte mit JSON-Ausgabe
-- Simulator mit 20 virtuellen Zählern und typischen Fehlern aus der Praxis
+- Simulator mit 21 virtuellen Zählern und typischen Fehlern aus der Praxis
 
 ## Hardware
 
@@ -218,8 +226,9 @@ Baudratenwechsel und Application Reset werden wie bei echten Zählern quittiert.
 ## Entwicklung
 
 ```sh
-cargo test                     # Frames, Decoder, Analyse, Scans, Adressierung, Datenbank
+cargo test                     # Frames, Decoder, Analyse, Scans, Adressierung, Datenbank, Zeitplan
 cargo run -- --port SIMULATOR
+cargo run -- --time-scale 48   # Zeitraffer für Dauertests: ein Tag in 30 Minuten
 ```
 
 Aufbau:
@@ -230,6 +239,9 @@ Aufbau:
 - `src/mbus/analyze.rs`: Telegramm-Analyse Byte für Byte
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim.rs`: Simulator, alle hinter demselben `Link`-Trait
 - `src/db.rs`: Datenbank (Projekte, Gateways, Linien, Zähler, Auslesungen, Änderungen)
+- `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
+- `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
+  bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
 - `src/web.rs`: HTTP-API; `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
 - `src/i18n.rs`: Übersetzungen der Messgrössen; UI-Texte in `web/app.js` und `web/report.js`
 
@@ -257,7 +269,7 @@ installation; the UI runs in the browser, phones included.
   and refusing meters marked; readings flagged “time unsure” without a confirmed clock
 - History per meter as chart or table, CSV; project report as PDF with changes made and open issues
 - Serial port or network gateway (`tcp://host:port`), command line with JSON output
-- Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with 20 meters
+- Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with 21 meters
 
 ```sh
 mbusio                                  # http://localhost:8080
