@@ -203,6 +203,8 @@
       <div class="row">
         <button type="submit" data-i18n="save"></button>
         <button type="button" id="mf-cancel" class="quiet" data-i18n="cancel"></button>
+        <span class="spacer"></span>
+        <button type="button" id="mf-exchange" class="quiet needs-conn" data-i18n="exchange_btn" data-i18n-title="exchange_title"></button>
       </div>
     </form>
     <p id="meters-empty" class="empty" data-i18n="meters_empty"></p>
@@ -215,7 +217,56 @@
         <tbody></tbody>
       </table>
     </div>
+    <div id="dp-picker" class="history" hidden></div>
     <div id="history" class="history" hidden></div>
+  </section>
+
+  <section class="card" id="sec-datapoints" data-tab="meters" aria-labelledby="h-dp">
+    <div class="card-head">
+      <div class="head-text">
+        <h2 id="h-dp" data-i18n="dp_title"></h2>
+        <p class="hint explain" data-i18n="dp_hint"></p>
+      </div>
+      <div class="head-actions">
+        <label class="button small quiet file-button"><span data-i18n="dp_csv_import"></span><input id="dp-import" type="file" accept=".csv,text/csv" hidden></label>
+        <a id="dp-export" class="button small quiet" data-i18n="dp_csv_export"></a>
+      </div>
+    </div>
+    <div id="dp-templates" class="dp-templates" hidden></div>
+    <div id="dp-import-preview" class="history" hidden></div>
+    <div id="dp-bulk" class="dp-bulk" hidden>
+      <span id="dp-bulk-n"></span>
+      <button type="button" class="small quiet" data-dp-bulk="on" data-i18n="dp_on"></button>
+      <button type="button" class="small quiet" data-dp-bulk="off" data-i18n="dp_off"></button>
+      <select id="dp-bulk-send" aria-label="send"></select>
+      <button type="button" class="small quiet danger" data-dp-bulk="delete" data-i18n="dp_delete"></button>
+    </div>
+    <p id="dp-empty" class="empty" data-i18n="dp_empty"></p>
+    <div class="table-wrap">
+      <table id="dp-table" hidden>
+        <thead><tr>
+          <th><input type="checkbox" id="dp-all" data-i18n-title="dp_select_all"></th>
+          <th class="num" data-i18n="th_no"></th><th data-i18n="th_dp"></th><th class="num" data-i18n="th_value"></th>
+          <th data-i18n="th_quality"></th><th data-i18n="th_send"></th><th data-i18n="th_active"></th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <form id="dp-form" class="meter-form" hidden>
+      <h3 data-i18n="dp_form_title"></h3>
+      <div class="form-grid">
+        <label class="span-2"><span data-i18n="f_name"></span> <input id="dpf-name" required></label>
+        <label><span data-i18n="f_unit"></span> <input id="dpf-unit"></label>
+        <label><span data-i18n="f_factor"></span> <input id="dpf-factor" class="mono" inputmode="decimal" required></label>
+        <label class="span-2"><span data-i18n="f_send"></span> <select id="dpf-send"></select></label>
+        <label class="check"><input type="checkbox" id="dpf-active"> <span data-i18n="f_active"></span></label>
+      </div>
+      <p class="hint" data-i18n="f_factor_hint"></p>
+      <div class="row">
+        <button type="submit" data-i18n="save"></button>
+        <button type="button" id="dpf-cancel" class="quiet" data-i18n="cancel"></button>
+      </div>
+    </form>
   </section>
 
   <section class="card" id="sec-read" data-tab="tools" aria-labelledby="h-read">

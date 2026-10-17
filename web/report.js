@@ -7,6 +7,19 @@ const TEXT = {
     print: "Drucken / Als PDF speichern",
     with_details: "Alle Messwerte anhängen",
     with_issues: "Auffälligkeiten anzeigen",
+    with_dps: "Datenpunkte anzeigen",
+    dps: "Datenpunkte",
+    th_dp: "Datenpunkt",
+    th_unit: "Einheit",
+    th_send: "Weitergabe",
+    th_active: "Aktiv",
+    send_every: "jede Auslesung",
+    send_change: "bei Änderung",
+    send_daily: "1× täglich",
+    tariff: "Tarif",
+    storage_n: "Speicher",
+    yes: "ja",
+    no: "nein",
     changes: "Durchgeführte Änderungen",
     open_issues: "Offene Auffälligkeiten",
     project: "Projekt",
@@ -67,6 +80,19 @@ const TEXT = {
     print: "Print / save as PDF",
     with_details: "Attach all readings",
     with_issues: "Show issues",
+    with_dps: "Show datapoints",
+    dps: "Datapoints",
+    th_dp: "Datapoint",
+    th_unit: "Unit",
+    th_send: "Send",
+    th_active: "Active",
+    send_every: "every reading",
+    send_change: "on change",
+    send_daily: "once a day",
+    tariff: "tariff",
+    storage_n: "storage",
+    yes: "yes",
+    no: "no",
     changes: "Changes made",
     open_issues: "Open issues",
     project: "Project",
@@ -328,6 +354,32 @@ function renderDetails() {
   );
 }
 
+/// Datenpunkte des Projekts (für den Integrator): Nummer, Name, Zähler, Wert, Einheit, Weitergabe
+function renderDps() {
+  if (!$("show-dps").checked) return "";
+  const rows = [];
+  for (const g of data.gateways)
+    for (const l of g.lines)
+      for (const e of l.meters)
+        for (const d of e.datapoints || []) rows.push({ d, m: e.meter, line: `${g.gateway.name} › ${l.line.name}` });
+  if (!rows.length) return "";
+  rows.sort((a, b) => a.d.no - b.d.no);
+  const what = (key) => {
+    const [fn, st, ta, , q] = key.split("|");
+    return [label(q), fn !== "instantaneous" ? label(fn) : "", ta !== "0" ? `${t("tariff")} ${ta}` : "", st !== "0" ? `${t("storage_n")} ${st}` : ""]
+      .filter(Boolean)
+      .join(" · ");
+  };
+  return `<h2>${t("dps")}</h2><table>
+    <thead><tr><th class="num">${t("th_no")}</th><th>${t("th_dp")}</th><th>${t("th_line")}</th><th>${t("th_unit")}</th><th>${t("th_send")}</th><th>${t("th_active")}</th></tr></thead>
+    <tbody>${rows
+      .map(
+        ({ d, m, line }) => `<tr><td class="num mono">${d.no}</td><td><b>${esc(d.name)}</b><span class="small">${esc(what(d.key))}</span></td>
+        <td>${esc(line)}<span class="small">${esc(m.meter_id || m.address)}</span></td><td>${esc(d.unit)}</td><td>${t("send_" + d.send)}</td><td>${t(d.active ? "yes" : "no")}</td></tr>`
+      )
+      .join("")}</tbody></table>`;
+}
+
 /// Änderungen am Bus (PA, Baudrate), vom Server je Linie protokolliert
 function renderChanges() {
   const list = data.changes;
@@ -354,6 +406,7 @@ function render() {
   ].filter(Boolean);
   $("meta").innerHTML = meta.map(([k, v]) => `<span>${esc(k)}: <b>${esc(v)}</b></span>`).join("");
   $("table").innerHTML = renderTable();
+  $("dps").innerHTML = renderDps();
   $("changes").innerHTML = renderChanges();
   $("details-out").innerHTML = $("details").checked && list.length ? renderDetails() : "";
   $("foot").textContent = t("foot", data.version);
@@ -367,6 +420,11 @@ async function main() {
   $("show-issues").checked = get("report_issues") !== "0";
   $("show-issues").onchange = () => {
     put("report_issues", $("show-issues").checked ? "1" : "0");
+    render();
+  };
+  $("show-dps").checked = get("report_dps") !== "0";
+  $("show-dps").onchange = () => {
+    put("report_dps", $("show-dps").checked ? "1" : "0");
     render();
   };
   $("details").onchange = () => {

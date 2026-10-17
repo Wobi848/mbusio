@@ -1,4 +1,5 @@
 mod clock;
+mod datapoint;
 mod db;
 mod export;
 mod i18n;

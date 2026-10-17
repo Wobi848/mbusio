@@ -387,6 +387,11 @@ fn finish(
         Attempt::Read(t, r, ms) => {
             save(Ok((&t, &r)), PlanOutcome::Read { ms })?;
             read = true;
+            // Meldungen der Datenpunkte (z.B. Zählerstand gesunken)
+            let notes = std::mem::take(&mut st.db.lock().unwrap().notes);
+            for n in notes {
+                note(st, n);
+            }
         }
         Attempt::Failed(e) => {
             let fails = save(Err(e.clone()), PlanOutcome::Failed)?;

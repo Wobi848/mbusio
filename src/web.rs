@@ -179,8 +179,15 @@ impl Shared {
 
     /// Auslesung speichern (Verlauf und Zählerliste der Linie); Speicherfehler nur ins Log
     pub(crate) fn record(&self, line: i64, target: &Target, result: Result<&MeterReading, String>) {
-        if let Err(e) = self.db.lock().unwrap().record(line, target, result, false) {
-            self.log.push("INFO", format!("DB: {e:#}"));
+        let notes = {
+            let mut db = self.db.lock().unwrap();
+            if let Err(e) = db.record(line, target, result, false) {
+                self.log.push("INFO", format!("DB: {e:#}"));
+            }
+            std::mem::take(&mut db.notes)
+        };
+        for n in notes {
+            self.log.push("INFO", n);
         }
     }
 }
@@ -302,6 +309,15 @@ pub fn router(state: AppState) -> Router {
         .route("/api/report", get(report))
         .route("/api/projects/{id}/plan", put(project_plan))
         .route("/api/projects/{id}/thin", put(project_thin))
+        .route("/api/datapoints", get(datapoints))
+        .route("/api/datapoints/bulk", post(datapoints_bulk))
+        .route("/api/datapoints/{id}", put(datapoint_update))
+        .route("/api/meters/{id}/values", get(meter_values))
+        .route("/api/meters/{id}/datapoints", put(meter_datapoints))
+        .route("/api/meters/{id}/exchange", post(meter_exchange))
+        .route("/api/templates/{id}", axum::routing::delete(template_delete))
+        .route("/api/projects/{id}/datapoints/csv", get(datapoints_csv))
+        .route("/api/projects/{id}/datapoints/import", post(datapoints_import))
         .route("/api/lines/{id}/plan", put(line_plan))
         .route("/api/meters/{id}/plan", put(meter_plan))
         .route("/api/time", post(set_time))
@@ -1112,7 +1128,17 @@ fn annotate_lines(st: &AppState, tree: &mut serde_json::Value) {
 async fn tree(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     let (mut projects, active) = {
         let db = st.db.lock().unwrap();
-        (serde_json::to_value(db.tree()?).unwrap_or_default(), db.active()?)
+        let mut projects = serde_json::to_value(db.tree()?).unwrap_or_default();
+        // Datenpunkte je Linie: Anzahl und ungültige
+        for p in projects.as_array_mut().into_iter().flatten() {
+            for g in p["gateways"].as_array_mut().into_iter().flatten() {
+                for l in g["lines"].as_array_mut().into_iter().flatten() {
+                    let (n, invalid) = db.dp_counts(l["id"].as_i64().unwrap_or(0))?;
+                    l["datapoints"] = json!({ "count": n, "invalid": invalid });
+                }
+            }
+        }
+        (projects, db.active()?)
     };
     annotate_lines(&st, &mut projects);
     Ok(Json(json!({ "projects": projects, "active": active })))
@@ -1194,6 +1220,161 @@ async fn meter_plan(
         db.meter(id)?.line_id
     };
     Ok(Json(json!({ "ok": true, "warnings": load_warnings(&st, None, Some(line))? })))
+}
+
+// ------------------------------------------------------------ Datenpunkte
+
+async fn datapoints(State(st): State<AppState>, headers: HeaderMap) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    let db = st.db.lock().unwrap();
+    let line = db.active_line()?.id;
+    Ok(Json(json!({ "datapoints": db.dp_list(Some(line), None)?, "templates": db.templates(line)? })))
+}
+
+/// Werte eines Zählers zur Auswahl als Datenpunkte
+async fn meter_values(State(st): State<AppState>, headers: HeaderMap, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    let lang = lang_of(&headers);
+    i18n::set(lang);
+    Ok(Json(st.db.lock().unwrap().dp_candidates(id, lang).map_err(bad_request)?))
+}
+
+#[derive(Deserialize)]
+struct TemplateOpt {
+    /// auch auf später hinzukommende Zähler anwenden
+    #[serde(default)]
+    auto: bool,
+}
+
+#[derive(Deserialize)]
+struct SelectReq {
+    keys: Vec<String>,
+    /// zusätzlich als Vorlage für alle Zähler dieses Mediums auf der Linie
+    #[serde(default)]
+    template: Option<TemplateOpt>,
+}
+
+async fn meter_datapoints(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(r): Json<SelectReq>,
+) -> ApiResult<serde_json::Value> {
+    let lang = lang_of(&headers);
+    i18n::set(lang);
+    let mut db = st.db.lock().unwrap();
+    let (added, removed) = db.dp_select(id, &r.keys, lang).map_err(bad_request)?;
+    let mut others = 0;
+    if let Some(t) = r.template {
+        let m = db.meter(id)?;
+        let Some(medium) = m.medium.clone() else {
+            return Err(bad_request(tr("Medium unbekannt, Zähler zuerst auslesen", "Medium unknown, read the meter first")));
+        };
+        others = db.template_save(m.line_id, &medium, &r.keys, t.auto, lang).map_err(bad_request)?;
+    }
+    Ok(Json(json!({ "ok": true, "added": added, "removed": removed, "others": others })))
+}
+
+async fn datapoint_update(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(d): Json<crate::datapoint::Datapoint>,
+) -> ApiResult<crate::datapoint::Datapoint> {
+    i18n::set(lang_of(&headers));
+    Ok(Json(st.db.lock().unwrap().dp_update(id, &d).map_err(bad_request)?))
+}
+
+#[derive(Deserialize)]
+struct BulkReq {
+    ids: Vec<i64>,
+    /// "on", "off", "delete", "send:every|change|daily"
+    action: String,
+}
+
+async fn datapoints_bulk(State(st): State<AppState>, Json(r): Json<BulkReq>) -> ApiResult<serde_json::Value> {
+    let n = st.db.lock().unwrap().dp_bulk(&r.ids, &r.action).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "changed": n })))
+}
+
+async fn template_delete(State(st): State<AppState>, Path(id): Path<i64>) -> ApiResult<serde_json::Value> {
+    st.db.lock().unwrap().template_delete(id)?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// Datenpunkt-Liste des Projekts als CSV (Excel), auch für den Integrator
+async fn datapoints_csv(State(st): State<AppState>, headers: HeaderMap, Query(q): Query<LangQuery>, Path(id): Path<i64>) -> Result<Response, ApiError> {
+    let lang = q.lang.as_deref().map(Lang::parse).unwrap_or_else(|| lang_of(&headers));
+    i18n::set(lang);
+    let db = st.db.lock().unwrap();
+    let name = db.project(id)?.name;
+    // BOM, damit Excel die Umlaute richtig liest
+    let body = format!("\u{feff}{}", db.dp_csv(id, lang)?);
+    let file: String = name.chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect();
+    Ok(download(body, "text/csv; charset=utf-8", &format!("mbusio-datenpunkte-{file}.csv")))
+}
+
+#[derive(Deserialize)]
+struct LangQuery {
+    #[serde(default)]
+    lang: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CsvImportReq {
+    csv: String,
+    /// false = nur zeigen, was sich ändert
+    #[serde(default)]
+    apply: bool,
+}
+
+async fn datapoints_import(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(r): Json<CsvImportReq>,
+) -> ApiResult<crate::datapoint::ImportResult> {
+    let lang = lang_of(&headers);
+    i18n::set(lang);
+    Ok(Json(st.db.lock().unwrap().dp_import(id, &r.csv, r.apply, lang).map_err(bad_request)?))
+}
+
+#[derive(Deserialize)]
+struct ExchangeReq {
+    /// Adresse des neuen Zählers (PA, ID oder Sekundäradresse)
+    address: String,
+    /// eigene Baudrate des neuen Zählers
+    #[serde(default)]
+    baud: Option<u32>,
+}
+
+/// Zähler getauscht: neuen Zähler auslesen, Zählerstände fortführen, Adresse übernehmen
+async fn meter_exchange(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(r): Json<ExchangeReq>,
+) -> ApiResult<serde_json::Value> {
+    let lang = lang_of(&headers);
+    i18n::set(lang);
+    let meter = st.db.lock().unwrap().meter(id).map_err(bad_request)?;
+    parse_target(&r.address)?;
+    let probe = Meter { address: r.address.clone(), baud: r.baud.or(meter.baud), ..Default::default() };
+    let (_, reading) = with_bus(&st, lang, move |m| {
+        let home = m.baud();
+        let res = read_listed(m, &probe, home);
+        m.set_baud(home)?;
+        res
+    })
+    .await?;
+    let (lines, notes) = {
+        let mut db = st.db.lock().unwrap();
+        let lines = db.exchange_meter(id, &r.address, &reading).map_err(bad_request)?;
+        (lines, std::mem::take(&mut db.notes))
+    };
+    for n in notes.into_iter().chain(lines.iter().cloned()) {
+        st.log.push("INFO", n);
+    }
+    Ok(Json(json!({ "ok": true, "details": lines, "reading": reading })))
 }
 
 #[derive(Deserialize)]

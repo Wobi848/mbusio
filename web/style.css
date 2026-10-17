@@ -436,9 +436,9 @@ tr.new { animation: rowIn .45s var(--ease) both; }
 
 /* Zählerliste */
 #meters-table td.wrap { white-space: normal; min-width: 120px; }
-#meters-table .name { font-weight: 600; }
-#meters-table .sub { color: var(--muted); font-size: 12px; display: block; }
-#meters-table .val { font-family: var(--mono); font-weight: 600; }
+#meters-table .name, #dp-table .name { font-weight: 600; }
+#meters-table .sub, #dp-table .sub { color: var(--muted); font-size: 12px; display: block; }
+#meters-table .val, #dp-table .val { font-family: var(--mono); font-weight: 600; }
 #meters-table .err {
   display: flex;
   align-items: center;
@@ -964,3 +964,20 @@ body:not(.show-help) .explain { display: none !important; }
   .crumb { padding: 6px 8px; }
   .topbar-inner { row-gap: 6px; }
 }
+
+/* Datenpunkte */
+.dp-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: var(--accent-soft); font-size: 13px; }
+.dp-bulk select { width: auto; }
+.dp-templates { margin: 0 0 10px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.dp-tpl { display: inline-flex; align-items: center; gap: 4px; }
+#dp-table tr.selected td { background: var(--accent-soft); }
+#dp-table input[type=checkbox] { width: 16px; height: 16px; }
+.dp-pick { display: grid; gap: 2px; margin: 8px 0 12px; }
+.dp-pick-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.dp-pick-row:hover { background: var(--sunken); }
+.dp-pick-row input, label.check input { width: 16px; height: 16px; flex: none; }
+label.check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; }
+label.check.sub-check { margin-left: 24px; }
+#meter-form .spacer { flex: 1; }
+.err-list { color: var(--err); font-size: 13px; margin: 6px 0; padding-left: 18px; }
+#dp-form h3 { margin: 0 0 8px; font-size: 14px; }

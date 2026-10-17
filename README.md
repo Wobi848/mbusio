@@ -74,8 +74,26 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
   Gerät bedienbar bleiben
 - Die Datenbank übersteht Absturz und Stromausfall (SQLite WAL, Transaktionen); nach dem Neustart
   geht es von selbst weiter
-- Konzept und nächste Schritte (Datenpunkte, MQTT, Modbus):
+- Konzept und nächste Schritte (MQTT, Modbus):
   [docs/konzept-dauerbetrieb.md](docs/konzept-dauerbetrieb.md)
+
+### Datenpunkte (was weitergegeben wird)
+
+- Je Zähler über **„Werte“** wählen, welche Werte Datenpunkte werden; der Hauptwert ist
+  vorgeschlagen. Name, Einheit und Umrechnung (z.B. Wh → kWh mit Faktor 0.001) einstellbar
+- **Vorlage:** gleiche Auswahl für alle Zähler desselben Mediums auf der Linie, auf Wunsch auch für
+  Zähler, die später dazukommen
+- **Stabile Kennung** aus der Bedeutung des Werts (Grösse, Einheit, Speicher, Tarif, Funktion),
+  nicht aus der Position im Telegramm; **stabile Nummer** je Projekt, wird nie neu vergeben
+- **Qualität** je Datenpunkt: gut, veraltet (älter als 3 Termine), gestört (Zähler antwortet
+  nicht), ungültig (Zähler meldet Fehler, oder Zählerstand gesunken)
+- **Zähler getauscht…** (beim Bearbeiten eines Zählers): neuer Zähler wird ausgelesen, die
+  Zählerstände laufen nahtlos weiter (alter Endstand → neuer Anfangsstand), steht im Bericht
+- Mehrere markieren und gemeinsam aktiv/inaktiv schalten, Weitergabe setzen oder löschen
+- **CSV** exportieren, in Excel bearbeiten und wieder importieren; mbusio zeigt vorher, was sich
+  ändert, und übernimmt erst nach Bestätigung. Die Liste dient auch als Unterlage für den
+  Integrator; im Bericht gibt es eine Seite „Datenpunkte“
+- Weitergabe je Datenpunkt (jede Auslesung, bei Änderung, 1× täglich) wirkt ab MQTT/Modbus
 
 ### Dokumentation
 
@@ -240,6 +258,7 @@ Aufbau:
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim.rs`: Simulator, alle hinter demselben `Link`-Trait
 - `src/db.rs`: Datenbank (Projekte, Gateways, Linien, Zähler, Auslesungen, Änderungen)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
+- `src/datapoint.rs`: Datenpunkte, Qualität, Plausibilität, Zählertausch, Vorlagen, CSV
 - `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
   bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
 - `src/web.rs`: HTTP-API; `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
@@ -267,6 +286,9 @@ installation; the UI runs in the browser, phones included.
 - Read plan per project, line or meter (off, monthly, daily, hourly, every 15 min; off by default),
   each line on its own connection, manual work always first; missed terms caught up once, faulty
   and refusing meters marked; readings flagged “time unsure” without a confirmed clock
+- Datapoints: choose per meter which values are passed on (templates per medium, stable keys and
+  numbers, quality, “counter decreased” check, meter replacement with continuous counters, CSV
+  export/import with preview)
 - History per meter as chart or table, CSV; project report as PDF with changes made and open issues
 - Serial port or network gateway (`tcp://host:port`), command line with JSON output
 - Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with 21 meters

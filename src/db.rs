@@ -260,12 +260,12 @@ fn same_meter(a: &Target, b: &Target) -> bool {
     }
 }
 
-fn listed(m: &Meter, target: &Target) -> bool {
+pub(crate) fn listed(m: &Meter, target: &Target) -> bool {
     Target::parse(&m.address).is_ok_and(|t| same_meter(&t, target))
 }
 
 /// Wichtigster Wert für die Übersicht: aktueller Zählerstand (Energie, Volumen, HKV) vor allem anderen.
-fn main_value(r: &MeterReading) -> Option<&crate::mbus::decode::Record> {
+pub(crate) fn main_value(r: &MeterReading) -> Option<&crate::mbus::decode::Record> {
     let current = || {
         r.records
             .iter()
@@ -319,11 +319,13 @@ impl ReadingRow {
 // ---------------------------------------------------------------- Datenbank
 
 pub struct Db {
-    conn: Connection,
+    pub(crate) conn: Connection,
     path: Option<PathBuf>,
     /// Speicher fast voll: keine neuen Auslesungen mehr speichern (Zählerliste wird weiter
     /// aktualisiert), damit die Datenbank intakt und das Gerät bedienbar bleibt
     pub readings_paused: bool,
+    /// Meldungen beim Speichern (z.B. Zählerstand gesunken); der Aufrufer schreibt sie ins Protokoll
+    pub notes: Vec<String>,
 }
 
 const SCHEMA: &str = "
@@ -467,6 +469,7 @@ impl Db {
             conn,
             path: Some(path),
             readings_paused: false,
+            notes: Vec::new(),
         };
         db.init()?;
         db.import_legacy(dir)?;
@@ -480,6 +483,7 @@ impl Db {
             conn: Connection::open_in_memory()?,
             path: None,
             readings_paused: false,
+            notes: Vec::new(),
         };
         db.init()?;
         Ok(db)
@@ -564,6 +568,14 @@ impl Db {
             // Verlauf ausdünnen: nach so vielen Tagen nur noch ein Wert pro Tag (NULL = alles behalten)
             self.conn.execute_batch("ALTER TABLE projects ADD COLUMN thin_days INTEGER")?;
         }
+        if !has(&self.conn, "projects", "dp_next")? {
+            // Datenpunkte (Phase 2): stabile Nummern je Projekt, Vorlagen einmal je neuem Zähler
+            self.conn.execute_batch(
+                "ALTER TABLE projects ADD COLUMN dp_next INTEGER NOT NULL DEFAULT 1;
+                 ALTER TABLE meters ADD COLUMN templated INTEGER NOT NULL DEFAULT 0;",
+            )?;
+        }
+        self.conn.execute_batch(crate::datapoint::SCHEMA)?;
         if !has(&self.conn, "projects", "plan")? {
             // Ausleseplan (Dauerbetrieb); Standard überall aus
             self.conn.execute_batch(
@@ -1157,6 +1169,10 @@ impl Db {
                         h.map(|h| h.secondary_address.clone())
                     ],
                 )?;
+                // Datenpunkte nachführen (auch wenn der Speicher voll ist, dann ohne Verlauf)
+                let notes = self.dp_apply(m.id, r, !self.readings_paused)?;
+                self.notes.extend(notes);
+                self.dp_auto_templates(m.id)?;
             }
             Err(e) => {
                 if let Some(m) = meter {
@@ -1200,6 +1216,11 @@ impl Db {
     }
 
     pub fn clear_readings(&mut self, line_id: i64) -> Result<usize> {
+        self.conn.execute(
+            "DELETE FROM dp_values WHERE dp IN (SELECT datapoints.id FROM datapoints
+               JOIN meters ON meters.id = datapoints.meter_id WHERE meters.line_id = ?1)",
+            [line_id],
+        )?;
         Ok(self.conn.execute("DELETE FROM readings WHERE line_id = ?1", [line_id])?)
     }
 
@@ -1246,6 +1267,15 @@ impl Db {
                  AND id NOT IN (
                    SELECT MIN(id) FROM readings WHERE timestamp < ?2 AND meter IS NOT NULL
                    GROUP BY meter, substr(timestamp, 1, 10))",
+                params![project, cutoff],
+            )?;
+            // Werte der Datenpunkte genauso: erster Wert je Datenpunkt und Tag
+            self.conn.execute(
+                "DELETE FROM dp_values WHERE time < ?2 AND dp IN (
+                   SELECT datapoints.id FROM datapoints JOIN meters ON meters.id = datapoints.meter_id
+                   JOIN lines ON lines.id = meters.line_id JOIN gateways ON gateways.id = lines.gateway_id
+                   WHERE gateways.project_id = ?1)
+                 AND rowid NOT IN (SELECT MIN(rowid) FROM dp_values WHERE time < ?2 GROUP BY dp, substr(time, 1, 10))",
                 params![project, cutoff],
             )?;
         }
@@ -1538,9 +1568,11 @@ impl Db {
                 let mut meters = Vec::new();
                 for m in self.meters(l.line.id)? {
                     let reading = self.latest_reading(m.id)?;
-                    meters.push(json!({ "meter": m, "reading": reading }));
+                    let datapoints = self.dp_export(m.id)?;
+                    meters.push(json!({ "meter": m, "reading": reading, "datapoints": datapoints }));
                 }
-                lines.push(json!({ "line": l.line, "meters": meters, "issues": l.issues }));
+                let templates = self.templates(l.line.id)?;
+                lines.push(json!({ "line": l.line, "meters": meters, "issues": l.issues, "templates": templates }));
             }
             gateways.push(json!({ "gateway": g.gateway, "lines": lines }));
         }
@@ -1592,6 +1624,9 @@ impl Db {
         )?;
         let pid = tx.last_insert_rowid();
         let mut line_ids = std::collections::HashMap::new();
+        // Datenpunkte und Vorlagen nach dem Commit (brauchen die Hilfsfunktionen von Db)
+        let mut dps: Vec<(i64, crate::datapoint::Datapoint)> = Vec::new();
+        let mut templates: Vec<(i64, crate::datapoint::Template)> = Vec::new();
         for g in v["gateways"].as_array().into_iter().flatten() {
             let gw: Gateway = serde_json::from_value(g["gateway"].clone())?;
             tx.execute(
@@ -1610,6 +1645,11 @@ impl Db {
                 )?;
                 let lid = tx.last_insert_rowid();
                 line_ids.insert(format!("{} · {}", gw.name, line.name), lid);
+                for t in l["templates"].as_array().into_iter().flatten() {
+                    if let Ok(t) = serde_json::from_value(t.clone()) {
+                        templates.push((lid, t));
+                    }
+                }
                 for entry in l["meters"].as_array().into_iter().flatten() {
                     let m: Meter = serde_json::from_value(entry["meter"].clone())?;
                     tx.execute(
@@ -1623,6 +1663,11 @@ impl Db {
                         ],
                     )?;
                     let mid = tx.last_insert_rowid();
+                    for d in entry["datapoints"].as_array().into_iter().flatten() {
+                        if let Ok(d) = serde_json::from_value(d.clone()) {
+                            dps.push((mid, d));
+                        }
+                    }
                     if let Some(r) = entry.get("reading").filter(|r| !r.is_null()) {
                         tx.execute(
                             "INSERT INTO readings (line_id, meter, timestamp, data) VALUES (?1, ?2, ?3, ?4)",
@@ -1642,6 +1687,15 @@ impl Db {
             }
         }
         tx.commit()?;
+        self.tx(|db| {
+            for (mid, d) in &dps {
+                db.dp_import_one(*mid, d)?;
+            }
+            for (lid, t) in &templates {
+                db.template_import(*lid, t)?;
+            }
+            db.dp_fix_next(pid)
+        })?;
         Ok(pid)
     }
 }

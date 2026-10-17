@@ -1,6 +1,6 @@
 # Konzept: Dauerbetrieb und Datenweitergabe
 
-Stand: 17.10.2026 · Status: **Phase 1 umgesetzt**, offen ist nur der Dauertest auf echter Hardware (siehe 5.1) · gilt für mbusio ab Version 0.5
+Stand: 17.10.2026 · Status: **Phase 1 und 2 umgesetzt**; offen ist der Dauertest auf echter Hardware (siehe 5.1), nächste Phase MQTT · gilt für mbusio ab Version 0.5
 
 Dieses Dokument beschreibt, wie mbusio vom Inbetriebnahme-Werkzeug zu einem Dienst wird, der
 Zähler dauerhaft und zuverlässig ausliest und die Werte weitergibt. Umgesetzt wird in Phasen;
@@ -356,6 +356,30 @@ Kern ist eine **Zuordnungstabelle**: Zeilen sind Datenpunkte, Spalten die Ausgä
   festgehalten, der Datenpunkt bleibt derselbe (für Leitsystem und Verlauf durchgehend).
 - Export der Datenpunkt-Liste als CSV (für den Integrator: Name, Einheit, Kennung, Adresse im
   jeweiligen Protokoll).
+
+### 6.3 Umsetzung (17.10.2026)
+
+- **Kennung** = `Funktion|Speicher|Tarif|Untereinheit|Grösse|Einheit` (aus DIF/VIF decodiert),
+  z.B. `instantaneous|0|0|0|energy|kWh`.
+- **Nummer** je Projekt fortlaufend, nie wieder vergeben (auch nicht nach Löschen); Grundlage für
+  Modbus-Register und BACnet-Objekte. Bleibt beim Projekt-Export/-Import erhalten.
+- **Werte** je Datenpunkt zusätzlich in einer schlanken Tabelle (Zeit UTC, Wert, gültig) für
+  Verlauf und Weitergabe; „Verlauf ausdünnen“ gilt auch für sie.
+- **Ungültig** wenn das Statusbyte des Zählers einen Fehler meldet (0x08/0x10) oder ein
+  Zählerstand (Energie, Volumen, Masse, HKV; aktuell, Speicher 0) sinkt. Verglichen wird mit dem
+  letzten plausiblen Wert; Meldung im Protokoll, Zähler in der Projekt-Karte markiert.
+- **Veraltet** nur mit eingeschaltetem Ausleseplan (älter als 3 Intervalle). **Gestört**: mit Plan
+  nach 3 verpassten Terminen, ohne Plan wenn die letzte Auslesung fehlschlug.
+- **Zählertausch:** der neue Zähler wird an der neuen Adresse ausgelesen; je Zählerstand wird die
+  Differenz (alter Endstand − neuer Anfangsstand) dauerhaft addiert. Ins Änderungsprotokoll
+  (Bericht) mit beiden Ständen.
+- **Vorlagen** je Linie und Medium; „auch für neue Zähler“ wirkt einmal je Zähler nach seiner
+  ersten Auslesung (ein bewusst gelöschter Datenpunkt kommt nicht wieder).
+- **CSV:** Semikolon, UTF-8 mit BOM (Excel), feste Spaltenreihenfolge
+  `Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv`. Zuordnung über die Nr;
+  Zeilen ohne Nr legen neue Datenpunkte an; fehlende Zeilen löschen nichts. Bei einem Fehler wird
+  nichts übernommen.
+- Die Zuordnung zu Ausgängen (Spalten MQTT, Modbus …) kommt mit den Ausgängen selbst.
 
 ## 7. Phasen 3–5: Ausgänge (Skizze)
 
