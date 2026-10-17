@@ -57,6 +57,10 @@ const UI = {
     warn_title: "Auffälligkeiten",
     warn_dup_pa: (pa, b, ids) => `PA ${pa} (${b} Bd): ${ids.length} Zähler – ${ids.join(", ")}`,
     warn_dup_id: (id, n) => `ID ${id}: ${n} Zähler`,
+    warn_collision_pa: (pa, b) => `PA ${pa} (${b} Bd): mehrere Zähler antworten gleichzeitig – Empfehlung: Sekundärscan, dann „PA ändern“`,
+    warn_collision_id: (id) => `ID ${id}: mehrere Zähler mit derselben ID – mit dem Primärscan einzeln finden`,
+    warn_no_data: (n) => `${n} Zähler antworten, liefern aber keine brauchbaren Daten – Telegramm-Log prüfen`,
+    start_secondary: "Sekundärscan starten",
     warn_other_baud: (n, b) => `${n} Zähler nicht auf der eingestellten Baudrate (${b} Bd) – Empfehlung: „Baudrate ändern“`,
     warn_fix_hint: "„PA ändern“ sucht eine freie Adresse auf dem Bus und trägt sie mit der ID unter „Zähler einstellen“ ein.",
     job_done: (k, n) => `${k} fertig · ${n} Treffer`,
@@ -248,6 +252,10 @@ const UI = {
     warn_title: "Issues",
     warn_dup_pa: (pa, b, ids) => `PA ${pa} (${b} Bd): ${ids.length} meters – ${ids.join(", ")}`,
     warn_dup_id: (id, n) => `ID ${id}: ${n} meters`,
+    warn_collision_pa: (pa, b) => `PA ${pa} (${b} Bd): several meters answer at once – recommendation: secondary scan, then “Change PA”`,
+    warn_collision_id: (id) => `ID ${id}: several meters with the same ID – find them one by one with the primary scan`,
+    warn_no_data: (n) => `${n} meter(s) answer but deliver no usable data – check the telegram log`,
+    start_secondary: "Start secondary scan",
     warn_other_baud: (n, b) => `${n} meter(s) not at the configured baud rate (${b} Bd) – recommendation: “Change baud rate”`,
     warn_fix_hint: "“Change PA” finds a free address on the bus and fills it in with the ID under “Configure meter”.",
     job_done: (k, n) => `${k} done · ${n} hits`,
@@ -714,12 +722,23 @@ function renderHitsWarn(hits, a) {
     items.push(t("warn_dup_pa", pa, baud, list.map((i) => hits[i].id || "?")));
   }
   for (const [id, list] of a.dupId) items.push(t("warn_dup_id", id, list.length));
+  const collisions = hits.filter((h) => h.status === "collision");
+  for (const h of collisions) {
+    if (h.primary_address != null) items.push(t("warn_collision_pa", h.primary_address, h.baud));
+    else if (h.id) items.push(t("warn_collision_id", h.id));
+  }
+  const noData = hits.filter((h) => h.status === "no_data").length;
+  if (noData) items.push(t("warn_no_data", noData));
   if (a.otherBaud) items.push(t("warn_other_baud", a.otherBaud, connBaud));
   const el = $("hits-warn");
   el.hidden = items.length === 0;
   el.innerHTML = items.length
     ? `<b>⚠ ${esc(t("warn_title"))}</b><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` +
-      (a.dupPa.size ? `<p class="hint">${esc(t("warn_fix_hint"))}</p>` : "")
+      (a.dupPa.size ? `<p class="hint">${esc(t("warn_fix_hint"))}</p>` : "") +
+      // Kollision im Primärscan: der Sekundärscan findet die Zähler einzeln
+      (collisions.some((h) => h.primary_address != null)
+        ? `<button class="small cta needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>`
+        : "")
     : "";
 }
 
@@ -825,6 +844,10 @@ function meterFromHit(h) {
     medium: h.medium,
   };
 }
+
+$("hits-warn").addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-start-secondary]")) $("scan-secondary").click();
+});
 
 $("remember-all").onclick = () =>
   guarded($("remember-all"), async () => {

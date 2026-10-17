@@ -751,3 +751,9 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 .callout p { margin: 0 0 6px; }
 .callout.done { background: var(--ok-soft); color: var(--ok); }
 .callout a { font-weight: 600; text-decoration: none; }
+.hits-warn button { margin-top: 8px; }
+/* Trefferliste: Status-Chips und Knöpfe umbrechen statt die Tabelle zu verbreitern */
+#hits td:nth-last-child(2) { white-space: normal; }
+#hits td:nth-last-child(2) .chip { margin: 2px 4px 2px 0; }
+#hits td:last-child .actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
+#hits td:last-child { white-space: normal; min-width: 150px; }

@@ -436,8 +436,14 @@ impl Master {
         let mut raw_frames = Vec::new();
         for (ci, data, bytes) in frames {
             raw_frames.push(hex(&bytes));
-            let t = decode_rsp_ud(ci, &data)
-                .map_err(|e| anyhow!("{}: {e}", tr("Decodierfehler", "Decoding error")))?;
+            let t = decode_rsp_ud(ci, &data).map_err(|e| {
+                // Fehlertelegramm: der Zähler meldet selbst einen Fehler, kein Decodierproblem
+                if ci == 0x70 {
+                    anyhow!("{e}")
+                } else {
+                    anyhow!("{}: {e}", tr("Decodierfehler", "Decoding error"))
+                }
+            })?;
             if header.is_none() {
                 header = t.header;
             }
@@ -777,10 +783,11 @@ impl Master {
     fn probe_header(&mut self, address: u8) -> Result<(Option<u8>, Option<Header>, bool)> {
         match self.request_data(address, false) {
             Ok((primary, frames)) => {
-                let header = frames
-                    .first()
-                    .and_then(|(ci, data, _)| decode_rsp_ud(*ci, data).ok()?.header);
-                Ok((Some(primary), header, true))
+                // brauchbar nur, wenn sich die Antwort decodieren lässt (nicht z.B. "beschäftigt")
+                let decoded = frames.first().map(|(ci, data, _)| decode_rsp_ud(*ci, data));
+                let usable = matches!(decoded, Some(Ok(_)));
+                let header = decoded.and_then(|d| d.ok()?.header);
+                Ok((Some(primary), header, usable))
             }
             Err(_) => Ok((None, None, false)),
         }
@@ -875,14 +882,32 @@ impl Master {
                 Reply::Frame(_) => {
                     // ACKs mehrerer Slaves überlagern sich oft fehlerfrei: Daten anfordern prüft das
                     match self.request_data(ADDR_SELECTED, false) {
+                        // ohne lesbaren Datenkopf weitersuchen, bis die ID vollständig ist
+                        Ok((_, frames))
+                            if pos < 7
+                                && frames
+                                    .first()
+                                    .and_then(|(ci, d, _)| decode_rsp_ud(*ci, d).ok()?.header)
+                                    .is_none() =>
+                        {
+                            true
+                        }
                         Ok((primary, frames)) => {
-                            let header = frames
-                                .first()
-                                .and_then(|(ci, d, _)| decode_rsp_ud(*ci, d).ok()?.header);
+                            let decoded = frames.first().map(|(ci, d, _)| decode_rsp_ud(*ci, d));
+                            let status = if matches!(decoded, Some(Ok(_))) {
+                                "ok"
+                            } else {
+                                "no_data"
+                            };
+                            let header = decoded.and_then(|d| d.ok()?.header);
                             let mut hit =
-                                ScanHit::from_header(Some(primary), header.as_ref(), "ok");
+                                ScanHit::from_header(Some(primary), header.as_ref(), status);
                             if hit.secondary_address.is_none() {
                                 hit.secondary_address = Some(m.clone());
+                            }
+                            // ohne lesbaren Datenkopf: ID ist aus der Suche bekannt, sofern vollständig
+                            if hit.id.is_none() && !m[..8].contains('F') {
+                                hit.id = Some(m[..8].to_string());
                             }
                             progress(Progress::Hit(hit));
                             false
@@ -907,8 +932,10 @@ impl Master {
                         return Ok(());
                     }
                 } else {
+                    // gleiche ID bei mehreren Zählern: nur über Hersteller/Version/Medium trennbar
                     progress(Progress::Hit(ScanHit {
                         secondary_address: Some(m.clone()),
+                        id: Some(m[..8].to_string()),
                         ..ScanHit::from_header(None, None, "collision")
                     }));
                 }

@@ -11,6 +11,14 @@
 //! - Adr. 6: Wasserzähler, ID 60000006, läuft mit 9600 Bd (bzw. 2400 Bd, wenn mit 9600 verbunden)
 //! - Adr. 7: alter Wärmezähler, ID 70000007, feste Datenstruktur (CI 73)
 //!
+//! Typische Fehler aus der Praxis:
+//! - Adr. 9: uralter Wasserzähler, ID 90000009, läuft mit 300 Bd
+//! - Adr. 10: zwei Wärmezähler (ID 10000010 und 10000011) mit derselben Primäradresse
+//! - Adr. 11: Zähler meldet "beschäftigt" (Fehlertelegramm CI 70), ID 11000011
+//! - Adr. 12: Zähler antwortet mit falscher Adresse (13), ID 12000012
+//! - Adr. 14 und 15: zwei Zähler mit derselben ID 77777777, verschiedene Hersteller
+//! - Adr. 16: Wackelkontakt, antwortet nur auf jedes zweite Telegramm, ID 16000016
+//!
 //! Zähler hören nur Telegramme mit ihrer eigenen Baudrate. Baudratenwechsel (CI B8..BF)
 //! und Application Reset (CI 50) werden quittiert.
 
@@ -33,6 +41,12 @@ enum Fault {
     None,
     Checksum,
     Truncated,
+    /// antwortet mit Fehlertelegramm CI 70 "beschäftigt"
+    Busy,
+    /// trägt die falsche Primäradresse ins Antworttelegramm ein
+    WrongAddress,
+    /// Wackelkontakt: jedes zweite Telegramm kommt nicht an
+    Flaky,
 }
 
 #[derive(Clone, Copy)]
@@ -55,6 +69,8 @@ struct Slave {
     access: u8,
     baud: u32,
     selected: bool,
+    /// für Fault::Flaky: hat das letzte Telegramm gehört
+    heard_last: bool,
     part: usize,
     last_fcb: Option<bool>,
 }
@@ -72,6 +88,8 @@ impl Slave {
             access: 0,
             baud: 0,
             selected: false,
+            // so beginnt der Wackelkontakt mit einem verpassten Telegramm
+            heard_last: true,
             part: 0,
             last_fcb: None,
         }
@@ -85,6 +103,15 @@ impl Slave {
     fn with_fault(mut self, fault: Fault) -> Self {
         self.fault = fault;
         self
+    }
+
+    /// Kommt das Telegramm an? Bei Wackelkontakt nur jedes zweite.
+    fn hears(&mut self) -> bool {
+        if self.fault != Fault::Flaky {
+            return true;
+        }
+        self.heard_last = !self.heard_last;
+        self.heard_last
     }
 
     fn reset(&mut self) {
@@ -120,6 +147,15 @@ impl Slave {
         }
         self.last_fcb = Some(fcb);
         self.access = self.access.wrapping_add(1);
+
+        if self.fault == Fault::Busy {
+            return Frame::Long {
+                control: 0x08,
+                address: self.primary,
+                ci: 0x70,
+                data: vec![0x08],
+            };
+        }
 
         if let Model::Fixed = self.model {
             // ID, Zugriffsnummer, Status (BCD, aktuelle Werte), Medium/Einheiten, 2 Zähler
@@ -186,7 +222,11 @@ impl Slave {
         }
         Frame::Long {
             control: 0x08,
-            address: self.primary,
+            address: if self.fault == Fault::WrongAddress {
+                self.primary.wrapping_add(1)
+            } else {
+                self.primary
+            },
             ci: 0x72,
             data: d,
         }
@@ -243,9 +283,21 @@ impl Simulator {
                 .with_fault(Fault::Truncated),
             Slave::new(7, 0x7000_0007, "", 0, 0x04, Model::Fixed),
         ];
+        slaves.extend([
+            Slave::new(10, 0x1000_0010, "KAM", 0x1B, 0x04, Model::Heat),
+            Slave::new(10, 0x1000_0011, "KAM", 0x1B, 0x04, Model::Heat),
+            Slave::new(11, 0x1100_0011, "SEN", 0x10, 0x07, Model::Water).with_fault(Fault::Busy),
+            Slave::new(12, 0x1200_0012, "SEN", 0x10, 0x07, Model::Water)
+                .with_fault(Fault::WrongAddress),
+            Slave::new(14, 0x7777_7777, "SEN", 0x10, 0x07, Model::Water),
+            Slave::new(15, 0x7777_7777, "ZRI", 0x01, 0x07, Model::Water),
+            Slave::new(16, 0x1600_0016, "SEN", 0x10, 0x16, Model::Water).with_fault(Fault::Flaky),
+        ]);
         for s in &mut slaves {
             s.baud = baud;
         }
+        let slow = if baud == 300 { 2400 } else { 300 };
+        slaves.push(Slave::new(9, 0x9000_0009, "SEN", 0x01, 0x07, Model::Water).with_baud(slow));
         let other = if baud == 9600 { 2400 } else { 9600 };
         slaves.push(Slave::new(6, 0x6000_0006, "SEN", 0x10, 0x07, Model::Water).with_baud(other));
         Simulator {
@@ -276,6 +328,9 @@ impl Simulator {
             Frame::Short { control, address } if control == frame::C_SND_NKE => {
                 for k in self.targets(address) {
                     let s = &mut self.slaves[k];
+                    if !s.hears() {
+                        continue;
+                    }
                     s.reset();
                     if address == ADDR_SELECTED || address == ADDR_BROADCAST {
                         s.selected = false;
@@ -287,9 +342,12 @@ impl Simulator {
                 let fcb = control & frame::FCB != 0;
                 for k in self.targets(address) {
                     let slave = &mut self.slaves[k];
+                    if !slave.hears() {
+                        continue;
+                    }
                     let mut bytes = slave.rsp_ud(fcb, elapsed).encode();
                     match slave.fault {
-                        Fault::None => {}
+                        Fault::None | Fault::Busy | Fault::WrongAddress | Fault::Flaky => {}
                         Fault::Checksum => {
                             let n = bytes.len();
                             bytes[n - 2] ^= 0x5A;
@@ -308,7 +366,7 @@ impl Simulator {
                 if ci == CI_SELECT && address == ADDR_SELECTED {
                     let baud = self.baud;
                     for s in self.slaves.iter_mut().filter(|s| s.baud == baud) {
-                        s.selected = s.matches(&data);
+                        s.selected = s.matches(&data) && s.hears();
                         if s.selected {
                             s.reset();
                             replies.push(vec![ACK]);
@@ -480,6 +538,11 @@ mod tests {
         assert_eq!(
             hits,
             vec![
+                ("10000010".into(), "ok"),
+                ("10000011".into(), "ok"),
+                // meldet "beschäftigt": gefunden, ID aus der Suche, aber keine Daten
+                ("11000011".into(), "no_data"),
+                ("12000012".into(), "ok"),
                 ("12345678".into(), "ok"),
                 ("12345699".into(), "ok"),
                 ("30000001".into(), "ok"),
@@ -488,8 +551,11 @@ mod tests {
                 ("50000005".into(), "no_data"),
                 ("55500011".into(), "ok"),
                 ("70000007".into(), "ok"),
-                // 60000006 läuft mit anderer Baudrate und fehlt deshalb
+                // gleiche ID bei zwei Zählern: über die ID allein nicht trennbar
+                ("77777777".into(), "collision"),
                 ("87654321".into(), "ok"),
+                // 60000006 und 90000009 laufen mit anderer Baudrate, 16000016 (Wackelkontakt)
+                // verpasst die Selektion: alle drei fehlen
             ]
         );
     }
@@ -535,9 +601,9 @@ mod tests {
     #[test]
     fn set_address_via_secondary() {
         let mut m = master();
-        m.set_primary(&Target::parse("12345699").unwrap(), 10)
+        m.set_primary(&Target::parse("12345699").unwrap(), 20)
             .unwrap();
-        let r = m.read_meter(&Target::Primary(10)).unwrap();
+        let r = m.read_meter(&Target::Primary(20)).unwrap();
         assert_eq!(r.header.unwrap().id, "12345699");
         // Adresse 0 ist jetzt eindeutig
         let r = m.read_meter(&Target::Primary(0)).unwrap();
@@ -636,10 +702,11 @@ mod tests {
     #[test]
     fn bus_bauds_finds_mixed_bus() {
         let mut m = master();
-        assert_eq!(m.bus_bauds(&[]).unwrap(), vec![2400, 9600]);
+        // 300: uralter Zähler auf Adresse 9
+        assert_eq!(m.bus_bauds(&[]).unwrap(), vec![300, 2400, 9600]);
         // einzeln abfragen wie die Oberfläche
         assert_eq!(m.bus_bauds(&[2400]).unwrap(), vec![2400]);
-        assert_eq!(m.bus_bauds(&[300]).unwrap(), Vec::<u32>::new());
+        assert_eq!(m.bus_bauds(&[4800]).unwrap(), Vec::<u32>::new());
         assert!(m.bus_bauds(&[1234]).is_err());
         assert_eq!(m.baud(), 9600);
     }
@@ -714,6 +781,38 @@ mod tests {
         m.set_baud(2400).unwrap();
         m.switch_baud(&Target::Primary(6), 9600).unwrap();
         m.set_baud(9600).unwrap();
-        assert_eq!(m.bus_bauds(&[]).unwrap(), vec![9600]);
+        assert_eq!(m.bus_bauds(&[]).unwrap(), vec![300, 9600]);
+    }
+
+    #[test]
+    fn faulty_meters_are_reported() {
+        let mut m = master();
+        let e = m.read_meter(&Target::Primary(11)).unwrap_err().to_string();
+        assert!(e.contains("beschäftigt") && !e.contains("Decodier"), "{e}");
+        let mut st = Vec::new();
+        m.scan_primary(11, 11, 0, &mut |p| {
+            if let Progress::Hit(h) = p {
+                st.push(h.status);
+            }
+            true
+        })
+        .unwrap();
+        assert_eq!(st, vec!["no_data"]);
+        let e = m.read_meter(&Target::Primary(12)).unwrap_err().to_string();
+        assert!(e.contains("13"), "{e}");
+        // zwei Zähler auf Adresse 10: Kollision
+        assert!(m.read_meter(&Target::Primary(10)).is_err());
+        // Wackelkontakt: ohne Wiederholung übersehen, mit Wiederholung gefunden
+        let mut found = |retries| {
+            let mut n = 0;
+            m.scan_primary(16, 16, retries, &mut |p| {
+                n += matches!(p, Progress::Hit(_)) as u32;
+                true
+            })
+            .unwrap();
+            n
+        };
+        assert_eq!(found(0), 0);
+        assert_eq!(found(1), 1);
     }
 }
