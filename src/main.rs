@@ -42,6 +42,9 @@ struct Args {
     /// Ports auflisten und beenden
     #[arg(long)]
     list_ports: bool,
+    /// Browser beim Start nicht öffnen
+    #[arg(long)]
+    no_browser: bool,
     /// Befehle ohne Weboberfläche: Ergebnis als JSON auf stdout
     #[command(subcommand)]
     cmd: Option<Cmd>,
@@ -147,19 +150,62 @@ fn run_command(args: &Args, cmd: &Cmd) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Öffnet die Weboberfläche im Standardbrowser. Auf Linux nur mit grafischer Oberfläche,
+/// damit ein Raspberry Pi als Dienst nichts zu starten versucht.
+fn open_browser(url: &str) {
+    let result = if cfg!(windows) {
+        // "start" ist ein Befehl von cmd; der leere Titel verhindert, dass die URL als Titel gilt
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .spawn()
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(url).spawn()
+    } else if std::env::var_os("DISPLAY").is_some() || std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        std::process::Command::new("xdg-open").arg(url).spawn()
+    } else {
+        return;
+    };
+    if result.is_err() {
+        println!("Browser: {url}");
+    }
+}
+
+/// Beim Doppelklick unter Windows schliesst sich das Fenster sofort; Fehler sonst unsichtbar.
+fn wait_for_enter() {
+    if cfg!(windows) {
+        println!("Enter = Ende / quit");
+        let _ = std::io::stdin().read_line(&mut String::new());
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    if args.list_ports || args.cmd.is_some() {
+        return run_cli(&args);
+    }
+    if let Err(e) = serve(&args).await {
+        eprintln!("Fehler / error: {e:#}");
+        wait_for_enter();
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+fn run_cli(args: &Args) -> anyhow::Result<()> {
     if args.list_ports {
         for p in link::list_ports() {
             println!("{p}");
         }
         return Ok(());
     }
-    if let Some(cmd) = &args.cmd {
-        return run_command(&args, cmd);
+    match &args.cmd {
+        Some(cmd) => run_command(args, cmd),
+        None => Ok(()),
     }
+}
 
+async fn serve(args: &Args) -> anyhow::Result<()> {
     let data_dir = args.data_dir.clone().unwrap_or_else(project::default_dir);
     let meters = project::Store::load(&data_dir)?;
     let state: web::AppState = Arc::new(web::Shared::new(
@@ -172,14 +218,22 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let host = if args.lan { "0.0.0.0" } else { "127.0.0.1" };
-    let listener = tokio::net::TcpListener::bind((host, args.http_port))
-        .await
-        .with_context(|| format!("Cannot listen on {host}:{}", args.http_port))?;
+    let listener = match tokio::net::TcpListener::bind((host, args.http_port)).await {
+        Ok(l) => l,
+        // Port belegt: meist läuft mbusio schon (zweiter Doppelklick), dann nur den Browser öffnen
+        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !args.no_browser => {
+            let url = format!("http://localhost:{}", args.http_port);
+            println!("Port {} belegt, mbusio läuft vermutlich schon / already running: {url}", args.http_port);
+            open_browser(&url);
+            return Ok(());
+        }
+        Err(e) => {
+            return Err(e).with_context(|| format!("Cannot listen on {host}:{}", args.http_port))
+        }
+    };
     let port = listener.local_addr()?.port();
-    println!(
-        "mbusio {}: http://localhost:{port}",
-        env!("CARGO_PKG_VERSION")
-    );
+    let url = format!("http://localhost:{port}");
+    println!("mbusio {}: {url}", env!("CARGO_PKG_VERSION"));
     println!("Zählerliste / meter list: {}", data_dir.join("meters.json").display());
     if args.lan {
         println!("LAN: http://<IP>:{port}");
@@ -188,6 +242,9 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     println!("Ctrl+C = Ende / quit");
+    if !args.no_browser {
+        open_browser(&url);
+    }
 
     axum::serve(listener, web::router(state))
         .with_graceful_shutdown(async {

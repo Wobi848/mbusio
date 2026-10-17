@@ -54,8 +54,19 @@ pub struct Store {
     meters: Vec<Meter>,
 }
 
-/// Standardordner: %APPDATA%\mbusio, $XDG_DATA_HOME/mbusio oder ~/.local/share/mbusio
+/// Name des Ordners neben dem Programm für den portablen Betrieb
+pub const PORTABLE_DIR: &str = "mbusio-data";
+
+/// Portabel: Ordner `mbusio-data` neben der .exe, falls vorhanden (USB-Stick, ohne Installation).
+/// Sonst %APPDATA%\mbusio, $XDG_DATA_HOME/mbusio oder ~/.local/share/mbusio.
 pub fn default_dir() -> PathBuf {
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| Some(exe.parent()?.join(PORTABLE_DIR)))
+        .filter(|d| d.is_dir())
+    {
+        return dir;
+    }
     let env = |k| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
     if cfg!(windows) {
         if let Some(p) = env("APPDATA") {

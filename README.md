@@ -34,6 +34,19 @@ Wandler über seine serielle Schnittstelle an.
 ## Starten
 
 Fertige Binärdateien gibt es unter *Actions → Build → Artifacts* bzw. bei Releases (Tag `v*`).
+Beim Start öffnet sich die Weboberfläche im Browser (abschalten mit `--no-browser`).
+
+### Windows ohne Adminrechte
+
+mbusio braucht keine Installation: `mbusio-windows-x86_64.exe` in einen beliebigen Ordner legen
+und doppelklicken. Bei der SmartScreen-Warnung „Weitere Informationen → Trotzdem ausführen“.
+Ein zweiter Doppelklick öffnet nur wieder den Browser.
+
+- **Portabel** (z.B. USB-Stick): Ordner `mbusio-data` neben die .exe legen, dann wird die
+  Zählerliste dort gespeichert statt in `%APPDATA%\mbusio`.
+- Der **Treiber des USB-M-Bus-Masters** braucht beim Installieren Adminrechte. Viele Adapter
+  (FTDI) erkennt Windows von selbst; im Geräte-Manager muss ein COM-Port erscheinen.
+- Ohne `--lan` starten, sonst verlangt die Windows-Firewall eine Freigabe (Adminrechte).
 
 ```sh
 mbusio                      # Weboberfläche auf http://localhost:8080
@@ -48,7 +61,8 @@ mbusio --list-ports
 | `--lan` | auch aus dem Netzwerk erreichbar (sonst nur `127.0.0.1`) |
 | `--token GEHEIM` | Zugriffsschlüssel für die API, empfohlen mit `--lan` (auch per `MBUSIO_TOKEN`) |
 | `--port`, `--baud` | beim Start direkt verbinden (`--port tcp://IP:Port` für Netzwerk-Gateways) |
-| `--data-dir` | Ordner für die Zählerliste `meters.json` (Standard: `~/.local/share/mbusio`, unter Windows `%APPDATA%\mbusio`) |
+| `--data-dir` | Ordner für die Zählerliste `meters.json` (Standard: `mbusio-data` neben dem Programm, falls vorhanden, sonst `~/.local/share/mbusio` bzw. `%APPDATA%\mbusio`) |
+| `--no-browser` | Browser beim Start nicht öffnen |
 | `--timeout-ms` | Antwort-Timeout, `0` = automatisch aus der Baudrate |
 
 ### Kommandozeile
@@ -164,3 +178,6 @@ mbusio --lan --token SECRET             # reachable from the LAN, protected by a
 ```
 
 You need an M-Bus level converter / master. A plain USB-serial adapter is not enough.
+
+No installation or admin rights needed: the .exe runs from any folder and opens the browser.
+Put a folder `mbusio-data` next to it to keep the meter list there (portable, e.g. USB stick).
