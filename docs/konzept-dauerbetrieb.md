@@ -1,6 +1,6 @@
 # Konzept: Dauerbetrieb und Datenweitergabe
 
-Stand: 17.10.2026 · Status: **Phase 1 und 2 umgesetzt**; offen ist der Dauertest auf echter Hardware (siehe 5.1), nächste Phase MQTT · gilt für mbusio ab Version 0.5
+Stand: 17.10.2026 · Status: **Phase 1–3 umgesetzt** (Auslesen, Datenpunkte, MQTT); offen ist der Dauertest auf echter Hardware (siehe 5.1), nächste Phase Modbus TCP · gilt für mbusio ab Version 0.5
 
 Dieses Dokument beschreibt, wie mbusio vom Inbetriebnahme-Werkzeug zu einem Dienst wird, der
 Zähler dauerhaft und zuverlässig ausliest und die Werte weitergibt. Umgesetzt wird in Phasen;
@@ -394,6 +394,21 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 - **Zwischenspeicher:** Ist der Broker nicht erreichbar, werden Werte (begrenzt, z.B. 7 Tage)
   gesammelt und in richtiger Reihenfolge nachgeliefert.
 - Benutzername/Passwort und TLS.
+
+**Umsetzung (17.10.2026):**
+- Eigener schlanker Client für MQTT 3.1.1 (CONNECT, PUBLISH QoS 1, PUBACK, SUBSCRIBE, PING) statt
+  einer grossen Bibliothek: jede Nachricht wird erst nach der Bestätigung des Brokers aus der
+  Warteschlange (Tabelle `mqtt_queue`) gelöscht. TLS mit rustls (ring), Zertifikate von Mozilla
+  oder eigenes CA-Zertifikat; „nicht prüfen“ für selbst signierte Broker.
+- Ein Broker für die ganze Installation (nicht je Projekt), weil die Zugangsdaten nicht in den
+  Projekt-Export gehören. Die Zuordnung (MQTT je Datenpunkt, Topic) gehört zum Projekt.
+- Topic relativ zum Basis-Topic gespeichert; wird beim Einschalten aus Projekt, Gateway, Linie,
+  Zähler und Grösse (sprachunabhängig, z.B. `energy-t1`) erzeugt und danach nicht mehr verändert.
+- Grenzen der Warteschlange: 7 Tage oder 200 000 Nachrichten (älteste zuerst verworfen, mit
+  Meldung). Gesammelt wird nur, solange MQTT eingeschaltet ist.
+- Uhrzeit vom Leitsystem über `<basis>/time`; eine Systemquelle (NTP, Uhr-Modul) hat Vorrang.
+- Getestet gegen einen echten Broker: retained, Nachlieferung in Reihenfolge nach Broker-Ausfall,
+  Last Will bei `kill -9`, Uhrzeit per MQTT, Passwort nirgends sichtbar.
 
 ### Phase 4: Modbus TCP (Server)
 - mbusio stellt die Datenpunkte als **Eingangsregister** bereit (nur lesen).

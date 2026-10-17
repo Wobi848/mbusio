@@ -55,6 +55,8 @@ pub struct Shared {
     pub(crate) db: Mutex<Db>,
     /// Zeitplan der geplanten Auslesungen
     pub(crate) planner: Planner,
+    /// MQTT-Ausgang: Zustand und Version der Einstellungen
+    pub(crate) mqtt: crate::mqtt::MqttState,
     /// Optionaler Zugriffsschlüssel für die API (bei LAN-Zugriff)
     token: Option<String>,
 }
@@ -72,6 +74,7 @@ impl Shared {
             log: Arc::default(),
             db: Mutex::new(db),
             planner,
+            mqtt: Default::default(),
             token,
         }
     }
@@ -309,6 +312,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/report", get(report))
         .route("/api/projects/{id}/plan", put(project_plan))
         .route("/api/projects/{id}/thin", put(project_thin))
+        .route("/api/mqtt", get(mqtt_get).put(mqtt_put))
         .route("/api/datapoints", get(datapoints))
         .route("/api/datapoints/bulk", post(datapoints_bulk))
         .route("/api/datapoints/{id}", put(datapoint_update))
@@ -382,6 +386,7 @@ async fn status(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
         "held": st.planner.is_held(active.line.id),
         "time": clock::state(),
         "disk": st.planner.disk(),
+        "mqtt": mqtt_status(&st, &db),
         "now": clock::stamp(),
     })))
 }
@@ -1281,7 +1286,10 @@ async fn datapoint_update(
     Json(d): Json<crate::datapoint::Datapoint>,
 ) -> ApiResult<crate::datapoint::Datapoint> {
     i18n::set(lang_of(&headers));
-    Ok(Json(st.db.lock().unwrap().dp_update(id, &d).map_err(bad_request)?))
+    let mut db = st.db.lock().unwrap();
+    let d = db.dp_update(id, &d).map_err(bad_request)?;
+    db.mqtt_refresh()?;
+    Ok(Json(d))
 }
 
 #[derive(Deserialize)]
@@ -1292,7 +1300,12 @@ struct BulkReq {
 }
 
 async fn datapoints_bulk(State(st): State<AppState>, Json(r): Json<BulkReq>) -> ApiResult<serde_json::Value> {
-    let n = st.db.lock().unwrap().dp_bulk(&r.ids, &r.action).map_err(bad_request)?;
+    let n = {
+        let mut db = st.db.lock().unwrap();
+        let n = db.dp_bulk(&r.ids, &r.action).map_err(bad_request)?;
+        db.mqtt_refresh()?;
+        n
+    };
     Ok(Json(json!({ "ok": true, "changed": n })))
 }
 
@@ -1375,6 +1388,48 @@ async fn meter_exchange(
         st.log.push("INFO", n);
     }
     Ok(Json(json!({ "ok": true, "details": lines, "reading": reading })))
+}
+
+// ------------------------------------------------------------ MQTT
+
+fn mqtt_status(st: &AppState, db: &Db) -> crate::mqtt::MqttStatus {
+    let mut s = st.mqtt.status.lock().unwrap().clone();
+    s.queued = db.mqtt_queued().unwrap_or(0);
+    s
+}
+
+/// Einstellungen ohne Passwort, dazu ob eines gespeichert ist, und der Zustand
+async fn mqtt_get(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let db = st.db.lock().unwrap();
+    let mut c = db.mqtt_config();
+    let has_password = !c.password.is_empty();
+    c.password.clear();
+    Ok(Json(json!({ "config": c, "has_password": has_password, "status": mqtt_status(&st, &db) })))
+}
+
+#[derive(Deserialize)]
+struct MqttReq {
+    config: crate::mqtt::MqttConfig,
+    /// None = gespeichertes Passwort behalten, "" = löschen
+    #[serde(default)]
+    password: Option<String>,
+}
+
+async fn mqtt_put(State(st): State<AppState>, headers: HeaderMap, Json(r): Json<MqttReq>) -> ApiResult<serde_json::Value> {
+    i18n::set(lang_of(&headers));
+    {
+        let mut db = st.db.lock().unwrap();
+        let mut c = r.config;
+        c.password = r.password.unwrap_or_else(|| db.mqtt_config().password);
+        c.host = c.host.trim().to_string();
+        c.base = c.base.trim().trim_end_matches('/').to_string();
+        db.set_mqtt_config(&c).map_err(bad_request)?;
+        // eingeschaltet: aktuelle Werte gleich vormerken
+        db.mqtt_refresh()?;
+    }
+    st.mqtt.version.fetch_add(1, Ordering::SeqCst);
+    st.log.push("INFO", tr("MQTT-Einstellungen gespeichert", "MQTT settings saved"));
+    Ok(Json(json!({ "ok": true })))
 }
 
 #[derive(Deserialize)]

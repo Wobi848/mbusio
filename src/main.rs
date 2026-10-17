@@ -6,6 +6,7 @@ mod i18n;
 mod line;
 mod link;
 mod mbus;
+mod mqtt;
 mod plan;
 mod scheduler;
 mod sim;
@@ -314,6 +315,10 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
     std::thread::Builder::new()
         .name("plan".into())
         .spawn(move || scheduler::run(st))?;
+    let st = state.clone();
+    std::thread::Builder::new()
+        .name("mqtt".into())
+        .spawn(move || mqtt::run(st))?;
     let port = listener.local_addr()?.port();
     let url = format!("http://localhost:{port}");
     println!("mbusio {}: {url}", env!("CARGO_PKG_VERSION"));

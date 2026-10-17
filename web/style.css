@@ -981,3 +981,10 @@ label.check.sub-check { margin-left: 24px; }
 #meter-form .spacer { flex: 1; }
 .err-list { color: var(--err); font-size: 13px; margin: 6px 0; padding-left: 18px; }
 #dp-form h3 { margin: 0 0 8px; font-size: 14px; }
+
+/* MQTT */
+#h-mqtt .chip { margin-left: 8px; vertical-align: middle; font-size: 11px; }
+.mqtt-ca { margin: 10px 0; font-size: 13px; }
+.mqtt-ca textarea { width: 100%; margin-top: 6px; font-size: 12px; }
+#mqtt-example { word-break: break-all; }
+#busbar-mqtt { text-decoration: none; }

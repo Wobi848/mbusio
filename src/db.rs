@@ -326,6 +326,8 @@ pub struct Db {
     pub readings_paused: bool,
     /// Meldungen beim Speichern (z.B. Zählerstand gesunken); der Aufrufer schreibt sie ins Protokoll
     pub notes: Vec<String>,
+    /// MQTT eingeschaltet: nur dann Werte für den Broker vormerken
+    pub mqtt_enabled: bool,
 }
 
 const SCHEMA: &str = "
@@ -470,6 +472,7 @@ impl Db {
             path: Some(path),
             readings_paused: false,
             notes: Vec::new(),
+            mqtt_enabled: false,
         };
         db.init()?;
         db.import_legacy(dir)?;
@@ -484,6 +487,7 @@ impl Db {
             path: None,
             readings_paused: false,
             notes: Vec::new(),
+            mqtt_enabled: false,
         };
         db.init()?;
         Ok(db)
@@ -509,6 +513,7 @@ impl Db {
         self.conn.execute_batch(SCHEMA)?;
         self.migrate()?;
         self.ensure_active()?;
+        self.mqtt_enabled = self.mqtt_config().enabled;
         Ok(())
     }
 
@@ -576,6 +581,21 @@ impl Db {
             )?;
         }
         self.conn.execute_batch(crate::datapoint::SCHEMA)?;
+        self.conn.execute_batch(crate::mqtt::SCHEMA)?;
+        if !has(&self.conn, "datapoints", "last_unsure")? {
+            // letzter Wert mit unsicherer Uhrzeit gelesen (für die Weitergabe)
+            self.conn.execute_batch("ALTER TABLE datapoints ADD COLUMN last_unsure INTEGER NOT NULL DEFAULT 0")?;
+        }
+        if !has(&self.conn, "datapoints", "mqtt")? {
+            // MQTT (Phase 3): je Datenpunkt ein/aus, eigenes Topic, zuletzt Gesendetes
+            self.conn.execute_batch(
+                "ALTER TABLE datapoints ADD COLUMN mqtt INTEGER NOT NULL DEFAULT 0;
+                 ALTER TABLE datapoints ADD COLUMN mqtt_topic TEXT;
+                 ALTER TABLE datapoints ADD COLUMN mqtt_value REAL;
+                 ALTER TABLE datapoints ADD COLUMN mqtt_quality TEXT;
+                 ALTER TABLE datapoints ADD COLUMN mqtt_day TEXT;",
+            )?;
+        }
         if !has(&self.conn, "projects", "plan")? {
             // Ausleseplan (Dauerbetrieb); Standard überall aus
             self.conn.execute_batch(
@@ -608,6 +628,15 @@ impl Db {
         self.import_meters(line, old.meters)?;
         std::fs::rename(&file, dir.join("meters.json.imported"))?;
         Ok(())
+    }
+
+    /// Einstellung lesen (z.B. "mqtt"); Fehler gelten als nicht gesetzt
+    pub(crate) fn meta_value(&self, key: &str) -> Option<String> {
+        self.meta(key).ok().flatten()
+    }
+
+    pub(crate) fn set_meta_value(&self, key: &str, value: &str) -> Result<()> {
+        self.set_meta(key, value)
     }
 
     fn meta(&self, key: &str) -> Result<Option<String>> {

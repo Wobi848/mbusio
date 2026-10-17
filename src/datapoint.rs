@@ -123,6 +123,12 @@ pub struct Datapoint {
     pub send: String,
     #[serde(default = "yes")]
     pub active: bool,
+    /// per MQTT weitergeben
+    #[serde(default)]
+    pub mqtt: bool,
+    /// Topic relativ zum Basis-Topic; wird beim Einschalten einmal erzeugt und bleibt dann stabil
+    #[serde(default)]
+    pub mqtt_topic: Option<String>,
     #[serde(default, skip_deserializing)]
     pub last_value: Option<f64>,
     #[serde(default, skip_deserializing)]
@@ -159,6 +165,8 @@ fn dp_of(r: &Row) -> rusqlite::Result<Datapoint> {
         shift: r.get("shift")?,
         send: r.get("send")?,
         active: r.get("active")?,
+        mqtt: r.get("mqtt")?,
+        mqtt_topic: r.get("mqtt_topic")?,
         last_value: r.get("last_value")?,
         last_time: r.get("last_time")?,
         last_utc: r.get("last_utc")?,
@@ -269,8 +277,8 @@ pub fn check(key: &str, value: f64, last_good: Option<f64>, status: u8) -> Optio
 // ---------------------------------------------------------------- CSV
 
 /// Spalten der CSV (Reihenfolge fest, Kopfzeile wird beim Import übersprungen)
-const CSV_HEAD_DE: &str = "Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv";
-const CSV_HEAD_EN: &str = "No;Line;Meter;Address;Key;Name;Unit;Factor;Send;Active";
+const CSV_HEAD_DE: &str = "Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv;MQTT;Topic";
+const CSV_HEAD_EN: &str = "No;Line;Meter;Address;Key;Name;Unit;Factor;Send;Active;MQTT;Topic";
 
 fn csv_field(s: &str) -> String {
     if s.contains([';', '"', '\n']) {
@@ -312,6 +320,46 @@ fn parse_bool(s: &str) -> Option<bool> {
         "0" | "nein" | "no" | "" | "false" | "falsch" | "-" => Some(false),
         _ => None,
     }
+}
+
+/// Nutzlast für MQTT: Wert, Einheit, Zeit (UTC), Qualität, Name, Nummer
+fn mqtt_payload(d: &Datapoint, value: f64, quality: &str, utc: i64, time_unsure: bool) -> String {
+    let time = chrono::DateTime::from_timestamp(utc, 0)
+        .map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+        .unwrap_or_default();
+    let mut v = json!({
+        "value": value,
+        "unit": d.unit,
+        "time": time,
+        "quality": quality,
+        "name": d.name,
+        "no": d.no,
+    });
+    if time_unsure {
+        v["time_unsure"] = json!(true);
+    }
+    v.to_string()
+}
+
+/// Letzter Teil des Topics aus der Kennung, sprachunabhängig: energy, energy-t1, volume-s2, power-max
+fn key_slug(key: &str) -> String {
+    let Some(p) = parts(key) else {
+        return crate::mqtt::slug(key);
+    };
+    let mut s = p.quantity.replace('_', "-");
+    if p.function != "instantaneous" {
+        s += &format!("-{}", &p.function[..p.function.len().min(3)]);
+    }
+    if p.tariff != "0" {
+        s += &format!("-t{}", p.tariff);
+    }
+    if p.storage != "0" {
+        s += &format!("-s{}", p.storage);
+    }
+    if p.subunit != "0" {
+        s += &format!("-u{}", p.subunit);
+    }
+    s
 }
 
 /// Ergebnis eines CSV-Imports (Vorschau oder ausgeführt)
@@ -461,6 +509,10 @@ impl Db {
             bail!(tr("Faktor muss eine Zahl ungleich 0 sein", "Factor must be a non-zero number"));
         }
         let old = self.dp(id)?;
+        let topic = d.mqtt_topic.as_deref().map(str::trim).filter(|t| !t.is_empty());
+        if let Some(t) = topic {
+            crate::mqtt::check_topic(t)?;
+        }
         // anderer Faktor: gespeicherte Werte passen nicht mehr zum Vergleich
         let reset = old.factor != d.factor;
         self.conn.execute(
@@ -475,6 +527,16 @@ impl Db {
                 self.dp_apply(old.meter_id, &r, false)?;
             }
         }
+        // eigenes Topic übernehmen; geändertes Topic: aktuellen Wert dort neu senden
+        if topic != old.mqtt_topic.as_deref() {
+            self.conn.execute(
+                "UPDATE datapoints SET mqtt_topic = ?2, mqtt_quality = NULL WHERE id = ?1",
+                params![id, topic],
+            )?;
+        }
+        if d.mqtt != old.mqtt || (d.mqtt && topic.is_none()) {
+            self.dp_set_mqtt(id, d.mqtt)?;
+        }
         self.dp(id)
     }
 
@@ -487,6 +549,10 @@ impl Db {
                     "on" => db.conn.execute("UPDATE datapoints SET active = 1 WHERE id = ?1", [id])?,
                     "off" => db.conn.execute("UPDATE datapoints SET active = 0 WHERE id = ?1", [id])?,
                     "delete" => db.conn.execute("DELETE FROM datapoints WHERE id = ?1", [id])?,
+                    "mqtt:on" | "mqtt:off" => {
+                        db.dp_set_mqtt(*id, action == "mqtt:on")?;
+                        1
+                    }
                     a => match a.strip_prefix("send:").filter(|m| SEND_MODES.contains(m)) {
                         Some(m) => db.conn.execute("UPDATE datapoints SET send = ?2 WHERE id = ?1", params![id, m])?,
                         None => bail!("action: {a}"),
@@ -495,6 +561,90 @@ impl Db {
             }
             Ok(n)
         })
+    }
+
+    /// Vorgeschlagenes Topic (relativ): projekt/gateway-linie/zaehler/wert; eindeutig gemacht
+    fn dp_default_topic(&self, id: i64) -> Result<String> {
+        let (project, gateway, line, meter_id): (String, String, String, i64) = self.conn.query_row(
+            "SELECT projects.name, gateways.name, lines.name, meters.id FROM datapoints
+             JOIN meters ON meters.id = datapoints.meter_id JOIN lines ON lines.id = meters.line_id
+             JOIN gateways ON gateways.id = lines.gateway_id JOIN projects ON projects.id = gateways.project_id
+             WHERE datapoints.id = ?1",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )?;
+        let d = self.dp(id)?;
+        let m = self.meter(meter_id)?;
+        let slug = crate::mqtt::slug;
+        let topic = format!(
+            "{}/{}-{}/{}/{}",
+            slug(&project),
+            slug(&gateway),
+            slug(&line),
+            slug(&meter_label(&m)),
+            key_slug(&d.key)
+        );
+        let taken: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM datapoints WHERE mqtt_topic = ?1 AND id != ?2)",
+            params![topic, id],
+            |r| r.get(0),
+        )?;
+        Ok(if taken { format!("{topic}-{}", d.no) } else { topic })
+    }
+
+    /// MQTT für einen Datenpunkt ein- oder ausschalten; beim Einschalten Topic erzeugen (falls
+    /// noch keins) und den aktuellen Wert beim nächsten Durchgang senden
+    fn dp_set_mqtt(&mut self, id: i64, on: bool) -> Result<()> {
+        if on {
+            let d = self.dp(id)?;
+            let topic = match d.mqtt_topic {
+                Some(t) => t,
+                None => self.dp_default_topic(id)?,
+            };
+            self.conn.execute(
+                "UPDATE datapoints SET mqtt = 1, mqtt_topic = ?2, mqtt_quality = NULL WHERE id = ?1",
+                params![id, topic],
+            )?;
+        } else {
+            self.conn.execute("UPDATE datapoints SET mqtt = 0 WHERE id = ?1", [id])?;
+        }
+        Ok(())
+    }
+
+    /// Qualität an den Broker melden, wenn sie sich geändert hat (z.B. Zähler antwortet nicht
+    /// mehr, Wert veraltet), oder ein Datenpunkt gerade eingeschaltet wurde. Liefert die Anzahl.
+    pub fn mqtt_refresh(&mut self) -> Result<usize> {
+        if !self.mqtt_enabled {
+            return Ok(0);
+        }
+        let mut n = 0;
+        for v in self.dp_list(None, None)? {
+            let d: Datapoint = serde_json::from_value(v.clone())?;
+            let quality = v["quality"].as_str().unwrap_or("none");
+            let id = v["id"].as_i64().unwrap_or(0);
+            let (Some(value), Some(topic)) = (v["last_value"].as_f64(), d.mqtt_topic.as_deref()) else {
+                continue;
+            };
+            if !d.mqtt || !d.active || quality == "none" {
+                continue;
+            }
+            let (sent, unsure): (Option<String>, bool) = self.conn.query_row(
+                "SELECT mqtt_quality, last_unsure FROM datapoints WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )?;
+            if sent.as_deref() == Some(quality) {
+                continue;
+            }
+            let utc = v["last_utc"].as_i64().unwrap_or_else(crate::clock::utc_secs);
+            self.mqtt_enqueue(topic, &mqtt_payload(&d, value, quality, utc, unsure))?;
+            self.conn.execute(
+                "UPDATE datapoints SET mqtt_quality = ?2, mqtt_value = ?3 WHERE id = ?1",
+                params![id, quality, value],
+            )?;
+            n += 1;
+        }
+        Ok(n)
     }
 
     /// Neue Auslesung auf die Datenpunkte des Zählers übertragen. `store`: Wert auch in die
@@ -522,15 +672,41 @@ impl Db {
             }
             let good = if invalid.is_none() { Some(value) } else { dp.last_good };
             self.conn.execute(
-                "UPDATE datapoints SET last_value = ?2, last_time = ?3, last_utc = ?4, last_good = ?5, invalid = ?6
+                "UPDATE datapoints SET last_value = ?2, last_time = ?3, last_utc = ?4, last_good = ?5, invalid = ?6,
+                   last_unsure = ?7
                  WHERE id = ?1",
-                params![dp.id, value, r.timestamp, utc, good, invalid],
+                params![dp.id, value, r.timestamp, utc, good, invalid, r.time_unsure],
             )?;
             if store {
                 self.conn.execute(
                     "INSERT INTO dp_values (dp, utc, time, value, valid) VALUES (?1, ?2, ?3, ?4, ?5)",
                     params![dp.id, utc, r.timestamp, value, invalid.is_none()],
                 )?;
+            }
+            // weitergeben, wie beim Datenpunkt eingestellt (auch bei vollem Speicher)
+            if self.mqtt_enabled && dp.mqtt && dp.active && store {
+                if let Some(topic) = dp.mqtt_topic.as_deref() {
+                    let quality = if invalid.is_some() { "invalid" } else { "good" };
+                    let (sent_value, sent_quality, sent_day): (Option<f64>, Option<String>, Option<String>) = self.conn.query_row(
+                        "SELECT mqtt_value, mqtt_quality, mqtt_day FROM datapoints WHERE id = ?1",
+                        [dp.id],
+                        |x| Ok((x.get(0)?, x.get(1)?, x.get(2)?)),
+                    )?;
+                    let day = r.timestamp.get(..10).unwrap_or("").to_string();
+                    let quality_changed = sent_quality.as_deref() != Some(quality);
+                    let send = match dp.send.as_str() {
+                        "change" => sent_value != Some(value) || quality_changed,
+                        "daily" => sent_day.as_deref() != Some(day.as_str()) || quality_changed,
+                        _ => true,
+                    };
+                    if send {
+                        self.mqtt_enqueue(topic, &mqtt_payload(&dp, value, quality, utc, r.time_unsure))?;
+                        self.conn.execute(
+                            "UPDATE datapoints SET mqtt_value = ?2, mqtt_quality = ?3, mqtt_day = ?4 WHERE id = ?1",
+                            params![dp.id, value, quality, day],
+                        )?;
+                    }
+                }
             }
         }
         Ok(notes)
@@ -749,6 +925,8 @@ impl Db {
                 v["factor"].as_f64().unwrap_or(1.0).to_string(),
                 s("send"),
                 (if v["active"].as_bool().unwrap_or(false) { "1" } else { "0" }).to_string(),
+                (if v["mqtt"].as_bool().unwrap_or(false) { "1" } else { "0" }).to_string(),
+                s("mqtt_topic"),
             ];
             out.push_str(&row.iter().map(|x| csv_field(x)).collect::<Vec<_>>().join(";"));
             out.push_str("\r\n");
@@ -796,6 +974,19 @@ impl Db {
                 res.errors.push(format!("{} {row}: {} „{}“", tr("Zeile", "Row"), tr("Aktiv ungültig (1/0)", "invalid active (1/0)"), col(9)));
                 continue;
             };
+            // Spalten MQTT und Topic gibt es erst ab Phase 3; fehlen sie, bleibt es wie es ist
+            let has_mqtt = c.len() >= 12;
+            let Some(mqtt) = (if has_mqtt { parse_bool(&col(10)) } else { Some(false) }) else {
+                res.errors.push(format!("{} {row}: {} „{}“", tr("Zeile", "Row"), tr("MQTT ungültig (1/0)", "invalid MQTT (1/0)"), col(10)));
+                continue;
+            };
+            let topic = Some(col(11)).filter(|t| has_mqtt && !t.is_empty());
+            if let Some(t) = &topic {
+                if let Err(e) = crate::mqtt::check_topic(t) {
+                    res.errors.push(format!("{} {row}: {e:#}", tr("Zeile", "Row")));
+                    continue;
+                }
+            }
             let wanted = Datapoint {
                 key: col(4),
                 name: col(5),
@@ -803,6 +994,8 @@ impl Db {
                 factor,
                 send,
                 active,
+                mqtt,
+                mqtt_topic: topic,
                 ..Default::default()
             };
             if wanted.name.is_empty() {
@@ -816,12 +1009,29 @@ impl Db {
                         continue;
                     };
                     let mut changed = false;
-                    let fields: [(&str, String, String); 5] = [
+                    // ohne MQTT-Spalten die bisherigen Werte behalten
+                    let wanted = if has_mqtt {
+                        wanted
+                    } else {
+                        Datapoint {
+                            mqtt: old["mqtt"].as_bool().unwrap_or(false),
+                            mqtt_topic: old["mqtt_topic"].as_str().map(String::from),
+                            ..wanted
+                        }
+                    };
+                    let fields: [(&str, String, String); 7] = [
                         ("name", old["name"].as_str().unwrap_or("").into(), wanted.name.clone()),
                         ("unit", old["unit"].as_str().unwrap_or("").into(), wanted.unit.clone()),
                         ("factor", old["factor"].as_f64().unwrap_or(1.0).to_string(), wanted.factor.to_string()),
                         ("send", old["send"].as_str().unwrap_or("").into(), wanted.send.clone()),
                         ("active", (old["active"].as_bool().unwrap_or(false) as u8).to_string(), (wanted.active as u8).to_string()),
+                        ("mqtt", (old["mqtt"].as_bool().unwrap_or(false) as u8).to_string(), (wanted.mqtt as u8).to_string()),
+                        // leeres Topic in der Datei: vorhandenes behalten
+                        (
+                            "topic",
+                            old["mqtt_topic"].as_str().unwrap_or("").into(),
+                            wanted.mqtt_topic.clone().or_else(|| old["mqtt_topic"].as_str().map(String::from)).unwrap_or_default(),
+                        ),
                     ];
                     for (field, a, b) in fields {
                         if a != b {
@@ -902,8 +1112,8 @@ impl Db {
             return Ok(());
         }
         self.conn.execute(
-            "INSERT OR IGNORE INTO datapoints (meter_id, no, key, name, unit, factor, shift, send, active)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            "INSERT OR IGNORE INTO datapoints (meter_id, no, key, name, unit, factor, shift, send, active, mqtt, mqtt_topic)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 meter_id,
                 d.no,
@@ -913,7 +1123,9 @@ impl Db {
                 d.factor,
                 d.shift,
                 if SEND_MODES.contains(&d.send.as_str()) { d.send.as_str() } else { "every" },
-                d.active
+                d.active,
+                d.mqtt,
+                d.mqtt_topic.as_deref().filter(|t| crate::mqtt::check_topic(t).is_ok())
             ],
         )?;
         Ok(())
@@ -1118,6 +1330,51 @@ mod tests {
         assert_eq!(list[0]["key"], ENERGY);
         let new_line = db.tree().unwrap().into_iter().find(|p| p.project.id == pid).unwrap().gateways[0].lines[0].line.id;
         assert_eq!(db.templates(new_line).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn mqtt_queue_follows_send_mode_and_quality() {
+        let (mut db, line, mid, r) = setup();
+        db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
+        let id = db.dp_by_meter(mid).unwrap()[0].id;
+        db.mqtt_enabled = true;
+        db.dp_bulk(&[id], "mqtt:on").unwrap();
+        let topic = db.dp(id).unwrap().mqtt_topic.unwrap();
+        assert_eq!(topic, "standard/gateway-1-linie-1/whg-1/energy");
+        // eingeschaltet: aktueller Wert einmal, dann nicht mehr
+        assert_eq!(db.mqtt_refresh().unwrap(), 1);
+        assert_eq!(db.mqtt_refresh().unwrap(), 0);
+        let q = |db: &Db| db.mqtt_peek(1000).unwrap();
+        let first: Value = serde_json::from_str(&q(&db)[0].2).unwrap();
+        assert_eq!(first["value"], 123456.0);
+        assert_eq!(first["quality"], "good");
+        assert_eq!(first["unit"], "kWh");
+        // jede Auslesung
+        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123457.0)), false).unwrap();
+        assert_eq!(q(&db).len(), 2);
+        // nur bei Änderung: gleicher Wert nicht, anderer schon
+        let mut d = db.dp(id).unwrap();
+        d.send = "change".into();
+        db.dp_update(id, &d).unwrap();
+        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123457.0)), false).unwrap();
+        assert_eq!(q(&db).len(), 2);
+        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123458.0)), false).unwrap();
+        assert_eq!(q(&db).len(), 3);
+        // gesunken: geht als ungültig raus
+        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 1.0)), false).unwrap();
+        let last: Value = serde_json::from_str(&q(&db).last().unwrap().2).unwrap();
+        assert_eq!(last["quality"], "invalid");
+        // Zähler umbenannt: Topic bleibt
+        let mut m = db.meter(mid).unwrap();
+        m.name = "Wohnung 1".into();
+        db.update_meter(mid, m).unwrap();
+        assert_eq!(db.dp(id).unwrap().mqtt_topic.unwrap(), topic);
+        // MQTT aus: nichts mehr
+        db.mqtt_enabled = false;
+        db.record(line, &Target::Primary(1), Ok(&with_energy(&r, 123460.0)), false).unwrap();
+        assert_eq!(q(&db).len(), 4);
+        // zweiter Datenpunkt mit gleichem Vorschlag bekommt ein eindeutiges Topic
+        assert!(crate::mqtt::check_topic(&topic).is_ok());
     }
 
     #[test]

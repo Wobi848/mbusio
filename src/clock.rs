@@ -148,6 +148,15 @@ pub fn check_system() -> Option<String> {
 /// Uhrzeit vom Gerät des Benutzers übernehmen (Millisekunden seit 1970, UTC).
 /// Liefert die Korrektur in Sekunden.
 pub fn set_from_browser(epoch_ms: i64) -> Option<f64> {
+    set_from("browser", epoch_ms)
+}
+
+/// Uhrzeit aus einer Quelle übernehmen ("browser", "mqtt"); eine echte Systemquelle (NTP,
+/// Uhr-Modul) hat Vorrang und wird nicht überschrieben
+pub fn set_from(source: &str, epoch_ms: i64) -> Option<f64> {
+    if matches!(CLOCK.lock().unwrap().state.source.as_deref(), Some("ntp" | "rtc" | "system")) {
+        return Some(0.0);
+    }
     let browser = chrono::DateTime::from_timestamp_millis(epoch_ms)?.with_timezone(&Local);
     let offset = browser.naive_local() - Local::now().naive_local();
     // unter 2 s ist Messungenauigkeit (Laufzeit der Anfrage): Systemzeit gilt dann als richtig
@@ -161,7 +170,7 @@ pub fn set_from_browser(epoch_ms: i64) -> Option<f64> {
     c.offset = offset;
     c.state = TimeState {
         confirmed: true,
-        source: Some("browser".into()),
+        source: Some(source.into()),
         since: Some(browser.format("%Y-%m-%d %H:%M:%S").to_string()),
         offset_s: secs,
     };

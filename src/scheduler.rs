@@ -181,6 +181,10 @@ fn thin(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
         }
         *last = Some(now);
     }
+    let dropped = st.db.lock().unwrap().mqtt_trim()?;
+    if dropped > 0 {
+        note(st, format!("MQTT: {dropped} {}", tr("alte Nachrichten verworfen (Broker zu lange nicht erreichbar)", "old messages dropped (broker unreachable for too long)")));
+    }
     let n = st.db.lock().unwrap().thin_readings(now)?;
     if n > 0 {
         note(st, format!("{}: {n} {}", tr("Verlauf ausgedünnt", "History thinned"), tr("Auslesungen gelöscht", "readings deleted")));
@@ -199,6 +203,10 @@ fn check_clock(st: &AppState, now: NaiveDateTime) {
         }
         drop(last);
         check_disk(st);
+        // geänderte Qualität (veraltet, gestört) an den Broker melden
+        if let Err(e) = st.db.lock().unwrap().mqtt_refresh() {
+            note(st, format!("MQTT: {e:#}"));
+        }
     } else {
         drop(last);
     }

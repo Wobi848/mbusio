@@ -89,6 +89,35 @@ const UI = {
     plan_next: (x) => `nächster ${x}`,
     plan_meters_own: (n) => `${n} Zähler mit eigenem Plan`,
     dp_title: "Datenpunkte",
+    dp_mqtt_on: "MQTT an",
+    dp_mqtt_off: "MQTT aus",
+    f_mqtt: "per MQTT weitergeben",
+    f_topic: "Topic (nach dem Basis-Topic)",
+    f_topic_ph: "wird beim Einschalten vorgeschlagen",
+    mqtt_hint:
+      "Gibt die Datenpunkte mit Häkchen „MQTT“ an einen Broker weiter (z.B. Leitsystem): ein Topic je Datenpunkt, Inhalt JSON mit Wert, Einheit, Zeit und Qualität, retained, QoS 1. Ist der Broker nicht erreichbar, sammelt mbusio die Werte bis 7 Tage und liefert sie in richtiger Reihenfolge nach.",
+    mqtt_enabled: "MQTT einschalten",
+    mqtt_host: "Broker (Adresse)",
+    mqtt_port: "Port",
+    mqtt_insecure: "Zertifikat nicht prüfen (selbst signiert)",
+    mqtt_user: "Benutzer",
+    mqtt_password: "Passwort",
+    mqtt_pass_saved: "gespeichert (leer = behalten)",
+    mqtt_client: "Client-ID",
+    mqtt_base: "Basis-Topic",
+    mqtt_time: (t) => `Uhrzeit vom Leitsystem übernehmen (Topic ${t})`,
+    mqtt_ca: "Eigenes CA-Zertifikat (PEM, optional)",
+    mqtt_example: (topic) => `Beispiel: ${topic} → {"value": 123456, "unit": "kWh", "time": "…Z", "quality": "good", …} · Status: online/offline`,
+    mqtt_off: "aus",
+    mqtt_connecting: "verbindet …",
+    mqtt_connected: "verbunden",
+    mqtt_error: "getrennt",
+    mqtt_state_off: "MQTT ist aus. Es wird nichts gesammelt oder gesendet.",
+    mqtt_state_connected: (b, since, sent, q) => `Verbunden mit ${b} seit ${since} · ${sent} gesendet · ${q} in der Warteschlange`,
+    mqtt_state_connecting: (b) => `Verbinde mit ${b} …`,
+    mqtt_state_error: (b, e, q) => `Keine Verbindung zu ${b}: ${e} · ${q} Nachrichten warten und werden nachgeliefert`,
+    mqtt_saved: "MQTT-Einstellungen gespeichert",
+    mqtt_busbar: (q) => `MQTT getrennt` + (q ? ` · ${q} warten` : ""),
     dp_hint:
       "Die Werte, die weitergegeben werden (sobald MQTT oder Modbus eingerichtet ist). Auswahl je Zähler über „Werte“ in der Zählerliste. Die Kennung beruht auf der Bedeutung des Werts und bleibt stabil, auch wenn ein Zähler nach einem Update die Reihenfolge ändert.",
     dp_empty: "Noch keine Datenpunkte. In der Zählerliste bei einem Zähler auf „Werte“ klicken und auswählen.",
@@ -541,6 +570,35 @@ const UI = {
     plan_next: (x) => `next ${x}`,
     plan_meters_own: (n) => `${n} meters with their own plan`,
     dp_title: "Datapoints",
+    dp_mqtt_on: "MQTT on",
+    dp_mqtt_off: "MQTT off",
+    f_mqtt: "send via MQTT",
+    f_topic: "Topic (after the base topic)",
+    f_topic_ph: "suggested when switched on",
+    mqtt_hint:
+      "Passes the datapoints ticked “MQTT” to a broker (e.g. a building management system): one topic per datapoint, JSON with value, unit, time and quality, retained, QoS 1. If the broker is unreachable, mbusio collects the values for up to 7 days and delivers them later in the right order.",
+    mqtt_enabled: "Enable MQTT",
+    mqtt_host: "Broker (address)",
+    mqtt_port: "Port",
+    mqtt_insecure: "Do not verify the certificate (self-signed)",
+    mqtt_user: "User",
+    mqtt_password: "Password",
+    mqtt_pass_saved: "saved (empty = keep)",
+    mqtt_client: "Client ID",
+    mqtt_base: "Base topic",
+    mqtt_time: (t) => `Take the time from the control system (topic ${t})`,
+    mqtt_ca: "Own CA certificate (PEM, optional)",
+    mqtt_example: (topic) => `Example: ${topic} → {"value": 123456, "unit": "kWh", "time": "…Z", "quality": "good", …} · status: online/offline`,
+    mqtt_off: "off",
+    mqtt_connecting: "connecting …",
+    mqtt_connected: "connected",
+    mqtt_error: "disconnected",
+    mqtt_state_off: "MQTT is off. Nothing is collected or sent.",
+    mqtt_state_connected: (b, since, sent, q) => `Connected to ${b} since ${since} · ${sent} sent · ${q} queued`,
+    mqtt_state_connecting: (b) => `Connecting to ${b} …`,
+    mqtt_state_error: (b, e, q) => `No connection to ${b}: ${e} · ${q} messages waiting, will be delivered later`,
+    mqtt_saved: "MQTT settings saved",
+    mqtt_busbar: (q) => `MQTT disconnected` + (q ? ` · ${q} waiting` : ""),
     dp_hint:
       "The values that are passed on (once MQTT or Modbus is set up). Choose per meter with “Values” in the meter list. The key is based on the meaning of the value and stays stable, even if a meter changes the order after an update.",
     dp_empty: "No datapoints yet. In the meter list, click “Values” on a meter and choose.",
@@ -962,6 +1020,7 @@ async function setLang(l) {
   // Bezeichnungen der Datenpunkte kommen vom Server in der gewählten Sprache
   loadDatapoints().catch(() => {});
   if (picker) openPicker(picker.meter).catch(() => {});
+  if (mqttConfig) updateMqttForm();
   refreshStatus().catch(() => {});
 }
 
@@ -997,6 +1056,7 @@ let planRuns = [];
 let timeState = null;
 let planActive = false;
 let disk = null;
+let mqttStatus = null;
 /// zuletzt gespeicherte Auffälligkeiten (nur bei Änderung neu speichern)
 let savedIssues = null;
 
@@ -1130,6 +1190,8 @@ async function refreshStatus() {
   timeState = s.time;
   planActive = !!s.plan_active;
   disk = s.disk;
+  mqttStatus = s.mqtt;
+  renderMqttState();
   if (runsBefore && !planRuns.length) loadMeters().catch(() => {});
   // verbunden: Verbindung als eine Zeile, Formular erst auf "Ändern"
   $("sec-conn").classList.toggle("compact", connected && !connEditing);
@@ -1224,6 +1286,9 @@ function renderBusbar() {
   const tm = $("busbar-time");
   tm.hidden = !(planActive && timeState && !timeState.confirmed);
   // Speicher: "knapp" nur im Dauerbetrieb wichtig, "voll" immer
+  const mq = $("busbar-mqtt");
+  mq.hidden = mqttStatus?.state !== "error";
+  if (!mq.hidden) mq.textContent = t("mqtt_busbar", mqttStatus.queued);
   const dk = $("busbar-disk");
   const level = disk?.level || "ok";
   dk.hidden = level === "ok" || (level === "low" && !planActive);
@@ -2781,11 +2846,14 @@ function renderDatapoints() {
       (d) => `<tr class="${dpSelected.has(d.id) ? "selected" : ""}">
       <td><input type="checkbox" data-dp-sel="${d.id}" ${dpSelected.has(d.id) ? "checked" : ""} aria-label="${esc(d.name)}"></td>
       <td class="num mono">${d.no}</td>
-      <td class="wrap"><span class="name">${esc(d.name)}</span><span class="sub">${esc(d.meter)} · ${esc(d.label)}</span></td>
+      <td class="wrap"><span class="name">${esc(d.name)}</span><span class="sub">${esc(d.meter)} · ${esc(d.label)}</span>${
+        d.mqtt && d.mqtt_topic ? `<span class="sub mono">${esc(mqttBase())}/${esc(d.mqtt_topic)}</span>` : ""
+      }</td>
       <td class="num">${d.last_value != null ? `<span class="val">${esc(formatNum(d.last_value, 6))} ${esc(d.unit)}</span>` : ""}<span class="sub">${esc(d.last_time || "")}</span></td>
       <td>${qualityChip(d)}</td>
       <td>${esc(t("send_" + d.send))}</td>
       <td><input type="checkbox" data-dp-active="${d.id}" ${d.active ? "checked" : ""} aria-label="${esc(t("th_active"))}"></td>
+      <td><input type="checkbox" data-dp-mqtt="${d.id}" ${d.mqtt ? "checked" : ""} aria-label="MQTT" title="${esc(d.mqtt_topic || "")}"></td>
       <td><button class="icon-btn" data-dp-edit="${d.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button></td>
     </tr>`
     )
@@ -2823,6 +2891,12 @@ $("dp-table").addEventListener("change", (ev) => {
   if (el.dataset.dpActive) {
     guarded(el, async () => {
       await api("datapoints/bulk", { method: "POST", body: { ids: [Number(el.dataset.dpActive)], action: el.checked ? "on" : "off" } });
+      await loadDatapoints();
+    });
+  }
+  if (el.dataset.dpMqtt) {
+    guarded(el, async () => {
+      await api("datapoints/bulk", { method: "POST", body: { ids: [Number(el.dataset.dpMqtt)], action: el.checked ? "mqtt:on" : "mqtt:off" } });
       await loadDatapoints();
     });
   }
@@ -2868,6 +2942,8 @@ function openDpForm(d) {
   $("dpf-factor").value = d.factor;
   $("dpf-send").innerHTML = SEND_MODES.map((m) => `<option value="${m}" ${m === d.send ? "selected" : ""}>${esc(t("send_" + m))}</option>`).join("");
   $("dpf-active").checked = d.active;
+  $("dpf-mqtt").checked = d.mqtt;
+  $("dpf-topic").value = d.mqtt_topic || "";
   $("dp-form").hidden = false;
   $("dp-form").scrollIntoView({ behavior: "smooth", block: "nearest" });
   $("dpf-name").focus();
@@ -2880,7 +2956,16 @@ $("dp-form").onsubmit = (ev) => {
     const factor = Number(String($("dpf-factor").value).replace(",", "."));
     await api("datapoints/" + dpEditing.id, {
       method: "PUT",
-      body: { ...dpEditing, name: $("dpf-name").value.trim(), unit: $("dpf-unit").value.trim(), factor, send: $("dpf-send").value, active: $("dpf-active").checked },
+      body: {
+        ...dpEditing,
+        name: $("dpf-name").value.trim(),
+        unit: $("dpf-unit").value.trim(),
+        factor,
+        send: $("dpf-send").value,
+        active: $("dpf-active").checked,
+        mqtt: $("dpf-mqtt").checked,
+        mqtt_topic: $("dpf-topic").value.trim() || null,
+      },
     });
     $("dp-form").hidden = true;
     await loadDatapoints();
@@ -3012,6 +3097,96 @@ $("mf-exchange").onclick = () => {
     $("meter-form").hidden = true;
     toast(t("exchange_done") + (r.details.length ? ": " + r.details.join(" · ") : ""));
     await loadMeters();
+  });
+};
+
+// ------------------------------------------------------------ MQTT
+
+let mqttConfig = null;
+const mqttBase = () => (mqttConfig?.base || "mbusio").replace(/\/+$/, "");
+
+async function loadMqtt() {
+  const r = await api("mqtt");
+  mqttConfig = r.config;
+  mqttStatus = r.status;
+  const c = r.config;
+  $("mq-enabled").checked = c.enabled;
+  $("mq-host").value = c.host;
+  $("mq-port").value = c.port;
+  $("mq-tls").checked = c.tls;
+  $("mq-insecure").checked = c.insecure;
+  $("mq-user").value = c.username;
+  $("mq-pass").value = "";
+  $("mq-pass").placeholder = r.has_password ? t("mqtt_pass_saved") : "";
+  $("mq-client").value = c.client_id;
+  $("mq-base").value = c.base;
+  $("mq-time").checked = c.time_sync;
+  $("mq-ca").value = c.ca;
+  updateMqttForm();
+  renderMqttState();
+}
+
+function updateMqttForm() {
+  const base = ($("mq-base").value.trim() || "mbusio").replace(/\/+$/, "");
+  $("mq-time-label").textContent = t("mqtt_time", base + "/time");
+  $("mq-insecure").closest("label").hidden = !$("mq-tls").checked;
+  $("mqtt-form").querySelector(".mqtt-ca").hidden = !$("mq-tls").checked;
+  const sample = datapoints.find((d) => d.mqtt_topic)?.mqtt_topic || "projekt/gateway-1-linie-1/whg-1/energy";
+  $("mqtt-example").textContent = t("mqtt_example", `${base}/${sample}`);
+}
+
+function renderMqttState() {
+  const s = mqttStatus;
+  if (!s) return;
+  const chip = $("mqtt-chip");
+  chip.className = "chip " + ({ connected: "on", error: "st-collision", connecting: "st-no_data" }[s.state] || "off");
+  chip.textContent = t("mqtt_" + (s.state || "off"));
+  $("mqtt-state").textContent =
+    s.state === "connected"
+      ? t("mqtt_state_connected", s.broker, s.since, s.sent, s.queued)
+      : s.state === "connecting"
+        ? t("mqtt_state_connecting", s.broker)
+        : s.state === "error"
+          ? t("mqtt_state_error", s.broker, s.error, s.queued)
+          : t("mqtt_state_off");
+  renderBusbar();
+}
+
+for (const id of ["mq-tls", "mq-base"]) $(id).addEventListener("input", updateMqttForm);
+$("mq-tls").addEventListener("change", () => {
+  // üblicher Port mitwechseln, solange man keinen eigenen hat
+  const p = $("mq-port").value.trim();
+  if (!p || p === "1883" || p === "8883") $("mq-port").value = $("mq-tls").checked ? "8883" : "1883";
+  updateMqttForm();
+});
+
+$("mqtt-form").onsubmit = (ev) => {
+  ev.preventDefault();
+  guarded(ev.submitter || $("mqtt-form").querySelector("[type=submit]"), async () => {
+    const pass = $("mq-pass").value;
+    await api("mqtt", {
+      method: "PUT",
+      body: {
+        config: {
+          enabled: $("mq-enabled").checked,
+          host: $("mq-host").value.trim(),
+          port: Number($("mq-port").value) || ($("mq-tls").checked ? 8883 : 1883),
+          tls: $("mq-tls").checked,
+          insecure: $("mq-insecure").checked,
+          ca: $("mq-ca").value,
+          username: $("mq-user").value.trim(),
+          password: "",
+          client_id: $("mq-client").value.trim(),
+          base: $("mq-base").value.trim() || "mbusio",
+          time_sync: $("mq-time").checked,
+        },
+        // leer = gespeichertes behalten; Benutzer gelöscht = Passwort auch
+        password: pass ? pass : $("mq-user").value.trim() ? null : "",
+      },
+    });
+    toast(t("mqtt_saved"));
+    await loadMqtt();
+    setTimeout(() => refreshStatus().catch(() => {}), 1500);
   });
 };
 
@@ -3454,5 +3629,6 @@ refreshStatus()
   })
   .catch(() => {});
 loadMeters().catch((e) => toast(e.message, true));
+loadMqtt().catch(() => {});
 setInterval(() => pollLog().catch(() => {}), 1000);
 setInterval(() => !jobRunning && refreshStatus().catch(() => {}), 5000);

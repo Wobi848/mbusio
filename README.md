@@ -93,7 +93,26 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - **CSV** exportieren, in Excel bearbeiten und wieder importieren; mbusio zeigt vorher, was sich
   ändert, und übernimmt erst nach Bestätigung. Die Liste dient auch als Unterlage für den
   Integrator; im Bericht gibt es eine Seite „Datenpunkte“
-- Weitergabe je Datenpunkt (jede Auslesung, bei Änderung, 1× täglich) wirkt ab MQTT/Modbus
+- Weitergabe je Datenpunkt: bei jeder Auslesung, nur bei Änderung oder 1× täglich
+
+### MQTT
+
+- Im Tab „Zähler“ unter **MQTT**: Broker, Port, Benutzer/Passwort, TLS (mit eigenem
+  CA-Zertifikat oder, für selbst signierte Broker, ohne Prüfung), Client-ID und Basis-Topic
+- Je Datenpunkt das Häkchen **MQTT**; das Topic wird beim Einschalten vorgeschlagen
+  (`mbusio/<projekt>/<gateway>-<linie>/<zähler>/<wert>`, z.B. `…/whg-1/energy`) und bleibt danach
+  gleich, auch wenn Namen sich ändern; überschreibbar
+- Nachricht JSON, retained, QoS 1:
+  `{"value": 123456, "unit": "kWh", "time": "2026-10-17T19:03:12Z", "quality": "good", "name": "Whg 1 · Energie", "no": 1}`,
+  bei unsicherer Uhrzeit zusätzlich `"time_unsure": true`. Ändert sich nur die Qualität (Zähler
+  antwortet nicht mehr, Wert veraltet), wird das ebenfalls gemeldet
+- `mbusio/status` = `online`, bei Absturz oder Stromausfall `offline` (Last Will)
+- **Zwischenspeicher:** ist der Broker nicht erreichbar, sammelt mbusio die Nachrichten (bis 7 Tage,
+  auch über einen Neustart) und liefert sie danach in richtiger Reihenfolge nach; gelöscht wird
+  eine Nachricht erst, wenn der Broker sie bestätigt hat
+- Optional die **Uhrzeit vom Leitsystem**: Nachricht auf `mbusio/time` (Sekunden oder
+  Millisekunden seit 1970 oder `2026-10-17T12:00:00Z`)
+- Das Passwort erscheint nie in der Oberfläche, im Protokoll oder im Projekt-Export
 
 ### Dokumentation
 
@@ -259,6 +278,8 @@ Aufbau:
 - `src/db.rs`: Datenbank (Projekte, Gateways, Linien, Zähler, Auslesungen, Änderungen)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
 - `src/datapoint.rs`: Datenpunkte, Qualität, Plausibilität, Zählertausch, Vorlagen, CSV
+- `src/mqtt.rs`: MQTT-Ausgang (eigener kleiner Client für MQTT 3.1.1, TLS mit rustls),
+  Warteschlange in der Datenbank
 - `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
   bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
 - `src/web.rs`: HTTP-API; `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
@@ -289,6 +310,9 @@ installation; the UI runs in the browser, phones included.
 - Datapoints: choose per meter which values are passed on (templates per medium, stable keys and
   numbers, quality, “counter decreased” check, meter replacement with continuous counters, CSV
   export/import with preview)
+- MQTT output: one retained topic per datapoint with JSON (value, unit, UTC time, quality), QoS 1,
+  status topic with last will, persistent queue with in-order redelivery, TLS, user/password,
+  optional time from the control system
 - History per meter as chart or table, CSV; project report as PDF with changes made and open issues
 - Serial port or network gateway (`tcp://host:port`), command line with JSON output
 - Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with 21 meters
