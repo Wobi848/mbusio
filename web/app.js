@@ -508,12 +508,10 @@ function renderJob(job) {
   document.querySelector(".hits-opt").hidden = table.hidden;
   // Sekundäradresse lesbar zerlegt (ID, Version) oder roh als 16 Hex-Zeichen
   const raw = $("sa-raw").checked;
-  // Baud-Spalte nur, wenn Treffer nicht alle auf der eingestellten Baudrate liegen
-  const showBaud = job.hits.some((h) => h.baud && h.baud !== connBaud);
   const cols = raw
     ? ["col_primary", "col_secondary", "col_manufacturer", "col_medium", "col_status", ""]
     : ["col_primary", "col_id", "col_manufacturer", "col_version", "col_medium", "col_status", ""];
-  if (showBaud) cols.splice(1, 0, "col_baud");
+  cols.splice(1, 0, "col_baud");
   table.querySelector("thead").innerHTML = `<tr>${cols.map((c) => `<th>${c && t(c)}</th>`).join("")}</tr>`;
   table.querySelector("tbody").innerHTML = job.hits
     .map((h, i) => {
@@ -527,7 +525,7 @@ function renderJob(job) {
       const other = h.baud && h.baud !== connBaud;
       return `<tr>
         <td class="num">${h.primary_address ?? "–"}</td>
-        ${showBaud ? `<td class="num${other ? " st-collision" : ""}">${h.baud ?? ""}</td>` : ""}
+        <td class="num${other ? " st-collision" : ""}">${h.baud ?? ""}</td>
         ${sa}
         <td>${esc(label(h.medium))}</td>
         <td class="st-${h.status}">${t("st_" + h.status)}</td>
