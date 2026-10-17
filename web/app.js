@@ -35,9 +35,20 @@ const UI = {
     cancel: "Abbrechen",
     scan_bauds: "Baudraten:",
     scan_bauds_hint:
-      "Gescannt wird auf allen markierten Baudraten. „Prüfen“ fragt kurz 300 bis 38400 Bd ab und markiert die, auf denen etwas antwortet (●).",
+      "„Prüfen“ fragt in wenigen Sekunden alle Baudraten ab und markiert die, auf denen Geräte antworten (●). Gescannt wird nur auf den markierten Baudraten.",
+    bauds_all: "Alle",
+    busbar_view: "Ansehen",
+    job_done: (k, n) => `${k} fertig · ${n} Treffer`,
+    job_cancelled: (k, n) => `${k} abgebrochen · ${n} Treffer`,
+    busy_read: "Lese Zähler …",
+    busy_set: "Setze Primäradresse …",
+    busy_baud: "Stelle Baudrate um …",
+    busy_detect: "Suche Baudrate …",
+    busy_reset: "Sende Reset …",
+    busy_raw: "Sende Telegramm …",
+    bauds_none: "Keine",
     bus_bauds: "Prüfen",
-    pick_baud: "Mindestens eine Baudrate markieren",
+    pick_baud: "Für den Scan mindestens eine Baudrate markieren",
     estimate: (t) => `Primärscan dauert höchstens ca. ${t}`,
     bus_bauds_busy: "Prüfe 300 bis 38400 Bd …",
     bus_bauds_step: (b, k, n, found) => `Prüfe ${b} Bd … (${k}/${n})` + (found.length ? ` · Antwort auf ${found.join(", ")} Bd` : ""),
@@ -110,6 +121,7 @@ const UI = {
     import_bad: "Datei enthält keine Zählerliste",
     job_read_all: "Alle auslesen",
     read_all_done: "Zählerliste ausgelesen",
+    read_all_cancelled: "Auslesen der Zählerliste abgebrochen",
     raw_title: "Telegramm senden (Experten)",
     raw_hint: "Bytes werden unverändert gesendet, die Prüfsumme muss stimmen. Beispiel: 10 40 01 41 16 = SND_NKE an Adresse 1.",
     raw_bytes: "Bytes (Hex)",
@@ -187,9 +199,20 @@ const UI = {
     cancel: "Cancel",
     scan_bauds: "Baud rates:",
     scan_bauds_hint:
-      "The scan runs at every selected baud rate. “Check” quickly polls 300 to 38400 Bd and selects those where something answers (●).",
+      "“Check” polls all baud rates in a few seconds and selects those where devices answer (●). The scan only runs at the selected baud rates.",
+    bauds_all: "All",
+    busbar_view: "View",
+    job_done: (k, n) => `${k} done · ${n} hits`,
+    job_cancelled: (k, n) => `${k} cancelled · ${n} hits`,
+    busy_read: "Reading meter …",
+    busy_set: "Setting primary address …",
+    busy_baud: "Switching baud rate …",
+    busy_detect: "Detecting baud rate …",
+    busy_reset: "Sending reset …",
+    busy_raw: "Sending telegram …",
+    bauds_none: "None",
     bus_bauds: "Check",
-    pick_baud: "Select at least one baud rate",
+    pick_baud: "Select at least one baud rate for the scan",
     estimate: (t) => `Primary scan takes at most about ${t}`,
     bus_bauds_busy: "Checking 300 to 38400 Bd …",
     bus_bauds_step: (b, k, n, found) => `Checking ${b} Bd … (${k}/${n})` + (found.length ? ` · answer at ${found.join(", ")} Bd` : ""),
@@ -262,6 +285,7 @@ const UI = {
     import_bad: "File does not contain a meter list",
     job_read_all: "Read all",
     read_all_done: "Meter list read",
+    read_all_cancelled: "Reading the meter list cancelled",
     raw_title: "Send telegram (experts)",
     raw_hint: "Bytes are sent unchanged, the checksum must be correct. Example: 10 40 01 41 16 = SND_NKE to address 1.",
     raw_bytes: "Bytes (hex)",
@@ -385,7 +409,28 @@ let conn = null;
 let baudsTouched = false;
 const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 
+/// Anfragen, die den Bus belegen: Pfad, Text, Bereich für "Ansehen"
+const BUS_ACTIONS = [
+  [/^read$|^meters\/\d+\/read$/, "busy_read", "#sec-read"],
+  [/^set-address$/, "busy_set", "#sec-config"],
+  [/^switch-baud$/, "busy_baud", "#sec-config"],
+  [/^detect-baud$/, "busy_detect", "#sec-config"],
+  [/^reset$/, "busy_reset", "#sec-config"],
+  [/^raw$/, "busy_raw", "#sec-log"],
+];
+
 async function api(path, options = {}) {
+  const busy = options.method === "POST" && BUS_ACTIONS.find(([re]) => re.test(path));
+  if (!busy) return request(path, options);
+  busbar({ text: t(busy[1]), link: busy[2] });
+  try {
+    return await request(path, options);
+  } finally {
+    busbar(null);
+  }
+}
+
+async function request(path, options = {}) {
   const headers = { "Content-Type": "application/json", "X-Lang": lang };
   if (token) headers["X-Token"] = token;
   const opts = { ...options, headers };
@@ -397,7 +442,7 @@ async function api(path, options = {}) {
       token = entered.trim();
       storageSet("token", token);
       updateExportLinks();
-      return api(path, { ...options, retried: true });
+      return request(path, { ...options, retried: true });
     }
   }
   const data = await res.json().catch(() => ({}));
@@ -440,6 +485,13 @@ async function guarded(button, fn) {
 
 function updateButtons() {
   document.querySelectorAll(".needs-conn").forEach((b) => (b.disabled = !connected || jobRunning || checking));
+  // ohne markierte Baudrate gibt es nichts zu prüfen oder zu scannen
+  const none = !$("scan-bauds").querySelector("input:checked");
+  $("bauds-empty").hidden = !none;
+  if (none) ["scan-primary", "scan-secondary"].forEach((id) => ($(id).disabled = true));
+  const all = !$("scan-bauds").querySelector("input:not(:checked)");
+  $("bauds-all").textContent = t(all ? "bauds_none" : "bauds_all");
+  $("bauds-all").disabled = checking || jobRunning;
   $("connect").disabled = jobRunning;
   $("disconnect").disabled = !connected || jobRunning;
   $("connect").hidden = connected;
@@ -464,7 +516,7 @@ async function refreshStatus() {
   connBaud = s.connection?.baud ?? null;
   conn = s.connection;
   // Auswahl folgt der eingestellten Baudrate, bis man selbst etwas anklickt
-  if (connBaud !== prevBaud && !baudsTouched) setPickedBauds(connBaud ? [connBaud] : []);
+  if (connBaud && connBaud !== prevBaud && !baudsTouched) setPickedBauds([connBaud]);
   updateEstimate();
   jobRunning = s.job_running;
   const badge = $("conn-badge");
@@ -502,6 +554,46 @@ let polling = false;
 let renderedJob = null;
 let renderedHits = 0;
 
+// ------------------------------------------------------------ Leiste unten
+
+let busbarTimer = null;
+
+/// `null` blendet aus; sonst { text, frac (0..1, ohne = unbestimmt), link, cancel, done, error }
+function busbar(state) {
+  const el = $("busbar");
+  clearTimeout(busbarTimer);
+  if (!state) {
+    el.hidden = true;
+    document.body.classList.remove("has-busbar");
+    return;
+  }
+  el.hidden = false;
+  document.body.classList.add("has-busbar");
+  el.classList.toggle("done", !!state.done && !state.error);
+  el.classList.toggle("error", !!state.error);
+  $("busbar-text").textContent = state.text;
+  const bar = el.querySelector(".busbar-progress");
+  bar.hidden = state.frac === undefined;
+  if (state.frac !== undefined) bar.querySelector(".bar-fill").style.transform = `scaleX(${state.frac})`;
+  $("busbar-link").href = state.link || "#sec-scan";
+  $("busbar-cancel").hidden = !state.cancel;
+  // fertig: noch kurz stehen lassen
+  if (state.done) busbarTimer = setTimeout(() => busbar(null), state.error ? 10000 : 6000);
+}
+
+let cancelRequested = false;
+
+function cancelJob() {
+  cancelRequested = true;
+  api("job/cancel", { method: "POST" }).catch((e) => toast(e.message, true));
+}
+
+$("busbar-cancel").onclick = cancelJob;
+
+function jobLink(job) {
+  return job.kind === "read_all" ? "#sec-meters" : "#sec-scan";
+}
+
 async function pollJob() {
   if (polling) return;
   polling = true;
@@ -514,6 +606,19 @@ async function pollJob() {
       if (!job.running) {
         jobRunning = false;
         updateButtons();
+        const cancelled = cancelRequested;
+        cancelRequested = false;
+        const done =
+          job.kind === "read_all"
+            ? t(cancelled ? "read_all_cancelled" : "read_all_done")
+            : t(cancelled ? "job_cancelled" : "job_done", t("job_" + job.kind), job.hits.length);
+        busbar({
+          text: job.error || done,
+          frac: 1,
+          link: jobLink(job),
+          done: true,
+          error: !!job.error,
+        });
         if (job.error) toast(job.error, true);
         else if (job.kind === "read_all") toast(t("read_all_done"));
         else toast(`${t("job_" + job.kind)}: ${t("hits", job.hits.length)}`);
@@ -531,6 +636,11 @@ async function pollJob() {
 
 function renderJob(job) {
   lastJob = job;
+  if (job.running) {
+    const frac = job.total ? Math.min(job.done / job.total, 1) : 0;
+    const found = job.kind === "read_all" ? "" : ` · ${t("found", job.hits.length)}`;
+    busbar({ text: `${t("job_" + job.kind)} · ${job.message}${found}`, frac, link: jobLink(job), cancel: true });
+  }
   if (job.kind === "read_all") {
     const el = $("meters-job");
     el.hidden = false;
@@ -652,6 +762,8 @@ $("scan-secondary").onclick = () =>
 // ------------------------------------------------------------ Baudraten für den Scan
 
 $("scan-bauds").innerHTML = BAUDS.map((b) => `<label><input type="checkbox" value="${b}"><span>${b}</span></label>`).join("");
+// bis zur Verbindung: Baudrate aus dem Verbindungsfeld
+setPickedBauds([Number($("baud").value)]);
 
 function pickedBauds() {
   const list = [...$("scan-bauds").querySelectorAll("input:checked")].map((i) => Number(i.value));
@@ -661,6 +773,7 @@ function pickedBauds() {
 
 function setPickedBauds(list) {
   $("scan-bauds").querySelectorAll("input").forEach((i) => (i.checked = list.includes(Number(i.value))));
+  updateButtons();
   updateEstimate();
 }
 
@@ -683,7 +796,14 @@ function updateEstimate() {
 $("scan-bauds").addEventListener("change", () => {
   baudsTouched = true;
   updateEstimate();
+  updateButtons();
 });
+
+$("bauds-all").onclick = () => {
+  baudsTouched = true;
+  const all = !$("scan-bauds").querySelector("input:not(:checked)");
+  setPickedBauds(all ? [] : BAUDS);
+};
 ["scan-from", "scan-to", "scan-retries"].forEach((id) => $(id).addEventListener("input", updateEstimate));
 
 /// Baudraten einzeln abfragen, damit man sieht, was passiert
@@ -691,14 +811,17 @@ $("bus-bauds").onclick = async () => {
   const btn = $("bus-bauds");
   const out = $("bus-bauds-result");
   const chip = (b) => $("scan-bauds").querySelector(`input[value="${b}"] + span`);
+  // immer alle Baudraten: dauert nur Sekunden, die Markierung gilt nur für den Scan
+  const list = BAUDS;
   const found = [];
   checking = true;
   updateButtons();
   btn.textContent = t("bus_bauds_checking");
   BAUDS.forEach((b) => chip(b).classList.remove("found", "none", "checking"));
   try {
-    for (const [k, b] of BAUDS.entries()) {
-      out.textContent = t("bus_bauds_step", b, k + 1, BAUDS.length, found);
+    for (const [k, b] of list.entries()) {
+      out.textContent = t("bus_bauds_step", b, k + 1, list.length, found);
+      busbar({ text: out.textContent, frac: k / list.length, link: "#sec-scan" });
       chip(b).classList.add("checking");
       const r = await api("bus-bauds", { method: "POST", body: { bauds: [b] } });
       chip(b).classList.remove("checking");
@@ -706,6 +829,7 @@ $("bus-bauds").onclick = async () => {
       chip(b).classList.add(r.bauds.length ? "found" : "none");
     }
     out.textContent = found.length ? t("bus_bauds_found", found.join(", "), connBaud) : t("bus_bauds_none");
+    busbar({ text: out.textContent, frac: 1, link: "#sec-scan", done: true });
     // gefundene Baudraten für den Scan markieren
     if (found.length) {
       baudsTouched = true;
@@ -714,6 +838,7 @@ $("bus-bauds").onclick = async () => {
   } catch (e) {
     BAUDS.forEach((b) => chip(b).classList.remove("checking"));
     out.textContent = "";
+    busbar(null);
     toast(e.message, true);
   } finally {
     checking = false;
@@ -722,7 +847,7 @@ $("bus-bauds").onclick = async () => {
   }
 };
 
-$("scan-cancel").onclick = () => api("job/cancel", { method: "POST" }).catch((e) => toast(e.message, true));
+$("scan-cancel").onclick = cancelJob;
 
 // ------------------------------------------------------------ Auslesen
 

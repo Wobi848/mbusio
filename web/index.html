@@ -82,8 +82,10 @@
     <div class="baud-pick">
       <span class="baud-pick-label" data-i18n="scan_bauds"></span>
       <div id="scan-bauds" class="chips"></div>
+      <button id="bauds-all" class="small quiet" data-i18n="bauds_all"></button>
       <button id="bus-bauds" class="small quiet needs-conn" data-i18n="bus_bauds"></button>
     </div>
+    <p id="bauds-empty" class="hint warn" data-i18n="pick_baud" hidden></p>
     <p id="bus-bauds-result" class="hint result"></p>
     <p class="hint baud-check-hint" data-i18n="scan_bauds_hint"></p>
     <div class="tiles">
@@ -262,6 +264,15 @@
   </div>
 </main>
 
+<div id="busbar" class="busbar" role="status" hidden>
+  <div class="busbar-inner">
+    <span class="busbar-dot" aria-hidden="true"></span>
+    <span id="busbar-text" class="busbar-text"></span>
+    <div class="bar busbar-progress"><div class="bar-fill"></div></div>
+    <a id="busbar-link" class="busbar-link" href="#sec-scan" data-i18n="busbar_view"></a>
+    <button id="busbar-cancel" class="small quiet" data-i18n="cancel" hidden></button>
+  </div>
+</div>
 <div id="toast" role="status" hidden></div>
 <script src="app.js"></script>
 </body>
