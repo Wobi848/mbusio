@@ -1,6 +1,6 @@
 # Konzept: Dauerbetrieb und Datenweitergabe
 
-Stand: 17.10.2026 · Status: **Entwurf zur Abstimmung** · gilt für mbusio ab Version 0.5
+Stand: 17.10.2026 · Status: **abgestimmt, Phase 1 bereit** · gilt für mbusio ab Version 0.5
 
 Dieses Dokument beschreibt, wie mbusio vom Inbetriebnahme-Werkzeug zu einem Dienst wird, der
 Zähler dauerhaft und zuverlässig ausliest und die Werte weitergibt. Umgesetzt wird in Phasen;
@@ -145,8 +145,11 @@ fürs *Weitergeben* (Phase 2/3), höchstens so oft, wie der Zähler gelesen wird
 
 ### 4.3 Ausleseplan
 
-- **Die Linie hat einen Standardplan** (z.B. täglich 00:05). **Jeder Zähler** übernimmt ihn
-  oder bekommt einen eigenen Plan. So genügt bei den meisten Anlagen eine Einstellung pro Linie.
+- **Vererbung Projekt → Linie → Zähler:** Das Projekt hat einen Standardplan. Jede Linie
+  übernimmt ihn oder hat einen eigenen; jeder Zähler übernimmt den seiner Linie oder hat einen
+  eigenen. So genügt bei den meisten Anlagen eine einzige Einstellung.
+- **Standard ist immer „Aus“** (neue Projekte, Linien, Zähler). Geplantes Auslesen wird nur
+  bewusst eingeschaltet; beim Einschalten schlägt die Oberfläche „täglich 00:05“ vor.
 - **Termine im Raster der Uhr** (15 min: :00, :15, :30, :45; stündlich: :00; täglich: feste Zeit),
   damit Werte verschiedener Zähler und Tage vergleichbar sind.
 - Der Linien-Dienst prüft jede Minute, welche Zähler **fällig** sind, und liest sie nacheinander
@@ -157,14 +160,11 @@ fürs *Weitergeben* (Phase 2/3), höchstens so oft, wie der Zähler gelesen wird
   **einmal** nachgelesen, mit echtem Zeitstempel, danach geht es im Raster weiter. Bei Plänen
   „alle 15 min“ wird nicht jeder einzelne verpasste Termin nachgeholt, sondern nur einmal gelesen;
   die Lücke bleibt sichtbar.
-- **Schutz vor zu häufigem Auslesen:**
-  - Für Wärme, Kälte, Wasser und Heizkostenverteiler zeigt die Oberfläche bei Plänen häufiger als
-    täglich den Hinweis „vermutlich Batteriezähler – Herstellerangaben zur zulässigen Anzahl
-    Auslesungen prüfen“. Ob ein Zähler eine Batterie hat, verrät M-Bus nicht sicher; deshalb
-    Hinweis, kein Verbot.
-  - Meldet ein Zähler „zu viele Auslesungen“ (09) oder „beschäftigt“ (08), wird er für den Rest
-    des Tages ausgesetzt (erneuter Versuch beim ersten Termin des nächsten Tages) und als
-    Auffälligkeit gemeldet.
+- **Wie oft ein Zähler gelesen werden darf, weiss der Benutzer** (Herstellerangaben); mbusio
+  gibt dazu keine Vermutungen ab.
+- **Schutz, wenn der Zähler selbst ablehnt:** Meldet ein Zähler „zu viele Auslesungen“ (09) oder
+  „beschäftigt“ (08), wird er für den Rest des Tages ausgesetzt (erneuter Versuch beim ersten
+  Termin des nächsten Tages) und als Auffälligkeit gemeldet.
 - **Buslast-Prüfung:** mbusio misst die Dauer jeder Auslesung. Passt die geplante Arbeit einer
   Linie nicht mehr in die Zeit (z.B. 250 Zähler alle 15 min bei 300 Bd), warnt die Oberfläche
   schon beim Einstellen.
@@ -190,11 +190,15 @@ Heute wird jede Auslesung vollständig als JSON abgelegt. Für den Dauerbetrieb:
   ein später verbesserter Decoder gilt auch für alte Daten.
 - Zusätzlich eine **schlanke Wertetabelle** nur für die Werte, die für Verlauf und Weitergabe
   gebraucht werden (Phase 2: die gewählten Datenpunkte; Phase 1: der Hauptwert je Zähler).
-- **Aufbewahrung (einstellbar, Vorschlag):** Rohtelegramme 90 Tage, danach nur noch eines pro Tag
-  (Tageswert, z.B. 00:00); Tageswerte unbegrenzt.
-- **Abschätzung:** Im Normalfall (täglich) 250 Zähler × ~200 Byte ≈ 50 KB/Tag ≈ 18 MB/Jahr.
-  Im Extremfall (60 Zähler alle 15 min) ≈ 1,2 MB/Tag; mit 90 Tagen Aufbewahrung ≈ 100 MB, danach
-  ~4 MB/Jahr. Beides verträgt jede SD-Karte.
+- **Aufbewahrung: alles wird behalten.** mbusio löscht keine Messwerte von sich aus.
+- **Abschätzung:** Normalfall (täglich) 250 Zähler × ~200 Byte ≈ 50 KB/Tag ≈ 18 MB/Jahr.
+  Extremfall (60 Zähler alle 15 min) ≈ 1,2 MB/Tag ≈ 440 MB/Jahr.
+- **Optional pro Projekt „Verlauf ausdünnen“** (bewusst einzuschalten, nie automatisch): z.B. nach
+  90 Tagen nur noch einen Wert pro Tag behalten. Sinnvoll nur bei häufigen Plänen.
+- **Schutz vor voller Speicherkarte:** mbusio überwacht den freien Speicher. Unter 20 % frei:
+  Warnung in Oberfläche und Statusleiste. Unter 5 % frei: keine neuen Rohdaten mehr speichern
+  (Werte werden weiter gelesen, angezeigt und weitergegeben), Auffälligkeit „Speicher voll“.
+  So bleibt die Datenbank intakt und das Gerät bedienbar, statt abzustürzen.
 - **Schreibverhalten:** Auslesungen eines Termins werden gesammelt in einem Schreibvorgang
   (Transaktion) gespeichert; SQLite im WAL-Modus. Das schont die SD-Karte und übersteht
   Stromausfall (Transaktion ganz oder gar nicht).
@@ -238,9 +242,9 @@ es den Werten nicht ansieht.
 übernehmen“ im Browser, Kennzeichnung „Zeit unsicher“. Zeit vom Leitsystem folgt mit dem
 jeweiligen Protokoll (Phase 3–5).
 
-**Einstellungen:** je Linie ein Standardplan (Aus · Monatlich · Täglich · Stündlich · 15 min, mit
-Uhrzeit bzw. Tag); je Zähler „wie Linie“ oder eigener Plan. Neue Linien: Plan „Aus“, damit nichts
-ungewollt startet.
+**Einstellungen:** Plan im Projekt (Vorgabe), je Linie „wie Projekt“ oder eigener Plan, je Zähler
+„wie Linie“ oder eigener Plan. Pläne: Aus · Monatlich · Täglich · Stündlich · 15 min, mit Uhrzeit
+bzw. Tag. Standard überall „Aus“. Optional pro Projekt: Verlauf ausdünnen.
 
 **Anzeige:**
 - Projekt-Karte: je Linie „täglich 00:05 · nächster Termin morgen 00:05 · zuletzt ✓ 58/60“.
@@ -263,6 +267,8 @@ ungewollt startet.
    gelesen, der Defekte erscheint nach 3 Terminen als gestört.
 6. Zähler mit „zu viele Auslesungen“ (Simulator, neu): wird für den Rest des Tages ausgesetzt,
    am nächsten Tag wieder gelesen, Auffälligkeit gemeldet.
+11. Speicher fast voll (Test mit kleinem Datenträger): Warnung ab 20 %, ab 5 % keine Rohdaten
+    mehr, Datenbank bleibt lesbar, Oberfläche bedienbar.
 7. mbusio über Nacht aus (über den Termin 00:05): nach dem Start wird jeder Zähler einmal
    nachgelesen, mit echtem Zeitstempel.
 8. Uhr springt (Zeit von Hand verstellen): Protokolleintrag, Termine richten sich neu aus,
@@ -376,14 +382,13 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
   Anlagennetz, sonst RTC-Modul oder Browser; unsichere Zeit wird gekennzeichnet.
 - Manuelle Arbeit hat immer Vorrang vor geplanten Auslesungen.
 - Weitergabe frei wählbar pro Datenpunkt und Ausgang, mit Vorlagen und CSV-Bearbeitung.
+- Ausleseplan mit Vererbung Projekt → Linie → Zähler; Standard überall „Aus“.
+- Zulässige Anzahl Auslesungen ist Sache des Benutzers; mbusio reagiert nur auf Ablehnung durch
+  den Zähler (08/09).
+- Messwerte werden standardmässig nie gelöscht; Ausdünnen nur auf Wunsch; Schutz vor voller Karte.
+- Reihenfolge der Ausgänge: **MQTT, dann Modbus TCP**; BACnet später nach Bedarf.
 
-**Offen:**
-1. **Standardplan:** neue Linien „Aus“, beim Einschalten „täglich 00:05“ vorgeschlagen – einverstanden?
-2. **Herstellergrenzen** für Auslesungen herausfinden (Datenblätter der häufigsten Zähler); bis
-   dahin gilt der Hinweis für Batteriezähler nach Medium.
-3. **Aufbewahrung:** bei häufigen Plänen 90 Tage alle Werte, danach Tageswerte – passt das?
-4. Welche **Leitsysteme/Protokolle** kommen am häufigsten vor? Bestimmt die Reihenfolge der
-   Phasen 3–5 und welche Zeitquelle zuerst kommt.
+**Offen:** keine Punkte, die Phase 1 blockieren.
 
 ## 11. Phasenplan
 
@@ -392,5 +397,5 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 | 1 | Linien-Dienst, Ausleseplan je Zähler, kompakte Speicherung, Aufbewahrung | Abstimmung dieses Konzepts |
 | 2 | Datenpunkte, Qualität, Plausibilität, Zählertausch | Phase 1 im Dauertest bestanden |
 | 3 | MQTT | Phase 2 |
-| 4 | Modbus TCP | Phase 2, Bedarf bestätigt |
+| 4 | Modbus TCP | Phase 3 |
 | 5 | BACnet/IP | Bedarf bestätigt, Bibliothek geprüft |
