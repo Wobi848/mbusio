@@ -18,7 +18,9 @@ use crate::i18n::{self, tr, Lang};
 use crate::link;
 use crate::mbus::decode::decode_rsp_ud;
 use crate::mbus::frame::{hex, Frame};
-use crate::mbus::master::{FrameLog, Master, MeterReading, Progress, Reply, ScanHit, Target};
+use crate::mbus::master::{
+    Bauds, FrameLog, Master, MeterReading, Progress, Reply, ScanHit, Target,
+};
 use crate::project::{Meter, Store};
 
 #[derive(RustEmbed)]
@@ -32,6 +34,8 @@ pub struct ConnInfo {
     pub port: String,
     pub baud: u32,
     pub timeout_ms: u64,
+    /// Timeout wird aus der Baudrate berechnet (für die Dauer-Schätzung im Browser)
+    pub timeout_auto: bool,
 }
 
 #[derive(Clone, Default, Serialize)]
@@ -225,6 +229,7 @@ pub fn connect_blocking(
         port: port.into(),
         baud,
         timeout_ms: effective,
+        timeout_auto: timeout_ms == 0,
     });
     state.log.push(
         "INFO",
@@ -375,14 +380,23 @@ struct PrimaryScanReq {
     to: u8,
     #[serde(default = "default_retries")]
     retries: u32,
+    /// Baudraten für den Scan; leer = eingestellte Baudrate
     #[serde(default)]
-    all_bauds: bool,
+    bauds: Vec<u32>,
 }
 
 #[derive(Deserialize)]
 struct SecondaryScanReq {
     #[serde(default)]
-    all_bauds: bool,
+    bauds: Vec<u32>,
+}
+
+fn bauds_of(list: Vec<u32>) -> Bauds {
+    if list.is_empty() {
+        Bauds::Current
+    } else {
+        Bauds::List(list)
+    }
 }
 
 fn default_to() -> u8 {
@@ -410,7 +424,7 @@ async fn scan_primary(
     }
     let retries = req.retries.min(5);
     start_job(&st, "primary", lang_of(&headers), move |m, p| {
-        m.scan_maybe_all_bauds(req.all_bauds, p, &mut |m, p| {
+        m.scan_with(bauds_of(req.bauds), p, &mut |m, p| {
             m.scan_primary(from, to, retries, p)
         })
     })
@@ -422,7 +436,7 @@ async fn scan_secondary(
     Json(req): Json<SecondaryScanReq>,
 ) -> ApiResult<JobStatus> {
     start_job(&st, "secondary", lang_of(&headers), move |m, p| {
-        m.scan_maybe_all_bauds(req.all_bauds, p, &mut |m, p| m.scan_secondary(p))
+        m.scan_with(bauds_of(req.bauds), p, &mut |m, p| m.scan_secondary(p))
     })
 }
 

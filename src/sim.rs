@@ -423,7 +423,7 @@ impl Link for Simulator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mbus::master::{FrameLog, Master, Progress, Target};
+    use crate::mbus::master::{Bauds, FrameLog, Master, Progress, Target};
     use std::sync::Arc;
 
     fn master() -> Master {
@@ -644,8 +644,8 @@ mod tests {
     fn primary_scan_on_all_bauds() {
         let mut m = master();
         let mut hits = Vec::new();
-        m.scan_maybe_all_bauds(
-            true,
+        m.scan_with(
+            Bauds::Probe,
             &mut |p| {
                 if let Progress::Hit(h) = p {
                     hits.push((h.primary_address.unwrap(), h.baud.unwrap(), h.status));
@@ -657,13 +657,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             hits,
-            vec![(6, 2400, "ok"), (5, 9600, "no_data"), (7, 9600, "ok")]
+            // eingestellte Baudrate (9600) zuerst
+            vec![(5, 9600, "no_data"), (7, 9600, "ok"), (6, 2400, "ok")]
         );
         assert_eq!(m.baud(), 9600);
-        // ohne all_bauds bleibt Zähler 6 unsichtbar, Treffer tragen trotzdem die Baudrate
+        // nur eingestellte Baudrate: Zähler 6 bleibt unsichtbar, Treffer tragen trotzdem die Baudrate
         let mut bauds = Vec::new();
-        m.scan_maybe_all_bauds(
-            false,
+        m.scan_with(
+            Bauds::Current,
             &mut |p| {
                 if let Progress::Hit(h) = p {
                     bauds.push((h.primary_address.unwrap(), h.baud.unwrap()));
@@ -674,5 +675,23 @@ mod tests {
         )
         .unwrap();
         assert_eq!(bauds, vec![(5, 9600), (7, 9600)]);
+        // gewählte Liste ohne Prüfung, eingestellte Baudrate zuerst
+        let mut order = Vec::new();
+        m.scan_with(
+            Bauds::List(vec![2400, 9600, 2400]),
+            &mut |p| {
+                if let Progress::Hit(h) = p {
+                    order.push((h.primary_address.unwrap(), h.baud.unwrap()));
+                }
+                true
+            },
+            &mut |m, p| m.scan_primary(6, 6, 0, p),
+        )
+        .unwrap();
+        assert_eq!(order, vec![(6, 2400)]);
+        assert!(m
+            .scan_with(Bauds::List(vec![1234]), &mut |_| true, &mut |m, p| m
+                .scan_primary(6, 6, 0, p))
+            .is_err());
     }
 }

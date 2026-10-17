@@ -16,7 +16,7 @@ Eine einzige Binärdatei für Windows, Linux und Raspberry Pi, die Oberfläche i
   bricht ab, wenn die neue Adresse belegt ist oder mehrere Zähler auf der alten stehen
 - **Baudrate** eines Zählers suchen (300–38400 Bd durchprobieren) und am Zähler umstellen
 - **Gemischte Baudraten auf einem Bus**: prüfen, auf welchen Baudraten Geräte antworten, und
-  Primär- oder Sekundärscan auf allen diesen Baudraten
+  Primär- oder Sekundärscan auf den gewählten Baudraten; geschätzte Höchstdauer des Primärscans
 - **Application Reset** senden
 - **Zählerliste**: Zähler merken, mit Name, Ort und Notiz versehen, gesammelt auslesen
   (auch mit unterschiedlichen Baudraten auf einem Bus), als JSON exportieren und importieren
@@ -76,6 +76,7 @@ mbusio --port /dev/ttyUSB0 scan --from 1 --to 50
 mbusio --port /dev/ttyUSB0 scan-secondary
 mbusio --port /dev/ttyUSB0 bus-bauds              # auf welchen Baudraten antworten Geräte?
 mbusio --port /dev/ttyUSB0 scan --all-bauds       # Scan auf allen diesen Baudraten
+mbusio --port /dev/ttyUSB0 scan --bauds 2400,9600 # nur auf diesen Baudraten
 mbusio --port /dev/ttyUSB0 read 12345678          # Primäradresse, ID oder Sekundäradresse
 mbusio --port /dev/ttyUSB0 set-address 12345678 5
 mbusio --port /dev/ttyUSB0 detect-baud 5

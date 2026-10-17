@@ -49,12 +49,13 @@
 
   <section class="card">
     <h2 data-i18n="scan"></h2>
-    <div class="row baud-check">
-      <label class="inline"><input id="scan-all-bauds" type="checkbox"> <span data-i18n="scan_all_bauds"></span></label>
+    <div class="baud-pick">
+      <span class="baud-pick-label" data-i18n="scan_bauds"></span>
+      <div id="scan-bauds" class="chips"></div>
       <button id="bus-bauds" class="small ghost needs-conn" data-i18n="bus_bauds"></button>
-      <span id="bus-bauds-result" class="hint"></span>
     </div>
-    <p class="hint baud-check-hint" data-i18n="scan_all_bauds_hint"></p>
+    <p id="bus-bauds-result" class="hint"></p>
+    <p class="hint baud-check-hint" data-i18n="scan_bauds_hint"></p>
     <div class="scan-modes">
       <div class="scan-mode">
         <h3 data-i18n="scan_primary"></h3>
@@ -64,6 +65,7 @@
           <label><span data-i18n="to"></span> <input id="scan-to" type="number" min="0" max="250" value="250"></label>
           <label><span data-i18n="retries"></span> <input id="scan-retries" type="number" min="0" max="5" value="1"></label>
         </div>
+        <p id="scan-estimate" class="hint"></p>
         <button id="scan-primary" class="needs-conn" data-i18n="scan_primary_start"></button>
       </div>
       <div class="scan-mode">

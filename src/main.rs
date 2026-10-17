@@ -12,7 +12,7 @@ use std::sync::Arc;
 use anyhow::{bail, Context};
 use clap::{Parser, Subcommand};
 
-use mbus::master::{FrameLog, Master, Progress, Reply, ScanHit, Target};
+use mbus::master::{Bauds, FrameLog, Master, Progress, Reply, ScanHit, Target};
 
 /// M-Bus Master mit Weboberfläche
 #[derive(Parser)]
@@ -63,12 +63,18 @@ enum Cmd {
         /// Auf allen Baudraten scannen, auf denen Geräte antworten
         #[arg(long)]
         all_bauds: bool,
+        /// Auf diesen Baudraten scannen, z.B. 2400,9600
+        #[arg(long, value_delimiter = ',')]
+        bauds: Vec<u32>,
     },
     /// Sekundärscan (Wildcard-Suche über die ID)
     ScanSecondary {
         /// Auf allen Baudraten scannen, auf denen Geräte antworten
         #[arg(long)]
         all_bauds: bool,
+        /// Auf diesen Baudraten scannen, z.B. 2400,9600
+        #[arg(long, value_delimiter = ',')]
+        bauds: Vec<u32>,
     },
     /// Prüfen, auf welchen Baudraten Geräte am Bus antworten
     BusBauds,
@@ -88,6 +94,14 @@ enum Cmd {
     },
     /// Rohe Bytes senden, z.B. "10 40 01 41 16"
     Raw { hex: String },
+}
+
+fn choice(all_bauds: bool, bauds: &[u32]) -> Bauds {
+    match (all_bauds, bauds.is_empty()) {
+        (true, _) => Bauds::Probe,
+        (false, true) => Bauds::Current,
+        (false, false) => Bauds::List(bauds.to_vec()),
+    }
 }
 
 /// Treffer sammeln, Fortschritt auf stderr
@@ -115,16 +129,17 @@ fn run_command(args: &Args, cmd: &Cmd) -> anyhow::Result<()> {
             to,
             retries,
             all_bauds,
+            bauds,
         } => {
             let mut hits = Vec::new();
-            m.scan_maybe_all_bauds(*all_bauds, &mut collect(&mut hits), &mut |m, p| {
+            m.scan_with(choice(*all_bauds, bauds), &mut collect(&mut hits), &mut |m, p| {
                 m.scan_primary(*from, *to, *retries, p)
             })?;
             serde_json::to_value(hits)?
         }
-        Cmd::ScanSecondary { all_bauds } => {
+        Cmd::ScanSecondary { all_bauds, bauds } => {
             let mut hits = Vec::new();
-            m.scan_maybe_all_bauds(*all_bauds, &mut collect(&mut hits), &mut |m, p| {
+            m.scan_with(choice(*all_bauds, bauds), &mut collect(&mut hits), &mut |m, p| {
                 m.scan_secondary(p)
             })?;
             serde_json::to_value(hits)?

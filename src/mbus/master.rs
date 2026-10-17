@@ -180,6 +180,15 @@ pub struct Master {
     inter_byte: Duration,
 }
 
+/// Auf welchen Baudraten gescannt wird
+pub enum Bauds {
+    /// nur die eingestellte Baudrate
+    Current,
+    /// erst prüfen, wo Geräte antworten, dann dort scannen
+    Probe,
+    List(Vec<u32>),
+}
+
 /// Standard-Baudraten, langsamste zuerst
 pub const BAUD_RATES: [u32; 8] = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 
@@ -668,42 +677,54 @@ impl Master {
         result.and(restore)
     }
 
-    /// Scan auf der aktuellen Baudrate, oder mit `all_bauds` auf allen Baudraten,
-    /// auf denen Geräte antworten (für Busse mit gemischten Baudraten).
-    pub fn scan_maybe_all_bauds(
+    /// Scan auf den gewählten Baudraten (für Busse mit gemischten Baudraten).
+    pub fn scan_with(
         &mut self,
-        all_bauds: bool,
+        bauds: Bauds,
         progress: ProgressFn,
         scan: &mut dyn FnMut(&mut Master, ProgressFn) -> Result<()>,
     ) -> Result<()> {
-        let bauds = if all_bauds {
-            if !progress(Progress::Step {
-                done: 0,
-                total: 1,
-                message: tr(
-                    "Prüfe, auf welchen Baudraten Geräte antworten",
-                    "Checking which baud rates have devices",
-                ),
-            }) {
-                return Ok(());
+        let mut list = match bauds {
+            Bauds::Current => vec![self.baud],
+            Bauds::List(list) => {
+                if let Some(b) = list.iter().find(|b| !BAUD_RATES.contains(b)) {
+                    bail!(
+                        "{}: {b}",
+                        tr("Keine Standard-Baudrate", "Not a standard baud rate")
+                    );
+                }
+                list
             }
-            let found = self.bus_bauds()?;
-            if found.is_empty() {
-                progress(Progress::Step {
-                    done: 1,
+            Bauds::Probe => {
+                if !progress(Progress::Step {
+                    done: 0,
                     total: 1,
                     message: tr(
-                        "Auf keiner Baudrate antwortet ein Gerät",
-                        "No device answers at any baud rate",
+                        "Prüfe, auf welchen Baudraten Geräte antworten",
+                        "Checking which baud rates have devices",
                     ),
-                });
-                return Ok(());
+                }) {
+                    return Ok(());
+                }
+                self.bus_bauds()?
             }
-            found
-        } else {
-            vec![self.baud]
         };
-        self.scan_bauds(&bauds, progress, scan)
+        if list.is_empty() {
+            progress(Progress::Step {
+                done: 1,
+                total: 1,
+                message: tr(
+                    "Auf keiner Baudrate antwortet ein Gerät",
+                    "No device answers at any baud rate",
+                ),
+            });
+            return Ok(());
+        }
+        // eingestellte Baudrate zuerst, dort sind meist die meisten Zähler
+        let home = self.baud;
+        list.sort_by_key(|&b| (b != home, b));
+        list.dedup();
+        self.scan_bauds(&list, progress, scan)
     }
 
     /// Application Reset (CI 50), optional mit Subcode.

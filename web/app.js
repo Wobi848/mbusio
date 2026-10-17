@@ -29,13 +29,16 @@ const UI = {
     scan_secondary_hint:
       "Sucht über die ID der Zähler, unabhängig von der Primäradresse. Findet auch Zähler, die sich eine Adresse teilen. Dauert länger, kein Bereich nötig.",
     cancel: "Abbrechen",
-    scan_all_bauds: "Alle Baudraten scannen",
-    scan_all_bauds_hint:
-      "Für Busse mit gemischten Baudraten: prüft zuerst kurz 300 bis 38400 Bd und scannt dann auf jeder Baudrate, auf der etwas antwortet.",
-    bus_bauds: "Nur prüfen",
+    scan_bauds: "Baudraten:",
+    scan_bauds_hint:
+      "Gescannt wird auf allen markierten Baudraten. „Prüfen“ fragt kurz 300 bis 38400 Bd ab und markiert die, auf denen etwas antwortet (●).",
+    bus_bauds: "Prüfen",
+    pick_baud: "Mindestens eine Baudrate markieren",
+    estimate: (t) => `Primärscan dauert höchstens ca. ${t}`,
     bus_bauds_busy: "Prüfe 300 bis 38400 Bd …",
     bus_bauds_none: "Auf keiner Baudrate antwortet ein Gerät",
     bus_bauds_found: (l, b) => `Geräte antworten auf: ${l} Bd` + (l.split(", ").some((x) => Number(x) !== b) ? " – Achtung, nicht nur auf der eingestellten Baudrate!" : ""),
+    duration: (s) => (s < 90 ? `${Math.ceil(s)} s` : `${Math.ceil(s / 60)} min`),
     col_baud: "Baud",
     col_primary: "PA",
     col_secondary: "Sekundäradresse",
@@ -169,13 +172,16 @@ const UI = {
     scan_secondary_hint:
       "Searches by meter ID, independent of the primary address. Also finds meters that share an address. Takes longer, no range needed.",
     cancel: "Cancel",
-    scan_all_bauds: "Scan all baud rates",
-    scan_all_bauds_hint:
-      "For buses with mixed baud rates: quickly checks 300 to 38400 Bd first, then scans at every baud rate where something answers.",
-    bus_bauds: "Check only",
+    scan_bauds: "Baud rates:",
+    scan_bauds_hint:
+      "The scan runs at every selected baud rate. “Check” quickly polls 300 to 38400 Bd and selects those where something answers (●).",
+    bus_bauds: "Check",
+    pick_baud: "Select at least one baud rate",
+    estimate: (t) => `Primary scan takes at most about ${t}`,
     bus_bauds_busy: "Checking 300 to 38400 Bd …",
     bus_bauds_none: "No device answers at any baud rate",
     bus_bauds_found: (l, b) => `Devices answer at: ${l} Bd` + (l.split(", ").some((x) => Number(x) !== b) ? " – note: not only at the configured baud rate!" : ""),
+    duration: (s) => (s < 90 ? `${Math.ceil(s)} s` : `${Math.ceil(s / 60)} min`),
     col_baud: "Baud",
     col_primary: "PA",
     col_secondary: "Secondary address",
@@ -346,6 +352,9 @@ let logSeq = 0;
 let lastReading = null;
 let lastJob = null;
 let connBaud = null;
+let conn = null;
+let baudsTouched = false;
+const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", "X-Lang": lang };
@@ -420,7 +429,12 @@ async function loadPorts() {
 async function refreshStatus() {
   const s = await api("status");
   connected = s.connected;
+  const prevBaud = connBaud;
   connBaud = s.connection?.baud ?? null;
+  conn = s.connection;
+  // Auswahl folgt der eingestellten Baudrate, bis man selbst etwas anklickt
+  if (connBaud !== prevBaud && !baudsTouched) setPickedBauds(connBaud ? [connBaud] : []);
+  updateEstimate();
   jobRunning = s.job_running;
   const badge = $("conn-badge");
   if (connected) {
@@ -588,12 +602,52 @@ $("scan-primary").onclick = () =>
       from: Number($("scan-from").value || 0),
       to: Number($("scan-to").value || 250),
       retries: Number($("scan-retries").value || 1),
-      all_bauds: $("scan-all-bauds").checked,
+      bauds: pickedBauds(),
     })
   );
 
 $("scan-secondary").onclick = () =>
-  guarded($("scan-secondary"), () => startScan("scan/secondary", { all_bauds: $("scan-all-bauds").checked }));
+  guarded($("scan-secondary"), () => startScan("scan/secondary", { bauds: pickedBauds() }));
+
+// ------------------------------------------------------------ Baudraten für den Scan
+
+$("scan-bauds").innerHTML = BAUDS.map((b) => `<label><input type="checkbox" value="${b}"><span>${b}</span></label>`).join("");
+
+function pickedBauds() {
+  const list = [...$("scan-bauds").querySelectorAll("input:checked")].map((i) => Number(i.value));
+  if (!list.length) throw new Error(t("pick_baud"));
+  return list;
+}
+
+function setPickedBauds(list, found = null) {
+  $("scan-bauds").querySelectorAll("input").forEach((i) => {
+    i.checked = list.includes(Number(i.value));
+    if (found) i.nextElementSibling.classList.toggle("found", found.includes(Number(i.value)));
+  });
+  updateEstimate();
+}
+
+/// Obergrenze: jede Adresse ohne Antwort wartet den vollen Timeout ab, je Wiederholung
+function updateEstimate() {
+  const el = $("scan-estimate");
+  const bauds = [...$("scan-bauds").querySelectorAll("input:checked")].map((i) => Number(i.value));
+  if (!conn || !bauds.length) return (el.textContent = "");
+  const from = Number($("scan-from").value || 0);
+  const to = Number($("scan-to").value || 250);
+  const tries = Number($("scan-retries").value || 1) + 1;
+  const n = Math.max(0, to - from + 1);
+  const secs = bauds.reduce((sum, b) => {
+    const timeout = conn.timeout_auto ? 330 / b + 0.25 : conn.timeout_ms / 1000;
+    return sum + n * tries * timeout;
+  }, 0);
+  el.textContent = t("estimate", t("duration", secs));
+}
+
+$("scan-bauds").addEventListener("change", () => {
+  baudsTouched = true;
+  updateEstimate();
+});
+["scan-from", "scan-to", "scan-retries"].forEach((id) => $(id).addEventListener("input", updateEstimate));
 
 $("bus-bauds").onclick = () =>
   guarded($("bus-bauds"), async () => {
@@ -602,8 +656,11 @@ $("bus-bauds").onclick = () =>
     try {
       const r = await api("bus-bauds", { method: "POST" });
       out.textContent = r.bauds.length ? t("bus_bauds_found", r.bauds.join(", "), connBaud) : t("bus_bauds_none");
-      // mehr als eine Baudrate: Scan über alle Baudraten gleich vorschlagen
-      if (r.bauds.length > 1) $("scan-all-bauds").checked = true;
+      // gefundene Baudraten für den Scan markieren
+      if (r.bauds.length) {
+        baudsTouched = true;
+        setPickedBauds(r.bauds, r.bauds);
+      }
     } catch (e) {
       out.textContent = "";
       throw e;
