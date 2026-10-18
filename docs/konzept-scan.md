@@ -1,4 +1,4 @@
-# Konzept: schneller und gezielter scannen
+# Konzept: Änderungen erkennen, gezielter scannen
 
 Stand: 18.10.2026 · Status: **Entwurf zur Abstimmung**
 
@@ -6,85 +6,77 @@ Stand: 18.10.2026 · Status: **Entwurf zur Abstimmung**
 
 | Heute | Problem |
 | --- | --- |
-| Der Sekundärscan sucht immer den **ganzen Bus** ab (Wildcard-Suche über die 8 Stellen der ID). | Bei 50 Zählern dauert das Minuten, auch wenn man nur 3 Zähler sucht. |
-| Die IDs stehen oft **schon in der Zählerliste**, z.B. aus der importierten Liste des Kunden (Typenschilder). | Dieses Wissen nutzt der Scan nicht. |
-| Jeder neue Scan **ersetzt** die Trefferliste. Ein abgebrochener Sekundärscan beginnt wieder von vorn. | Wer nach einer Korrektur nur einen Teil neu sucht, verliert den Rest. |
-| Ob alle Zähler der Liste am Bus sind, sieht man nur, indem man vergleicht. | Fehlende oder unbekannte Zähler fallen spät auf. |
+| Jeder Scan zeigt nur sein eigenes Ergebnis. | Was sich seit dem letzten Mal geändert hat (neuer Zähler, Zähler weg, andere PA, aus einer Kollision werden zwei Zähler), muss man selbst vergleichen. |
+| Der Sekundärscan sucht immer den **ganzen Bus** ab. | Bei 50 Zählern dauert das Minuten, auch wenn man nur einen Teil sucht. |
+| Ein abgebrochener Sekundärscan beginnt wieder von vorn. | Zeit geht verloren. |
+| Nach einem Eingriff (Alle beheben, Zählerwechsel) will man wissen, ob noch alle da sind. | Dafür gibt es nur den vollen Scan. |
 
-## 2. Ziel
+**Grundsatz:** Der volle Scan bleibt die Wahrheit über den Bus und wird nicht „schlau“ abgekürzt;
+ein Scan, der Teile auslässt, übersieht genau das, was man sucht. Es wird nichts automatisch in die
+Zählerliste übernommen oder ausgelesen.
 
-Drei Erweiterungen, alle an **einer Stelle**: in der Kachel **Sekundärscan** im Reiter Scan. Keine
-neue Seite, kein neuer Reiter.
+## 2. Änderungen seit dem letzten Scan (zuerst)
+
+Nach jedem Scan vergleicht mbusio mit dem **letzten Scan derselben Art auf dieser Linie**
+(Primär mit Primär, Sekundär mit Sekundär). Kostet keine Buszeit.
+
+```
+Seit dem letzten Scan (gestern 14:02):  2 neu · 1 fehlt · 1 geändert
+  PA 10   10000010  KAM   OK        neu            ← vorher nur „Kollision auf PA 10“
+  PA 10   10000011  KAM   OK        neu
+  PA 7    30000001  SEN   OK        geändert: PA 3 → 7
+  –       40000004  SEN   –         fehlt          ← grau, war beim letzten Mal da
+```
+
+- **neu:** diesmal gefunden, beim letzten Mal nicht (auch: aus einer Kollision werden einzelne
+  Zähler sichtbar).
+- **fehlt:** beim letzten Mal da, diesmal nicht. Steht als graue Zeile in der Trefferliste, damit
+  man es nicht übersieht.
+- **geändert:** gleicher Zähler (gleiche ID und Hersteller), aber andere PA, Baudrate oder anderer
+  Status; angezeigt als „alt → neu“.
+- Zeilen mit Änderung sind hervorgehoben (wie die Problemzeilen, eigene Farbe); die Zusammenfassung
+  steht über der Trefferliste. Kein Unterschied → nur „Keine Änderung seit dem letzten Scan“.
+- Erkennung eines Zählers: Sekundäradresse (ID, Hersteller, Version, Medium); beim Primärscan ohne
+  ID über die PA.
+- Gespeichert wird je Linie und Art das letzte Ergebnis (die Linie merkt sich heute schon ihre
+  Auffälligkeiten). Der Vergleich gilt immer zum unmittelbar vorherigen Scan.
+
+## 3. Sekundärscan eingrenzen und weitersuchen
+
+In der Kachel Sekundärscan:
 
 ```
 Sekundärscan (SA)
-Suchen in:  (•) ganzer Bus   ( ) nur Zählerliste (30 IDs)   ( ) ID beginnt mit [1234____]
-                                                            [Sekundärscan starten]
+ID beginnt mit [1234____] (leer = ganzer Bus)          [Sekundärscan starten]
+Abgebrochen bei 12** · [Weitersuchen]
 ```
 
-### 2.1 Gezielt: nur die Zähler der Liste
+- **Präfix der ID** (1–7 Stellen) fest vorgegeben; die Wildcard-Suche beginnt erst dahinter.
+  Beispiel `1234` sucht nur `12340000` bis `12349999`.
+- **Weitersuchen:** bricht man einen Sekundärscan ab, merkt sich mbusio die Stelle; „Weitersuchen“
+  macht dort weiter, die bisherigen Treffer bleiben stehen.
 
-- Für jeden Zähler der Zählerliste mit ID: **direkt ansprechen** (Auswahl mit seiner ID, die
-  übrigen Stellen als Wildcard), dann den Kopf der Antwort lesen. Mit seiner eigenen Baudrate,
-  falls bei ihm eingetragen, sonst mit der Baudrate der Linie.
-- Etwa **1 s pro Zähler** statt Minuten für den ganzen Bus.
-- Ergebnis je Zähler, in der gewohnten Trefferliste:
-  - **gefunden**, mit PA, Baudrate, Hersteller, Medium (wie heute),
-  - **antwortet nicht**: neuer Status, als Auffälligkeit gezählt („3 Zähler der Liste antworten
-    nicht“), mit „Warum?“ (Verkabelung, Baudrate, Zähler gewechselt),
-  - **mehrere antworten** auf dieselbe ID (gleiche ID bei verschiedenen Herstellern): nur für
-    diese ID wird mit Wildcards weitergesucht, wie heute beim Sekundärscan.
-- Zusammenfassung oben: „28 von 30 Zählern der Liste gefunden“.
+## 4. Schnellprüfung der bekannten Zähler
 
-### 2.2 Eingegrenzt: ID beginnt mit …
+„Sind die Zähler vom letzten Scan noch alle da?“ – jeder bekannte Zähler wird über seine
+Sekundäradresse direkt angesprochen, etwa 1 s pro Zähler statt eines vollen Scans.
 
-- Ein Präfix der ID (1–7 Stellen) wird fest vorgegeben; die Wildcard-Suche beginnt erst hinter
-  dem Präfix. Beispiel: Präfix `1234` sucht nur die IDs `12340000` bis `12349999`.
-- Typisch, wenn ein Lieferant fortlaufende IDs hat oder nur ein Gebäudeteil gesucht wird.
-- Technisch fast geschenkt: die Suche beginnt einfach an der Stelle hinter dem Präfix.
+- Gedacht nach einem Eingriff (Alle beheben, Zählerwechsel, Arbeiten am Strang).
+- Ergebnis wie in 2: alle da, oder „fehlt“ bzw. „geändert“.
+- Findet **keine neuen** Zähler; heisst deshalb Prüfung, nicht Scan. Für die volle Wahrheit bleibt
+  der volle Scan.
 
-### 2.3 Ergebnisse behalten
-
-- Ein Sekundärscan **ergänzt** die Trefferliste, statt sie zu ersetzen. Zusammengeführt wird über
-  die volle Sekundäradresse; ein erneut gefundener Zähler bekommt den neuen Stand.
-- Treffer aus einem früheren Scan, die diesmal nicht geprüft wurden, bleiben stehen, grau mit
-  dem Hinweis „früherer Scan“. Ein Knopf **„Trefferliste leeren“** fängt neu an.
-- Der Primärscan bleibt wie heute: er prüft einen festen Bereich und ersetzt die Liste.
-- **Weitersuchen:** wird ein Sekundärscan über den ganzen Bus abgebrochen, merkt sich mbusio die
-  Stelle. „Weitersuchen“ macht dort weiter, statt bei `0` zu beginnen.
-
-### 2.4 Zählerliste und Bus vergleichen
-
-Nach jedem Scan, unter der Trefferliste, nur wenn es etwas zu sagen gibt:
-
-`Zählerliste ↔ Bus: 2 fehlen am Bus (12345678, 23456789) · 3 neu, nicht in der Liste [Neue übernehmen]`
-
-- **Fehlen am Bus** = in der Liste, aber in diesem Scan nicht gefunden.
-- **Neu** = gefunden, aber nicht in der Liste; „Neue übernehmen“ merkt nur diese.
-- Nach einem gezielten Scan (2.1) gibt es naturgemäss keine neuen Zähler, nur fehlende.
-
-## 3. Nächster Schritt
-
-- Steht die Zählerliste schon (z.B. aus einer importierten Liste), aber die Zähler sind noch nicht
-  am Bus bestätigt, schlägt „Nächster Schritt“ **„Zähler der Liste suchen“** vor (gezielter Scan)
-  statt eines Primärscans über alle Adressen.
-- Fehlen danach Zähler, zeigt die Leiste „2 Zähler der Liste antworten nicht“ als Auffälligkeit.
-
-## 4. Umsetzung
+## 5. Umsetzung (nach Freigabe, in dieser Reihenfolge)
 
 | Teil | Wo | Was |
 | --- | --- | --- |
-| Gezielt | `src/mbus/master/scan.rs` | `scan_known(ids, progress)`: je ID auswählen, Kopf lesen, bei mehreren Antworten mit Wildcards nur unter dieser ID weitersuchen; Baudrate je Zähler über `at_baud` |
-| Präfix, Weitersuchen | `src/mbus/master/scan.rs` | `scan_secondary` bekommt eine Start-Maske (Präfix fest bzw. Stelle des Abbruchs) |
-| API | `src/web/bus.rs` | `POST /api/scan/secondary` mit `{ scope: "bus" \| "list" \| "prefix", prefix, resume }`; der Job liefert die Stelle des Abbruchs |
-| Zusammenführen, Vergleich | `web/js/scan.js` | Treffer über die SA zusammenführen, „früherer Scan“, Vergleich mit der Zählerliste |
-| Simulator | `src/sim/` | kann es schon (Auswahl mit Wildcards); Vorlage „Mehrfamilienhaus“ mit 30 Zählern zum Testen |
-| Tests | Rust und `tests/ui` | gezielt: 30 von 30 gefunden, ein fehlender Zähler, gleiche ID zweimal; Präfix; Weitersuchen nach Abbruch |
+| Letzten Scan merken | `src/db/` | je Linie und Art das letzte Ergebnis mit Zeit speichern |
+| Vergleich | `web/js/scan.js` (oder Server) | neu, fehlt, geändert berechnen; Zeilen markieren, Zusammenfassung, „fehlt“-Zeilen |
+| Präfix, Weitersuchen | `src/mbus/master/scan.rs`, `src/web/bus.rs` | `scan_secondary` mit Start-Maske; der Job liefert die Stelle des Abbruchs |
+| Schnellprüfung | `src/mbus/master/scan.rs` | je bekannter SA auswählen und Kopf lesen, mit Baudrate je Zähler |
+| Tests | Rust und `tests/ui` | Simulation ändern (Zähler weg, PA geändert) → Vergleich; Präfix; Weitersuchen nach Abbruch |
 
-Kein neuer Speicherort: die Zählerliste ist die Quelle der IDs, die Trefferliste bleibt, wo sie ist.
+## 6. Offene Frage
 
-## 5. Offene Fragen
-
-1. Soll ein **gefundener Zähler der Liste** gleich seine PA und Baudrate in die Zählerliste
-   übernehmen (dann kann „Merken über PA“ direkt auslesen), oder nur anzeigen?
-2. Gilt „Ergebnisse behalten“ (2.3) auch für den **Primärscan**, oder bleibt der wie heute?
+Soll der Vergleich auch beim **ersten Scan nach dem Neuladen** gelten, also mit dem gespeicherten
+Ergebnis von gestern? (Vorschlag: ja, das ist gerade der Nutzen beim zweiten Besuch einer Anlage.)
