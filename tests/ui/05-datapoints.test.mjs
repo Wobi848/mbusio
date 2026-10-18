@@ -54,5 +54,11 @@ export default {
     await page.waitForSelector("[data-open-transfer]");
     await page.click("[data-open-transfer]");
     await page.waitForSelector(".tr-pick .dp-pick-row");
+    // MQTT-Einstellungen: Eingaben bleiben, auch wenn der Status alle 5 s nachgeführt wird
+    await tab(page, "transfer");
+    await page.click("[data-out-settings=mqtt]");
+    await page.fill("[data-out-form=mqtt] [name=host]", "10.0.0.7");
+    await page.waitForTimeout(6000);
+    assert.equal(await page.inputValue("[data-out-form=mqtt] [name=host]"), "10.0.0.7");
   },
 };

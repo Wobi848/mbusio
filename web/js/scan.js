@@ -26,7 +26,7 @@ async function refreshStatus() {
   planActive = !!s.plan_active;
   disk = s.disk;
   mqttStatus = s.mqtt;
-  if (transfer.data && !$("sec-outputs").hidden) renderOutputs();
+  if (transfer.data && !$("sec-outputs").hidden) renderOutputState();
   renderPlantState();
   if (runsBefore && !planRuns.length) loadMeters().catch(() => {});
   // "Baudrate abweichend" hängt von der Bus-Baudrate ab: Trefferliste neu zeichnen, wenn sie sich ändert

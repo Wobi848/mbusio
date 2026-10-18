@@ -5,6 +5,7 @@
 .out-list { display: grid; gap: 10px; }
 .out-row { background: var(--sunken); border-radius: 12px; padding: 10px 14px; }
 .out-form { margin-top: 12px; }
+.out-state { display: inline-flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; min-width: 0; }
 #mqtt-example { word-break: break-all; }
 
 /* ------------------------------------------------------------ Datenpunkte */
