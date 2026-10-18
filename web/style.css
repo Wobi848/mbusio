@@ -1024,3 +1024,7 @@ label.check.sub-check { margin-left: 24px; }
 .names-row { align-items: end; flex-wrap: wrap; }
 .names-row .grow { flex: 1; min-width: 220px; }
 @media (max-width: 900px) { .list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Uhrzeit immer 24 h */
+input.time24 { width: 84px; text-align: center; }
+input.time24.invalid { border-color: var(--err); box-shadow: 0 0 0 2px var(--err-soft); }

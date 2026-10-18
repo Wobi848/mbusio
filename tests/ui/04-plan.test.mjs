@@ -12,6 +12,17 @@ export default {
     await page.click("#project-edit");
     await page.selectOption("#tree-form [name=plan_kind]", "daily");
     assert.equal(await page.inputValue("#tree-form [name=plan_time]"), "00:05");
+    // immer 24 h: Kurzform wird ergänzt, Ungültiges abgelehnt
+    await page.fill("#tree-form [name=plan_time]", "25:00");
+    await page.click("#tree-form [type=submit]");
+    await page.waitForFunction(() => document.querySelector("#toast").textContent.includes("24 h"));
+    await page.fill("#tree-form [name=plan_time]", "1730");
+    await page.locator("#tree-form [name=plan_time]").blur();
+    assert.equal(await page.inputValue("#tree-form [name=plan_time]"), "17:30");
+    await page.fill("#tree-form [name=plan_time]", "5");
+    await page.locator("#tree-form [name=plan_time]").blur();
+    assert.equal(await page.inputValue("#tree-form [name=plan_time]"), "05:00");
+    await page.fill("#tree-form [name=plan_time]", "0:05");
     await page.click("#tree-form [type=submit]");
     await page.waitForFunction(() => document.querySelector(".ln-plan")?.textContent.includes("täglich 00:05"));
     // Linie: eigener Plan

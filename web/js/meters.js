@@ -137,8 +137,9 @@ $("meter-form").onsubmit = (ev) => {
       baud: $("mf-baud").value ? Number($("mf-baud").value) : null,
       note: $("mf-note").value.trim(),
     };
-    const saved = editingId === null ? await api("meters", { method: "POST", body }) : await api("meters/" + editingId, { method: "PUT", body });
+    // Plan zuerst prüfen (ungültige Uhrzeit: nichts speichern)
     const plan = planFrom(Object.fromEntries(new FormData($("meter-form")).entries()));
+    const saved = editingId === null ? await api("meters", { method: "POST", body }) : await api("meters/" + editingId, { method: "PUT", body });
     if (plan !== (old.plan ?? null)) await savePlan("meters/" + saved.id, plan);
     $("meter-form").hidden = true;
     toast(t("meter_saved"));

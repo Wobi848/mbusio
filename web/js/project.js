@@ -34,8 +34,23 @@ function planField(value, inherit, hint) {
       <label><span>${esc(t("plan"))}</span><select name="plan_kind">${opts
         .map(([v, l]) => `<option value="${v}" ${v === kind ? "selected" : ""}>${esc(l)}</option>`)
         .join("")}</select></label>
-      <label class="plan-time"><span>${esc(t("plan_time"))}</span><input type="time" name="plan_time" value="${esc(time || "00:05")}"></label>
+      <label class="plan-time"><span>${esc(t("plan_time"))}</span><input name="plan_time" class="mono time24" value="${esc(time || "00:05")}" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></label>
     </div>${hint ? `<p class="hint plan-hint">${esc(hint)}</p>` : ""}`;
+}
+
+/// Uhrzeit immer 24 h als HH:MM; Kurzformen: "5" → 05:00, "530" → 05:30, "17:5" → 17:05.
+/// null, wenn es keine gültige Uhrzeit ist.
+function time24(s) {
+  const v = String(s || "").trim();
+  let h;
+  let m;
+  const parts = v.split(/[:.h ]/).filter(Boolean);
+  if (parts.length === 2) [h, m] = parts;
+  else if (/^\d{1,2}$/.test(v)) [h, m] = [v, "0"];
+  else if (/^\d{3,4}$/.test(v)) [h, m] = [v.slice(0, -2), v.slice(-2)];
+  else return null;
+  if (!/^\d{1,2}$/.test(h) || !/^\d{1,2}$/.test(m) || Number(h) > 23 || Number(m) > 59) return null;
+  return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
 }
 
 /// Uhrzeit nur bei täglich und monatlich
@@ -45,13 +60,23 @@ function wirePlanField(root) {
   const update = () => (wrap.hidden = !["daily", "monthly"].includes(sel.value));
   sel.addEventListener("change", update);
   update();
+  // beim Verlassen in die Normalform bringen, Ungültiges markieren
+  const input = root.querySelector("[name=plan_time]");
+  input.addEventListener("blur", () => {
+    const v = time24(input.value);
+    input.classList.toggle("invalid", !v);
+    if (v) input.value = v;
+  });
 }
 
 /// Plan aus den Formularwerten; null = erben
 function planFrom(values) {
   const k = values.plan_kind;
   if (!k) return null;
-  return k === "daily" || k === "monthly" ? `${k} ${values.plan_time || "00:05"}` : k;
+  if (k !== "daily" && k !== "monthly") return k;
+  const time = time24(values.plan_time || "00:05");
+  if (!time) throw new Error(t("plan_time_bad"));
+  return `${k} ${time}`;
 }
 
 async function savePlan(path, plan) {
@@ -248,8 +273,8 @@ $("tree").addEventListener("click", (ev) => {
   if (d.lnEdit) {
     const l = findLine(id);
     return openTreeForm("line", l, async (v) => {
-      await api(`lines/${id}`, { method: "PUT", body: { name: v.name, connection: v.connection, baud: v.baud, timeout_ms: l.timeout_ms } });
       const plan = planFrom(v);
+      await api(`lines/${id}`, { method: "PUT", body: { name: v.name, connection: v.connection, baud: v.baud, timeout_ms: l.timeout_ms } });
       if (plan !== (l.plan ?? null)) await savePlan(`lines/${id}`, plan);
       // aktive Linie mit neuem Anschluss: gleich neu verbinden
       if (id === tree.active.line.id && (v.connection !== l.connection || v.baud !== l.baud)) return activateLine(id, v.name);
@@ -260,8 +285,8 @@ $("tree").addEventListener("click", (ev) => {
     const g = findGateway(id);
     const prefill = g.address ? `tcp://${g.address}:` : "";
     return openTreeForm("line", { name: t("ln_new", g.lines.length + 1), connection: prefill, baud: 2400 }, async (v) => {
-      const created = await api(`gateways/${id}/lines`, { method: "POST", body: v });
       const plan = planFrom(v);
+      const created = await api(`gateways/${id}/lines`, { method: "POST", body: v });
       if (plan !== null) await savePlan(`lines/${created.id}`, plan);
       await loadTree();
     });
@@ -309,8 +334,8 @@ $("project-new").onclick = () =>
 
 $("project-edit").onclick = () =>
   openTreeForm("project", tree.active.project, async (v) => {
-    await api(`projects/${tree.active.project.id}`, { method: "PUT", body: v });
     const plan = planFrom(v);
+    await api(`projects/${tree.active.project.id}`, { method: "PUT", body: v });
     if (plan !== (tree.active.project.plan || "off")) await savePlan(`projects/${tree.active.project.id}`, plan);
     const thin = Number(v.thin) || null;
     if (thin !== (tree.active.project.thin_days ?? null))
