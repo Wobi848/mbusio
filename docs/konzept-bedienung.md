@@ -304,3 +304,12 @@ ID steht ein Streifen nach der Gruppe statt einer Klammer über die Zeilen.
 | Sekundär | `tonal` | helle Akzentfläche, Text und Rand in Akzentfarbe | wichtig, aber nicht der Hauptweg (Prüfen, N beheben, Sekundärscan starten, Zähler hinzufügen, Dauerbetrieb einrichten, Setzen/Umstellen) |
 | Neutral | `ghost` | weiss mit Rand | Aktionen, die sich je Zeile wiederholen (Merken, Wählen, Werte wählen) |
 | Leise | `quiet` | nur Text | Seltenes (Bericht, Liste, Schliessen, Auslesen je Zeile) |
+
+### 11.2 Farben für Probleme (19.10.2026)
+
+- **Orange = Hinweis:** der Zähler funktioniert und kommt beim Übernehmen mit (z.B. gleiche ID, aber
+  über die PA ansprechbar; fremde Baudrate).
+- **Rot = Fehler:** funktioniert nicht, bleibt draussen (Kollision, keine Daten, antwortet nicht).
+- Gilt für Zeile, Streifen und Status-Chip in der Trefferliste und für die Zählerliste („antwortet
+  nicht“). Wechsel „Merken über SA/PA“ ändert, was mitkommt, und damit die Farbe.
+- Rot ist sonst nur für Gefährliches (Löschen).

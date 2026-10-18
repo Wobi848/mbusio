@@ -50,6 +50,11 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Geändert
 
+- Knöpfe: weitere wichtige Aktionen in der Sekundärfarbe (MQTT-Einstellungen, + Linie/Gateway,
+  Benennen, Baudrate suchen, Simulator kopieren); „Alle Auslesungen löschen“ rot; Menü-Einträge
+  immer leise (Ziel-Menü in den Werkzeugen war unlesbar).
+- Probleme in zwei Farben: orange = Hinweis, Zähler kommt mit; rot = Fehler, bleibt draussen.
+  Auch die Zählerliste hebt Zähler hervor, die nicht antworten.
 - Datenpunkt-Tabelle: lange Topics von links gekürzt (Ende sichtbar, volles im Tooltip), passt auf Full HD.
 - **Oberfläche v2:** Kopfzeile für das Projekt, Linien-Leiste mit Verbindung und Plan, Laschen
   Scan · Zähler · Weitergabe; Zähler-Baustein mit Medium-Symbol überall; Zählerliste mit Suche,

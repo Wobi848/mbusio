@@ -253,7 +253,7 @@
       <label class="table-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="meters-search" type="search" data-i18n-ph="meters_search" data-i18n-title="meters_search" autocomplete="off"></label>
       <div id="meters-filter" class="seg" role="group" data-i18n-title="meters_filter"></div>
       <span class="spacer"></span>
-      <button id="quick-toggle" class="small quiet" data-i18n="quick_edit" data-i18n-title="quick_edit_title"></button>
+      <button id="quick-toggle" class="small tonal" data-i18n="quick_edit" data-i18n-title="quick_edit_title"></button>
       <button id="meter-add" class="small tonal" data-i18n="meter_add"></button>
       <button id="meters-read-all" class="small needs-conn"></button>
     </div>
@@ -359,7 +359,7 @@
           <button id="switch-baud" class="tonal needs-conn" data-needs-value="set-old" data-i18n="switch"></button>
         </div>
         <div class="row tight">
-          <button id="detect-baud" class="small quiet needs-conn" data-needs-value="set-old" data-i18n="detect_baud"></button>
+          <button id="detect-baud" class="small tonal needs-conn" data-needs-value="set-old" data-i18n="detect_baud"></button>
           <span id="detect-result" class="hint result"></span>
         </div>
         <p class="hint explain" data-i18n="baud_hint"></p>
@@ -381,7 +381,7 @@
       <div class="row">
         <a id="export-csv" class="button small ghost" href="api/export?format=csv">CSV</a>
         <a id="export-json" class="button small ghost" href="api/export?format=json">JSON</a>
-        <button id="clear-readings" class="small quiet push" data-i18n="delete"></button>
+        <button id="clear-readings" class="small quiet danger push" data-i18n="readings_delete_all"></button>
       </div>
     </section>
 
@@ -427,7 +427,7 @@
     <div class="row sim-pick">
       <label class="grow"><span data-i18n="sim_choose"></span> <select id="sim-select"></select></label>
       <button id="sim-use" data-i18n="sim_use"></button>
-      <button id="sim-copy" class="quiet" data-i18n="sim_copy"></button>
+      <button id="sim-copy" class="tonal" data-i18n="sim_copy"></button>
       <button id="sim-new" class="quiet" data-i18n="sim_new"></button>
       <button id="sim-delete" class="quiet danger" data-i18n="sim_delete"></button>
     </div>

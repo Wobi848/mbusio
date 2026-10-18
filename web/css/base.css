@@ -178,7 +178,6 @@ body:not(.show-help) .explain { display: none !important; }
 .line-menu .menu-items { left: 0; right: auto; min-width: 260px; }
 .line-menu .menu-items button { display: flex; justify-content: space-between; gap: 12px; }
 .line-menu .menu-items button.on { color: var(--accent) !important; font-weight: 700; }
-.line-menu .menu-items button { height: auto; min-height: 34px; padding: 6px 10px; }
 .line-menu [data-lb-manage] { margin-top: 4px; border-top: 1px solid var(--line) !important; border-radius: 0 0 8px 8px; }
 .line-menu .menu-items .mono { font-size: 11.5px; color: var(--muted); font-weight: 400; }
 .menu-group { padding: 6px 10px 2px; font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -467,6 +466,9 @@ details.menu > summary::-webkit-details-marker { display: none; }
 .menu-items { position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; min-width: 200px; display: grid; gap: 2px;
   padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
 .menu-items > * { justify-content: flex-start; text-align: left; width: 100%; }
+/* Einträge eines Menüs sind immer leise, egal wo sie gebaut werden (nie im Stil des Hauptknopfs) */
+.menu-items > button { background: transparent; color: var(--text); border-color: transparent; height: auto; min-height: 34px; padding: 6px 10px; }
+.menu-items > button:hover { background: var(--sunken); color: var(--text); }
 
 details summary {
   cursor: pointer;

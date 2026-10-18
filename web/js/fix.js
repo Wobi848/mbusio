@@ -27,28 +27,29 @@ function explainReason(reason) {
 }
 
 /// Streifen unter einer Zeile: was ist los (fett), was tun, Knöpfe, die helfen
-function issueStrip(cols, what, tip, buttons = "") {
-  return `<tr class="issue-strip"><td colspan="${cols}"><div class="strip">${ICON_ALERT}<span><b>${esc(what)}</b> ${esc(tip)}</span><span class="spacer"></span>${buttons}</div></td></tr>`;
+function issueStrip(cols, what, tip, buttons = "", fault = false) {
+  return `<tr class="issue-strip${fault ? " fault" : ""}"><td colspan="${cols}"><div class="strip">${ICON_ALERT}<span><b>${esc(what)}</b> ${esc(tip)}</span><span class="spacer"></span>${buttons}</div></td></tr>`;
 }
 
 /// Streifen eines einzelnen Treffers (Kollision, keine Daten, fremde Baudrate); "" = nichts
-function hitStrip(h, cols, fixTarget) {
+function hitStrip(h, cols, fixTarget, fault) {
   const analyze = h.raw ? `<a href="#analysis" class="button small quiet" data-analyze="${esc(h.raw)}">${esc(t("why_analyze"))}</a>` : "";
   if (h.status === "collision") {
     const what = h.primary_address != null ? t("warn_collision_pa", h.primary_address, h.baud) : t("warn_collision_id", h.id);
     const btn = h.primary_address != null ? `<button class="small tonal needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>` : "";
-    return issueStrip(cols, what, "", btn + analyze);
+    return issueStrip(cols, what, "", btn + analyze, true);
   }
   if (h.status === "no_data") {
     const [what, tip] = explainReason(h.reason);
-    return issueStrip(cols, what, tip, analyze);
+    return issueStrip(cols, what, tip, analyze, true);
   }
   if (h.baud && h.baud !== connBaud && fixTarget)
     return issueStrip(
       cols,
       t("other_baud_title", h.baud, connBaud),
       "",
-      `<button class="small tonal needs-conn" data-fixbaud="${esc(fixTarget)}" data-from="${h.baud}">${esc(t("fix_baud"))}</button>`
+      `<button class="small tonal needs-conn" data-fixbaud="${esc(fixTarget)}" data-from="${h.baud}">${esc(t("fix_baud"))}</button>`,
+      fault
     );
   return "";
 }
@@ -56,12 +57,14 @@ function hitStrip(h, cols, fixTarget) {
 /// Streifen nach dem letzten Zähler einer Gruppe (gleiche PA, gleiche ID und Hersteller): Index → html
 function groupStrips(hits, a, order, cols) {
   const out = new Map();
+  // kommen alle Zähler der Gruppe mit (über die gewählte Adresse eindeutig)? Dann orange, sonst rot
+  const allKept = (list) => list.every((i) => rememberable([hits[i]]).length > 0);
   const after = (list, html) => out.set(list.reduce((last, i) => (order.indexOf(i) > order.indexOf(last) ? i : last), list[0]), html);
   for (const [k, list] of a.dupPa) {
     const [baud, pa] = k.split(":");
-    after(list, issueStrip(cols, t("warn_dup_pa", pa, baud, list.map((i) => hits[i].id || "?")), t("warn_fix_hint")));
+    after(list, issueStrip(cols, t("warn_dup_pa", pa, baud, list.map((i) => hits[i].id || "?")), t("warn_fix_hint"), "", !allKept(list)));
   }
-  for (const [id, list] of a.dupIdSame) after(list, (out.get(list.at(-1)) || "") + issueStrip(cols, t("plan_manual_sameid", id), ""));
+  for (const [id, list] of a.dupIdSame) after(list, (out.get(list.at(-1)) || "") + issueStrip(cols, t("plan_manual_sameid", id), "", "", !allKept(list)));
   return out;
 }
 

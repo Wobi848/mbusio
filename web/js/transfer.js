@@ -103,7 +103,7 @@ function renderOutputs() {
       const open = transfer.outputOpen === o.key;
       return `<div class="out-row">
         <div class="out-head"><b>${esc(o.label)}</b><span class="out-state" data-out-state="${o.key}">${st.chip}<span class="hint">${esc(st.text)}</span></span><span class="spacer"></span>
-          <button type="button" class="small quiet" data-out-settings="${o.key}">${esc(t(open ? "history_close" : "out_settings"))}</button></div>
+          <button type="button" class="small ${open ? "quiet" : "tonal"}" data-out-settings="${o.key}">${esc(t(open ? "history_close" : "out_settings"))}</button></div>
         ${open ? `<form class="out-form" data-out-form="${o.key}">${outputForm(o.key)}</form>` : ""}
         ${outputTools(o)}
       </div>`;

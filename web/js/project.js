@@ -212,11 +212,11 @@ function renderTree() {
         </div>`;
         })
         .join("")}
-      <div class="gw-foot"><button class="small quiet" data-ln-add="${g.id}">${esc(t("ln_add"))}</button></div>
+      <div class="gw-foot"><button class="small tonal" data-ln-add="${g.id}">${esc(t("ln_add"))}</button></div>
     </div>`;
         }
       )
-      .join("") + `<div><button class="small ghost" data-gw-add>${esc(t("gw_add"))}</button></div>`;
+      .join("") + `<div><button class="small tonal" data-gw-add>${esc(t("gw_add"))}</button></div>`;
   placeTreeForm();
   renderLineBar();
   renderGuide();

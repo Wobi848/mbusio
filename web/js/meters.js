@@ -79,7 +79,9 @@ function renderMeters() {
         ? `<td><div class="quick-loc">${q("location", t("meter_location"), { list: "loc-list" })}<button class="icon-btn" data-q-same="${m.id}" title="${esc(t("quick_same"))}" aria-label="${esc(t("quick_same"))}">${ICON_DOWN}</button></div></td>`
         : `<td class="wrap">${esc(m.location)}${sub(m.note)}</td>`;
       const open = !form.hidden && editingId === m.id;
-      return `<tr data-row="${m.id}"${open ? ' class="sel"' : ""}>
+      // Zähler mit Fehler (antwortet nicht, gestört): rot wie Fehler in der Trefferliste
+      const rowCls = [open ? "sel" : "", METER_FILTERS.err(m) ? "fault" : ""].filter(Boolean).join(" ");
+      return `<tr data-row="${m.id}"${rowCls ? ` class="${rowCls}"` : ""}>
         ${nameCell}
         ${locCell}
         <td class="wrap">${m.last_value ? `<span class="val">${esc(m.last_value)}</span>` : ""}${sub(
@@ -111,9 +113,6 @@ function renderMeters() {
   renderLocList();
   table.classList.toggle("quick-mode", quickEdit);
   $("quick-toggle").textContent = t(quickEdit ? "quick_done" : "quick_edit");
-  // eingeschaltet: „Fertig“ als sekundärer Knopf, sonst leise
-  $("quick-toggle").classList.toggle("tonal", quickEdit);
-  $("quick-toggle").classList.toggle("quiet", !quickEdit);
   updateButtons();
 }
 

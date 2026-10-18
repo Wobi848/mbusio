@@ -41,6 +41,10 @@
 #meters-table input.quick.sub-input { margin-top: 4px; font-size: 12px; color: var(--muted); }
 #meters-table input.quick.saved { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-soft); }
 
+/* Zähler mit Fehler (antwortet nicht, gestört): rot getönt, Strich links (wie Fehler in der Trefferliste) */
+#meters-table tr.fault td { background: var(--err-soft); }
+#meters-table tr.fault td:first-child { box-shadow: inset 3px 0 0 var(--err); }
+
 /* Bearbeiten klappt in der Zeile auf: Zeile hell akzentuiert, Formular darunter eingerückt */
 #meters-table tr.sel td { background: var(--accent-soft); }
 #meters-table tr.edit-row:hover { background: transparent; }
@@ -111,6 +115,8 @@
   #meters-table tr:hover { background: transparent; }
   #meters-table td { border: 0; padding: 0; white-space: normal; text-align: left; min-width: 0; }
   #meters-table td:empty { display: none; }
+  #meters-table tr.fault { background: var(--err-soft); box-shadow: inset 3px 0 0 var(--err); padding-left: 10px; }
+  #meters-table tr.fault td, #meters-table tr.fault td:first-child { background: transparent; box-shadow: none; }
   #meters-table td:last-child { margin-top: 6px; }
   #meters-table td:first-child { min-width: 0; }
   #meters-table td.wrap:not(:first-child) { padding-left: 46px; }

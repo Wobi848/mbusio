@@ -211,7 +211,9 @@ function renderJob(job) {
       const dupPa = issues.rowDupPa.has(i);
       const dupId = issues.rowDupId.has(i);
       const change = chg?.rows.get(i);
-      const cls = [i >= fresh ? "new" : "", problem(h, i) ? "issue" : "", change ? "chg" : ""].filter(Boolean).join(" ");
+      // Problem: orange, wenn der Zähler trotzdem übernommen wird, sonst rot
+      const kept = rememberable([h]).length > 0;
+      const cls = [i >= fresh ? "new" : "", problem(h, i) ? (kept ? "issue" : "issue fault") : "", change ? "chg" : ""].filter(Boolean).join(" ");
       const anim = (cls ? ` class="${cls}"` : "") + (i >= fresh ? ` style="animation-delay:${Math.min(i - fresh, 8) * 50}ms"` : "");
       const paCount = dupPa ? issues.dupPa.get(`${h.baud}:${h.primary_address}`).length : 0;
       const warnChips =
@@ -234,14 +236,14 @@ function renderJob(job) {
         <td class="num mono${dupPa ? " st-other" : ""}"${dupPa ? ` title="${esc(t("dup_pa_title", h.primary_address, paCount))}"` : ""}>${h.primary_address ?? "–"}${dupPa ? " ⚠" : ""}</td>
         <td>${hitMeter(h)}</td>
         <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
-        <td>${ui.chip({ ok: "ok" }[h.status] || "warn", t("st_" + h.status))}${warnChips}${otherChip}${change ? " " + ui.chip("info", change.text) : ""}</td>
+        <td>${ui.chip(h.status === "ok" ? "ok" : "err", t("st_" + h.status))}${warnChips}${otherChip}${change ? " " + ui.chip("info", change.text) : ""}</td>
         <td><div class="actions">${fix}${
           target !== ""
             ? `<button class="small quiet needs-conn" data-read="${esc(target)}" data-baud="${h.baud ?? ""}">${t("read")}</button>
                <button class="small ghost" data-remember="${i}">${t("remember")}</button>`
             : ""
         }</div></td>
-      </tr>${hitStrip(h, cols.length, fixTarget)}${groups.get(i) || ""}`;
+      </tr>${hitStrip(h, cols.length, fixTarget, !kept)}${groups.get(i) || ""}`;
     })
     .join("") +
     // fehlen diesmal: grau am Ende, gleiche Spalten

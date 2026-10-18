@@ -78,21 +78,25 @@
 #hits tr.missing td { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line-strong); }
 #hits tr.missing td:last-child, #hits tr.missing .chip { text-decoration: none; }
 
+/* Auffälligkeit: orange = Hinweis, der Zähler kommt trotzdem mit; rot (fault) = Fehler, bleibt draussen */
+#hits tr.issue, #hits tr.issue-strip { --tone: var(--warn); --tone-soft: var(--warn-soft); }
+#hits tr.fault { --tone: var(--err); --tone-soft: var(--err-soft); }
+
 /* Auffälligkeit direkt unter ihrer Zeile: was (fett), was tun, Knopf, der hilft */
 #hits tr.issue-strip:hover { background: transparent; }
-#hits tr.issue-strip > td { padding: 0 12px 10px; border-bottom: 1px solid var(--line); white-space: normal; background: var(--warn-soft); }
-#hits tr.issue-strip > td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+#hits tr.issue-strip > td { padding: 0 12px 10px; border-bottom: 1px solid var(--line); white-space: normal; background: var(--tone-soft); }
+#hits tr.issue-strip > td:first-child { box-shadow: inset 3px 0 0 var(--tone); }
 .strip { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 8px 12px; border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 55%, transparent); color: var(--warn); font-size: 13px; line-height: 1.45; }
+  background: color-mix(in srgb, var(--surface) 55%, transparent); color: var(--tone); font-size: 13px; line-height: 1.45; }
 .strip > svg { flex: none; }
 .strip > span:not(.spacer) { flex: 1 1 320px; color: var(--text); }
-.strip b { color: var(--warn); }
+.strip b { color: var(--tone); }
 /* Zeile mit Strip: keine Linie zwischen Zeile und Streifen */
 #hits tr.issue:has(+ tr.issue-strip) > td { border-bottom: 0; }
 
 /* Zeile mit Problem: getönt, links ein Strich in der Warnfarbe */
-#hits tr.issue td { background: var(--warn-soft); }
-#hits tr.issue td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+#hits tr.issue td { background: var(--tone-soft); }
+#hits tr.issue td:first-child { box-shadow: inset 3px 0 0 var(--tone); }
 
 /* Status-Chips und Knöpfe umbrechen statt die Tabelle zu verbreitern */
 #hits td:nth-last-child(2) { white-space: normal; }
@@ -137,9 +141,9 @@
   #hits tbody tr > td:last-child { grid-column: 1 / -1; }
   #hits tbody tr > td:last-child .actions { justify-content: flex-start; }
   #hits tbody tr:not(.issue-strip) { border-top: 1px solid var(--line); }
-  #hits tbody tr.issue { background: var(--warn-soft); box-shadow: inset 3px 0 0 var(--warn); padding-left: 10px; }
+  #hits tbody tr.issue { background: var(--tone-soft); box-shadow: inset 3px 0 0 var(--tone); padding-left: 10px; }
   #hits tbody tr.issue > td, #hits tbody tr.issue > td:first-child { background: transparent; box-shadow: none; }
   #hits tr.issue-strip { display: block; padding: 0 0 10px; }
-  #hits tr.issue-strip > td { display: block; padding: 0 8px 0 12px; box-shadow: inset 3px 0 0 var(--warn); }
+  #hits tr.issue-strip > td { display: block; padding: 0 8px 0 12px; box-shadow: inset 3px 0 0 var(--tone); }
   .scan-range label { width: auto; flex: 1 1 0; }
 }

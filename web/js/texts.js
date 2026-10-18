@@ -163,6 +163,7 @@ const UI = {
     target_none: "Noch kein Ziel: Zähler wählen oder Adresse eingeben",
     meters_empty_short: "Die Zählerliste ist leer.",
     scan_set: "Suche einstellen",
+    readings_delete_all: "Alle Auslesungen löschen",
     mqtt_topic: "Topic-Muster",
     mqtt_topic_hint:
       "Topic-Muster: {projekt}, {gateway}, {linie}, {zaehler} (Name, sonst ID), {id} (ID vom Typenschild), {pa}, {ort}, {medium}, {wert} (Grösse, z.B. energy-t1), {nr} (Nummer des Datenpunkts). Gilt für neue Datenpunkte; bestehende mit „Alle Topics nach Muster setzen“.",
@@ -871,6 +872,7 @@ const UI = {
     target_none: "No target yet: choose a meter or enter an address",
     meters_empty_short: "The meter list is empty.",
     scan_set: "Set up the search",
+    readings_delete_all: "Delete all readings",
     mqtt_topic: "Topic pattern",
     mqtt_topic_hint:
       "Topic pattern: {projekt} (project), {gateway}, {linie} (line), {zaehler} (meter name, else ID), {id} (ID on the name plate), {pa}, {ort} (location), {medium}, {wert} (quantity, e.g. energy-t1), {nr} (datapoint number). Applies to new datapoints; existing ones via “Set all topics by pattern”.",
