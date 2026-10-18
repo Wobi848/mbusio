@@ -131,7 +131,11 @@ async function guarded(button, fn) {
 }
 
 function updateButtons() {
-  document.querySelectorAll(".needs-conn").forEach((b) => (b.disabled = !connected || jobRunning || checking));
+  document.querySelectorAll(".needs-conn").forEach((b) => {
+    b.disabled = !connected || jobRunning || checking;
+    // gesperrt ohne Verbindung: sagen warum (Knöpfe mit eigenem Hinweis behalten ihn)
+    if (!b.dataset.i18nTitle) b.title = connected ? "" : t("need_conn");
+  });
   // ohne markierte Baudrate gibt es nichts zu prüfen oder zu scannen
   const none = !$("scan-bauds").querySelector("input:checked");
   $("bauds-empty").hidden = !none;
@@ -144,4 +148,6 @@ function updateButtons() {
   $("connect").hidden = connected;
   $("disconnect").hidden = !connected;
   $("scan-cancel").hidden = !jobRunning;
+  // guide.js lädt erst nach den Reitern
+  if (typeof renderGuide === "function") renderGuide();
 }

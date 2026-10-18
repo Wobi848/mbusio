@@ -1,0 +1,91 @@
+/* Nächster Schritt (guide.js): eine Karte mit genau einem Knopf; Reiter 1–4 als Fortschritt */
+
+.guide {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.guide.in { animation: guideIn .4s var(--ease) both; }
+@keyframes guideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+.guide-no {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.guide-text { flex: 1 1 auto; min-width: 0; }
+.guide-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.guide-segs { display: inline-flex; gap: 3px; }
+.guide-segs span { width: 18px; height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.guide-segs span.on { background: var(--accent); }
+.guide-segs span.now { background: var(--accent); opacity: .55; }
+.guide h2 { margin: 3px 0 2px; font-size: 17px; }
+.guide p { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 72ch; }
+
+.guide-actions { flex: none; display: flex; align-items: center; gap: 6px; }
+.guide-go { height: 42px; padding: 0 18px; font-size: 15px; border-radius: 11px; }
+.guide-go svg { transition: transform .2s var(--ease); }
+.guide-go:hover svg { transform: translateX(3px); }
+
+/* Reiter: erledigt ✓, als Nächstes mit Punkt */
+.tab { position: relative; }
+.tab.done .tab-no { background: var(--ok-soft); color: var(--ok); }
+.tab.done.active .tab-no { background: var(--ok); color: #fff; }
+.tab.next::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: nextDot 1.8s var(--ease) infinite;
+}
+@keyframes nextDot { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.6); opacity: .45; } }
+
+/* Knopf des nächsten Schritts: Ring, der langsam nach aussen läuft */
+button.go { position: relative; overflow: visible; }
+button.go:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+  animation: goRing 1.8s var(--ease) infinite;
+}
+@keyframes goRing { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.18, 1.45); opacity: 0; } }
+
+/* Linie ohne Anschluss */
+.ln-noconn { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--warn); font-weight: 560; }
+
+@media (max-width: 640px) {
+  .guide { flex-wrap: wrap; gap: 12px 14px; padding: 16px; }
+  .guide-no { width: 36px; height: 36px; font-size: 15px; }
+  .guide-text { flex-basis: calc(100% - 50px); }
+  .guide-actions { width: 100%; }
+  .guide-go { flex: 1; }
+}
+.ln-conn button { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin-left: 6px; }

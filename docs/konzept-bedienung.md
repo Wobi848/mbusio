@@ -159,3 +159,16 @@ Zeile bei den Ausgängen.
    Zählerliste aufnehmen“, falls der Zähler noch nicht in der Liste steht).
 2. Reiter Weitergabe zeigt standardmässig die aktive Linie, umschaltbar auf das ganze Projekt.
 3. Reiter: 1 Projekt, 2 Scan, 3 Zähler, 4 Weitergabe; Werkzeuge und Simulator ohne Nummer.
+
+## 8. Nächster Schritt (18.10.2026)
+
+Neue wie erfahrene Benutzer sehen sofort, was zu drücken ist:
+
+- Oben in den Reitern 1–4 eine Karte **„Nächster Schritt“** mit genau einem Knopf, abgeleitet aus dem
+  Zustand der aktiven Linie: Anschluss festlegen → verbinden → Primärscan → alle merken → alle
+  auslesen → Werte für die Weitergabe wählen. Der Knopf führt den Schritt direkt aus (oder öffnet
+  die Stelle, an der man etwas eingeben muss). Ausblenden gilt bis zum nächsten Schritt.
+- Die Reiter 1–4 zeigen den Fortschritt: ✓ erledigt, Punkt = als Nächstes.
+- Der passende Knopf in der Seite hat einen umlaufenden Ring; Hauptknöpfe sind in der
+  Akzentfarbe, gesperrte grau mit Grund im Tooltip („Zuerst mit dem Bus verbinden“).
+- Code: `web/js/guide.js`, `web/css/guide.css`, Test `tests/ui/09-guide.test.mjs`.
