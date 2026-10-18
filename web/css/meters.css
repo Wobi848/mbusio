@@ -3,9 +3,9 @@
 /* ------------------------------------------------------------ Zählerliste */
 
 #meters-table td.wrap { white-space: normal; min-width: 120px; }
-#meters-table td:first-child { min-width: 140px; }
+#meters-table td:first-child { min-width: 220px; }
 /* Name, Unterzeile, Wert (auch in der Datenpunkt-Tabelle) */
-#meters-table .name, #dp-table .name { font-weight: 600; }
+#dp-table .name { font-weight: 600; }
 #meters-table .sub, #dp-table .sub { color: var(--muted); font-size: 12px; display: block; }
 #meters-table .val, #dp-table .val { font-family: var(--mono); font-weight: 600; }
 #meters-table .err {
@@ -34,7 +34,7 @@
 
 /* Schnellerfassung direkt in der Tabelle */
 #meters-table input.quick { display: block; width: 100%; min-width: 0; padding: 4px 6px; font-size: 13px; }
-#meters-table.quick-mode td:nth-child(1) { min-width: 200px; }
+#meters-table.quick-mode td:nth-child(1) { min-width: 260px; }
 #meters-table.quick-mode td:nth-child(2) { min-width: 220px; }
 .quick-loc { display: flex; gap: 4px; align-items: center; }
 .quick-loc input.quick { flex: 1; }

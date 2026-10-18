@@ -56,34 +56,33 @@ function renderMeters() {
   $("meters-empty").hidden = meters.length > 0;
   table.querySelector("tbody").innerHTML = meters
     .map((m) => {
-      // ID nur zusätzlich zeigen, wenn die Adresse nicht schon die ID ist
-      // die jeweils andere Adresse klein dazu: bei SA die PA, bei PA die ID
+      // Zähler-Baustein: ID (über PA gemerkt: die ID aus der Auslesung), PA, Hersteller, eigene Baudrate
       const viaPa = /^\d+$/.test(m.address);
-      const info = [
-        !viaPa && m.primary_address != null ? `PA ${m.primary_address}` : null,
-        m.meter_id !== m.address ? m.meter_id : null,
-        m.manufacturer,
-      ]
-        .filter(Boolean)
-        .join(" · ");
+      const block = {
+        name: m.name,
+        ident: viaPa ? m.meter_id : m.meter_id || m.address,
+        pa: viaPa ? m.address : m.primary_address,
+        man: m.manufacturer,
+        medium: m.medium,
+        info: m.baud ? `${m.baud} Bd` : "",
+      };
       const sub = (text) => (text ? `<span class="sub">${esc(text)}</span>` : "");
       const q = (f, label, more = {}) => ui.input({ name: f, label, placeholder: label, cls: "quick", data: { q: f, id: m.id }, ...more }, m[f]);
       const nameCell = quickEdit
-        ? `<td>${q("name", t("meter_name"))}${q("note", t("meter_note"), { cls: "quick sub-input" })}</td>`
-        : `<td class="wrap"><span class="name">${esc(m.name || "–")}</span>${sub(m.note)}</td>`;
+        ? `<td><div class="mtr">${ui.mediumIcon(m.medium)}<span class="mtr-text">${q("name", t("meter_name"))}${q("note", t("meter_note"), {
+            cls: "quick sub-input",
+          })}</span></div></td>`
+        : `<td class="wrap">${ui.meter(block, { alert: !!m.last_error })}</td>`;
       const locCell = quickEdit
         ? `<td><div class="quick-loc">${q("location", t("meter_location"), { list: "loc-list" })}<button class="icon-btn" data-q-same="${m.id}" title="${esc(t("quick_same"))}" aria-label="${esc(t("quick_same"))}">${ICON_DOWN}</button></div></td>`
-        : `<td class="wrap">${esc(m.location)}</td>`;
+        : `<td class="wrap">${esc(m.location)}${sub(m.note)}</td>`;
       return `<tr>
         ${nameCell}
         ${locCell}
-        <td class="mono">${esc(m.address)}${sub(info)}</td>
-        <td>${esc(label(m.medium))}</td>
-        <td class="num mono">${m.baud ?? ""}</td>
-        ${withPlan ? meterPlanCell(m) : ""}
         <td class="wrap">${m.last_value ? `<span class="val">${esc(m.last_value)}</span>` : ""}${sub(
           [m.last_value ? label(m.last_quantity) : "", m.last_read].filter(Boolean).join(" · ")
         )}${m.last_error ? `<span class="err">${ICON_ALERT}${esc(m.last_error)}</span>` : ""}</td>
+        ${withPlan ? meterPlanCell(m) : ""}
         <td><div class="actions">
           <button class="small quiet needs-conn" data-meter-read="${m.id}">${t("read")}</button>
           <button class="small quiet" data-meter-transfer="${m.id}" title="${esc(t("dp_values_title"))}">${esc(t("dp_values_btn"))}</button>

@@ -216,9 +216,15 @@ function dpColumns() {
 function meterRow(m, colspan) {
   const open = transfer.picking.has(m.id);
   const ident = m.meter_id || m.address;
-  const info = [m.location, ident !== m.name ? ident : null, transfer.scope === "project" ? m.line : null].filter(Boolean).join(" · ");
+  // ohne Namen liefert der Server die ID als Namen: wie in der Zählerliste „ohne Namen“ und die ID
+  const block = {
+    name: m.name !== ident ? m.name : "",
+    ident,
+    medium: m.medium,
+    info: [m.location, transfer.scope === "project" ? m.line : null].filter(Boolean).join(" · "),
+  };
   return `<tr class="tr-meter" data-tr-meter="${m.id}"><td colspan="${colspan}">
-    <div class="tr-meter-head"><b>${esc(m.name)}</b><span class="hint">${esc(info)}</span>
+    <div class="tr-meter-head">${ui.meter(block)}
       ${ui.chip(m.datapoints.length ? "ok" : "muted", t("tr_dp_count", m.datapoints.length))}
       <span class="spacer"></span>
       <button type="button" class="small ${open ? "quiet" : "ghost"}" data-tr-pick="${m.id}">${esc(t(open ? "history_close" : "tr_pick"))}</button></div>

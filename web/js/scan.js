@@ -183,13 +183,8 @@ function renderJob(job) {
   const issues = analyzeHits(job.hits);
   renderHitsWarn(job.hits, issues);
   document.querySelector(".hits-opt").hidden = table.hidden;
-  // Sekundäradresse lesbar zerlegt (ID, Version) oder roh als 16 Hex-Zeichen
-  const raw = $("sa-raw").checked;
-  const cols = raw
-    ? ["col_primary", "col_secondary", "col_manufacturer", "col_medium", "col_status", ""]
-    : ["col_primary", "col_id", "col_manufacturer", "col_version", "col_medium", "col_status", ""];
-  cols.splice(1, 0, "col_baud");
-  const numCols = ["col_primary", "col_baud", "col_version"];
+  const cols = ["col_primary", "col_meter", "col_baud", "col_status", ""];
+  const numCols = ["col_primary", "col_baud"];
   table.querySelector("thead").innerHTML = `<tr>${cols
     .map((c) => {
       if (!c) return "<th></th>";
@@ -204,12 +199,6 @@ function renderJob(job) {
   table.querySelector("tbody").innerHTML = sortedHits(job.hits)
     .map(([h, i]) => {
       const target = h.status === "ok" ? hitAddress(h) : "";
-      const sa = raw
-        ? `<td class="mono">${esc(h.secondary_address ?? "–")}</td>
-        <td>${esc(h.manufacturer ?? "")}</td>`
-        : `<td class="mono">${esc(h.id ?? "–")}</td>
-        <td>${esc(h.manufacturer ?? "")}</td>
-        <td class="num mono">${h.version ?? ""}</td>`;
       const other = h.baud && h.baud !== connBaud;
       const dupPa = issues.rowDupPa.has(i);
       const dupId = issues.rowDupId.has(i);
@@ -242,9 +231,8 @@ function renderJob(job) {
         : "";
       return `<tr${anim}>
         <td class="num mono${dupPa ? " st-other" : ""}"${dupPa ? ` title="${esc(t("dup_pa_title", h.primary_address, paCount))}"` : ""}>${h.primary_address ?? "–"}${dupPa ? " ⚠" : ""}</td>
+        <td>${hitMeter(h)}</td>
         <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
-        ${sa}
-        <td>${esc(label(h.medium))}</td>
         <td>${ui.chip({ ok: "ok" }[h.status] || "warn", t("st_" + h.status))}${warnChips}${otherChip}${change ? " " + ui.chip("info", change.text) : ""}</td>
         <td><div class="actions">${
           h.status !== "ok" ? `<button class="small ghost" data-why="${esc(hitKey(h))}">${t("why")}</button>` : ""
@@ -260,11 +248,9 @@ function renderJob(job) {
     // fehlen diesmal: grau am Ende, gleiche Spalten
     (chg?.missing || [])
       .map((h) => {
-        const td = (x, cls = "") => `<td class="${cls}">${esc(x ?? "")}</td>`;
-        const ident = raw
-          ? td(h.secondary_address ?? "–", "mono") + td(h.manufacturer)
-          : td(h.id ?? "–", "mono") + td(h.manufacturer) + td(h.version, "num mono");
-        return `<tr class="missing">${td(h.primary_address ?? "–", "num mono")}${td(h.baud, "num mono")}${ident}<td>${esc(label(h.medium))}</td><td>${ui.chip("warn", t("chg_missing"))}</td><td></td></tr>`;
+        return `<tr class="missing"><td class="num mono">${h.primary_address ?? "–"}</td><td>${hitMeter(h)}</td><td class="num mono">${
+          h.baud ?? ""
+        }</td><td>${ui.chip("warn", t("chg_missing"))}</td><td></td></tr>`;
       })
       .join("");
   updateButtons();
@@ -360,14 +346,24 @@ try {
 const SORT_KEYS = {
   col_primary: (h) => h.primary_address,
   col_baud: (h) => h.baud,
-  col_id: (h) => h.id,
-  col_secondary: (h) => h.secondary_address,
-  col_manufacturer: (h) => h.manufacturer || null,
-  col_version: (h) => h.version,
-  col_medium: (h) => (h.medium ? label(h.medium) : null),
+  col_meter: (h) => h.id || null,
   // Probleme zuerst
   col_status: (h) => ({ collision: 0, no_data: 1, ok: 2 })[h.status],
 };
+
+/// Treffer als Zähler-Baustein: Name aus der Zählerliste, sonst Medium · Hersteller; darunter
+/// ID und Version, oder (Schalter) die Sekundäradresse roh als 16 Hex-Zeichen
+function hitMeter(h) {
+  const known = h.id && meters.find((m) => (m.meter_id || m.address) === h.id);
+  const name = known?.name || (h.medium ? [label(h.medium), h.manufacturer].filter(Boolean).join(" · ") : t(h.status === "collision" ? "hit_many" : "hit_unknown"));
+  const raw = $("sa-raw").checked;
+  return ui.meter({
+    name,
+    ident: raw ? null : h.id,
+    medium: h.medium,
+    info: raw ? h.secondary_address : h.version != null ? `v${h.version}` : "",
+  });
+}
 
 // ------------------------------------------------------------ Vergleich mit dem letzten Scan
 

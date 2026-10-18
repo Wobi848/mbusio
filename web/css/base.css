@@ -479,6 +479,34 @@ details[open] summary .chev { transform: rotate(180deg); }
 .chip.st-info { background: var(--accent-soft); color: var(--accent); }
 .st-other { color: var(--warn); font-weight: 600; }
 
+/* ------------------------------------------------------------ Zähler (ui.meter) */
+
+/* Medium: Symbolfarbe und Fläche; dunkel: Fläche aus der Symbolfarbe, Symbol heller */
+.mid { --m: #59625e; --m-soft: #eef0ef; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; flex: none;
+  position: relative; background: var(--m-soft); color: var(--m); }
+.mid.s { width: 22px; height: 22px; border-radius: 6px; }
+.mid.m-heat { --m: #c2410c; --m-soft: #fdeee6; }
+.mid.m-cold { --m: #0369a1; --m-soft: #e6f3fb; }
+.mid.m-water { --m: #1d4ed8; --m-soft: #e8efff; }
+.mid.m-warm { --m: #be123c; --m-soft: #fde8ee; }
+.mid.m-power { --m: #a16207; --m-soft: #fdf4d6; }
+.mid.m-gas { --m: #6d28d9; --m-soft: #f0eaff; }
+:root[data-theme="dark"] .mid { background: color-mix(in srgb, var(--m) 18%, transparent); color: color-mix(in srgb, var(--m) 55%, #fff); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mid { background: color-mix(in srgb, var(--m) 18%, transparent); color: color-mix(in srgb, var(--m) 55%, #fff); }
+}
+/* Störung: roter Punkt am Symbol */
+.mid.alert::after { content: ""; position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--err); border: 2px solid var(--surface); }
+
+.mtr { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.mtr-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.mtr-name { font-weight: 650; white-space: normal; }
+.mtr-name.none { font-weight: 500; font-style: italic; color: var(--muted); }
+.mtr-info { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.mtr > .chip { margin-left: auto; }
+.mtr-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; border-radius: 999px; background: var(--sunken);
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+
 /* ------------------------------------------------------------ Fortschritt */
 
 #job { display: flex; flex-direction: column; gap: 10px; }

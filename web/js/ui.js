@@ -17,6 +17,32 @@ const ui = {
     return `<button type="button" class="icon-btn ${cls}" ${attrs} title="${esc(title)}" aria-label="${esc(title)}">${icon}</button>`;
   },
 
+  // ---------------------------------------------------------- Zähler
+
+  /// Medium-Symbol (abgerundetes Quadrat, Farbe je Medium); small = 22 px statt 34 px
+  mediumIcon(medium, small = false) {
+    const kind = MEDIUM_KIND[medium] || "other";
+    const size = small ? 12 : 18;
+    return `<span class="mid m-${kind}${small ? " s" : ""}" aria-hidden="true"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${
+      small ? 2.2 : 2
+    }" stroke-linecap="round" stroke-linejoin="round">${MEDIUM_ICON[kind]}</svg></span>`;
+  },
+
+  /// Ein Zähler, überall gleich: Symbol, Name (fehlt: „ohne Namen“), darunter ID · PA · Hersteller.
+  /// m = { name, ident, pa, man, medium, info }; opts: { chip (html rechts), alert (roter Punkt) }
+  meter(m, { chip = "", alert = false } = {}) {
+    const info = [m.ident ? `ID ${m.ident}` : "", m.pa != null && m.pa !== "" ? `PA ${m.pa}` : "", m.man, m.info].filter(Boolean).join(" · ");
+    const name = m.name ? `<span class="mtr-name">${esc(m.name)}</span>` : `<span class="mtr-name none">${esc(t("meter_unnamed"))}</span>`;
+    return `<div class="mtr">${ui.mediumIcon(m.medium).replace('class="mid', `class="mid${alert ? " alert" : ""}`)}<span class="mtr-text">${name}<span class="mtr-info">${esc(
+      info
+    )}</span></span>${chip}</div>`;
+  },
+
+  /// Kurzform als Pille: kleines Symbol und Name (oder ID), für Texte und Kopfzeilen
+  meterShort(m) {
+    return `<span class="mtr-pill">${ui.mediumIcon(m.medium, true)}${m.name ? esc(m.name) : `<span class="mono">${esc(m.ident || "")}</span>`}</span>`;
+  },
+
   // ---------------------------------------------------------- Tabelle
   // Spalten: { head: Text, cls: Klasse der Zelle, cell: (zeile) => html }
 
@@ -198,6 +224,32 @@ function parseTable(text) {
   }
   return rows.map((r) => r.map((x) => x.trim())).filter((r) => r.some(Boolean));
 }
+
+/// Medium-Schlüssel vom Server → Art des Symbols
+const MEDIUM_KIND = {
+  medium_heat_outlet: "heat",
+  medium_heat_inlet: "heat",
+  medium_heat_cooling: "heat",
+  medium_steam: "heat",
+  medium_hca: "heat",
+  medium_cooling_inlet: "cold",
+  medium_water: "water",
+  medium_cold_water: "water",
+  medium_dual_water: "water",
+  medium_warm_water: "warm",
+  medium_hot_water: "warm",
+  medium_electricity: "power",
+  medium_gas: "gas",
+};
+const MEDIUM_ICON = {
+  heat: '<path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-7 1.5 1 3 2.5 3 4.5"/>',
+  cold: '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/>',
+  water: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  warm: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9 15c1-1 2 1 3 0s2 1 3 0"/>',
+  power: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  gas: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+  other: '<rect x="5" y="5" width="14" height="14" rx="3"/><path d="M9 12h6"/>',
+};
 
 /// Uhrzeit immer 24 h als HH:MM; Kurzformen: "5" → 05:00, "530" → 05:30, "17:5" → 17:05.
 /// null, wenn es keine gültige Uhrzeit ist.
