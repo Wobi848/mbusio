@@ -24,6 +24,10 @@ Die Oberfläche ist in vier Schritte gegliedert; jeder Ablauf hat genau eine Ste
 Dazu **Werkzeuge** (einzelnen Zähler roh auslesen, Adresse/Baudrate ändern, Reset, Telegramm-Log und
 -Analyse) und der **Simulator**.
 
+Neue Benutzer führt oben die Karte **„Nächster Schritt“** mit genau einem Knopf vom leeren Projekt
+bis zur Weitergabe (Anschluss festlegen → verbinden → suchen → merken → auslesen → Werte wählen);
+die Reiter 1–4 zeigen den Fortschritt (✓ erledigt, Punkt = als Nächstes).
+
 Unten zeigt eine Statusleiste immer, was der Bus gerade macht und wie viele Auffälligkeiten offen
 sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Bericht** (PDF) fürs Projekt.
 
@@ -318,23 +322,29 @@ Aufbau:
 
 - `src/mbus/frame.rs`: Telegramme bauen und prüfen (EN 13757-2)
 - `src/mbus/decode.rs`, `tables.rs`: Datensätze decodieren (EN 13757-3)
-- `src/mbus/master.rs`: Scan, Auslesen, Adressierung, Baudrate, Ursachen von Störungen
+- `src/mbus/master/`: Verbindung, Auslesen, Ursachen von Störungen (mod), Primär- und
+  Sekundärscan, Baudraten am Bus (scan), Adresse, Baudrate, Reset (config)
 - `src/mbus/analyze.rs`: Telegramm-Analyse Byte für Byte
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim/`: Simulator (bus: Verhalten der Zähler, scenarios: Vorlagen und eigene Anlagen, store: Speichern), alle hinter demselben `Link`-Trait
 - `src/db/`: Datenbank, nach Bereichen (schema mit Migrationen, projects, meters, readings, schedule, report)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
-- `src/datapoint/`: Datenpunkte (Kern: Kennung, Qualität, Plausibilität; publish: MQTT; templates: Vorlagen; exchange: Zählertausch; csv: Export/Import)
+- `src/datapoint/`: Datenpunkte (Kern: Kennung, Qualität, Plausibilität; outputs: Ausgänge,
+  allgemein für MQTT und später Modbus; templates: Vorlagen; exchange: Zählertausch; csv: Export/Import)
+- `src/changeset.rs`: Änderungssatz für „Vorschau → Übernehmen“ (Importe, Vorlagen)
 - `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export
-- `src/mqtt.rs`: MQTT-Ausgang (eigener kleiner Client für MQTT 3.1.1, TLS mit rustls),
-  Warteschlange in der Datenbank
+- `src/mqtt/`: MQTT-Ausgang: Einstellungen, Warteschlange in der Datenbank, Dienst (mod);
+  eigener kleiner Client für MQTT 3.1.1 mit TLS über rustls (client)
 - `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
   bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
 - `src/web/`: HTTP-API, nach Bereichen (bus, meters, projects, datapoints, outputs, simulator); `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
-- `src/i18n.rs`: Übersetzungen der Messgrössen; UI-Texte in `web/js/texts.js` und `web/report.js`
-- `web/js/`: Oberfläche; `ui.js` = gemeinsame Bausteine (Chip, Tabelle, Aufklapp-Bereich,
-  Vorschau → Übernehmen, Formular), dann je Bereich eine Datei (scan, tools, meters, chart,
-  meterlist, transfer, sim, project, main); normale Skripte ohne Build-Schritt, Reihenfolge in
-  `index.html`
+- `src/i18n.rs`: Übersetzungen der Messgrössen, Sprache je Request; alle Texte der Oberfläche und
+  des Berichts in `web/js/texts.js`
+- `web/js/`: Oberfläche, normale Skripte ohne Build-Schritt, Reihenfolge in `index.html`:
+  `base.js` (Speicher, Sprache, API; auch für den Bericht), `core.js`, `ui.js` (gemeinsame Bausteine:
+  Chip, Symbol-Knopf, Tabelle, Eingabefeld, Formular, Aufklapp-Bereich, Vorschau → Übernehmen,
+  CSV zerlegen), dann je Bereich eine Datei (busbar, scan, fix, tools, meters, chart, meterlist,
+  transfer, sim, project, guide); `main.js` startet alles
+- `web/css/`: `base.css` (Farben, Elemente, Bausteine, Statusleiste), dann je Reiter eine Datei
 - `tests/ui/`: Browser-Tests der Oberfläche (siehe `tests/ui/README.md`)
 
 Der Decoder ist eine Eigenentwicklung und wird gegen das Referenztelegramm aus der
@@ -354,7 +364,7 @@ installation; the UI runs in the browser, phones included.
   rates, primary and secondary scan, issues with “Why?” and “Fix all”), **Meters** (meter list,
   names, import list, read all, history, plan, meter replacement), **Pass on** (datapoints per meter,
   outputs such as MQTT); plus **Tools** (raw reading, address/baud rate, reset, telegram log) and
-  the **Simulator**
+  the **Simulator**; a **“Next step”** card leads new users from an empty project to passing on values
 - Detects collisions, duplicate addresses and IDs, meters on another baud rate and meters without
   usable data; explains the cause and fixes what can be fixed, verified on the meter
 - Meter list per line, remembered by secondary or primary address (set per line)

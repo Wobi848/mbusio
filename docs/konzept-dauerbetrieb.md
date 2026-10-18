@@ -471,7 +471,7 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
   Projekt-Karte, der Zählerliste und im Protokoll; in die Scan-Auffälligkeiten (Statusleiste)
   fliessen sie nicht ein, weil diese aus dem letzten Scan berechnet werden.
 
-## 11. Roadmap und Stand (17.10.2026)
+## 11. Roadmap und Stand (18.10.2026)
 
 | Phase | Inhalt | Stand |
 | --- | --- | --- |
@@ -492,7 +492,8 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 i.O. mit 10 Zählern, Mehrfamilienhaus mit 30 Zählern, gemischte Baudraten) und eigenen Anlagen.
 Zählerliste schnell füllen: Liste vom Kunden importieren (über die ID, mit Vorschau), Benennen
 direkt in der Tabelle, Namen nach Muster, CSV-Export; Vorlagen auf Wunsch gleich
-mit MQTT. Der alte Branch `claude/vibrant-pascal-1vangk` ist gelöscht.
+mit MQTT. Bedienkonzept umgesetzt (Reiter Weitergabe, Bausteine), dazu die Karte „Nächster
+Schritt“ (PR #2). Code aufgeräumt: nichts doppelt, grosse Dateien nach Bereichen aufgeteilt.
 
 **Bekannte Grenzen** (siehe auch README): Antworten zweier Zähler exakt gleichzeitig mit `E5`
 können wie eine Antwort aussehen; CI 76/77 nicht unterstützt; die ID eines Zählers lässt sich
