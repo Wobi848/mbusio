@@ -172,3 +172,78 @@ Neue wie erfahrene Benutzer sehen sofort, was zu drücken ist:
 - Der passende Knopf in der Seite hat einen umlaufenden Ring; Hauptknöpfe sind in der
   Akzentfarbe, gesperrte grau mit Grund im Tooltip („Zuerst mit dem Bus verbinden“).
 - Code: `web/js/guide.js`, `web/css/guide.css`, Test `tests/ui/09-guide.test.mjs`.
+
+## 9. Service und Dauerbetrieb ohne Modus-Schalter (Entwurf, 18.10.2026)
+
+### 9.1 Ausgangslage
+
+mbusio wird auf zwei Arten eingesetzt:
+
+| Einsatz | Wer | Ablauf | Braucht |
+| --- | --- | --- | --- |
+| **Service** | Techniker mit Laptop am Strang | verbinden → suchen → beheben → auslesen → Bericht, fertig | Reiter 1–3, Werkzeuge |
+| **Dauerbetrieb** | Integrator, danach Betreiber | wie Service, dann Plan, Werte wählen, Ausgang; läuft danach allein | alles, vor allem Reiter 4 und den Zustand der Anlage |
+
+Heute führt „Nächster Schritt“ jeden bis zur Weitergabe, und Reiter 4 steht mit Nummer und
+Fortschrittspunkt da, auch wenn jemand nur einen Strang prüft. Für den Service ist das unnötig.
+
+### 9.2 Entscheidung: kein Schalter, sondern abgeleitet
+
+Ein Modus-Schalter würde jede Stelle der Oberfläche fragen lassen, in welchem Modus sie ist, jeden
+Test verdoppeln und Benutzer suchen lassen („wo ist die Funktion hin?“). Stattdessen gilt:
+
+**Ein Projekt ist im Dauerbetrieb, sobald dort etwas dafür eingerichtet ist:** ein Ausleseplan
+(Projekt, Linie oder Zähler nicht „aus“), mindestens ein Datenpunkt oder ein eingeschalteter
+Ausgang. Sonst ist es ein Service-Projekt. Das wird nicht gespeichert, sondern immer aus dem
+Zustand abgeleitet; es gibt genau **eine Funktion** dafür (`inOperation()`), die alle Stellen
+benutzen (Nächster Schritt, Reiter, Zustand der Anlage). Die Bedingung „Plan oder Ausgang“, die
+der Zustand der Anlage heute schon hat, wird damit ersetzt.
+
+### 9.3 Was sich ändert
+
+**Nächster Schritt**
+
+- Service-Projekt: Anschluss → verbinden → suchen → merken → auslesen → **„Linie in Ordnung“**.
+  Die letzte Karte hat zwei Knöpfe: **„Bericht“** (Hauptknopf, öffnet den Bericht) und
+  **„Dauerbetrieb einrichten“** (zweiter Knopf). Ausblenden wie bisher.
+- „Dauerbetrieb einrichten“ oder ein Projekt im Dauerbetrieb: nach dem Auslesen weiter mit
+  **Plan festlegen** (öffnet das Projektformular beim Plan) → **Werte wählen** (wie heute) →
+  **Ausgang einrichten** (MQTT-Einstellungen im Reiter Weitergabe), dann keine Karte mehr.
+- Wer „Dauerbetrieb einrichten“ drückt, ohne dass schon etwas eingerichtet ist, merkt sich das
+  für dieses Projekt im Browser (wie „Ausblenden“), bis der erste Plan oder Datenpunkt da ist.
+
+**Reiter**
+
+- Service-Projekt: Reiter 1–3 mit Nummer und Fortschritt. **Weitergabe** steht ohne Nummer und
+  ohne Fortschrittspunkt, wie Werkzeuge und Simulator, bleibt aber an ihrem Platz und jederzeit
+  erreichbar.
+- Dauerbetrieb: Weitergabe bekommt die Nummer 4 und nimmt am Fortschritt teil (wie heute).
+
+**Zustand der Anlage** (Reiter Projekt): erscheint genau dann, wenn `inOperation()` gilt.
+
+**Unverändert:** alle Funktionen, Formulare, Tabellen und der Server. Kein neuer Speicherort,
+keine neue Einstellung.
+
+### 9.4 Fehlersuche, während der Dauerbetrieb läuft
+
+Braucht keinen eigenen Modus, das regelt der Linien-Dienst schon: Bedienung von Hand (Scan,
+Auslesen, Adresse ändern) geht immer vor, geplante Auslesungen warten. Wer die Linie mit
+„Trennen“ von Hand trennt, pausiert ihren Plan, bis wieder verbunden wird (Zustand der Anlage
+zeigt „pausiert, von Hand getrennt“).
+
+### 9.5 Umsetzung (nach Freigabe)
+
+1. `inOperation()` in `project.js` (neben `findLine`), Zustand der Anlage darauf umstellen.
+2. `guide.js`: Abschluss „Linie in Ordnung“ mit zwei Knöpfen; Schritte Plan und Ausgang; Merker
+   „Dauerbetrieb einrichten“ je Projekt.
+3. Reiter Weitergabe: Nummer und Fortschritt nur im Dauerbetrieb (eine Klasse, gleiche Gestaltung
+   wie Werkzeuge).
+4. Test `09-guide` um beide Wege erweitern (Service endet beim Bericht; Dauerbetrieb bis zum
+   Ausgang). Texte DE/EN, README, CHANGELOG.
+
+### 9.6 Offene Fragen
+
+1. Endet der Service-Weg beim **Bericht**, oder soll „Linie in Ordnung“ ohne Knopf einfach stehen
+   bleiben?
+2. Gehört **Ausgang einrichten** in „Nächster Schritt“, oder reicht „Werte wählen“ (MQTT richtet
+   meist der Integrator ein, der weiss, wo es ist)?
