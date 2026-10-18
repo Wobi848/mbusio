@@ -94,7 +94,7 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 
 ### Datenpunkte (was weitergegeben wird)
 
-- Je Zähler über **„Werte“** wählen, welche Werte Datenpunkte werden; der Hauptwert ist
+- Je Zähler über **„Datenpunkte“** wählen, welche Werte Datenpunkte werden; der Hauptwert ist
   vorgeschlagen. Name, Einheit und Umrechnung (z.B. Wh → kWh mit Faktor 0.001) einstellbar
 - **Vorlage:** gleiche Auswahl für alle Zähler desselben Mediums auf der Linie, auf Wunsch auch für
   Zähler, die später dazukommen, und auf Wunsch gleich per MQTT
