@@ -22,7 +22,7 @@ async function loadSim() {
 /// sonst erreichbar über Werkzeuge
 function updateSimTab() {
   const inUse = (tree?.active.line.connection || "").startsWith("SIMULATOR");
-  document.querySelector(".tab[data-tab-go=sim]").hidden = !inUse && storageGet("tab") !== "sim";
+  document.querySelector(".gnav[data-tab-go=sim]").hidden = !inUse && storageGet("tab") !== "sim";
 }
 
 const simScenario = () => sim.scenarios.find((x) => x.key === simKey);

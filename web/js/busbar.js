@@ -61,7 +61,9 @@ function renderBusbar() {
   if (state.frac !== undefined) bar.querySelector(".bar-fill").style.transform = `scaleX(${state.frac})`;
   const link = $("busbar-link");
   link.hidden = state.idle && !state.off;
-  link.href = state.off ? "#sec-conn" : state.link || "#sec-scan";
+  link.href = state.off ? "#" : state.link || "#sec-scan";
+  // getrennt: der Link öffnet das Verbindungsformular unter der Linien-Leiste
+  link.toggleAttribute("data-guide-conn", !!state.off);
   link.textContent = t(state.off ? "idle_connect" : "busbar_view");
   $("busbar-cancel").hidden = !state.cancel;
   const issues = $("busbar-issues");

@@ -30,30 +30,87 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 8h18M3 16h18"/><circle cx="8" cy="8" r="2.2" fill="var(--surface)"/><circle cx="16" cy="16" r="2.2" fill="var(--surface)"/></svg>
       <span>mbusio</span>
     </a>
-    <nav class="nav tabs" aria-label="Navigation" role="tablist">
-      <button class="tab" role="tab" data-tab-go="project"><span class="tab-no">1</span><span data-i18n="tab_project"></span></button>
-      <button class="tab" role="tab" data-tab-go="scan"><span class="tab-no">2</span><span data-i18n="tab_scan"></span></button>
-      <button class="tab" role="tab" data-tab-go="meters"><span class="tab-no">3</span><span data-i18n="tab_meters"></span></button>
-      <button class="tab" role="tab" data-tab-go="transfer"><span class="tab-no">4</span><svg class="tab-icon" hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h12M12 6l6 6-6 6M20 5v14"/></svg><span data-i18n="tab_transfer"></span></button>
-      <button class="tab tab-sim" role="tab" data-tab-go="tools"><svg class="tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z"/></svg><span data-i18n="tab_tools"></span></button>
-      <button class="tab tab-sim" role="tab" data-tab-go="sim"><svg class="tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg><span data-i18n="tab_sim"></span></button>
+    <span class="topbar-sep" aria-hidden="true"></span>
+    <label class="proj-pick"><span class="eyebrow" data-i18n="project"></span><select id="project-select" data-i18n-title="project_switch"></select></label>
+    <button id="project-new" class="icon-btn" type="button" data-i18n-title="project_new"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    <nav class="gnavs" aria-label="Navigation">
+      <button class="gnav" data-tab-go="project"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-i18n="tab_project"></span></button>
+      <span class="spacer"></span>
+      <button class="gnav" data-tab-go="tools"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z"/></svg><span data-i18n="tab_tools"></span></button>
+      <button class="gnav" data-tab-go="sim"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg><span data-i18n="tab_sim"></span></button>
     </nav>
-    <div class="header-right">
-      <a id="crumb" class="crumb" href="#sec-project" data-i18n-title="crumb_title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span id="crumb-text"></span></a>
-      <button id="help-toggle" class="icon-btn boxed help-toggle" type="button" data-i18n-title="help_toggle" aria-pressed="false">?</button>
-      <span id="conn-badge" class="chip off"><span class="dot"></span><span class="chip-text" data-i18n="disconnected"></span></span>
-      <div class="seg theme-switch" role="group" aria-label="Theme">
-        <button data-theme-set="auto" data-i18n-title="theme_auto" aria-label="Auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
-        <button data-theme-set="light" data-i18n-title="theme_light" aria-label="Light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
-        <button data-theme-set="dark" data-i18n-title="theme_dark" aria-label="Dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
+    <details class="menu settings">
+      <summary class="icon-btn boxed" data-i18n-title="settings"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></summary>
+      <div class="menu-items settings-items">
+        <label class="settings-row"><span data-i18n="help_toggle"></span><input id="help-toggle" type="checkbox" class="switch"></label>
+        <div class="settings-row"><span data-i18n="theme"></span>
+          <div class="seg theme-switch" role="group" aria-label="Theme">
+            <button data-theme-set="auto" data-i18n="theme_auto_short"></button>
+            <button data-theme-set="light" data-i18n="theme_light_short"></button>
+            <button data-theme-set="dark" data-i18n="theme_dark_short"></button>
+          </div>
+        </div>
+        <div class="settings-row"><span data-i18n="language"></span>
+          <div class="seg lang-switch" role="group" aria-label="Language">
+            <button data-lang="de">DE</button>
+            <button data-lang="en">EN</button>
+          </div>
+        </div>
+        <p id="settings-version" class="settings-foot"></p>
       </div>
-      <div class="seg lang-switch" role="group" aria-label="Language">
-        <button data-lang="de">DE</button>
-        <button data-lang="en">EN</button>
-      </div>
-    </div>
+    </details>
   </div>
 </header>
+
+<section class="linebar" aria-labelledby="lb-label">
+  <div class="linebar-inner">
+    <div class="linebar-row">
+      <span id="lb-label" class="eyebrow" data-i18n="line"></span>
+      <details class="menu line-menu">
+        <summary class="button small ghost line-pick"><span class="line-pick-text"><b id="lb-line"></b><span id="lb-gateway"></span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <div id="lb-lines" class="menu-items"></div>
+      </details>
+      <span id="lb-state" class="lb-state"></span>
+      <button id="lb-action" type="button" class="small"></button>
+      <button id="lb-change" type="button" class="small quiet" data-i18n="conn_change" hidden></button>
+      <span class="spacer"></span>
+      <span id="lb-plan" class="lb-plan"></span>
+    </div>
+    <div id="sec-conn" class="conn-panel" hidden>
+      <div class="conn-grid">
+        <label><span data-i18n="port"></span>
+          <span class="with-btn">
+            <select id="port"></select>
+            <button id="refresh-ports" class="icon-btn boxed" type="button" data-i18n-title="reload_ports">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+            </button>
+          </span>
+        </label>
+        <label><span data-i18n="port_manual"></span> <input id="port-manual" class="mono" placeholder="/dev/ttyUSB0, COM3, tcp://192.168.1.50:10001 …"></label>
+        <label><span data-i18n="baud"></span>
+          <select id="baud">
+            <option>300</option><option>600</option><option>1200</option>
+            <option selected>2400</option><option>4800</option><option>9600</option>
+            <option>19200</option><option>38400</option>
+          </select>
+        </label>
+        <label><span data-i18n="timeout"></span> <input id="timeout" class="mono" type="number" min="0" value="0" data-i18n-title="timeout_hint"></label>
+        <div class="conn-actions">
+          <button id="connect" data-i18n="connect"></button>
+          <button id="disconnect" class="ghost" disabled hidden data-i18n="disconnect"></button>
+          <button id="conn-close" type="button" class="quiet" data-i18n="history_close"></button>
+        </div>
+      </div>
+      <p class="hint explain" data-i18n="connection_hint"></p>
+      <p id="conn-line" class="hint result"></p>
+    </div>
+    <nav class="ltabs" aria-label="Linie" role="tablist">
+      <button class="ltab" role="tab" data-tab-go="scan"><span class="ltab-ok" hidden></span><span data-i18n="tab_scan"></span><span class="ltab-n" hidden></span></button>
+      <button class="ltab" role="tab" data-tab-go="meters"><span class="ltab-ok" hidden></span><span data-i18n="tab_meters"></span><span class="ltab-n" hidden></span></button>
+      <button class="ltab" role="tab" data-tab-go="transfer"><span class="ltab-ok" hidden></span><span data-i18n="tab_transfer"></span><span class="ltab-n" hidden></span></button>
+    </nav>
+  </div>
+</section>
 
 <main id="top">
   <section class="card" id="sec-project" data-tab="project" aria-labelledby="h-project">
@@ -62,10 +119,6 @@
         <span class="eyebrow" data-i18n="project"></span>
         <h2 id="h-project"></h2>
         <p id="project-sub" class="hint"></p>
-      </div>
-      <div class="head-actions">
-        <select id="project-select" data-i18n-title="project_switch"></select>
-        <button id="project-new" class="ghost" data-i18n="project_new"></button>
       </div>
     </div>
     <div id="plant-state" class="plant-state" hidden></div>
@@ -78,43 +131,6 @@
     </div>
     <div id="tree" class="tree"></div>
     <form id="tree-form" class="tree-form" hidden></form>
-  </section>
-
-  <section class="card" id="sec-conn" data-tab="scan" aria-labelledby="h-conn">
-    <div class="card-head">
-      <h2 id="h-conn" class="h-small" data-i18n="connection"></h2>
-    </div>
-    <div id="conn-summary" class="conn-summary" hidden>
-      <span class="dot-ok" aria-hidden="true"></span>
-      <span id="conn-summary-text"></span>
-      <button id="conn-edit" class="small quiet" data-i18n="conn_change"></button>
-      <button id="conn-sum-disconnect" class="small quiet" data-i18n="disconnect"></button>
-    </div>
-    <div class="conn-grid">
-      <label><span data-i18n="port"></span>
-        <span class="with-btn">
-          <select id="port"></select>
-          <button id="refresh-ports" class="icon-btn boxed" type="button" data-i18n-title="reload_ports">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
-          </button>
-        </span>
-      </label>
-      <label><span data-i18n="port_manual"></span> <input id="port-manual" class="mono" placeholder="/dev/ttyUSB0, COM3, tcp://192.168.1.50:10001 …"></label>
-      <label><span data-i18n="baud"></span>
-        <select id="baud">
-          <option>300</option><option>600</option><option>1200</option>
-          <option selected>2400</option><option>4800</option><option>9600</option>
-          <option>19200</option><option>38400</option>
-        </select>
-      </label>
-      <label><span data-i18n="timeout"></span> <input id="timeout" class="mono" type="number" min="0" value="0" data-i18n-title="timeout_hint"></label>
-      <div class="conn-actions">
-        <button id="connect" data-i18n="connect"></button>
-        <button id="disconnect" class="ghost" disabled hidden data-i18n="disconnect"></button>
-      </div>
-    </div>
-    <p class="hint explain" data-i18n="connection_hint"></p>
-    <p id="conn-line" class="hint result"></p>
   </section>
 
   <section class="card" id="sec-scan" data-tab="scan" aria-labelledby="h-scan">

@@ -46,11 +46,8 @@
 .guide-segs span.on { background: var(--accent); }
 .guide-segs span.now { background: var(--accent); opacity: .55; }
 
-/* Reiter: erledigt ✓, als Nächstes mit Punkt */
-.tab { position: relative; }
-.tab.done .tab-no { background: var(--ok-soft); color: var(--ok); }
-.tab.done.active .tab-no { background: var(--ok); color: #fff; }
-.tab.next::after {
+/* Reiter: als Nächstes mit Punkt (Laschen der Linie und Anlage) */
+.ltab.next::after, .gnav.next::after {
   content: "";
   position: absolute;
   top: 5px;

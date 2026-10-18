@@ -1,4 +1,4 @@
-/* Reiter Scan: Verbindung, Baudraten, Trefferliste, Auffälligkeiten, Alle beheben */
+/* Reiter Scan (und Verbindungsformular der Linien-Leiste): Baudraten, Trefferliste, Auffälligkeiten, Alle beheben */
 
 /* ------------------------------------------------------------ Verbindung */
 
@@ -9,12 +9,6 @@
   align-items: end;
 }
 
-/* kompakt, sobald verbunden */
-.conn-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; }
-.conn-summary #conn-summary-text { font-weight: 600; }
-.dot-ok { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
-#sec-conn.compact .conn-grid, #sec-conn.compact .card-head, #sec-conn.compact #conn-line { display: none; }
-#sec-conn.compact { padding-top: 14px; padding-bottom: 14px; }
 
 /* ------------------------------------------------------------ Baudraten */
 

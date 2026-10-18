@@ -26,8 +26,9 @@ function guideStep() {
   const fix = connected && fixState();
   const scanBtn = lastJob?.kind === "secondary" ? "scan-secondary" : "scan-primary";
   let step = null;
-  if (!hasConn) step = { key: "conn_set", tab: "project", target: "connect", go: () => openConnForm() };
-  else if (!connected) step = { key: "connect", tab: "scan", target: "connect", arg: line.connection, go: () => $("connect").click() };
+  // Anschluss und Verbinden zeigt die Linien-Leiste mit ihrem Knopf (bar: nicht in der Leiste unten)
+  if (!hasConn) step = { key: "conn_set", tab: "project", target: "lb-action", bar: true, go: () => openConnForm() };
+  else if (!connected) step = { key: "connect", tab: "scan", target: "lb-action", bar: true, arg: line.connection, go: () => $("connect").click() };
   else if (fix === "fix")
     step = {
       key: "fix",
@@ -113,32 +114,31 @@ function openOutput() {
   reveal($("sec-outputs"), "start");
 }
 
-/// Verbindungsfeld zeigen, Port ins Auge fassen
-function openConnForm() {
-  showTab("scan");
-  $("conn-edit").click();
-  reveal($("sec-conn"), "start");
-  setTimeout(() => $("port").focus({ preventScroll: true }), 300);
-}
-
 function renderGuide() {
   const box = $("guide");
   if (!box || !tree) return;
   const state = guideStep();
   const tabs = guideTabs(state?.op);
-  // Reiter des Ablaufs: erledigt / als Nächstes; die anderen mit Symbol statt Nummer
+  // Reiter des Ablaufs: ✓ erledigt, Anzahl (Zähler, Datenpunkte), Punkt = als Nächstes
   const next = state?.step?.tab;
+  const line = findLine(tree.active.line.id);
+  const counts = { meters: meters.length, transfer: line?.datapoints?.count || 0 };
   for (const name of GUIDE_TABS) {
     const b = document.querySelector(`[data-tab-go=${name}]`);
-    const no = b.querySelector(".tab-no");
     const inFlow = tabs.includes(name);
     const done = inFlow && !!state?.done[name];
     b.classList.toggle("done", done);
     b.classList.toggle("next", inFlow && name === next && !done);
-    no.hidden = !inFlow;
-    b.classList.toggle("tab-sim", !inFlow);
-    b.querySelector(".tab-icon")?.toggleAttribute("hidden", inFlow); // SVG kennt .hidden nicht
-    no.innerHTML = done ? ICON_CHECK : String(GUIDE_TABS.indexOf(name) + 1);
+    const n = b.querySelector(".ltab-n");
+    const ok = b.querySelector(".ltab-ok");
+    if (n) {
+      n.textContent = counts[name] || "";
+      n.hidden = !counts[name];
+    }
+    if (ok) {
+      ok.innerHTML = ICON_CHECK;
+      ok.hidden = !done || !!counts[name];
+    }
   }
   // Knopf des nächsten Schritts hervorheben (nur einer)
   const s = state?.step;
@@ -146,7 +146,7 @@ function renderGuide() {
   guideMarked = jobRunning || !s ? null : s.mark ? s.mark() : s.target ? $(s.target) : null;
   guideMarked?.classList.add("go");
   // in der Leiste unten: nicht während der Bus arbeitet, ausgeblendet bis zum nächsten Schritt
-  const hidden = !s || jobRunning || planRuns.length || storageGet("guide_hidden") === s.key;
+  const hidden = !s || s.bar || jobRunning || planRuns.length || storageGet("guide_hidden") === s.key;
   const open = storageGet("guide_open") === "1";
   box.hidden = hidden;
   $("guide-more").hidden = hidden || !open;
@@ -193,5 +193,7 @@ $("guide").addEventListener("click", (ev) => {
 
 // Linie ohne Anschluss (Reiter Projekt): direkt zum Verbindungsfeld
 document.addEventListener("click", (ev) => {
-  if (ev.target.closest("[data-guide-conn]")) openConnForm();
+  if (!ev.target.closest("[data-guide-conn]")) return;
+  ev.preventDefault();
+  openConnForm();
 });

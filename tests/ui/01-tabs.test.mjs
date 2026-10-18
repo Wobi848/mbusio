@@ -1,4 +1,4 @@
-import { assert, simLine, tab, visibleSections } from "./helpers.mjs";
+import { assert, settings, simLine, tab, visibleSections } from "./helpers.mjs";
 
 export default {
   name: "Reiter, Hilfe, Sprache ohne fehlende Texte",
@@ -17,11 +17,14 @@ export default {
     // Hilfe ein/aus
     await tab(page, "scan");
     assert.ok(await page.isHidden("[data-i18n=scan_primary_hint]"));
+    await settings(page);
     await page.click("#help-toggle");
     assert.ok(await page.isVisible("[data-i18n=scan_primary_hint]"));
+    await settings(page);
     await page.click("#help-toggle");
     // in beiden Sprachen kein Text, der nur ein Schlüssel ist (fehlende Übersetzung)
     for (const l of ["en", "de"]) {
+      await settings(page);
       await page.click(`[data-lang=${l}]`);
       await page.waitForTimeout(400);
       for (const name of Object.keys(expect)) {

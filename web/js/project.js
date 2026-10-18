@@ -155,7 +155,6 @@ function renderTree() {
   $("project-sub").textContent = [a.project.customer, a.project.site, a.project.plan && a.project.plan !== "off" ? `${t("plan")}: ${planText(a.project.plan)}` : ""]
     .filter(Boolean)
     .join(" · ");
-  $("crumb-text").textContent = `${a.project.name} › ${a.gateway.name} › ${a.line.name}`;
   $("conn-line").textContent = t("conn_line", `${a.gateway.name} › ${a.line.name}`);
   $("project-select").innerHTML = tree.projects
     .map((p) => `<option value="${p.id}" ${p.id === a.project.id ? "selected" : ""}>${esc(p.name)}</option>`)
@@ -218,9 +217,87 @@ function renderTree() {
         }
       )
       .join("") + `<div><button class="small ghost" data-gw-add>${esc(t("gw_add"))}</button></div>`;
+  renderLineBar();
   renderGuide();
   updateSimTab();
 }
+
+// ------------------------------------------------------------ Linien-Leiste
+
+/// was der Knopf der Linien-Leiste gerade tut (nächster Schritt für die Verbindung)
+let lineAction = null;
+
+/// Linien-Leiste: welche Linie, Verbindung mit genau einem Knopf für den nächsten Schritt, Plan
+function renderLineBar() {
+  if (!tree) return;
+  const a = tree.active;
+  const line = findLine(a.line.id) || a.line;
+  $("lb-line").textContent = a.line.name;
+  $("lb-gateway").textContent = a.gateway.name;
+  $("lb-lines").innerHTML =
+    activeProjectNode()
+      .gateways.map(
+        (g) =>
+          `<span class="menu-group">${esc(g.name)}</span>` +
+          g.lines
+            .map(
+              (l) =>
+                `<button type="button" data-lb-use="${l.id}" class="${l.id === a.line.id ? "on" : ""}">${esc(l.name)}<span class="mono">${esc(
+                  l.connection || t("ln_no_conn")
+                )}</span></button>`
+            )
+            .join("")
+      )
+      .join("") + `<button type="button" data-lb-manage>${esc(t("lb_manage"))}</button>`;
+  const dot = (cls) => `<span class="lb-dot ${cls}" aria-hidden="true"></span>`;
+  const mono = (x) => `<span class="mono">${esc(x)}</span>`;
+  let state, action;
+  if (jobRunning) {
+    state = `${dot("busy")}<b>${esc(t("lb_busy"))}</b>`;
+    action = { text: t("cancel"), cls: "small quiet", go: cancelJob };
+  } else if (connected) {
+    state = `${dot("on")}<b>${esc(t("lb_connected"))}</b>${mono(`${conn.port} · ${conn.baud} Bd`)}`;
+    action = { text: t("conn_change"), cls: "small quiet", go: openConnForm };
+  } else if (a.line.connection) {
+    state = `${dot("off")}<b>${esc(t("lb_disconnected"))}</b>${mono(`${a.line.connection} · ${a.line.baud} Bd`)}`;
+    action = { text: t("connect"), cls: "small", go: () => $("connect").click() };
+  } else {
+    state = `${dot("warn")}<b class="warn">${esc(t("ln_no_conn"))}</b>`;
+    action = { text: t("ln_set_conn"), cls: "small", go: openConnForm };
+  }
+  $("lb-state").innerHTML = state;
+  const b = $("lb-action");
+  b.textContent = action.text;
+  b.className = action.cls + (b.classList.contains("go") ? " go" : "");
+  b.hidden = connEditing;
+  lineAction = action.go;
+  // getrennt mit Anschluss: daneben „Anschluss ändern“
+  $("lb-change").hidden = connEditing || connected || jobRunning || !a.line.connection;
+  $("sec-conn").hidden = !connEditing;
+  const p = line.plan_info;
+  $("lb-plan").innerHTML =
+    p && p.effective !== "off"
+      ? `${esc(t("plan"))} <b>${esc(planText(p.effective))}</b>${p.next ? ` · ${esc(t("plan_next", slotText(p.next)))}` : ""}`
+      : "";
+}
+
+/// Verbindungsformular unter der Linien-Leiste öffnen bzw. schliessen
+function openConnForm(open = true) {
+  connEditing = open;
+  renderLineBar();
+  if (open) setTimeout(() => $("port").focus(), 50);
+}
+
+$("lb-action").onclick = () => lineAction?.();
+$("lb-change").onclick = () => openConnForm();
+$("conn-close").onclick = () => openConnForm(false);
+$("lb-lines").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button");
+  if (!b) return;
+  if (b.dataset.lbManage !== undefined) return showTab("project");
+  const id = Number(b.dataset.lbUse);
+  if (id && id !== tree.active.line.id) guarded(b, () => activateLine(id));
+});
 
 /// Seite neu laden mit einer Meldung danach (Wechsel von Projekt/Linie betrifft fast alles)
 function reloadWith(msg, isError = false) {

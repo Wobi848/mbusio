@@ -14,6 +14,11 @@ function showTab(name) {
     b.setAttribute("aria-selected", b.dataset.tabGo === name);
   });
   storageSet("tab", name);
+  // Reiter der Linie: Laschen gehen in die erste Karte über
+  const lineTab = ["scan", "meters", "transfer"].includes(name);
+  document.body.classList.toggle("line-tab", lineTab);
+  document.querySelectorAll("main > .joined").forEach((s) => s.classList.remove("joined"));
+  if (lineTab) document.querySelector(`main > [data-tab="${name}"]:not([hidden])`)?.classList.add("joined");
   renderGuide();
   updateSimTab();
   if (name === "sim") loadSim().catch((e) => toast(e.message, true));
@@ -46,23 +51,15 @@ document.addEventListener("click", (ev) => {
   reveal(el, "start");
 });
 
-$("help-toggle").onclick = () => {
-  const on = !document.body.classList.contains("show-help");
-  document.body.classList.toggle("show-help", on);
-  $("help-toggle").setAttribute("aria-pressed", on);
-  storageSet("help", on ? "1" : "0");
+// Erklärungen ein/aus (Einstellungen ⚙)
+$("help-toggle").onchange = () => {
+  document.body.classList.toggle("show-help", $("help-toggle").checked);
+  storageSet("help", $("help-toggle").checked ? "1" : "0");
 };
 if (storageGet("help") === "1") {
   document.body.classList.add("show-help");
-  $("help-toggle").setAttribute("aria-pressed", "true");
+  $("help-toggle").checked = true;
 }
-
-$("conn-edit").onclick = () => {
-  connEditing = true;
-  $("sec-conn").classList.remove("compact");
-  $("conn-summary").hidden = true;
-};
-$("conn-sum-disconnect").onclick = () => $("disconnect").click();
 
 // ------------------------------------------------------------ Start
 

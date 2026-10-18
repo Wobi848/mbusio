@@ -11,6 +11,11 @@ export async function simLine(api, connection = "SIMULATOR", baud = 2400) {
 export const visibleSections = (page) =>
   page.$$eval("main > section", (l) => l.filter((s) => !s.hidden).map((s) => s.id));
 
+/// Einstellungen ⚙ öffnen (Hilfe, Design, Sprache)
+export async function settings(page) {
+  if (!(await page.$eval("details.settings", (d) => d.open))) await page.click("details.settings > summary");
+}
+
 export async function tab(page, name) {
   await page.click(`[data-tab-go=${name}]`);
   await page.waitForTimeout(150);

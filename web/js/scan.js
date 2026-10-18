@@ -29,10 +29,6 @@ async function refreshStatus() {
   if (transfer.data && !$("sec-outputs").hidden) renderOutputs();
   renderPlantState();
   if (runsBefore && !planRuns.length) loadMeters().catch(() => {});
-  // verbunden: Verbindung als eine Zeile, Formular erst auf "Ändern"
-  $("sec-conn").classList.toggle("compact", connected && !connEditing);
-  $("conn-summary").hidden = !connected || connEditing;
-  if (connected) $("conn-summary-text").textContent = t("conn_summary", s.connection.port, s.connection.baud);
   // "Baudrate abweichend" hängt von der Bus-Baudrate ab: Trefferliste neu zeichnen, wenn sie sich ändert
   if (connBaud !== prevBaud && lastJob) renderJob(lastJob);
   renderBusbar();
@@ -40,10 +36,8 @@ async function refreshStatus() {
   if (connBaud && connBaud !== prevBaud && !baudsTouched) setPickedBauds([connBaud]);
   updateEstimate();
   jobRunning = s.job_running;
-  const badge = $("conn-badge");
-  const c = s.connection;
-  badge.className = connected ? "chip on" : "chip off";
-  badge.querySelector(".chip-text").textContent = connected ? `${c.port} · ${c.baud} Bd` : t("disconnected");
+  $("settings-version").textContent = `mbusio ${s.version}`;
+  renderLineBar();
   $("readings-count").innerHTML = `<b>${s.readings}</b>${esc(t("readings_count", s.readings))}`;
   $("meters-file").textContent = s.meters_file ? t("meters_file", s.meters_file) : "";
   updateButtons();
