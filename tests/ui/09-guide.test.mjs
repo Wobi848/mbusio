@@ -22,6 +22,11 @@ export default {
     // ausblenden gilt nur für diesen Schritt
     await page.click("[data-guide-hide]");
     assert.ok(await page.isHidden("#guide"));
+    // über das Verbindungsfeld verbinden: die Linie hat danach ihren Anschluss (ohne Neuladen)
+    await page.selectOption("#port", "SIMULATOR");
+    await page.click("#connect");
+    await tab(page, "project");
+    await page.waitForFunction(() => !document.querySelector(".ln-noconn"));
     // Linie mit Simulator verbunden: suchen, übernehmen, auslesen, weitergeben
     await simLine(api, "SIMULATOR:ok10");
     await page.reload();
@@ -29,6 +34,7 @@ export default {
     assert.ok(await page.isVisible(".tab[data-tab-go=sim]"));
     assert.ok(await page.$eval("[data-tab-go=project]", (b) => b.classList.contains("done")));
     assert.ok(await page.$eval("#scan-primary", (b) => b.classList.contains("go")));
+    await tab(page, "scan");
     await page.fill("#scan-to", "12");
     await page.fill("#scan-retries", "0");
     await page.click("[data-guide-go]");

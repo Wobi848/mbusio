@@ -60,6 +60,8 @@ $("connect").onclick = () =>
     toast(t("connected_to", port));
     connEditing = false;
     await refreshStatus();
+    // der Anschluss ist jetzt bei der Linie gespeichert (Projekt-Karte)
+    await loadTree();
   });
 
 $("disconnect").onclick = () =>
