@@ -1,6 +1,6 @@
 # Konzept: Bedienung und Aufbau der Oberfläche
 
-Stand: 18.10.2026 · Status: **abgestimmt, in Umsetzung**
+Stand: 18.10.2026 · Status: **umgesetzt** (Schritte 1–6)
 
 mbusio ist in kurzer Zeit stark gewachsen: Inbetriebnahme, Dauerbetrieb, Datenpunkte, MQTT,
 Simulator. Die Funktionen wurden jeweils dort angebaut, wo es gerade passte. Ergebnis: Manche
@@ -142,7 +142,18 @@ Jeder Schritt einzeln, mit allen Rust- und Browser-Tests, kein Funktionsverlust:
 Danach ist Modbus (Phase 4) ein zweiter Ausgang im Reiter Weitergabe: eine Spalte mehr und eine
 Zeile bei den Ausgängen.
 
-## 6. Entscheidungen (18.10.2026)
+## 6. Umsetzung (18.10.2026)
+
+- Server: `ChangeSet` (src/changeset.rs) für Datenpunkt-CSV, Zählerliste importieren und Namen;
+  Ausgänge allgemein (`dp_outputs`, src/datapoint/outputs.rs), MQTT als erster Ausgang, alte
+  MQTT-Spalten werden beim Start übernommen und entfernt; ältere Projekt-Exporte werden verstanden.
+- Oberfläche: Bausteine in `web/js/ui.js`; Reiter Weitergabe (`web/js/transfer.js`) ersetzt
+  `datapoints.js`, `mqtt.js`, das Auswahlfenster und die Spalte „Senden“; alle Formulare und
+  Status-Chips über die Bausteine; Zustand der Anlage im Projekt; Zählerliste mit Menü „Liste ▾“.
+- Ausgänge werden über `match`-Zweige je Ausgang unterschieden (statt eines Trait-Objekts): ein
+  neuer Ausgang ist ein Eintrag in `OUTPUTS` und je ein Zweig für Name, Adresse und Senden.
+
+## 7. Entscheidungen (18.10.2026)
 
 1. Spalte „Senden“ in der Auslesung fällt weg; dort nur ein Link zur Weitergabe (bzw. „In
    Zählerliste aufnehmen“, falls der Zähler noch nicht in der Liste steht).

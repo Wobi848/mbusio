@@ -97,8 +97,59 @@ function activeProjectNode() {
   return tree.projects.find((p) => p.id === tree.active.project.id);
 }
 
+/// Zustand der Anlage oben im Projekt: läuft alles? Nur mit Ausleseplan oder Ausgang.
+/// Jeder Teil führt zur Stelle, an der man es behebt.
+function renderPlantState() {
+  const box = $("plant-state");
+  if (!tree) return;
+  const lines = activeProjectNode()
+    .gateways.flatMap((g) => g.lines)
+    .filter((l) => l.plan_info?.meters);
+  const mqttOn = mqttStatus && mqttStatus.state !== "off";
+  box.hidden = !lines.length && !mqttOn;
+  if (box.hidden) return;
+  const parts = [];
+  if (lines.length) {
+    const sum = (k) => lines.reduce((n, l) => n + (l.plan_info[k] || 0), 0);
+    const next = lines.map((l) => l.plan_info.next).filter(Boolean).sort()[0];
+    const down = lines.filter((l) => l.plan_info.result?.line_down).length;
+    parts.push(
+      `<b>${esc(t("plan"))}</b> ${esc(t("ps_lines", lines.length))}${next ? " · " + esc(t("plan_next", slotText(next))) : ""}` +
+        (sum("disturbed") ? " " + ui.chip("warn", t("plan_disturbed", sum("disturbed"))) : "") +
+        (sum("paused") ? " " + ui.chip("muted", t("plan_paused", sum("paused"))) : "") +
+        (down ? " " + ui.chip("warn", t("ps_lines_down", down)) : "")
+    );
+  }
+  if (timeState)
+    parts.push(
+      `<b>${esc(t("ps_time"))}</b> ` +
+        (timeState.confirmed
+          ? esc(t("ps_time_ok", timeState.source))
+          : `${ui.chip("warn", t("time_unsure"))} <button type="button" class="small ghost" data-ps-time>${esc(t("ps_time_take"))}</button>`)
+    );
+  if (disk) {
+    const pct = Math.round(disk.free_pct);
+    parts.push(`<b>${esc(t("ps_disk"))}</b> ` + (disk.level === "ok" ? esc(t("ps_disk_free", pct)) : ui.chip("warn", t(disk.level === "full" ? "disk_full" : "disk_low", pct))));
+  }
+  if (mqttOn) {
+    const st = outputState("mqtt");
+    parts.push(`<b>MQTT</b> ${st.chip} <a href="#sec-outputs" data-ps-transfer>${esc(t("ps_open_transfer"))}</a>`);
+  }
+  box.innerHTML = parts.map((p) => `<span class="ps-part">${p}</span>`).join("");
+}
+
+$("plant-state").addEventListener("click", (ev) => {
+  const timeBtn = ev.target.closest("[data-ps-time]");
+  if (timeBtn) return confirmTime(timeBtn);
+  if (ev.target.closest("[data-ps-transfer]")) {
+    ev.preventDefault();
+    showTab("transfer");
+  }
+});
+
 function renderTree() {
   if (!tree) return;
+  renderPlantState();
   renderRememberMode();
   const a = tree.active;
   $("h-project").textContent = a.project.name;

@@ -5,6 +5,7 @@ export default {
   setup: (api) => simLine(api, "SIMULATOR:mfh30"),
   async run({ page, api }) {
     await tab(page, "meters");
+    await page.click("#sec-meters details.menu summary");
     await page.click("#list-open");
     const paste = [
       "Zählernummer\tBezeichnung\tWohnung",

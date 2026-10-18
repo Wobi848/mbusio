@@ -183,3 +183,10 @@ document.addEventListener(
   },
   true
 );
+
+// Menüs (<details class="menu">): nach einer Auswahl oder einem Klick daneben schliessen
+document.addEventListener("click", (ev) => {
+  for (const m of document.querySelectorAll("details.menu[open]")) {
+    if (!m.contains(ev.target) || ev.target.closest(".menu-items button, .menu-items a")) m.open = false;
+  }
+});

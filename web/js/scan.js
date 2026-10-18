@@ -27,6 +27,7 @@ async function refreshStatus() {
   disk = s.disk;
   mqttStatus = s.mqtt;
   if (transfer.data && !$("sec-outputs").hidden) renderOutputs();
+  renderPlantState();
   if (runsBefore && !planRuns.length) loadMeters().catch(() => {});
   // verbunden: Verbindung als eine Zeile, Formular erst auf "Ändern"
   $("sec-conn").classList.toggle("compact", connected && !connEditing);
@@ -69,15 +70,18 @@ $("disconnect").onclick = () =>
     loadTree().catch(() => {});
   });
 
-$("busbar-time").onclick = () => {
+/// „Uhrzeit vom Gerät übernehmen“ (Leiste unten und Zustand der Anlage)
+function confirmTime(button) {
   const now = new Date();
   if (!confirm(t("confirm_time", now.toLocaleString(lang === "de" ? "de-CH" : "en-GB")))) return;
-  guarded($("busbar-time"), async () => {
+  guarded(button, async () => {
     const r = await api("time", { method: "POST", body: { epoch_ms: Date.now() } });
     toast(t("time_taken", Math.round(r.offset_s)));
     await refreshStatus();
   });
-};
+}
+
+$("busbar-time").onclick = () => confirmTime($("busbar-time"));
 
 $("refresh-ports").onclick = () => loadPorts().catch((e) => toast(e.message, true));
 

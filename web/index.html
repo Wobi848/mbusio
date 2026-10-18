@@ -59,6 +59,7 @@
         <button id="project-new" class="small ghost" data-i18n="project_new"></button>
       </div>
     </div>
+    <div id="plant-state" class="plant-state" hidden></div>
     <div class="row tight project-tools">
       <button id="project-edit" class="small quiet" data-i18n="project_edit"></button>
       <a id="project-export" class="button small quiet" data-i18n="export"></a>
@@ -178,12 +179,17 @@
         <p id="meters-file" class="hint mono explain"></p>
       </div>
       <div class="head-actions">
-        <button id="list-open" class="small quiet" data-i18n="list_import"></button>
-        <a id="meters-export" class="button small quiet" href="api/meters/csv" data-i18n="export" data-i18n-title="list_export_title"></a>
+        <details class="menu">
+          <summary class="button small quiet"><span data-i18n="list_menu"></span></summary>
+          <div class="menu-items">
+            <button id="list-open" type="button" class="small quiet" data-i18n="list_import"></button>
+            <a id="meters-export" class="button small quiet" href="api/meters/csv" data-i18n="export" data-i18n-title="list_export_title"></a>
+            <button id="meters-clear" type="button" class="small quiet danger" data-i18n="meters_clear" hidden></button>
+          </div>
+        </details>
         <button id="quick-toggle" class="small quiet" data-i18n="quick_edit" data-i18n-title="quick_edit_title"></button>
-        <a id="meters-report" class="button small ghost" href="report.html" target="_blank" rel="noopener" data-i18n="report" data-i18n-title="report_title"></a>
-        <button id="meters-clear" class="small quiet danger" data-i18n="meters_clear" hidden></button>
         <button id="meter-add" class="small ghost" data-i18n="meter_add"></button>
+        <a id="meters-report" class="button small ghost" href="report.html" target="_blank" rel="noopener" data-i18n="report" data-i18n-title="report_title"></a>
         <button id="meters-read-all" class="small needs-conn" data-i18n="meters_read_all"></button>
       </div>
     </div>

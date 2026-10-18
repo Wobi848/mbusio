@@ -8,16 +8,21 @@ Installation; die Oberfläche läuft im Browser, auch auf dem Handy.
 
 ## So arbeitet man damit
 
-Die Oberfläche ist in vier Schritte gegliedert:
+Die Oberfläche ist in vier Schritte gegliedert; jeder Ablauf hat genau eine Stelle
+(siehe [docs/konzept-bedienung.md](docs/konzept-bedienung.md)):
 
 1. **Projekt** – Projekt (Kunde, Objekt) → Gateways → Linien. Jede Linie ist ein M-Bus-Strang mit
-   eigenem Anschluss und eigener Zählerliste. Linie wählen verbindet sofort.
+   eigenem Anschluss und eigener Zählerliste. Linie wählen verbindet sofort. Oben, sobald geplant
+   ausgelesen oder weitergegeben wird: **Zustand der Anlage** (Plan, Uhrzeit, Speicher, MQTT).
 2. **Scan** – auf welchen Baudraten antworten Geräte („Prüfen“), dann Primär- oder Sekundärscan.
    Die Trefferliste zeigt Auffälligkeiten (doppelte Adressen, fremde Baudrate, Zähler ohne Daten)
    mit **„Warum?“** und behebt sie auf Wunsch mit **„Alle beheben“**.
-3. **Zähler** – gefundene Zähler merken, benennen, alle auslesen, Verlauf ansehen, exportieren.
-4. **Werkzeuge** – einzelnen Zähler auslesen, Adresse/Baudrate ändern, Reset, Telegramm-Log und
-   Telegramm-Analyse.
+3. **Zähler** – gefundene Zähler merken, benennen, Liste importieren, alle auslesen, Verlauf,
+   Plan je Zähler, Zählertausch.
+4. **Weitergabe** – was (Datenpunkte je Zähler) wohin (Ausgänge: MQTT, später Modbus) und wie oft.
+
+Dazu **Werkzeuge** (einzelnen Zähler roh auslesen, Adresse/Baudrate ändern, Reset, Telegramm-Log und
+-Analyse) und der **Simulator**.
 
 Unten zeigt eine Statusleiste immer, was der Bus gerade macht und wie viele Auffälligkeiten offen
 sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Bericht** (PDF) fürs Projekt.
@@ -92,10 +97,15 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 - Konzept und nächste Schritte (MQTT, Modbus):
   [docs/konzept-dauerbetrieb.md](docs/konzept-dauerbetrieb.md)
 
-### Datenpunkte (was weitergegeben wird)
+### Weitergabe: Datenpunkte und Ausgänge
 
-- Je Zähler über **„Datenpunkte“** wählen, welche Werte Datenpunkte werden; der Hauptwert ist
-  vorgeschlagen. Name, Einheit und Umrechnung (z.B. Wh → kWh mit Faktor 0.001) einstellbar
+Alles im Reiter **Weitergabe**: oben die **Ausgänge** (heute MQTT) mit Zustand und Einstellungen,
+darunter die **Datenpunkte nach Zählern gruppiert** (aktive Linie oder ganzes Projekt). Aus der
+Zählerliste („Weitergabe“) und aus einer Auslesung führt ein Link direkt zum Zähler.
+
+- Je Zähler **„Werte wählen“**: alle Werte mit aktuellem Wert anhaken; der Hauptwert ist
+  vorgeschlagen. Jeder gewählte Wert ist ein Datenpunkt; je Ausgang ein Häkchen. Name, Einheit und
+  Umrechnung (z.B. Wh → kWh mit Faktor 0.001) einstellbar
 - **Vorlage:** gleiche Auswahl für alle Zähler desselben Mediums auf der Linie, auf Wunsch auch für
   Zähler, die später dazukommen, und auf Wunsch gleich per MQTT
 - **Stabile Kennung** aus der Bedeutung des Werts (Grösse, Einheit, Speicher, Tarif, Funktion),
@@ -112,8 +122,9 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
 
 ### MQTT
 
-- Im Tab „Zähler“ unter **MQTT**: Broker, Port, Benutzer/Passwort, TLS (mit eigenem
-  CA-Zertifikat oder, für selbst signierte Broker, ohne Prüfung), Client-ID und Basis-Topic
+- Reiter Weitergabe → Ausgänge → MQTT → **Einstellungen**: Broker, Port, Benutzer/Passwort, TLS
+  (mit eigenem CA-Zertifikat oder, für selbst signierte Broker, ohne Prüfung), Client-ID und
+  Basis-Topic
 - Je Datenpunkt das Häkchen **MQTT**; das Topic wird beim Einschalten vorgeschlagen
   (`mbusio/<projekt>/<gateway>-<linie>/<zähler>/<wert>`, z.B. `…/whg-1/energy`) und bleibt danach
   gleich, auch wenn Namen sich ändern; überschreibbar
@@ -320,8 +331,10 @@ Aufbau:
   bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
 - `src/web/`: HTTP-API, nach Bereichen (bus, meters, projects, datapoints, outputs, simulator); `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
 - `src/i18n.rs`: Übersetzungen der Messgrössen; UI-Texte in `web/js/texts.js` und `web/report.js`
-- `web/js/`: Oberfläche, nach Bereichen (core, scan, tools, meters, chart, meterlist, datapoints,
-  sim, mqtt, project, main); normale Skripte ohne Build-Schritt, Reihenfolge in `index.html`
+- `web/js/`: Oberfläche; `ui.js` = gemeinsame Bausteine (Chip, Tabelle, Aufklapp-Bereich,
+  Vorschau → Übernehmen, Formular), dann je Bereich eine Datei (scan, tools, meters, chart,
+  meterlist, transfer, sim, project, main); normale Skripte ohne Build-Schritt, Reihenfolge in
+  `index.html`
 - `tests/ui/`: Browser-Tests der Oberfläche (siehe `tests/ui/README.md`)
 
 Der Decoder ist eine Eigenentwicklung und wird gegen das Referenztelegramm aus der
@@ -337,9 +350,11 @@ M-Bus master with a built-in web UI for commissioning and service: find meters, 
 problems, read them, document the job. One binary for Windows, Linux and Raspberry Pi, no
 installation; the UI runs in the browser, phones included.
 
-- Four steps: **Project** (customer, site → gateways → lines), **Scan** (check baud rates, primary
-  and secondary scan, issues with “Why?” and “Fix all”), **Meters** (meter list, read all, history,
-  export), **Tools** (read one meter, change address/baud rate, reset, telegram log and analysis)
+- Four steps: **Project** (customer, site → gateways → lines, plant status), **Scan** (check baud
+  rates, primary and secondary scan, issues with “Why?” and “Fix all”), **Meters** (meter list,
+  names, import list, read all, history, plan, meter replacement), **Pass on** (datapoints per meter,
+  outputs such as MQTT); plus **Tools** (raw reading, address/baud rate, reset, telegram log) and
+  the **Simulator**
 - Detects collisions, duplicate addresses and IDs, meters on another baud rate and meters without
   usable data; explains the cause and fixes what can be fixed, verified on the meter
 - Meter list per line, remembered by secondary or primary address (set per line)

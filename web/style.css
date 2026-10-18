@@ -1059,3 +1059,17 @@ input.time24.invalid { border-color: var(--err); box-shadow: 0 0 0 2px var(--err
 .cs-summary { font-weight: 600; margin: 4px 0 8px; }
 .cs-table td { font-size: 13px; }
 .form-grid > .span-all { grid-column: 1 / -1; }
+
+/* Zustand der Anlage (Projekt) */
+.plant-state { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin: 4px 0 14px; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 12px; font-size: 13px; color: var(--muted); }
+.plant-state b { color: var(--text); font-weight: 600; margin-right: 4px; }
+.ps-part { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+
+/* Menü (Liste ▾) */
+details.menu { position: relative; }
+details.menu > summary { list-style: none; cursor: pointer; }
+details.menu > summary::-webkit-details-marker { display: none; }
+.menu-items { position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; min-width: 200px; display: grid; gap: 2px;
+  padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.menu-items > * { justify-content: flex-start; text-align: left; width: 100%; }
