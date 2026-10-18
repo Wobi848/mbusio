@@ -1037,3 +1037,9 @@ input.time24.invalid { border-color: var(--err); box-shadow: 0 0 0 2px var(--err
 
 /* Formulare nicht über die ganze Breite ziehen (Tabellen schon) */
 .form-grid, .tree-form, .meter-form > .row, #mqtt-form, .conn-grid, .hint.explain { max-width: 1200px; }
+
+/* Auslesung: wählen, was gesendet wird */
+.reading-table .send-cell { width: 1%; text-align: center; }
+.reading-table .send-cell input { width: 16px; height: 16px; }
+.send-bar { margin-top: 10px; }
+.send-actions { align-items: center; gap: 16px; }
