@@ -313,7 +313,7 @@ Aufbau:
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim/`: Simulator (bus: Verhalten der Zähler, scenarios: Vorlagen und eigene Anlagen, store: Speichern), alle hinter demselben `Link`-Trait
 - `src/db/`: Datenbank, nach Bereichen (schema mit Migrationen, projects, meters, readings, schedule, report)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
-- `src/datapoint.rs`: Datenpunkte, Qualität, Plausibilität, Zählertausch, Vorlagen, CSV
+- `src/datapoint/`: Datenpunkte (Kern: Kennung, Qualität, Plausibilität; publish: MQTT; templates: Vorlagen; exchange: Zählertausch; csv: Export/Import)
 - `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export
 - `src/mqtt.rs`: MQTT-Ausgang (eigener kleiner Client für MQTT 3.1.1, TLS mit rustls),
   Warteschlange in der Datenbank
