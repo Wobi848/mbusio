@@ -23,9 +23,20 @@ function guideStep() {
   const dps = line.datapoints?.count || 0;
   const op = inOperation() || wantsOperation();
   const done = { project: hasConn, scan: meters.length > 0, meters: read, transfer: dps > 0 && outputOn() };
+  const fix = connected && fixState();
+  const scanBtn = lastJob?.kind === "secondary" ? "scan-secondary" : "scan-primary";
   let step = null;
   if (!hasConn) step = { key: "conn_set", tab: "project", target: "connect", go: () => openConnForm() };
   else if (!connected) step = { key: "connect", tab: "scan", target: "connect", arg: line.connection, go: () => $("connect").click() };
+  else if (fix === "fix")
+    step = {
+      key: "fix",
+      tab: "scan",
+      mark: () => document.querySelector("[data-fix-all]"),
+      go: openFixPlan,
+      alt: meters.length ? null : { key: "anyway", go: rememberAll },
+    };
+  else if (fix === "check") step = { key: "check", tab: "scan", target: scanBtn, go: () => goClick("scan", scanBtn) };
   else if (!meters.length && okHits)
     step = { key: "remember", tab: "scan", target: "remember-all", arg: okHits, go: rememberAll };
   else if (!meters.length)
@@ -33,7 +44,10 @@ function guideStep() {
   else if (!read) step = { key: "read", tab: "meters", target: "meters-read-all", arg: meters.length, go: () => goClick("meters", "meters-read-all") };
   else if (!op) step = { key: "ready", tab: "meters", go: () => $("project-report").click(), alt: { key: "op", go: startOperation } };
   else if (!line.plan_info?.meters) step = { key: "plan", tab: "project", target: "project-edit", go: openPlanForm };
-  else if (!dps) step = { key: storageGet("tab") === "transfer" ? "pick" : "transfer", tab: "transfer", go: () => pickFirst() };
+  else if (!dps) {
+    const pick = storageGet("tab") === "transfer";
+    step = { key: pick ? "pick" : "transfer", tab: "transfer", mark: pick ? () => document.querySelector("[data-tr-pick]") : null, go: () => pickFirst() };
+  }
   else if (!outputOn()) step = { key: "output", tab: "transfer", go: openOutput };
   return { step, done, op };
 }
@@ -66,6 +80,14 @@ async function pickFirst() {
     b.click();
     reveal(b, "start");
   }
+}
+
+/// Plan „Alle beheben“ öffnen (Knopf in den Auffälligkeiten)
+function openFixPlan() {
+  showTab("scan");
+  const b = document.querySelector("[data-fix-all]");
+  reveal(b, "center");
+  b?.click();
 }
 
 /// Service fertig, Dauerbetrieb gewünscht: weiter mit Plan, Werten, Ausgang
@@ -121,7 +143,7 @@ function renderGuide() {
   // Knopf des nächsten Schritts hervorheben (nur einer)
   const s = state?.step;
   guideMarked?.classList.remove("go");
-  guideMarked = jobRunning ? null : s?.key === "pick" ? document.querySelector("[data-tr-pick]") : s?.target ? $(s.target) : null;
+  guideMarked = jobRunning || !s ? null : s.mark ? s.mark() : s.target ? $(s.target) : null;
   guideMarked?.classList.add("go");
   // in der Leiste unten: nicht während der Bus arbeitet, ausgeblendet bis zum nächsten Schritt
   const hidden = !s || jobRunning || planRuns.length || storageGet("guide_hidden") === s.key;

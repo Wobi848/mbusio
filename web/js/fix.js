@@ -140,7 +140,8 @@ function planSteps(hits, a) {
 
 async function openPlan() {
   const hits = lastJob.hits;
-  plan = planSteps(hits, analyzeHits(hits));
+  // gehört zu diesem Scan: ein neuer Scan beginnt wieder bei „beheben“ (fixState)
+  plan = { ...planSteps(hits, analyzeHits(hits)), job: lastJob };
   // freie Adressen vorher suchen, damit der Plan konkrete Zahlen zeigt
   const skip = new Set(hits.map((h) => h.primary_address).filter((x) => x != null && x > 0));
   const paSteps = plan.steps.filter((s) => s.kind === "pa");
@@ -204,6 +205,14 @@ $("fix-plan").addEventListener("click", (ev) => {
     runPlan();
   }
 });
+
+/// Für „Nächster Schritt“: "fix" = der letzte Scan hat behebbare Auffälligkeiten, "check" = eben
+/// behoben, zur Kontrolle neu scannen; sonst null
+function fixState() {
+  if (!lastJob || lastJob.running || lastJob.kind === "read_all") return null;
+  if (plan?.job === lastJob && plan.steps.some((s) => s.state === "ok")) return "check";
+  return planSteps(lastJob.hits, analyzeHits(lastJob.hits)).steps.length ? "fix" : null;
+}
 
 async function runPlan() {
   const todo = plan.steps.filter((s) => !s.skip);

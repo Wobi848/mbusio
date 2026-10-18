@@ -197,6 +197,16 @@ impl Db {
                  ALTER TABLE meters ADD COLUMN plan_ms REAL;",
             )?;
         }
+        // Merken über PA ist Standard (18.10.2026): Linien ohne Zähler einmalig umstellen; Linien
+        // mit Zählern bleiben, sonst entstünde eine gemischte Liste
+        if self.meta("addressing_pa")?.is_none() {
+            self.conn.execute(
+                "UPDATE lines SET addressing = 'primary'
+                 WHERE NOT EXISTS (SELECT 1 FROM meters WHERE meters.line_id = lines.id)",
+                [],
+            )?;
+            self.set_meta("addressing_pa", "1")?;
+        }
         Ok(())
     }
 }

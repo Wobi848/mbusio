@@ -495,6 +495,20 @@ direkt in der Tabelle, Namen nach Muster, CSV-Export; Vorlagen auf Wunsch gleich
 mit MQTT. Bedienkonzept umgesetzt (Reiter Weitergabe, Bausteine), dazu die Karte „Nächster
 Schritt“ (PR #2). Code aufgeräumt: nichts doppelt, grosse Dateien nach Bereichen aufgeteilt.
 
+**Nächste Ideen: schneller und gezielter scannen** (noch nicht umgesetzt, Konzept vor dem Bau):
+
+1. **Gezielter Sekundärscan über bekannte IDs.** Steht die ID schon in der Zählerliste (z.B. aus der
+   importierten Liste des Kunden), wird jeder Zähler direkt über seine Sekundäradresse
+   angesprochen statt über die Wildcard-Suche: etwa 1 s pro Zähler statt Minuten für den ganzen
+   Bus. Ergebnis je Zähler: gefunden (mit PA, Baudrate), antwortet nicht, oder antwortet mit
+   anderer ID.
+2. **Sekundärscan eingrenzen:** ID-Bereich bzw. Präfix (Maske, z.B. `1234FFFF`), Hersteller und
+   Medium als Filter der Suche; nur die Zweige, die passen, werden abgefragt.
+3. **Ergebnisse behalten statt ersetzen:** neue Treffer werden zur Trefferliste hinzugefügt und
+   über die Sekundäradresse zusammengeführt; ein abgebrochener Sekundärscan kann dort
+   weitermachen, wo er stand; „nur Fehlende suchen“ vergleicht Zählerliste und Bus (fehlt, neu,
+   geändert).
+
 **Bekannte Grenzen** (siehe auch README): Antworten zweier Zähler exakt gleichzeitig mit `E5`
 können wie eine Antwort aussehen; CI 76/77 nicht unterstützt; die ID eines Zählers lässt sich
 nicht ändern.

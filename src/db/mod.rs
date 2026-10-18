@@ -123,6 +123,8 @@ pub struct Line {
     pub plan: Option<String>,
 }
 
+/// Nur für Projekt-Exporte ohne das Feld: die stammen aus der Zeit, als über SA gemerkt wurde.
+/// Neue Linien merken über PA (create_line).
 fn default_addressing() -> String {
     "secondary".into()
 }
@@ -494,6 +496,7 @@ mod tests {
         let a = db.active().unwrap();
         assert_eq!(a.gateway.name, "Gateway 1");
         assert_eq!(a.line.baud, 2400);
+        assert_eq!(a.line.addressing, "primary", "neue Linien merken über PA");
         assert_eq!(db.tree().unwrap().len(), 1);
     }
 

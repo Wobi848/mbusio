@@ -209,9 +209,12 @@ function renderJob(job) {
         <td>${esc(h.manufacturer ?? "")}</td>
         <td class="num mono">${h.version ?? ""}</td>`;
       const other = h.baud && h.baud !== connBaud;
-      const anim = i >= fresh ? ` class="new" style="animation-delay:${Math.min(i - fresh, 8) * 50}ms"` : "";
       const dupPa = issues.rowDupPa.has(i);
       const dupId = issues.rowDupId.has(i);
+      // Zeile mit Problem hervorheben: keine Daten, Kollision, doppelte PA/ID, fremde Baudrate
+      const problem = h.status !== "ok" || dupPa || issues.rowDupIdSame.has(i) || other;
+      const cls = [i >= fresh ? "new" : "", problem ? "issue" : ""].filter(Boolean).join(" ");
+      const anim = (cls ? ` class="${cls}"` : "") + (i >= fresh ? ` style="animation-delay:${Math.min(i - fresh, 8) * 50}ms"` : "");
       const paCount = dupPa ? issues.dupPa.get(`${h.baud}:${h.primary_address}`).length : 0;
       const warnChips =
         (dupPa ? " " + ui.chip("warn", t("dup_pa"), t("dup_pa_title", h.primary_address, paCount)) : "") +
@@ -239,7 +242,7 @@ function renderJob(job) {
         <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
         ${sa}
         <td>${esc(label(h.medium))}</td>
-        <td>${ui.chip({ ok: "ok", collision: "warn" }[h.status] || "muted", t("st_" + h.status))}${warnChips}${otherChip}</td>
+        <td>${ui.chip({ ok: "ok" }[h.status] || "warn", t("st_" + h.status))}${warnChips}${otherChip}</td>
         <td><div class="actions">${
           h.status !== "ok" ? `<button class="small ghost" data-why="${esc(hitKey(h))}">${t("why")}</button>` : ""
         }${fix}${fixBaud}${
@@ -264,7 +267,7 @@ function hitAddress(h) {
 }
 
 /// Wie die aktive Linie Zähler merkt: "secondary" (SA) oder "primary" (PA)
-const addressing = () => tree?.active.line.addressing || "secondary";
+const addressing = () => tree?.active.line.addressing || "primary";
 
 /// Adresse zum Merken nach der Einstellung der Linie; null + Grund, wenn sie nicht eindeutig ist
 function rememberAddress(h) {

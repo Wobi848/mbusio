@@ -188,8 +188,8 @@ impl Db {
         self.gateway(gateway_id)?;
         Self::check_line(&l)?;
         self.conn.execute(
-            "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms, position)
-             VALUES (?1, ?2, ?3, ?4, ?5, (SELECT COALESCE(MAX(position), 0) + 1 FROM lines WHERE gateway_id = ?1))",
+            "INSERT INTO lines (gateway_id, name, connection, baud, timeout_ms, addressing, position)
+             VALUES (?1, ?2, ?3, ?4, ?5, 'primary', (SELECT COALESCE(MAX(position), 0) + 1 FROM lines WHERE gateway_id = ?1))",
             params![gateway_id, l.name.trim(), l.connection.trim(), l.baud, l.timeout_ms as i64],
         )?;
         self.line(self.conn.last_insert_rowid())

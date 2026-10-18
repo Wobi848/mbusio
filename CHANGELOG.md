@@ -40,6 +40,12 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 ### Geändert
 
 - Reiter Simulator nur, solange die aktive Linie eine Simulation benutzt; sonst unter Werkzeuge.
+- Nächster Schritt steht in der Leiste unten (immer sichtbar, aufklappbar) statt als Karte oben.
+- Nach einem Scan mit behebbaren Auffälligkeiten heisst der nächste Schritt „Auffälligkeiten beheben“
+  (übernehmen geht trotzdem), danach „Zur Kontrolle neu scannen“.
+- Trefferliste: Zeilen mit Problem sind hervorgehoben; „Keine Daten“ als Warnung statt grau.
+- Neue Linien merken über PA (vorher SA); leere bestehende Linien werden einmal umgestellt.
+- „Neues Projekt“ steht neben der Projektauswahl.
 - Uhrzeiten immer 24 h (HH:MM).
 - Die Oberfläche nutzt die ganze Fensterbreite.
 - Knöpfe: Hauptknöpfe in der Akzentfarbe, gesperrte grau mit Grund im Tooltip; Felder etwas grösser.
@@ -52,6 +58,7 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- Nach „Verbinden“ zeigte die Linie im Reiter Projekt weiter „Anschluss noch nicht festgelegt“.
 - Die Statusleiste zeigte bei einem laufenden Ausleseplan „Behebe …“ statt „Plan … liest“.
 - „klein“ gestaltete Links und Datei-Knöpfe waren grösser als die übrigen kleinen Knöpfe.
 
