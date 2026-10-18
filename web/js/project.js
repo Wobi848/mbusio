@@ -244,13 +244,13 @@ function renderLineBar() {
           g.lines
             .map(
               (l) =>
-                `<button type="button" data-lb-use="${l.id}" class="${l.id === a.line.id ? "on" : ""}">${esc(l.name)}<span class="mono">${esc(
+                `<button type="button" data-lb-use="${l.id}" class="small quiet${l.id === a.line.id ? " on" : ""}">${esc(l.name)}<span class="mono">${esc(
                   l.connection || t("ln_no_conn")
                 )}</span></button>`
             )
             .join("")
       )
-      .join("") + `<button type="button" data-lb-manage>${esc(t("lb_manage"))}</button>`;
+      .join("") + `<button type="button" class="small quiet" data-lb-manage>${esc(t("lb_manage"))}</button>`;
   const dot = (cls) => `<span class="lb-dot ${cls}" aria-hidden="true"></span>`;
   const mono = (x) => `<span class="mono">${esc(x)}</span>`;
   let state, action;

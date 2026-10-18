@@ -9,6 +9,11 @@ export default {
       await tab(page, name);
       assert.ok((await visibleSections(page)).includes(sec), `Reiter ${name} zeigt ${sec}`);
     }
+    // Linien-Menü: Linien lesbar (leise Knöpfe, nicht im Stil des Hauptknopfs)
+    await page.click("details.line-menu > summary");
+    assert.match(await page.textContent("#lb-lines [data-lb-use]"), /Haus A/);
+    assert.ok(await page.$eval("#lb-lines [data-lb-use]", (b) => b.classList.contains("quiet")));
+    await page.click("details.line-menu > summary");
     // Reiter bleibt nach dem Neuladen
     await tab(page, "meters");
     await page.reload();
