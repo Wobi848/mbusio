@@ -320,12 +320,20 @@ function renderHitsHead(job, unique, attention, issues) {
   $("hits-action").hidden = !done;
   if (!done) return;
   const steps = planSteps(job.hits, issues).steps.length;
-  $("hits-action-text").innerHTML = t("hits_action", unique, attention);
+  // „Übernehmen“ nimmt alles, was über die gewählte Adresse (SA/PA) eindeutig ansprechbar ist,
+  // also auch Zähler mit Auffälligkeit, z.B. gleiche ID bei „Merken über PA“: die Zahl sagt genau das
+  const take = rememberable(job.hits).length;
+  const extra = Math.max(0, take - unique);
+  $("hits-action-text").innerHTML = t("hits_action", unique, attention - extra, extra, addressing() === "primary" ? "PA" : "SA");
   $("hits-fix").hidden = !steps;
   $("hits-fix").textContent = t("fix_n", steps);
-  $("remember-all").hidden = !unique;
-  $("remember-all").innerHTML = `${esc(t("remember_n", unique))} ${ICON_NEXT}`;
+  $("remember-all").hidden = !take;
+  $("remember-all").innerHTML = `${esc(t("remember_n", take))} ${ICON_NEXT}`;
 }
+
+/// Treffer, die „Übernehmen“ in die Zählerliste nimmt: lesbar und über die gewählte Adresse
+/// (SA oder PA) eindeutig ansprechbar
+const rememberable = (hits) => hits.filter((h) => h.status === "ok" && rememberAddress(h).address);
 
 function renderRememberMode() {
   document.querySelectorAll(".remember-mode [data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === addressing()));
@@ -339,6 +347,7 @@ document.querySelector(".remember-mode").addEventListener("click", (ev) => {
     const r = await api(`lines/${tree.active.line.id}/addressing`, { method: "PUT", body: { mode } });
     await loadMeters();
     renderRememberMode();
+    if (lastJob) renderJob(lastJob);
     const msg = t("mode_done", mode === "primary" ? "PA" : "SA", r.changed);
     if (r.kept.length) toast(`${msg} · ${t("mode_kept", r.kept.length)}: ${r.kept.join("; ")}`, true);
     else toast(msg);
@@ -349,7 +358,7 @@ $("remember-all").onclick = () =>
   guarded($("remember-all"), async () => {
     // nur Zähler, die nach der Einstellung der Linie eindeutig sind: keine gemischte Liste
     const ok = (lastJob?.hits || []).filter((h) => h.status === "ok");
-    const list = ok.filter((h) => rememberAddress(h).address).map(meterFromHit);
+    const list = rememberable(lastJob?.hits || []).map(meterFromHit);
     const skipped = ok.length - list.length;
     const r = await api("meters/import", { method: "POST", body: { meters: list } });
     toast(t("remembered_all", r.added, list.length - r.added) + (skipped ? " · " + t("remember_skipped", skipped) : ""), skipped > 0);

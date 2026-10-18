@@ -163,6 +163,7 @@ const UI = {
     target_none: "Noch kein Ziel: Zähler wählen oder Adresse eingeben",
     meters_empty_short: "Die Zählerliste ist leer.",
     scan_set: "Suche einstellen",
+    names_close: "Benennen beenden",
     scan_prefix: "ID beginnt mit",
     scan_prefix_ph: "z.B. 1234",
     scan_prefix_title: "Nur IDs mit diesem Anfang suchen (leer = alle). Viel schneller, wenn die IDs der Zähler fortlaufend sind.",
@@ -176,8 +177,10 @@ const UI = {
     hf_all: "Alle",
     hf_unique: "Eindeutig",
     hf_attention: "Auffällig",
-    hits_action: (u, a) =>
-      `<b>${u} Zähler sind eindeutig</b> und können in die Zählerliste.` +
+    hits_action: (u, a, extra, via) =>
+      `<b>${u} Zähler sind eindeutig</b>` +
+      (extra ? `, dazu <b>${extra} mit Auffälligkeit</b>, die sich über die ${via} trotzdem ansprechen lassen (kommen mit)` : "") +
+      ` und können in die Zählerliste.` +
       (a ? ` ${a} Antworten brauchen zuerst Aufmerksamkeit, die Erklärung steht direkt an der Zeile.` : ""),
     fix_n: (n) => `${n} beheben …`,
     remember_n: (n) => `${n} Zähler übernehmen`,
@@ -575,7 +578,7 @@ const UI = {
     quick_same: "wie oben",
     quick_names: "Namen erzeugen…",
     names_title: "Namen erzeugen",
-    names_hint: "Platzhalter: {ort}, {medium}, {id}, {pa}, {nr} (laufende Nummer), {name} (bisheriger Name).",
+    names_hint: "Platzhalter: {ort}, {medium}, {id} (ID vom Typenschild, 8 Ziffern), {pa} (Primäradresse), {nr} (laufende Nummer), {name} (bisheriger Name).",
     names_pattern: "Muster",
     names_only_empty: "nur Zähler ohne Namen",
     names_done: (n) => `${n} Namen gesetzt`,
@@ -861,6 +864,7 @@ const UI = {
     target_none: "No target yet: choose a meter or enter an address",
     meters_empty_short: "The meter list is empty.",
     scan_set: "Set up the search",
+    names_close: "Stop naming",
     scan_prefix: "ID starts with",
     scan_prefix_ph: "e.g. 1234",
     scan_prefix_title: "Only search IDs with this start (empty = all). Much faster if the meter IDs are consecutive.",
@@ -874,8 +878,10 @@ const UI = {
     hf_all: "All",
     hf_unique: "Unique",
     hf_attention: "Need attention",
-    hits_action: (u, a) =>
-      `<b>${u} meters are unique</b> and can go into the meter list.` +
+    hits_action: (u, a, extra, via) =>
+      `<b>${u} meters are unique</b>` +
+      (extra ? `, plus <b>${extra} with an issue</b> that can still be addressed by ${via} (they come along)` : "") +
+      ` and can go into the meter list.` +
       (a ? ` ${a} answers need attention first; the explanation is right at the row.` : ""),
     fix_n: (n) => `Fix ${n} …`,
     remember_n: (n) => `Keep ${n} meters`,
@@ -1273,7 +1279,7 @@ const UI = {
     quick_same: "same as above",
     quick_names: "Generate names…",
     names_title: "Generate names",
-    names_hint: "Placeholders: {ort} (location), {medium}, {id}, {pa}, {nr} (running number), {name} (current name).",
+    names_hint: "Placeholders: {ort} (location), {medium}, {id} (ID on the name plate, 8 digits), {pa} (primary address), {nr} (running number), {name} (current name).",
     names_pattern: "Pattern",
     names_only_empty: "only meters without a name",
     names_done: (n) => `${n} names set`,

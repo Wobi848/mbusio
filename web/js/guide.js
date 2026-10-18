@@ -18,7 +18,8 @@ function guideStep() {
   const line = tree && findLine(tree.active.line.id);
   if (!line) return null;
   const hasConn = !!(line.connection || connected);
-  const okHits = lastJob && !lastJob.running ? lastJob.hits.filter((h) => h.status === "ok").length : 0;
+  // so viele, wie „Übernehmen“ wirklich übernimmt
+  const okHits = lastJob && !lastJob.running ? rememberable(lastJob.hits).length : 0;
   const read = meters.some((m) => m.last_read);
   const dps = line.datapoints?.count || 0;
   const op = inOperation() || wantsOperation();

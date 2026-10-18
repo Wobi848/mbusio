@@ -40,7 +40,6 @@
 .quick-loc input.quick { flex: 1; }
 #meters-table input.quick.sub-input { margin-top: 4px; font-size: 12px; color: var(--muted); }
 #meters-table input.quick.saved { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-soft); }
-#quick-toggle.on { background: var(--accent); color: var(--accent-ink); }
 
 /* Bearbeiten klappt in der Zeile auf: Zeile hell akzentuiert, Formular darunter eingerückt */
 #meters-table tr.sel td { background: var(--accent-soft); }

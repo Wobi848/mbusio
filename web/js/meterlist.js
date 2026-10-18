@@ -184,11 +184,13 @@ function renderNames() {
       <label class="check"><input type="checkbox" id="names-only"> ${esc(t("names_only_empty"))}</label>
       <button type="button" class="small tonal" id="names-preview">${esc(t("quick_names"))}</button></div>
     <div id="names-result" hidden></div>`,
-    { close: false }
+    { close: false, actions: ui.iconBtn(ICON_DEL, t("names_close"), { "names-close": "" }) }
   );
 }
 
 $("names-panel").addEventListener("click", (ev) => {
+  // × beendet das Benennen (wie „Fertig“)
+  if (ev.target.closest("[data-names-close]")) return $("quick-toggle").click();
   if (ev.target.id !== "names-preview") return;
   const body = { pattern: $("names-pattern").value, only_empty: $("names-only").checked };
   guarded(ev.target, () =>

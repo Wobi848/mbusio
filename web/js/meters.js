@@ -111,7 +111,9 @@ function renderMeters() {
   renderLocList();
   table.classList.toggle("quick-mode", quickEdit);
   $("quick-toggle").textContent = t(quickEdit ? "quick_done" : "quick_edit");
-  $("quick-toggle").classList.toggle("on", quickEdit);
+  // eingeschaltet: „Fertig“ als sekundärer Knopf, sonst leise
+  $("quick-toggle").classList.toggle("tonal", quickEdit);
+  $("quick-toggle").classList.toggle("quiet", !quickEdit);
   updateButtons();
 }
 
