@@ -161,7 +161,37 @@ let configBaud = null;
 function setConfigTarget(address, baud = null) {
   $("set-old").value = address;
   setConfigBaud(baud);
+  renderTarget();
 }
+
+/// Ziel als Zähler-Baustein: aus der Zählerliste oder dem letzten Scan, sonst nur die Adresse
+function renderTarget() {
+  const a = $("set-old").value.trim();
+  const m = a && meters.find((x) => [x.address, x.meter_id, x.secondary_address, String(x.primary_address)].includes(a));
+  const h = !m && a && lastJob?.hits.find((x) => [x.id, x.secondary_address, String(x.primary_address)].includes(a));
+  const block = m
+    ? { name: m.name, ident: m.meter_id, pa: m.primary_address, man: m.manufacturer, medium: m.medium, info: m.baud ? `${m.baud} Bd` : "" }
+    : h
+      ? { name: h.medium ? `${label(h.medium)} · ${h.manufacturer || ""}` : "", ident: h.id, pa: h.primary_address, medium: h.medium, info: h.baud ? `${h.baud} Bd` : "" }
+      : null;
+  $("target-meter").innerHTML = block ? ui.meter(block) : `<span class="hint">${esc(t(a ? "target_free" : "target_none"))}</span>`;
+  // jetzt → neu: aktueller Wert des Ziels über den Feldern
+  const pa = m ? m.primary_address : h?.primary_address;
+  const baud = (m ? m.baud : h?.baud) || (block ? connBaud : null);
+  $("cur-pa").textContent = pa != null ? t("target_now", `PA ${pa}`) : "";
+  $("cur-baud").textContent = baud ? t("target_now", `${baud} Bd`) : "";
+  $("target-list").innerHTML = meters.length
+    ? meters
+        .map((x) => `<button type="button" data-target="${esc(x.address)}" data-baud="${x.baud ?? ""}">${ui.meterShort({ name: x.name, ident: x.meter_id || x.address, medium: x.medium })}</button>`)
+        .join("")
+    : `<span class="hint menu-group">${esc(t("meters_empty_short"))}</span>`;
+  updateButtons();
+}
+
+$("target-list").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-target]");
+  if (b) setConfigTarget(b.dataset.target, Number(b.dataset.baud) || null);
+});
 
 function setConfigBaud(baud) {
   configBaud = baud && baud !== connBaud ? baud : null;
@@ -174,6 +204,7 @@ function setConfigBaud(baud) {
 $("set-old").addEventListener("input", () => {
   setConfigBaud(null);
   clearSpotlight();
+  renderTarget();
 });
 
 /// Treffer der letzten Suche zu einer eingegebenen Adresse

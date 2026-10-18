@@ -132,7 +132,9 @@ async function guarded(button, fn) {
 
 function updateButtons() {
   document.querySelectorAll(".needs-conn").forEach((b) => {
-    b.disabled = !connected || jobRunning || checking;
+    // data-needs-value: gesperrt, solange dieses Feld leer ist (z.B. kein Ziel gewählt)
+    const missing = b.dataset.needsValue && !$(b.dataset.needsValue).value.trim();
+    b.disabled = !connected || jobRunning || checking || !!missing;
     // gesperrt ohne Verbindung: sagen warum (Knöpfe mit eigenem Hinweis behalten ihn)
     if (!b.dataset.i18nTitle) b.title = connected ? "" : t("need_conn");
   });

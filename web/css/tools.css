@@ -37,8 +37,16 @@
 
 /* Nach "PA ändern" / "Baudrate ändern": zeigen, was jetzt zu tun ist */
 .tiles.has-spotlight .tile:not(.spotlight) { opacity: .4; transition: opacity .2s; }
-.tile.spotlight { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: spotPulse 1s var(--ease) 3; }
-@keyframes spotPulse { 50% { box-shadow: 0 0 0 8px var(--accent-soft); } }
+.tile.spotlight { background: var(--accent-soft); border-radius: 10px; padding: 12px 16px; animation: fadeIn .3s var(--ease) both; }
+
+/* Ziel zuerst: welcher Zähler, dann darunter (eingerückt, Linie links) was man ändert */
+.target { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: var(--sunken); }
+.target-label { font-weight: 650; }
+.target-meter { flex: 1 1 260px; min-width: 0; }
+.target-addr { flex: 0 1 220px; }
+.target-menu .menu-items { min-width: 260px; max-height: 320px; overflow: auto; }
+.under-target { margin-left: 14px; border-left: 2px solid var(--line); }
+.under-target > .tile:first-child { padding-left: 18px; }
 #config-baud-note { margin-top: 6px; }
 
 /* ------------------------------------------------------------ Log */

@@ -316,26 +316,35 @@
   </section>
 
   <section class="card" id="sec-config" data-tab="tools" aria-labelledby="h-config">
-    <div class="card-head align-end">
+    <div class="card-head">
       <div class="head-text">
         <h2 id="h-config" data-i18n="configure"></h2>
         <p class="hint explain" data-i18n="set_hint"></p>
       </div>
-      <div class="head-actions grow">
-        <label class="addr"><span data-i18n="meter"></span> <input id="set-old" class="mono" data-i18n-ph="address_ph"></label>
-        <p id="config-baud-note" class="hint warn" hidden></p>
-      </div>
     </div>
-    <div class="tiles three">
+    <!-- Ziel zuerst, dann was man ändert -->
+    <div class="target">
+      <span class="target-label" data-i18n="target"></span>
+      <div id="target-meter" class="target-meter"></div>
+      <label class="target-addr"><span class="sr-only" data-i18n="address"></span><input id="set-old" class="mono" data-i18n-ph="address_ph" data-i18n-title="address"></label>
+      <details class="menu target-menu">
+        <summary class="button small ghost" data-i18n="target_pick"></summary>
+        <div id="target-list" class="menu-items"></div>
+      </details>
+    </div>
+    <p id="config-baud-note" class="hint warn" hidden></p>
+    <div class="tiles three under-target">
       <div class="tile" id="tile-pa">
         <h3 data-i18n="set_primary"></h3>
+        <p id="cur-pa" class="hint"></p>
         <div class="tile-row">
           <label><span data-i18n="new_primary"></span> <input id="set-new" class="mono" type="number" min="0" max="250"></label>
-          <button id="set-addr" class="ghost needs-conn" data-i18n="set"></button>
+          <button id="set-addr" class="ghost needs-conn" data-needs-value="set-old" data-i18n="set"></button>
         </div>
       </div>
       <div class="tile" id="tile-baud">
         <h3 data-i18n="baud_title"></h3>
+        <p id="cur-baud" class="hint"></p>
         <div class="tile-row">
           <label><span data-i18n="new_baud"></span>
             <select id="new-baud">
@@ -343,10 +352,10 @@
               <option>4800</option><option>9600</option><option>19200</option><option>38400</option>
             </select>
           </label>
-          <button id="switch-baud" class="ghost needs-conn" data-i18n="switch"></button>
+          <button id="switch-baud" class="ghost needs-conn" data-needs-value="set-old" data-i18n="switch"></button>
         </div>
         <div class="row tight">
-          <button id="detect-baud" class="small quiet needs-conn" data-i18n="detect_baud"></button>
+          <button id="detect-baud" class="small quiet needs-conn" data-needs-value="set-old" data-i18n="detect_baud"></button>
           <span id="detect-result" class="hint result"></span>
         </div>
         <p class="hint explain" data-i18n="baud_hint"></p>
@@ -356,7 +365,7 @@
         <p class="hint" data-i18n="reset_short"></p>
         <p class="hint explain" data-i18n="reset_hint"></p>
         <div class="tile-end start">
-          <button id="app-reset" class="ghost danger needs-conn" data-i18n="reset"></button>
+          <button id="app-reset" class="ghost danger needs-conn" data-needs-value="set-old" data-i18n="reset"></button>
         </div>
       </div>
     </div>

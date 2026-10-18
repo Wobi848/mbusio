@@ -237,6 +237,7 @@ $("meters-table").addEventListener("click", (ev) => {
   // Auslesen mit der Baudrate des Zählers, Ergebnis im Bereich "Zähler auslesen"
   $("read-addr").value = m.address;
   $("set-old").value = m.address;
+  renderTarget();
   guarded(btn, async () => {
     $("reading").innerHTML = `<p class="loading"><span class="spin"></span>${t("reading_busy")}</p>`;
     try {

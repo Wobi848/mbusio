@@ -5,13 +5,13 @@
 
 /* Zustand der Anlage */
 .plant-state { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; margin: 4px 0 14px; padding: 10px 14px;
-  border: 1px solid var(--line); border-radius: 12px; font-size: 13px; color: var(--muted); }
+  background: var(--sunken); border-radius: 12px; font-size: 13px; color: var(--muted); }
 .plant-state b { color: var(--text); font-weight: 600; margin-right: 4px; }
 .ps-part { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 
 /* Gateways; nur das Gateway der aktiven Linie ist aufgeklappt */
 .tree { display: grid; gap: 12px; }
-.gw { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.gw { background: var(--sunken); border-radius: 12px; padding: 12px 14px; }
 .gw-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .gw-head h3 { margin: 0; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .gw-head h3 .chev { transition: transform .15s; color: var(--muted); }

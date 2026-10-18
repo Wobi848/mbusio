@@ -25,6 +25,15 @@ export default {
     assert.equal(await page.locator("#meters-table tr.sel").count(), 1);
     await page.locator("[data-meter-edit]").nth(2).click();
     assert.ok(await page.isHidden("#meter-form"));
+    // Werkzeuge: ohne Ziel gesperrt, Ziel aus der Zählerliste wählen
+    await tab(page, "tools");
+    assert.ok(await page.isDisabled("#set-addr"));
+    await page.click("details.target-menu > summary");
+    await page.locator("[data-target]").first().click();
+    assert.ok(await page.isVisible("#target-meter .mtr"));
+    assert.ok(await page.isEnabled("#set-addr"));
+    assert.match(await page.textContent("#cur-pa"), /PA \d+/);
+    await tab(page, "meters");
     await page.locator("[data-meter-hist]").first().click();
     await page.waitForSelector("#history svg, #history table", { timeout: 10000 });
     // Bericht öffnet sich mit den Zählern

@@ -21,6 +21,7 @@ function showTab(name) {
   if (lineTab) document.querySelector(`main > [data-tab="${name}"]:not([hidden])`)?.classList.add("joined");
   renderGuide();
   updateSimTab();
+  if (name === "tools") renderTarget();
   if (name === "sim") loadSim().catch((e) => toast(e.message, true));
   if (name === "transfer") loadTransfer().catch((e) => toast(e.message, true));
 }

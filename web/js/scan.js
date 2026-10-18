@@ -508,6 +508,7 @@ $("hits").addEventListener("click", (ev) => {
   if (!d.read) return;
   $("read-addr").value = d.read;
   $("set-old").value = d.read;
+  renderTarget();
   reveal($("sec-read"), "start");
   readMeter(Number(d.baud) || null);
 });

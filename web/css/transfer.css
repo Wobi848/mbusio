@@ -3,7 +3,7 @@
 /* ------------------------------------------------------------ Ausgänge */
 
 .out-list { display: grid; gap: 10px; }
-.out-row { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.out-row { background: var(--sunken); border-radius: 12px; padding: 10px 14px; }
 .out-form { margin-top: 12px; }
 #mqtt-example { word-break: break-all; }
 
