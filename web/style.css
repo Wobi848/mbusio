@@ -1,3 +1,6 @@
+/* Seitenbreite: ganze Fensterbreite nutzen (Tabellen mit vielen Spalten) */
+:root { --page-max: 100%; }
+
 /* mbusio – schlicht, eine Akzentfarbe, Animationen nur über transform/opacity */
 
 :root {
@@ -108,7 +111,7 @@ a { color: var(--accent); }
 }
 
 .topbar-inner {
-  max-width: 1180px;
+  max-width: var(--page-max);
   margin: 0 auto;
   padding: 0 32px;
   min-height: 60px;
@@ -144,7 +147,7 @@ a { color: var(--accent); }
 /* ------------------------------------------------------------ Layout */
 
 main {
-  max-width: 1180px;
+  max-width: var(--page-max);
   margin: 0 auto;
   padding: 32px 32px 72px;
   display: flex;
@@ -702,7 +705,7 @@ pre#log:empty { display: none; }
   animation: busbarIn .22s var(--ease) both;
 }
 .busbar-inner {
-  max-width: 1120px;
+  max-width: var(--page-max);
   margin: 0 auto;
   padding: 10px 16px;
   display: flex;
@@ -1028,3 +1031,11 @@ label.check.sub-check { margin-left: 24px; }
 /* Uhrzeit immer 24 h */
 input.time24 { width: 84px; text-align: center; }
 input.time24.invalid { border-color: var(--err); box-shadow: 0 0 0 2px var(--err-soft); }
+
+/* Zählerliste: Werte, Zeiten, Plan nicht umbrechen; Name und Ort dürfen */
+#meters-table .val,
+#meters-table td:nth-child(n + 3) .sub { white-space: nowrap; }
+#meters-table td:first-child { min-width: 140px; }
+
+/* Formulare nicht über die ganze Breite ziehen (Tabellen schon) */
+.form-grid, .tree-form, .meter-form > .row, #mqtt-form, .conn-grid, .hint.explain { max-width: 1200px; }
