@@ -1,17 +1,33 @@
-//! Datenpunkte: Auswahl, Vorlagen, Bearbeiten, CSV
+//! Weitergabe: Datenpunkte (Auswahl, Vorlagen, Bearbeiten, CSV) und Ausgänge
 
 use super::*;
 
+#[derive(Deserialize)]
+pub(super) struct ScopeQuery {
+    /// "line" (aktive Linie, Standard) oder "project"
+    #[serde(default)]
+    scope: Option<String>,
+}
+
+/// Reiter Weitergabe: Zähler mit ihren Datenpunkten, Vorlagen der Linie, Ausgänge
 pub(super) async fn datapoints(
     State(st): State<AppState>,
     headers: HeaderMap,
+    Query(q): Query<ScopeQuery>,
 ) -> ApiResult<serde_json::Value> {
     i18n::set(lang_of(&headers));
     let db = st.db.lock().unwrap();
-    let line = db.active_line()?.id;
-    Ok(Json(
-        json!({ "datapoints": db.dp_list(Some(line), None)?, "templates": db.templates(line)? }),
-    ))
+    let active = db.active()?;
+    let meters = if q.scope.as_deref() == Some("project") {
+        db.dp_overview(None, Some(active.project.id))?
+    } else {
+        db.dp_overview(Some(active.line.id), None)?
+    };
+    Ok(Json(json!({
+        "meters": meters,
+        "templates": db.templates(active.line.id)?,
+        "outputs": db.outputs_info(),
+    })))
 }
 
 /// Werte eines Zählers zur Auswahl als Datenpunkte
@@ -41,9 +57,9 @@ pub(super) struct TemplateOpt {
 #[derive(Deserialize)]
 pub(super) struct SelectReq {
     keys: Vec<String>,
-    /// neue Datenpunkte gleich per MQTT weitergeben (auch in der Vorlage)
+    /// Ausgänge, an die neue Datenpunkte gleich gehen (auch in der Vorlage)
     #[serde(default)]
-    mqtt: bool,
+    outputs: Vec<String>,
     /// zusätzlich als Vorlage für alle Zähler dieses Mediums auf der Linie
     #[serde(default)]
     template: Option<TemplateOpt>,
@@ -59,7 +75,7 @@ pub(super) async fn meter_datapoints(
     i18n::set(lang);
     let mut db = st.db.lock().unwrap();
     let (added, removed) = db
-        .dp_select_mqtt(id, &r.keys, r.mqtt, lang)
+        .dp_select(id, &r.keys, &r.outputs, lang)
         .map_err(bad_request)?;
     let mut others = 0;
     if let Some(t) = r.template {
@@ -71,10 +87,10 @@ pub(super) async fn meter_datapoints(
             )));
         };
         others = db
-            .template_save(m.line_id, &medium, &r.keys, t.auto, r.mqtt, lang)
+            .template_save(m.line_id, &medium, &r.keys, t.auto, &r.outputs, lang)
             .map_err(bad_request)?;
     }
-    db.mqtt_refresh()?;
+    db.outputs_refresh()?;
     Ok(Json(
         json!({ "ok": true, "added": added, "removed": removed, "others": others }),
     ))
@@ -89,14 +105,14 @@ pub(super) async fn datapoint_update(
     i18n::set(lang_of(&headers));
     let mut db = st.db.lock().unwrap();
     let d = db.dp_update(id, &d).map_err(bad_request)?;
-    db.mqtt_refresh()?;
+    db.outputs_refresh()?;
     Ok(Json(d))
 }
 
 #[derive(Deserialize)]
 pub(super) struct BulkReq {
     ids: Vec<i64>,
-    /// "on", "off", "delete", "send:every|change|daily"
+    /// "on", "off", "delete", "send:every|change|daily", "out:<ausgang>:on|off"
     action: String,
 }
 
@@ -107,7 +123,7 @@ pub(super) async fn datapoints_bulk(
     let n = {
         let mut db = st.db.lock().unwrap();
         let n = db.dp_bulk(&r.ids, &r.action).map_err(bad_request)?;
-        db.mqtt_refresh()?;
+        db.outputs_refresh()?;
         n
     };
     Ok(Json(json!({ "ok": true, "changed": n })))
@@ -162,7 +178,7 @@ pub(super) async fn datapoints_import(
     headers: HeaderMap,
     Path(id): Path<i64>,
     Json(r): Json<CsvImportReq>,
-) -> ApiResult<crate::datapoint::ImportResult> {
+) -> ApiResult<crate::changeset::ChangeSet> {
     let lang = lang_of(&headers);
     i18n::set(lang);
     Ok(Json(

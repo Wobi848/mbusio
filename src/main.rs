@@ -1,3 +1,4 @@
+mod changeset;
 mod clock;
 mod datapoint;
 mod db;

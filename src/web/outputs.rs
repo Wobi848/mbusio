@@ -41,7 +41,7 @@ pub(super) async fn mqtt_put(
         c.base = c.base.trim().trim_end_matches('/').to_string();
         db.set_mqtt_config(&c).map_err(bad_request)?;
         // eingeschaltet: aktuelle Werte gleich vormerken
-        db.mqtt_refresh()?;
+        db.outputs_refresh()?;
     }
     st.mqtt.version.fetch_add(1, Ordering::SeqCst);
     st.log.push(

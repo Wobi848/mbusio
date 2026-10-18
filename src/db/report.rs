@@ -100,7 +100,7 @@ impl Db {
                 let lid = tx.last_insert_rowid();
                 line_ids.insert(format!("{} · {}", gw.name, line.name), lid);
                 for t in l["templates"].as_array().into_iter().flatten() {
-                    if let Ok(t) = serde_json::from_value(t.clone()) {
+                    if let Some(t) = crate::datapoint::template_from_export(t) {
                         templates.push((lid, t));
                     }
                 }
@@ -118,7 +118,7 @@ impl Db {
                     )?;
                     let mid = tx.last_insert_rowid();
                     for d in entry["datapoints"].as_array().into_iter().flatten() {
-                        if let Ok(d) = serde_json::from_value(d.clone()) {
+                        if let Some(d) = crate::datapoint::from_export(d) {
                             dps.push((mid, d));
                         }
                     }

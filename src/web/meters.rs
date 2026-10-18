@@ -263,7 +263,7 @@ pub(super) async fn meters_import_list(
     State(st): State<AppState>,
     headers: HeaderMap,
     Json(r): Json<ListImportReq>,
-) -> ApiResult<crate::meterlist::ListImport> {
+) -> ApiResult<crate::changeset::ChangeSet> {
     i18n::set(lang_of(&headers));
     let mut db = st.db.lock().unwrap();
     let line = db.active_line()?.id;
@@ -290,22 +290,19 @@ pub(super) async fn meters_names(
     State(st): State<AppState>,
     headers: HeaderMap,
     Json(r): Json<NamesReq>,
-) -> ApiResult<serde_json::Value> {
+) -> ApiResult<crate::changeset::ChangeSet> {
     let lang = lang_of(&headers);
     i18n::set(lang);
     let mut db = st.db.lock().unwrap();
     let line = db.active_line()?.id;
-    let list = db.auto_names(
+    Ok(Json(db.auto_names(
         line,
         &r.pattern,
         r.ids.as_deref(),
         r.only_empty,
         r.apply,
         lang,
-    )?;
-    Ok(Json(
-        json!({ "ok": true, "names": list, "applied": r.apply }),
-    ))
+    )?))
 }
 
 pub(super) async fn meters_csv(

@@ -11,14 +11,14 @@
 
 mod csv;
 mod exchange;
-mod publish;
+mod outputs;
 mod templates;
 #[cfg(test)]
 mod tests;
 
-pub use self::csv::ImportResult;
+pub use self::outputs::{address_label, output_label, Outputs, OUTPUTS};
 
-use self::publish::*;
+use self::outputs::Sample;
 
 use crate::db::{Db, Meter, DISTURBED_AFTER};
 use crate::i18n::{self, tr, Lang};
@@ -140,12 +140,9 @@ pub struct Datapoint {
     pub send: String,
     #[serde(default = "yes")]
     pub active: bool,
-    /// per MQTT weitergeben
+    /// Ausgänge (MQTT …): je Ausgang ein/aus und Adresse
     #[serde(default)]
-    pub mqtt: bool,
-    /// Topic relativ zum Basis-Topic; wird beim Einschalten einmal erzeugt und bleibt dann stabil
-    #[serde(default)]
-    pub mqtt_topic: Option<String>,
+    pub outputs: Outputs,
     #[serde(default, skip_deserializing)]
     pub last_value: Option<f64>,
     #[serde(default, skip_deserializing)]
@@ -184,14 +181,33 @@ fn dp_of(r: &Row) -> rusqlite::Result<Datapoint> {
         shift: r.get("shift")?,
         send: r.get("send")?,
         active: r.get("active")?,
-        mqtt: r.get("mqtt")?,
-        mqtt_topic: r.get("mqtt_topic")?,
+        outputs: Outputs::new(),
         last_value: r.get("last_value")?,
         last_time: r.get("last_time")?,
         last_utc: r.get("last_utc")?,
         last_good: r.get("last_good")?,
         invalid: r.get("invalid")?,
     })
+}
+
+/// Datenpunkt aus einem Projekt-Export; ältere Dateien hatten MQTT als eigene Felder
+pub fn from_export(v: &Value) -> Option<Datapoint> {
+    let mut v = v.clone();
+    if v.get("outputs").is_none()
+        && (v["mqtt"].as_bool() == Some(true) || v["mqtt_topic"].is_string())
+    {
+        v["outputs"] = json!({ "mqtt": { "enabled": v["mqtt"], "address": v["mqtt_topic"] } });
+    }
+    serde_json::from_value(v).ok()
+}
+
+/// Vorlage aus einem Projekt-Export (ältere Dateien: `mqtt: true`)
+pub fn template_from_export(v: &Value) -> Option<Template> {
+    let mut v = v.clone();
+    if v.get("outputs").is_none() && v["mqtt"].as_bool() == Some(true) {
+        v["outputs"] = json!(["mqtt"]);
+    }
+    serde_json::from_value(v).ok()
 }
 
 /// Vorlage einer Linie: diese Werte bei allen Zählern dieses Mediums
@@ -206,9 +222,9 @@ pub struct Template {
     /// auch auf später hinzukommende Zähler anwenden
     #[serde(default)]
     pub auto: bool,
-    /// neue Datenpunkte gleich per MQTT weitergeben
+    /// Ausgänge, an die neue Datenpunkte gleich gehen
     #[serde(default)]
-    pub mqtt: bool,
+    pub outputs: Vec<String>,
 }
 
 pub const SCHEMA: &str = "
@@ -238,6 +254,16 @@ CREATE TABLE IF NOT EXISTS dp_values (
     valid INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS dp_values_dp ON dp_values(dp, utc);
+CREATE TABLE IF NOT EXISTS dp_outputs (
+    dp INTEGER NOT NULL REFERENCES datapoints(id) ON DELETE CASCADE,
+    output TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    address TEXT,
+    sent_value REAL,
+    sent_quality TEXT,
+    sent_day TEXT,
+    PRIMARY KEY (dp, output)
+);
 CREATE TABLE IF NOT EXISTS dp_templates (
     id INTEGER PRIMARY KEY,
     line_id INTEGER NOT NULL REFERENCES lines(id) ON DELETE CASCADE,
@@ -308,12 +334,19 @@ impl Db {
         let mut st = self
             .conn
             .prepare("SELECT * FROM datapoints WHERE meter_id = ?1 ORDER BY no")?;
-        let rows = st.query_map([meter_id], dp_of)?;
-        Ok(rows.collect::<rusqlite::Result<_>>()?)
+        let mut list: Vec<Datapoint> = st
+            .query_map([meter_id], dp_of)?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut outputs = self.outputs_of_meter(meter_id)?;
+        for d in &mut list {
+            d.outputs = outputs.remove(&d.id).unwrap_or_default();
+        }
+        Ok(list)
     }
 
     pub fn dp(&self, id: i64) -> Result<Datapoint> {
-        self.conn
+        let d = self
+            .conn
             .query_row("SELECT * FROM datapoints WHERE id = ?1", [id], dp_of)
             .optional()?
             .ok_or_else(|| {
@@ -322,7 +355,14 @@ impl Db {
                     tr("Datenpunkt", "Datapoint"),
                     tr("nicht gefunden", "not found")
                 )
-            })
+            })?;
+        Ok(Datapoint {
+            outputs: self
+                .outputs_of_meter(d.meter_id)?
+                .remove(&d.id)
+                .unwrap_or_default(),
+            ..d
+        })
     }
 
     pub(super) fn project_of_meter(&self, meter_id: i64) -> Result<i64> {
@@ -423,23 +463,13 @@ impl Db {
         }))
     }
 
-    /// Auswahl eines Zählers setzen: fehlende Datenpunkte anlegen, abgewählte löschen
-    #[cfg(test)]
+    /// Auswahl eines Zählers setzen: fehlende Datenpunkte anlegen (gleich an diese Ausgänge),
+    /// abgewählte löschen
     pub fn dp_select(
         &mut self,
         meter_id: i64,
         keys: &[String],
-        lang: Lang,
-    ) -> Result<(usize, usize)> {
-        self.dp_select_mqtt(meter_id, keys, false, lang)
-    }
-
-    /// Wie `dp_select`; neue Datenpunkte auf Wunsch gleich per MQTT
-    pub fn dp_select_mqtt(
-        &mut self,
-        meter_id: i64,
-        keys: &[String],
-        mqtt: bool,
+        outputs: &[String],
         lang: Lang,
     ) -> Result<(usize, usize)> {
         let meter = self.meter(meter_id)?;
@@ -447,8 +477,8 @@ impl Db {
             let mut added = 0;
             for k in keys {
                 if let Some(id) = db.dp_create(&meter, k, lang)? {
-                    if mqtt {
-                        db.dp_set_mqtt(id, true)?;
+                    for o in outputs {
+                        db.dp_set_output(id, o, true)?;
                     }
                     added += 1;
                 }
@@ -465,7 +495,7 @@ impl Db {
         })
     }
 
-    /// Name, Einheit, Faktor, Weitergabe, aktiv ändern
+    /// Name, Einheit, Faktor, Weitergabe, aktiv und Ausgänge ändern
     pub fn dp_update(&mut self, id: i64, d: &Datapoint) -> Result<Datapoint> {
         if d.name.trim().is_empty() {
             bail!(tr("Name fehlt", "Name missing"));
@@ -480,13 +510,15 @@ impl Db {
             ));
         }
         let old = self.dp(id)?;
-        let topic = d
-            .mqtt_topic
-            .as_deref()
-            .map(str::trim)
-            .filter(|t| !t.is_empty());
-        if let Some(t) = topic {
-            crate::mqtt::check_topic(t)?;
+        for (key, o) in &d.outputs {
+            if let Some(a) = o
+                .address
+                .as_deref()
+                .map(str::trim)
+                .filter(|a| !a.is_empty())
+            {
+                outputs::check_address(key, a)?;
+            }
         }
         // anderer Faktor: gespeicherte Werte passen nicht mehr zum Vergleich
         let reset = old.factor != d.factor;
@@ -510,20 +542,12 @@ impl Db {
                 self.dp_apply(old.meter_id, &r, false)?;
             }
         }
-        // eigenes Topic übernehmen; geändertes Topic: aktuellen Wert dort neu senden
-        if topic != old.mqtt_topic.as_deref() {
-            self.conn.execute(
-                "UPDATE datapoints SET mqtt_topic = ?2, mqtt_quality = NULL WHERE id = ?1",
-                params![id, topic],
-            )?;
-        }
-        if d.mqtt != old.mqtt || (d.mqtt && topic.is_none()) {
-            self.dp_set_mqtt(id, d.mqtt)?;
-        }
+        self.dp_set_outputs(id, &d.outputs)?;
         self.dp(id)
     }
 
-    /// Mehrere Datenpunkte auf einmal: "on", "off", "delete", "send:every|change|daily"
+    /// Mehrere Datenpunkte auf einmal: "on", "off", "delete", "send:every|change|daily",
+    /// "out:<ausgang>:on|off"
     pub fn dp_bulk(&mut self, ids: &[i64], action: &str) -> Result<usize> {
         self.tx(|db| {
             let mut n = 0;
@@ -538,8 +562,14 @@ impl Db {
                     "delete" => db
                         .conn
                         .execute("DELETE FROM datapoints WHERE id = ?1", [id])?,
-                    "mqtt:on" | "mqtt:off" => {
-                        db.dp_set_mqtt(*id, action == "mqtt:on")?;
+                    a if a.starts_with("out:") => {
+                        let (key, on) =
+                            match a.strip_prefix("out:").and_then(|x| x.rsplit_once(':')) {
+                                Some((k, "on")) => (k, true),
+                                Some((k, "off")) => (k, false),
+                                _ => bail!("action: {a}"),
+                            };
+                        db.dp_set_output(*id, key, on)?;
                         1
                     }
                     a => match a.strip_prefix("send:").filter(|m| SEND_MODES.contains(m)) {
@@ -602,44 +632,30 @@ impl Db {
                     params![dp.id, utc, r.timestamp, value, invalid.is_none()],
                 )?;
             }
-            // weitergeben, wie beim Datenpunkt eingestellt (auch bei vollem Speicher)
-            if self.mqtt_enabled && dp.mqtt && dp.active && store {
-                if let Some(topic) = dp.mqtt_topic.as_deref() {
-                    let quality = if invalid.is_some() { "invalid" } else { "good" };
-                    let (sent_value, sent_quality, sent_day): (
-                        Option<f64>,
-                        Option<String>,
-                        Option<String>,
-                    ) = self.conn.query_row(
-                        "SELECT mqtt_value, mqtt_quality, mqtt_day FROM datapoints WHERE id = ?1",
-                        [dp.id],
-                        |x| Ok((x.get(0)?, x.get(1)?, x.get(2)?)),
-                    )?;
-                    let day = r.timestamp.get(..10).unwrap_or("").to_string();
-                    let quality_changed = sent_quality.as_deref() != Some(quality);
-                    let send = match dp.send.as_str() {
-                        "change" => sent_value != Some(value) || quality_changed,
-                        "daily" => sent_day.as_deref() != Some(day.as_str()) || quality_changed,
-                        _ => true,
-                    };
-                    if send {
-                        self.mqtt_enqueue(
-                            topic,
-                            &mqtt_payload(&dp, value, quality, utc, r.time_unsure),
-                        )?;
-                        self.conn.execute(
-                            "UPDATE datapoints SET mqtt_value = ?2, mqtt_quality = ?3, mqtt_day = ?4 WHERE id = ?1",
-                            params![dp.id, value, quality, day],
-                        )?;
-                    }
-                }
+            // an die Ausgänge, wie beim Datenpunkt eingestellt (auch bei vollem Speicher;
+            // nicht beim blossen Nachrechnen, z.B. nach geändertem Faktor)
+            if store {
+                let day = r.timestamp.get(..10).unwrap_or("");
+                let sample = Sample {
+                    value,
+                    quality: if invalid.is_some() { "invalid" } else { "good" },
+                    utc,
+                    unsure: r.time_unsure,
+                    day,
+                };
+                self.dispatch(&dp, &sample)?;
             }
         }
         Ok(notes)
     }
 
-    /// Datenpunkte einer Linie (oder eines Projekts) für die Oberfläche, mit Zähler und Qualität
-    pub fn dp_list(&self, line_id: Option<i64>, project_id: Option<i64>) -> Result<Vec<Value>> {
+    /// Zähler einer Linie (oder eines Projekts) mit ihren Datenpunkten, je Datenpunkt mit
+    /// Qualität und Bezeichnung des Werts. Grundlage für Liste, Übersicht und CSV.
+    fn dp_by_meters(
+        &self,
+        line_id: Option<i64>,
+        project_id: Option<i64>,
+    ) -> Result<Vec<(String, Meter, Vec<Value>)>> {
         let now = crate::clock::now();
         let lines: Vec<(i64, String, Option<String>, String)> = self
             .conn
@@ -656,21 +672,62 @@ impl Db {
             for m in self.meters(lid)? {
                 let (p, _) =
                     plan::effective(m.plan.as_deref(), line_plan.as_deref(), &project_plan);
+                let mut dps = Vec::new();
                 for d in self.dp_by_meter(m.id)? {
-                    let q = quality(&d, &m, p, now);
                     let mut v = serde_json::to_value(&d)?;
-                    v["quality"] = json!(q);
+                    v["quality"] = json!(quality(&d, &m, p, now));
                     v["label"] = json!(key_label(&d.key, i18n::current()));
                     v["line_id"] = json!(lid);
                     v["line"] = json!(label);
                     v["meter"] = json!(meter_label(&m));
                     v["address"] = json!(m.address);
-                    out.push(v);
+                    dps.push(v);
                 }
+                out.push((label.clone(), m, dps));
             }
         }
+        Ok(out)
+    }
+
+    /// Alle Datenpunkte einer Linie (oder eines Projekts), nach Nummer
+    pub fn dp_list(&self, line_id: Option<i64>, project_id: Option<i64>) -> Result<Vec<Value>> {
+        let mut out: Vec<Value> = self
+            .dp_by_meters(line_id, project_id)?
+            .into_iter()
+            .flat_map(|(_, _, dps)| dps)
+            .collect();
         out.sort_by_key(|v| v["no"].as_i64().unwrap_or(0));
         Ok(out)
+    }
+
+    /// Für den Reiter Weitergabe: je Zähler (auch ohne Datenpunkte) seine Datenpunkte
+    pub fn dp_overview(&self, line_id: Option<i64>, project_id: Option<i64>) -> Result<Vec<Value>> {
+        Ok(self
+            .dp_by_meters(line_id, project_id)?
+            .into_iter()
+            .map(|(line, m, dps)| {
+                json!({
+                    "id": m.id,
+                    "name": meter_label(&m),
+                    "location": m.location,
+                    "address": m.address,
+                    "meter_id": m.meter_id,
+                    "medium": m.medium,
+                    "last_read": m.last_read,
+                    "line_id": m.line_id,
+                    "line": line,
+                    "datapoints": dps,
+                })
+            })
+            .collect())
+    }
+
+    /// Ausgänge für die Oberfläche: Schlüssel, Name, wie die Adresse heisst, eingeschaltet
+    pub fn outputs_info(&self) -> Vec<Value> {
+        OUTPUTS
+            .iter()
+            .map(|k| json!({ "key": k, "label": output_label(k), "address_label": address_label(k), "on": self.output_on(k) }))
+            .collect()
     }
 
     /// Anzahl Datenpunkte und ungültige je Linie (für die Projekt-Karte)
@@ -693,9 +750,9 @@ impl Db {
         if parts(&d.key).is_none() {
             return Ok(());
         }
-        self.conn.execute(
-            "INSERT OR IGNORE INTO datapoints (meter_id, no, key, name, unit, factor, shift, send, active, mqtt, mqtt_topic)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        let n = self.conn.execute(
+            "INSERT OR IGNORE INTO datapoints (meter_id, no, key, name, unit, factor, shift, send, active)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 meter_id,
                 d.no,
@@ -705,11 +762,26 @@ impl Db {
                 d.factor,
                 d.shift,
                 if SEND_MODES.contains(&d.send.as_str()) { d.send.as_str() } else { "every" },
-                d.active,
-                d.mqtt,
-                d.mqtt_topic.as_deref().filter(|t| crate::mqtt::check_topic(t).is_ok())
+                d.active
             ],
         )?;
+        if n == 1 {
+            let id = self.conn.last_insert_rowid();
+            for (key, o) in d
+                .outputs
+                .iter()
+                .filter(|(k, _)| OUTPUTS.contains(&k.as_str()))
+            {
+                let address = o
+                    .address
+                    .as_deref()
+                    .filter(|a| outputs::check_address(key, a).is_ok());
+                self.conn.execute(
+                    "INSERT OR IGNORE INTO dp_outputs (dp, output, enabled, address) VALUES (?1, ?2, ?3, ?4)",
+                    params![id, key, o.enabled, address],
+                )?;
+            }
+        }
         Ok(())
     }
 

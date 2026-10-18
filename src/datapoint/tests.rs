@@ -82,7 +82,8 @@ fn select_values_and_follow_readings() {
     assert_eq!(main[0]["key"], ENERGY);
     assert!(values.iter().all(|v| v["selected"] == false));
     assert_eq!(
-        db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap(),
+        db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+            .unwrap(),
         (1, 0)
     );
     let dp = &db.dp_by_meter(mid).unwrap()[0];
@@ -114,15 +115,17 @@ fn select_values_and_follow_readings() {
     let m = db.meter(mid).unwrap();
     assert_eq!(quality(dp, &m, Plan::Off, crate::clock::now()), "invalid");
     // abwählen löscht, Nummer wird nicht wieder vergeben
-    assert_eq!(db.dp_select(mid, &[], Lang::De).unwrap(), (0, 1));
-    db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
+    assert_eq!(db.dp_select(mid, &[], &[], Lang::De).unwrap(), (0, 1));
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
     assert_eq!(db.dp_by_meter(mid).unwrap()[0].no, 2);
 }
 
 #[test]
 fn exchange_continues_the_counter() {
     let (mut db, line, mid, r) = setup();
-    db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
     // neuer Zähler beginnt bei 10 kWh
     let mut new = with_energy(&r, 10.0);
     new.header.as_mut().unwrap().id = "99999999".into();
@@ -156,7 +159,8 @@ fn exchange_continues_the_counter() {
 #[test]
 fn csv_preview_then_apply() {
     let (mut db, _line, mid, _r) = setup();
-    db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
     let csv = db.dp_csv(1, Lang::De).unwrap();
     assert!(csv.starts_with("Nr;Linie;Zähler"));
     // in Excel geändert: Name, Faktor (mit Komma), inaktiv; dazu ein neuer Wert ohne Nummer
@@ -180,7 +184,7 @@ fn csv_preview_then_apply() {
     );
     let preview = db.dp_import(1, &text, false, Lang::De).unwrap();
     assert!(preview.errors.is_empty(), "{:?}", preview.errors);
-    assert_eq!(preview.changes.len(), 4);
+    assert_eq!(preview.changed.len(), 4);
     assert_eq!(preview.added.len(), 1);
     assert!(!preview.applied);
     assert_eq!(
@@ -208,8 +212,9 @@ fn csv_preview_then_apply() {
 fn template_applies_to_new_meters() {
     let (mut db, line, mid, r) = setup();
     let medium = db.meter(mid).unwrap().medium.unwrap();
-    db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
-    db.template_save(line, &medium, &[ENERGY.to_string()], true, false, Lang::De)
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    db.template_save(line, &medium, &[ENERGY.to_string()], true, &[], Lang::De)
         .unwrap();
     // neuer Zähler gleicher Art: nach der ersten Auslesung hat er den Datenpunkt
     let m2 = db
@@ -227,7 +232,7 @@ fn template_applies_to_new_meters() {
         .unwrap();
     assert_eq!(db.dp_by_meter(m2.id).unwrap().len(), 1);
     // gelöscht bleibt gelöscht (Vorlage gilt nur einmal je Zähler)
-    db.dp_select(m2.id, &[], Lang::De).unwrap();
+    db.dp_select(m2.id, &[], &[], Lang::De).unwrap();
     db.record(line, &Target::Primary(8), Ok(&r2), false)
         .unwrap();
     assert!(db.dp_by_meter(m2.id).unwrap().is_empty());
@@ -237,8 +242,9 @@ fn template_applies_to_new_meters() {
 fn project_export_keeps_numbers_and_templates() {
     let (mut db, line, mid, _r) = setup();
     let medium = db.meter(mid).unwrap().medium.unwrap();
-    db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
-    db.template_save(line, &medium, &[ENERGY.to_string()], true, false, Lang::De)
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    db.template_save(line, &medium, &[ENERGY.to_string()], true, &[], Lang::De)
         .unwrap();
     let exported = db.export_project(1).unwrap();
     let pid = db.import_project(&exported).unwrap();
@@ -262,15 +268,16 @@ fn project_export_keeps_numbers_and_templates() {
 #[test]
 fn mqtt_queue_follows_send_mode_and_quality() {
     let (mut db, line, mid, r) = setup();
-    db.dp_select(mid, &[ENERGY.to_string()], Lang::De).unwrap();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
     let id = db.dp_by_meter(mid).unwrap()[0].id;
     db.mqtt_enabled = true;
-    db.dp_bulk(&[id], "mqtt:on").unwrap();
-    let topic = db.dp(id).unwrap().mqtt_topic.unwrap();
+    db.dp_bulk(&[id], "out:mqtt:on").unwrap();
+    let topic = db.dp(id).unwrap().outputs["mqtt"].address.clone().unwrap();
     assert_eq!(topic, "standard/gateway-1-linie-1/whg-1/energy");
     // eingeschaltet: aktueller Wert einmal, dann nicht mehr
-    assert_eq!(db.mqtt_refresh().unwrap(), 1);
-    assert_eq!(db.mqtt_refresh().unwrap(), 0);
+    assert_eq!(db.outputs_refresh().unwrap(), 1);
+    assert_eq!(db.outputs_refresh().unwrap(), 0);
     let q = |db: &Db| db.mqtt_peek(1000).unwrap();
     let first: Value = serde_json::from_str(&q(&db)[0].2).unwrap();
     assert_eq!(first["value"], 123456.0);
@@ -314,7 +321,10 @@ fn mqtt_queue_follows_send_mode_and_quality() {
     let mut m = db.meter(mid).unwrap();
     m.name = "Wohnung 1".into();
     db.update_meter(mid, m).unwrap();
-    assert_eq!(db.dp(id).unwrap().mqtt_topic.unwrap(), topic);
+    assert_eq!(
+        db.dp(id).unwrap().outputs["mqtt"].address.as_deref(),
+        Some(topic.as_str())
+    );
     // MQTT aus: nichts mehr
     db.mqtt_enabled = false;
     db.record(
@@ -337,4 +347,54 @@ fn csv_split_handles_quotes() {
     );
     assert_eq!(parse_num("0,001"), Some(0.001));
     assert_eq!(parse_num("1'234.5"), Some(1234.5));
+}
+
+#[test]
+fn old_export_with_mqtt_fields_is_understood() {
+    let d = from_export(&json!({
+        "key": ENERGY, "name": "E", "no": 4, "mqtt": true, "mqtt_topic": "a/b"
+    }))
+    .unwrap();
+    assert_eq!(
+        d.outputs["mqtt"],
+        outputs::DpOutput {
+            enabled: true,
+            address: Some("a/b".into())
+        }
+    );
+    let t =
+        template_from_export(&json!({ "medium": "m", "keys": [ENERGY], "mqtt": true })).unwrap();
+    assert_eq!(t.outputs, vec!["mqtt".to_string()]);
+}
+
+#[test]
+fn outputs_in_csv_round_trip() {
+    let (mut db, _line, mid, _r) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &["mqtt".to_string()], Lang::De)
+        .unwrap();
+    let csv = db.dp_csv(1, Lang::De).unwrap();
+    assert!(
+        csv.lines().next().unwrap().ends_with(";MQTT;Topic"),
+        "{csv}"
+    );
+    let row = csv.lines().nth(1).unwrap().to_string();
+    assert!(
+        row.contains(";1;standard/gateway-1-linie-1/whg-1/energy"),
+        "{row}"
+    );
+    // Topic in Excel geändert, MQTT aus
+    let mut c = crate::export::split_line(&row);
+    c[10] = "0".into();
+    c[11] = "haus/whg1/energie".into();
+    let text = format!("{}\n{}\n", csv.lines().next().unwrap(), c.join(";"));
+    let p = db.dp_import(1, &text, true, Lang::De).unwrap();
+    assert!(p.applied && p.changed.len() == 2, "{:?}", p.changed);
+    let d = &db.dp_by_meter(mid).unwrap()[0];
+    assert_eq!(
+        d.outputs["mqtt"],
+        outputs::DpOutput {
+            enabled: false,
+            address: Some("haus/whg1/energie".into())
+        }
+    );
 }

@@ -436,4 +436,24 @@ impl Db {
         }
         Ok(out)
     }
+
+    /// Alle Zähler eines Projekts mit der Bezeichnung ihrer Linie („Gateway › Linie“)
+    pub fn meters_with_line_label(&self, project_id: i64) -> Result<Vec<(String, Meter)>> {
+        let lines: Vec<(i64, String)> = self
+            .conn
+            .prepare(
+                "SELECT lines.id, gateways.name || ' › ' || lines.name FROM lines
+                 JOIN gateways ON gateways.id = lines.gateway_id WHERE gateways.project_id = ?1
+                 ORDER BY gateways.position, gateways.id, lines.position, lines.id",
+            )?
+            .query_map([project_id], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut out = Vec::new();
+        for (id, label) in lines {
+            for m in self.meters(id)? {
+                out.push((label.clone(), m));
+            }
+        }
+        Ok(out)
+    }
 }

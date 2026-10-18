@@ -151,9 +151,17 @@ impl Db {
         self.conn.execute_batch(crate::datapoint::SCHEMA)?;
         self.conn.execute_batch(crate::mqtt::SCHEMA)?;
         self.conn.execute_batch(crate::sim::SCHEMA)?;
-        if !has(&self.conn, "dp_templates", "mqtt")? {
+        if !has(&self.conn, "dp_templates", "outputs")? {
+            // Ausgänge, an die neue Datenpunkte einer Vorlage gleich gehen (JSON-Liste)
             self.conn.execute_batch(
-                "ALTER TABLE dp_templates ADD COLUMN mqtt INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE dp_templates ADD COLUMN outputs TEXT NOT NULL DEFAULT '[]'",
+            )?;
+        }
+        if has(&self.conn, "dp_templates", "mqtt")? {
+            // Zwischenstand vor den allgemeinen Ausgängen: MQTT-Häkchen übernehmen
+            self.conn.execute_batch(
+                "UPDATE dp_templates SET outputs = '[\"mqtt\"]' WHERE mqtt = 1;
+                 ALTER TABLE dp_templates DROP COLUMN mqtt;",
             )?;
         }
         if !has(&self.conn, "datapoints", "last_unsure")? {
@@ -162,14 +170,17 @@ impl Db {
                 "ALTER TABLE datapoints ADD COLUMN last_unsure INTEGER NOT NULL DEFAULT 0",
             )?;
         }
-        if !has(&self.conn, "datapoints", "mqtt")? {
-            // MQTT (Phase 3): je Datenpunkt ein/aus, eigenes Topic, zuletzt Gesendetes
+        if has(&self.conn, "datapoints", "mqtt")? {
+            // Zwischenstand vor den allgemeinen Ausgängen: MQTT-Spalten nach dp_outputs
             self.conn.execute_batch(
-                "ALTER TABLE datapoints ADD COLUMN mqtt INTEGER NOT NULL DEFAULT 0;
-                 ALTER TABLE datapoints ADD COLUMN mqtt_topic TEXT;
-                 ALTER TABLE datapoints ADD COLUMN mqtt_value REAL;
-                 ALTER TABLE datapoints ADD COLUMN mqtt_quality TEXT;
-                 ALTER TABLE datapoints ADD COLUMN mqtt_day TEXT;",
+                "INSERT OR IGNORE INTO dp_outputs (dp, output, enabled, address, sent_value, sent_quality, sent_day)
+                   SELECT id, 'mqtt', mqtt, mqtt_topic, mqtt_value, mqtt_quality, mqtt_day FROM datapoints
+                   WHERE mqtt = 1 OR mqtt_topic IS NOT NULL;
+                 ALTER TABLE datapoints DROP COLUMN mqtt;
+                 ALTER TABLE datapoints DROP COLUMN mqtt_topic;
+                 ALTER TABLE datapoints DROP COLUMN mqtt_value;
+                 ALTER TABLE datapoints DROP COLUMN mqtt_quality;
+                 ALTER TABLE datapoints DROP COLUMN mqtt_day;",
             )?;
         }
         if !has(&self.conn, "projects", "plan")? {

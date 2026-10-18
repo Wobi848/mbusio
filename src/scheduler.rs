@@ -226,7 +226,7 @@ fn check_clock(st: &AppState, now: NaiveDateTime) {
         drop(last);
         check_disk(st);
         // geänderte Qualität (veraltet, gestört) an den Broker melden
-        if let Err(e) = st.db.lock().unwrap().mqtt_refresh() {
+        if let Err(e) = st.db.lock().unwrap().outputs_refresh() {
             note(st, format!("MQTT: {e:#}"));
         }
     } else {

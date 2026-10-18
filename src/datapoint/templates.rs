@@ -43,8 +43,8 @@ impl Db {
                 .any(|x| key_of(x) == *k && x.value.is_number())
             {
                 if let Some(id) = self.dp_create(meter, k, lang)? {
-                    if t.mqtt {
-                        self.dp_set_mqtt(id, true)?;
+                    for o in &t.outputs {
+                        self.dp_set_output(id, o, true)?;
                     }
                     n += 1;
                 }
@@ -56,7 +56,7 @@ impl Db {
     pub fn templates(&self, line_id: i64) -> Result<Vec<Template>> {
         let mut st = self
             .conn
-            .prepare("SELECT id, line_id, medium, keys, auto, mqtt FROM dp_templates WHERE line_id = ?1 ORDER BY id")?;
+            .prepare("SELECT id, line_id, medium, keys, auto, outputs FROM dp_templates WHERE line_id = ?1 ORDER BY id")?;
         let rows = st.query_map([line_id], |r| {
             Ok(Template {
                 id: r.get(0)?,
@@ -64,7 +64,7 @@ impl Db {
                 medium: r.get(2)?,
                 keys: serde_json::from_str(&r.get::<_, String>(3)?).unwrap_or_default(),
                 auto: r.get(4)?,
-                mqtt: r.get(5)?,
+                outputs: serde_json::from_str(&r.get::<_, String>(5)?).unwrap_or_default(),
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -78,14 +78,14 @@ impl Db {
         medium: &str,
         keys: &[String],
         auto: bool,
-        mqtt: bool,
+        outputs: &[String],
         lang: Lang,
     ) -> Result<usize> {
         self.tx(|db| {
             db.conn.execute(
-                "INSERT INTO dp_templates (line_id, medium, keys, auto, mqtt) VALUES (?1, ?2, ?3, ?4, ?5)
-                 ON CONFLICT(line_id, medium) DO UPDATE SET keys = excluded.keys, auto = excluded.auto, mqtt = excluded.mqtt",
-                params![line_id, medium, serde_json::to_string(keys)?, auto, mqtt],
+                "INSERT INTO dp_templates (line_id, medium, keys, auto, outputs) VALUES (?1, ?2, ?3, ?4, ?5)
+                 ON CONFLICT(line_id, medium) DO UPDATE SET keys = excluded.keys, auto = excluded.auto, outputs = excluded.outputs",
+                params![line_id, medium, serde_json::to_string(keys)?, auto, serde_json::to_string(outputs)?],
             )?;
             let t = Template {
                 id: 0,
@@ -93,7 +93,7 @@ impl Db {
                 medium: medium.into(),
                 keys: keys.to_vec(),
                 auto,
-                mqtt,
+                outputs: outputs.to_vec(),
             };
             let mut n = 0;
             for m in db.meters(line_id)? {
@@ -113,8 +113,8 @@ impl Db {
 
     pub(crate) fn template_import(&mut self, line_id: i64, t: &Template) -> Result<()> {
         self.conn.execute(
-            "INSERT OR IGNORE INTO dp_templates (line_id, medium, keys, auto, mqtt) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![line_id, t.medium, serde_json::to_string(&t.keys)?, t.auto, t.mqtt],
+            "INSERT OR IGNORE INTO dp_templates (line_id, medium, keys, auto, outputs) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![line_id, t.medium, serde_json::to_string(&t.keys)?, t.auto, serde_json::to_string(&t.outputs)?],
         )?;
         Ok(())
     }

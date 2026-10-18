@@ -6,9 +6,9 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use rusqlite::params;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde::Deserialize;
 
+use crate::changeset::ChangeSet;
 use crate::db::{Db, Meter};
 use crate::i18n::{self, tr, Lang};
 
@@ -25,21 +25,6 @@ pub struct ListRow {
     pub location: String,
     #[serde(default)]
     pub note: String,
-}
-
-#[derive(Debug, Default, Serialize)]
-pub struct ListImport {
-    /// neu anzulegen: ID, Adresse, Name, Ort
-    pub added: Vec<Value>,
-    /// geänderte Felder: ID, Feld, alt, neu
-    pub changed: Vec<Value>,
-    /// schon so in der Liste
-    pub unchanged: usize,
-    /// Hinweise, die den Import nicht verhindern
-    pub warnings: Vec<String>,
-    /// Zeilen, die nicht übernommen werden
-    pub errors: Vec<String>,
-    pub applied: bool,
 }
 
 /// ID vom Typenschild: nur Ziffern, auf 8 Stellen aufgefüllt
@@ -102,7 +87,7 @@ impl Db {
         line_id: i64,
         rows: &[ListRow],
         apply: bool,
-    ) -> Result<ListImport> {
+    ) -> Result<ChangeSet> {
         let line = self.line(line_id)?;
         let meters = self.meters(line_id)?;
         let by_id: HashMap<String, &Meter> = meters
@@ -111,21 +96,12 @@ impl Db {
             .collect();
         // Zähler auf anderen Linien des Projekts (Hinweis, falls die Liste dorthin gehört)
         let project = self.gateway(line.gateway_id)?.project_id;
-        let mut elsewhere: HashMap<String, String> = HashMap::new();
-        for p in self.tree()? {
-            if p.project.id != project {
-                continue;
-            }
-            for g in &p.gateways {
-                for l in g.lines.iter().filter(|l| l.line.id != line_id) {
-                    for m in self.meters(l.line.id)? {
-                        if let Some(id) = meter_ident(&m) {
-                            elsewhere.insert(id, format!("{} › {}", g.gateway.name, l.line.name));
-                        }
-                    }
-                }
-            }
-        }
+        let elsewhere: HashMap<String, String> = self
+            .meters_with_line_label(project)?
+            .into_iter()
+            .filter(|(_, m)| m.line_id != line_id)
+            .filter_map(|(label, m)| Some((meter_ident(&m)?, label)))
+            .collect();
         // IDs aus dem letzten Scan dieser Linie (für „nicht auf dem Bus gefunden“)
         let scanned: Option<HashSet<String>> = self.last_scan(line_id)?.and_then(|s| {
             let hits = s["hits"].as_array()?;
@@ -135,7 +111,7 @@ impl Db {
                     .collect()
             })
         });
-        let mut res = ListImport::default();
+        let mut cs = ChangeSet::default();
         let mut seen = HashSet::new();
         let mut creates: Vec<Meter> = Vec::new();
         let mut updates: Vec<(i64, Meter)> = Vec::new();
@@ -145,20 +121,24 @@ impl Db {
                 continue;
             }
             let Some(id) = normalize_id(&r.id) else {
-                res.errors.push(format!(
-                    "{} {row}: {} „{}“",
-                    tr("Zeile", "Row"),
-                    tr("ID ungültig (bis 8 Ziffern)", "invalid ID (up to 8 digits)"),
-                    r.id
-                ));
+                cs.row_error(
+                    row,
+                    format!(
+                        "{} „{}“",
+                        tr("ID ungültig (bis 8 Ziffern)", "invalid ID (up to 8 digits)"),
+                        r.id
+                    ),
+                );
                 continue;
             };
             if !seen.insert(id.clone()) {
-                res.errors.push(format!(
-                    "{} {row}: ID {id} {}",
-                    tr("Zeile", "Row"),
-                    tr("kommt mehrfach vor", "appears more than once")
-                ));
+                cs.row_error(
+                    row,
+                    format!(
+                        "ID {id} {}",
+                        tr("kommt mehrfach vor", "appears more than once")
+                    ),
+                );
                 continue;
             }
             let pa = match r.pa.trim() {
@@ -166,23 +146,22 @@ impl Db {
                 s => match s.parse::<u8>() {
                     Ok(p) if p <= 250 => Some(p),
                     _ => {
-                        res.errors.push(format!(
-                            "{} {row}: PA „{s}“ {}",
-                            tr("Zeile", "Row"),
-                            tr("ungültig (0..250)", "invalid (0..250)")
-                        ));
+                        cs.row_error(
+                            row,
+                            format!("PA „{s}“ {}", tr("ungültig (0..250)", "invalid (0..250)")),
+                        );
                         continue;
                     }
                 },
             };
             if let Some(l) = elsewhere.get(&id) {
-                res.warnings.push(format!(
+                cs.warn(format!(
                     "ID {id}: {} {l}",
                     tr("ist schon auf der Linie", "is already on line")
                 ));
             }
             if scanned.as_ref().is_some_and(|s| !s.contains(&id)) {
-                res.warnings.push(format!(
+                cs.warn(format!(
                     "ID {id}: {}",
                     tr(
                         "im letzten Scan nicht gefunden",
@@ -192,28 +171,28 @@ impl Db {
             }
             match by_id.get(&id) {
                 Some(m) => {
-                    let mut new = (*m).clone();
-                    let mut changed = false;
-                    for (field, old, val) in [
-                        ("name", &m.name, r.name.trim()),
-                        ("location", &m.location, r.location.trim()),
-                        ("note", &m.note, r.note.trim()),
-                    ] {
-                        if !val.is_empty() && old != val {
-                            res.changed
-                                .push(json!({ "id": id, "field": field, "old": old, "new": val }));
-                            match field {
-                                "name" => new.name = val.into(),
-                                "location" => new.location = val.into(),
-                                _ => new.note = val.into(),
-                            }
-                            changed = true;
+                    // leere Zellen ändern nichts
+                    let pick = |cell: &str, old: &str| {
+                        let v = cell.trim();
+                        if v.is_empty() {
+                            old.to_string()
+                        } else {
+                            v.to_string()
                         }
-                    }
+                    };
+                    let new = Meter {
+                        name: pick(&r.name, &m.name),
+                        location: pick(&r.location, &m.location),
+                        note: pick(&r.note, &m.note),
+                        ..(*m).clone()
+                    };
+                    let mut changed = cs.change(&id, tr("Name", "Name"), &m.name, &new.name);
+                    changed |= cs.change(&id, tr("Ort", "Location"), &m.location, &new.location);
+                    changed |= cs.change(&id, tr("Notiz", "Note"), &m.note, &new.note);
                     if changed {
                         updates.push((m.id, new));
                     } else {
-                        res.unchanged += 1;
+                        cs.unchanged += 1;
                     }
                 }
                 None => {
@@ -223,7 +202,7 @@ impl Db {
                         _ => id.clone(),
                     };
                     if line.addressing == "primary" && address == id {
-                        res.warnings.push(format!(
+                        cs.warn(format!(
                             "ID {id}: {}",
                             tr(
                                 "ohne PA, wird über die ID gemerkt",
@@ -231,7 +210,12 @@ impl Db {
                             )
                         ));
                     }
-                    res.added.push(json!({ "id": id, "address": address, "name": r.name.trim(), "location": r.location.trim() }));
+                    let detail = [r.name.trim(), r.location.trim()]
+                        .into_iter()
+                        .filter(|s| !s.is_empty())
+                        .collect::<Vec<_>>()
+                        .join(" · ");
+                    cs.add(id.clone(), detail);
                     creates.push(Meter {
                         address,
                         name: r.name.trim().into(),
@@ -244,7 +228,7 @@ impl Db {
                 }
             }
         }
-        if apply && res.errors.is_empty() {
+        cs.finish(apply, || {
             self.tx(|db| {
                 for (id, m) in &updates {
                     db.update_meter(*id, m.clone())?;
@@ -253,14 +237,11 @@ impl Db {
                     db.add_meter(line_id, m.clone())?;
                 }
                 Ok(())
-            })?;
-            res.applied = true;
-        }
-        Ok(res)
+            })
+        })
     }
 
-    /// Namen nach Muster setzen (alle oder nur die markierten / ohne Namen). Liefert je Zähler
-    /// alt und neu; `apply` = false nur Vorschau.
+    /// Namen nach Muster setzen (alle oder nur die markierten / ohne Namen); zuerst Vorschau
     pub fn auto_names(
         &mut self,
         line_id: i64,
@@ -269,8 +250,9 @@ impl Db {
         only_empty: bool,
         apply: bool,
         lang: Lang,
-    ) -> Result<Vec<Value>> {
-        let mut out = Vec::new();
+    ) -> Result<ChangeSet> {
+        let mut cs = ChangeSet::default();
+        let mut names = Vec::new();
         let mut nr = 0;
         for m in self.meters(line_id)? {
             if ids.is_some_and(|ids| !ids.contains(&m.id)) || (only_empty && !m.name.is_empty()) {
@@ -278,18 +260,22 @@ impl Db {
             }
             nr += 1;
             let name = render_name(pattern, &m, nr, lang);
-            if name.is_empty() || name == m.name {
-                continue;
-            }
-            out.push(json!({ "id": m.id, "ident": meter_ident(&m), "old": m.name, "new": name }));
-            if apply {
-                self.conn.execute(
-                    "UPDATE meters SET name = ?2 WHERE id = ?1",
-                    params![m.id, name],
-                )?;
+            let item = meter_ident(&m).unwrap_or_else(|| m.address.clone());
+            if !name.is_empty() && cs.change(&item, tr("Name", "Name"), &m.name, &name) {
+                names.push((m.id, name));
+            } else {
+                cs.unchanged += 1;
             }
         }
-        Ok(out)
+        cs.finish(apply, || {
+            for (id, name) in &names {
+                self.conn.execute(
+                    "UPDATE meters SET name = ?2 WHERE id = ?1",
+                    params![id, name],
+                )?;
+            }
+            Ok(())
+        })
     }
 
     /// Zählerliste als CSV (Semikolon, Excel): zum Ausfüllen lassen und wieder Einlesen

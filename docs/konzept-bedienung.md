@@ -1,6 +1,6 @@
 # Konzept: Bedienung und Aufbau der Oberfläche
 
-Stand: 18.10.2026 · Status: **Entwurf, zur Abstimmung**
+Stand: 18.10.2026 · Status: **abgestimmt, in Umsetzung**
 
 mbusio ist in kurzer Zeit stark gewachsen: Inbetriebnahme, Dauerbetrieb, Datenpunkte, MQTT,
 Simulator. Die Funktionen wurden jeweils dort angebaut, wo es gerade passte. Ergebnis: Manche
@@ -128,12 +128,13 @@ Der Umbau der Ausgänge kommt **vor** Modbus, damit Modbus nur noch ein zweiter 
 
 Jeder Schritt einzeln, mit allen Rust- und Browser-Tests, kein Funktionsverlust:
 
-1. **Bausteine** `ui.js` (Tabelle, Vorschau/Übernehmen, Aufklapp-Bereich, Formular, Chip) und
-   die bestehenden Stellen darauf umstellen. Sichtbar ändert sich wenig.
-2. **Reiter Weitergabe:** Datenpunkte und MQTT dorthin, Wertauswahl je Zähler, Links aus
-   Zählerliste und Werkzeugen; doppelte Stellen entfernen.
-3. **Server:** `ChangeSet`, allgemeine Ausgänge (`dp_outputs`, MQTT als erster Ausgang),
-   Migration der bestehenden MQTT-Zuordnung.
+1. **Server:** `ChangeSet`, allgemeine Ausgänge (`dp_outputs`, MQTT als erster Ausgang),
+   Migration der bestehenden MQTT-Zuordnung. Zuerst, weil die neue Oberfläche auf dieser
+   Datenform aufbaut (sonst müsste sie zweimal angepasst werden).
+2. **Bausteine** `ui.js` (Tabelle, Vorschau/Übernehmen, Aufklapp-Bereich, Formular, Chip).
+3. **Reiter Weitergabe** mit den Bausteinen: Datenpunkte und MQTT dorthin, Wertauswahl je
+   Zähler, Links aus Zählerliste und Werkzeugen; doppelte Stellen entfernen; die übrigen Stellen
+   auf die Bausteine umstellen.
 4. **Projekt: Zustand der Anlage** oben im Reiter.
 5. **Zählerliste:** Knopfreihe gruppieren.
 6. Browser-Tests an die neue Aufteilung anpassen und je Reiter vervollständigen.
@@ -141,10 +142,9 @@ Jeder Schritt einzeln, mit allen Rust- und Browser-Tests, kein Funktionsverlust:
 Danach ist Modbus (Phase 4) ein zweiter Ausgang im Reiter Weitergabe: eine Spalte mehr und eine
 Zeile bei den Ausgängen.
 
-## 6. Offene Fragen
+## 6. Entscheidungen (18.10.2026)
 
-1. **Spalte „Senden“ in der Auslesung (Werkzeuge):** ganz weg und nur Link zur Weitergabe
-   (Vorschlag), oder dort behalten, als derselbe Baustein „Wertauswahl“?
-2. **Datenpunkte je Linie oder ganzes Projekt** als Standardansicht im Reiter Weitergabe?
-   Vorschlag: aktive Linie, umschaltbar.
-3. **Reihenfolge der Reiter:** Weitergabe als 4, Werkzeuge und Simulator ohne Nummer dahinter?
+1. Spalte „Senden“ in der Auslesung fällt weg; dort nur ein Link zur Weitergabe (bzw. „In
+   Zählerliste aufnehmen“, falls der Zähler noch nicht in der Liste steht).
+2. Reiter Weitergabe zeigt standardmässig die aktive Linie, umschaltbar auf das ganze Projekt.
+3. Reiter: 1 Projekt, 2 Scan, 3 Zähler, 4 Weitergabe; Werkzeuge und Simulator ohne Nummer.
