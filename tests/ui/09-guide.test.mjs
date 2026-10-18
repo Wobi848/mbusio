@@ -3,8 +3,8 @@ import { assert, simLine, scanDone, tab, visibleSections } from "./helpers.mjs";
 const title = (page) => page.textContent("#guide h2");
 
 export default {
-  name: "Nächster Schritt: vom leeren Projekt bis zur Weitergabe nur mit dem Knopf der Karte",
-  async run({ page, api }) {
+  name: "Nächster Schritt: Service bis zum Bericht, dann Dauerbetrieb bis zum Ausgang, nur mit der Karte",
+  async run({ page, api, ctx }) {
     await tab(page, "project");
     // neu: Anschluss fehlt, Knopf führt zum Verbindungsfeld
     assert.equal(await title(page), "Anschluss festlegen");
@@ -31,14 +31,32 @@ export default {
     await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Zähler auslesen");
     await page.waitForFunction(() => !document.querySelector("#sec-meters").hidden);
     await page.click("[data-guide-go]");
-    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Werte zum Weitergeben wählen", null, { timeout: 60000 });
+    // Service: fertig mit Bericht; Weitergabe ist (noch) kein Schritt, Reiter ohne Nummer
+    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Linie in Ordnung", null, { timeout: 60000 });
+    assert.ok(await page.isHidden("[data-tab-go=transfer] .tab-no"));
+    assert.ok(await page.isHidden("#plant-state"));
+    assert.match(await page.textContent("#guide .guide-eyebrow"), /Fertig/);
+    const [rep] = await Promise.all([ctx.waitForEvent("page"), page.click("[data-guide-go]")]);
+    await rep.waitForSelector("#table tbody tr");
+    await rep.close();
+    // Dauerbetrieb einrichten: Plan, Werte, Ausgang
+    await page.click("[data-guide-alt]");
+    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Ausleseplan festlegen");
+    assert.ok(await page.isVisible("[data-tab-go=transfer] .tab-no"));
+    await page.click("[data-guide-go]");
+    await page.selectOption("#tree-form [name=plan_kind]", "daily");
+    await page.click("#tree-form [type=submit]");
+    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Werte zum Weitergeben wählen");
+    assert.ok(await page.isVisible("#plant-state"));
     await page.click("[data-guide-go]");
     await page.waitForFunction(() => !document.querySelector("#sec-transfer").hidden);
     await page.click("[data-guide-go]");
     await page.waitForSelector(".tr-pick .dp-pick-row");
     await page.click("[data-pick-save]");
-    // alles eingerichtet: keine Karte mehr, alle vier Reiter erledigt
-    await page.waitForFunction(() => document.querySelector("#guide").hidden, null, { timeout: 10000 });
-    assert.equal(await page.$$eval(".tab.done", (l) => l.length), 4);
+    // Werte gewählt, Ausgang fehlt noch: Karte öffnet die MQTT-Einstellungen
+    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Ausgang einrichten", null, { timeout: 10000 });
+    await page.click("[data-guide-go]");
+    await page.waitForSelector('[data-out-form="mqtt"]');
+    assert.equal(await page.$$eval(".tab.done", (l) => l.length), 3);
   },
 };

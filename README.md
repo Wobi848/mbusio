@@ -24,9 +24,13 @@ Die Oberfläche ist in vier Schritte gegliedert; jeder Ablauf hat genau eine Ste
 Dazu **Werkzeuge** (einzelnen Zähler roh auslesen, Adresse/Baudrate ändern, Reset, Telegramm-Log und
 -Analyse) und der **Simulator**.
 
-Neue Benutzer führt oben die Karte **„Nächster Schritt“** mit genau einem Knopf vom leeren Projekt
-bis zur Weitergabe (Anschluss festlegen → verbinden → suchen → merken → auslesen → Werte wählen);
-die Reiter 1–4 zeigen den Fortschritt (✓ erledigt, Punkt = als Nächstes).
+Neue Benutzer führt oben die Karte **„Nächster Schritt“** mit genau einem Knopf: Anschluss
+festlegen → verbinden → suchen → merken → auslesen → **Linie in Ordnung** (Bericht). Wer danach
+regelmässig auslesen und weitergeben will, drückt **„Dauerbetrieb einrichten“**: Plan festlegen →
+Werte wählen → Ausgang (MQTT) einrichten. Einen Modus gibt es nicht: Sobald ein Plan, ein
+Datenpunkt oder ein Ausgang eingerichtet ist, gilt das Projekt als Dauerbetrieb, die Weitergabe
+wird Reiter 4 und oben erscheint der Zustand der Anlage. Die Reiter zeigen den Fortschritt
+(✓ erledigt, Punkt = als Nächstes).
 
 Unten zeigt eine Statusleiste immer, was der Bus gerade macht und wie viele Auffälligkeiten offen
 sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Bericht** (PDF) fürs Projekt.

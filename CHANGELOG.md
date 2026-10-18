@@ -29,8 +29,12 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   erzeugen, Zählerliste als CSV.
 - **Simulator-Reiter:** Vorlagen (Praxis mit Fehlern, alles i.O. mit 10 Zählern, Mehrfamilienhaus mit
   30 Zählern, gemischte Baudraten) und eigene, frei zusammengestellte Anlagen.
-- **Nächster Schritt:** eine Karte mit genau einem Knopf führt vom leeren Projekt bis zur Weitergabe;
-  die Reiter 1–4 zeigen den Fortschritt.
+- **Nächster Schritt:** eine Karte mit genau einem Knopf führt vom leeren Projekt bis „Linie in
+  Ordnung“ mit Bericht (Service); auf Wunsch weiter mit Plan, Werten und Ausgang (Dauerbetrieb).
+  Die Reiter zeigen den Fortschritt.
+- **Service und Dauerbetrieb ohne Modus:** ein Projekt gilt als Dauerbetrieb, sobald ein Plan, ein
+  Datenpunkt oder ein Ausgang eingerichtet ist; erst dann wird die Weitergabe Reiter 4 und der
+  Zustand der Anlage erscheint.
 - **Zustand der Anlage** im Reiter Projekt: Plan, Uhrzeit, Speicher, MQTT auf einen Blick.
 
 ### Geändert

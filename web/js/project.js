@@ -85,7 +85,18 @@ function activeProjectNode() {
   return tree.projects.find((p) => p.id === tree.active.project.id);
 }
 
-/// Zustand der Anlage oben im Projekt: läuft alles? Nur mit Ausleseplan oder Ausgang.
+/// Projekt im Dauerbetrieb: Ausleseplan, Datenpunkt oder Ausgang eingerichtet; sonst Service
+/// (Konzept Bedienung, Abschnitt 9). Wird nie gespeichert, immer aus dem Zustand abgeleitet.
+function inOperation() {
+  if (!tree) return false;
+  const lines = activeProjectNode().gateways.flatMap((g) => g.lines);
+  return lines.some((l) => l.plan_info?.meters || l.datapoints?.count) || outputOn();
+}
+
+/// Mindestens ein Ausgang eingeschaltet (heute nur MQTT)
+const outputOn = () => !!mqttStatus && mqttStatus.state !== "off";
+
+/// Zustand der Anlage oben im Projekt: läuft alles? Nur im Dauerbetrieb.
 /// Jeder Teil führt zur Stelle, an der man es behebt.
 function renderPlantState() {
   const box = $("plant-state");
@@ -93,8 +104,8 @@ function renderPlantState() {
   const lines = activeProjectNode()
     .gateways.flatMap((g) => g.lines)
     .filter((l) => l.plan_info?.meters);
-  const mqttOn = mqttStatus && mqttStatus.state !== "off";
-  box.hidden = !lines.length && !mqttOn;
+  const mqttOn = outputOn();
+  box.hidden = !inOperation();
   if (box.hidden) return;
   const parts = [];
   if (lines.length) {

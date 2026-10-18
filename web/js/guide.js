@@ -1,9 +1,15 @@
 "use strict";
 
 // Nächster Schritt: zeigt neuen wie erfahrenen Benutzern, was als Nächstes zu tun ist, mit genau
-// einem Knopf. Die Reiter 1–4 zeigen dazu den Fortschritt (✓ erledigt, Punkt = als Nächstes).
+// einem Knopf. Die Reiter des Ablaufs zeigen dazu den Fortschritt (✓ erledigt, Punkt = als Nächstes).
+// Service endet nach dem Auslesen beim Bericht; im Dauerbetrieb geht es weiter mit Plan, Werten und
+// Ausgang, und die Weitergabe wird Reiter 4 (Konzept Bedienung, Abschnitt 9).
 
 const GUIDE_TABS = ["project", "scan", "meters", "transfer"];
+/// Reiter des Ablaufs: Weitergabe nur im Dauerbetrieb
+const guideTabs = (op) => (op ? GUIDE_TABS : GUIDE_TABS.slice(0, 3));
+/// „Dauerbetrieb einrichten“ gedrückt (Projekt-ID), gilt bis etwas eingerichtet ist
+const wantsOperation = () => storageGet("guide_op") === String(tree.active.project.id);
 /// Knopf, den die Karte gerade hervorhebt
 let guideMarked = null;
 
@@ -15,7 +21,8 @@ function guideStep() {
   const okHits = lastJob && !lastJob.running ? lastJob.hits.filter((h) => h.status === "ok").length : 0;
   const read = meters.some((m) => m.last_read);
   const dps = line.datapoints?.count || 0;
-  const done = { project: hasConn, scan: meters.length > 0, meters: read, transfer: dps > 0 };
+  const op = inOperation() || wantsOperation();
+  const done = { project: hasConn, scan: meters.length > 0, meters: read, transfer: dps > 0 && outputOn() };
   let step = null;
   if (!hasConn) step = { key: "conn_set", tab: "project", target: "connect", go: () => openConnForm() };
   else if (!connected) step = { key: "connect", tab: "scan", target: "connect", arg: line.connection, go: () => $("connect").click() };
@@ -24,8 +31,11 @@ function guideStep() {
   else if (!meters.length)
     step = { key: lastJob ? "scan_none" : "scan", tab: "scan", target: "scan-primary", go: () => goClick("scan", "scan-primary") };
   else if (!read) step = { key: "read", tab: "meters", target: "meters-read-all", arg: meters.length, go: () => goClick("meters", "meters-read-all") };
+  else if (!op) step = { key: "ready", tab: "meters", go: () => $("project-report").click(), alt: { key: "op", go: startOperation } };
+  else if (!line.plan_info?.meters) step = { key: "plan", tab: "project", target: "project-edit", go: openPlanForm };
   else if (!dps) step = { key: storageGet("tab") === "transfer" ? "pick" : "transfer", tab: "transfer", go: () => pickFirst() };
-  return { step, done };
+  else if (!outputOn()) step = { key: "output", tab: "transfer", go: openOutput };
+  return { step, done, op };
 }
 
 /// Reiter öffnen, Knopf zeigen und seine Aktion ausführen (wenn er gerade geht); true = ausgeführt
@@ -58,6 +68,29 @@ async function pickFirst() {
   }
 }
 
+/// Service fertig, Dauerbetrieb gewünscht: weiter mit Plan, Werten, Ausgang
+function startOperation() {
+  storageSet("guide_op", String(tree.active.project.id));
+  renderGuide();
+}
+
+/// Projektformular beim Ausleseplan öffnen (der Plan gilt für alle Linien des Projekts)
+function openPlanForm() {
+  showTab("project");
+  $("project-edit").click();
+  const sel = $("tree-form").querySelector("[name=plan_kind]");
+  reveal(sel, "center");
+  sel.focus({ preventScroll: true });
+}
+
+/// Weitergabe: Einstellungen des Ausgangs aufklappen
+function openOutput() {
+  transfer.outputOpen = "mqtt";
+  showTab("transfer");
+  renderTransfer();
+  reveal($("sec-outputs"), "start");
+}
+
 /// Verbindungsfeld zeigen, Port ins Auge fassen
 function openConnForm() {
   showTab("scan");
@@ -71,14 +104,19 @@ function renderGuide() {
   if (!box || !tree) return;
   const state = guideStep();
   const tab = storageGet("tab") || "scan";
-  // Reiter 1–4: erledigt / als Nächstes
+  const tabs = guideTabs(state?.op);
+  // Reiter des Ablaufs: erledigt / als Nächstes; die anderen mit Symbol statt Nummer
   const next = state?.step?.tab;
   for (const name of GUIDE_TABS) {
     const b = document.querySelector(`[data-tab-go=${name}]`);
     const no = b.querySelector(".tab-no");
-    const done = !!state?.done[name];
+    const inFlow = tabs.includes(name);
+    const done = inFlow && !!state?.done[name];
     b.classList.toggle("done", done);
-    b.classList.toggle("next", name === next && !done);
+    b.classList.toggle("next", inFlow && name === next && !done);
+    no.hidden = !inFlow;
+    b.classList.toggle("tab-sim", !inFlow);
+    b.querySelector(".tab-icon")?.toggleAttribute("hidden", inFlow); // SVG kennt .hidden nicht
     no.innerHTML = done ? ICON_CHECK : String(GUIDE_TABS.indexOf(name) + 1);
   }
   // Knopf des nächsten Schritts hervorheben (nur einer)
@@ -90,18 +128,21 @@ function renderGuide() {
   const hidden = !s || jobRunning || planRuns.length || !GUIDE_TABS.includes(tab) || storageGet("guide_hidden") === s.key;
   box.hidden = hidden;
   if (hidden) return;
-  if (box.dataset.key === s.key + lang + (s.arg ?? "")) return;
-  box.dataset.key = s.key + lang + (s.arg ?? "");
-  const n = GUIDE_TABS.indexOf(s.tab) + 1;
-  const segs = GUIDE_TABS.map((name) => `<span class="${state.done[name] ? "on" : name === s.tab ? "now" : ""}"></span>`).join("");
+  const key = [s.key, lang, s.arg, tabs.length].join("|");
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  const n = tabs.indexOf(s.tab) + 1;
+  const ready = s.key === "ready";
+  const segs = tabs.map((name) => `<span class="${state.done[name] ? "on" : name === s.tab ? "now" : ""}"></span>`).join("");
   box.innerHTML = `
-    <div class="guide-no" aria-hidden="true">${n}</div>
+    <div class="guide-no" aria-hidden="true">${ready ? ICON_CHECK : n}</div>
     <div class="guide-text">
-      <div class="guide-eyebrow"><span>${esc(t("guide_next", n))}</span><span class="guide-segs" aria-hidden="true">${segs}</span></div>
+      <div class="guide-eyebrow"><span>${esc(ready ? t("guide_finished") : t("guide_next", n, tabs.length))}</span><span class="guide-segs" aria-hidden="true">${segs}</span></div>
       <h2>${esc(t("guide_" + s.key))}</h2>
       <p>${esc(t("guide_" + s.key + "_body", s.arg))}</p>
     </div>
     <div class="guide-actions">
+      ${s.alt ? `<button type="button" class="ghost" data-guide-alt>${esc(t("guide_" + s.alt.key + "_btn"))}</button>` : ""}
       <button type="button" class="guide-go" data-guide-go>${esc(t("guide_" + s.key + "_btn"))}${ICON_NEXT}</button>
       ${ui.iconBtn(ICON_DEL, t("guide_hide"), { "guide-hide": "" })}
     </div>`;
@@ -122,6 +163,7 @@ $("guide").addEventListener("click", (ev) => {
     return;
   }
   if (ev.target.closest("[data-guide-go]")) guideStep()?.step?.go();
+  if (ev.target.closest("[data-guide-alt]")) guideStep()?.step?.alt?.go();
 });
 
 // Linie ohne Anschluss (Reiter Projekt): direkt zum Verbindungsfeld

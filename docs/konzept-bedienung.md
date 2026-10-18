@@ -173,7 +173,7 @@ Neue wie erfahrene Benutzer sehen sofort, was zu drücken ist:
   Akzentfarbe, gesperrte grau mit Grund im Tooltip („Zuerst mit dem Bus verbinden“).
 - Code: `web/js/guide.js`, `web/css/guide.css`, Test `tests/ui/09-guide.test.mjs`.
 
-## 9. Service und Dauerbetrieb ohne Modus-Schalter (Entwurf, 18.10.2026)
+## 9. Service und Dauerbetrieb ohne Modus-Schalter (umgesetzt, 18.10.2026)
 
 ### 9.1 Ausgangslage
 
@@ -231,7 +231,7 @@ Auslesen, Adresse ändern) geht immer vor, geplante Auslesungen warten. Wer die 
 „Trennen“ von Hand trennt, pausiert ihren Plan, bis wieder verbunden wird (Zustand der Anlage
 zeigt „pausiert, von Hand getrennt“).
 
-### 9.5 Umsetzung (nach Freigabe)
+### 9.5 Umsetzung
 
 1. `inOperation()` in `project.js` (neben `findLine`), Zustand der Anlage darauf umstellen.
 2. `guide.js`: Abschluss „Linie in Ordnung“ mit zwei Knöpfen; Schritte Plan und Ausgang; Merker
@@ -241,9 +241,8 @@ zeigt „pausiert, von Hand getrennt“).
 4. Test `09-guide` um beide Wege erweitern (Service endet beim Bericht; Dauerbetrieb bis zum
    Ausgang). Texte DE/EN, README, CHANGELOG.
 
-### 9.6 Offene Fragen
+### 9.6 Entschieden
 
-1. Endet der Service-Weg beim **Bericht**, oder soll „Linie in Ordnung“ ohne Knopf einfach stehen
-   bleiben?
-2. Gehört **Ausgang einrichten** in „Nächster Schritt“, oder reicht „Werte wählen“ (MQTT richtet
-   meist der Integrator ein, der weiss, wo es ist)?
+1. Der Service-Weg endet mit dem Knopf **Bericht**: das ist, was der Techniker dem Kunden abgibt.
+2. **Ausgang einrichten** ist ein eigener Schritt: ohne Ausgang gehen gewählte Werte nirgends hin.
+   Weitergabe gilt erst als erledigt, wenn Werte gewählt **und** ein Ausgang eingeschaltet ist.
