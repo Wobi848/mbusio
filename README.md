@@ -310,7 +310,7 @@ Aufbau:
 - `src/mbus/decode.rs`, `tables.rs`: Datensätze decodieren (EN 13757-3)
 - `src/mbus/master.rs`: Scan, Auslesen, Adressierung, Baudrate, Ursachen von Störungen
 - `src/mbus/analyze.rs`: Telegramm-Analyse Byte für Byte
-- `src/link.rs`: serielle Schnittstelle und TCP; `src/sim.rs`: Simulator, alle hinter demselben `Link`-Trait
+- `src/link.rs`: serielle Schnittstelle und TCP; `src/sim/`: Simulator (bus: Verhalten der Zähler, scenarios: Vorlagen und eigene Anlagen, store: Speichern), alle hinter demselben `Link`-Trait
 - `src/db/`: Datenbank, nach Bereichen (schema mit Migrationen, projects, meters, readings, schedule, report)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
 - `src/datapoint.rs`: Datenpunkte, Qualität, Plausibilität, Zählertausch, Vorlagen, CSV
