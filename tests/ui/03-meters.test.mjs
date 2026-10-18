@@ -11,6 +11,20 @@ export default {
     await page.waitForFunction(() => document.querySelectorAll("#meters-table tbody tr").length === 10);
     await page.click("#meters-read-all");
     await page.waitForFunction(() => [...document.querySelectorAll("#meters-table .val")].length === 10, null, { timeout: 60000 });
+    // Suche und Filter an der Tabelle
+    await page.fill("#meters-search", "1000000");
+    await page.waitForFunction(() => document.querySelectorAll("#meters-table tbody tr[data-row]").length < 10);
+    await page.fill("#meters-search", "");
+    assert.match(await page.textContent("[data-filter=noname]"), /10/);
+    await page.click("[data-filter=err]");
+    assert.equal(await page.locator("#meters-table tbody tr[data-row]").count(), 0);
+    await page.click("[data-filter=all]");
+    // Bearbeiten klappt in der Zeile auf, gleicher Knopf schliesst
+    await page.locator("[data-meter-edit]").nth(2).click();
+    assert.ok(await page.isVisible("#meters-table tr.edit-row #meter-form"));
+    assert.equal(await page.locator("#meters-table tr.sel").count(), 1);
+    await page.locator("[data-meter-edit]").nth(2).click();
+    assert.ok(await page.isHidden("#meter-form"));
     await page.locator("[data-meter-hist]").first().click();
     await page.waitForSelector("#history svg, #history table", { timeout: 10000 });
     // Bericht öffnet sich mit den Zählern

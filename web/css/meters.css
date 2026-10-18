@@ -42,6 +42,14 @@
 #meters-table input.quick.saved { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-soft); }
 #quick-toggle.on { background: var(--accent); color: var(--accent-ink); }
 
+/* Bearbeiten klappt in der Zeile auf: Zeile hell akzentuiert, Formular darunter eingerückt */
+#meters-table tr.sel td { background: var(--accent-soft); }
+#meters-table tr.edit-row:hover { background: transparent; }
+#meters-table tr.edit-row > td { padding: 0; white-space: normal; }
+#meters-table .edit-row .meter-form { border: 0; border-top: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 0;
+  background: var(--surface); padding: 18px 16px 18px 58px; }
+.icon-btn.on { background: var(--accent); color: var(--accent-ink); }
+
 /* Liste importieren, Namen erzeugen */
 #list-paste { width: 100%; font-size: 12px; margin: 6px 0 10px; }
 .list-source { align-items: center; gap: 10px; }
@@ -105,5 +113,7 @@
   #meters-table td { border: 0; padding: 0; white-space: normal; text-align: left; min-width: 0; }
   #meters-table td:empty { display: none; }
   #meters-table td:last-child { grid-column: 1 / -1; margin-top: 6px; }
+  #meters-table tr.edit-row { display: block; padding: 0; }
+  #meters-table .edit-row .meter-form { padding: 14px 0; }
   #meters-table .actions { justify-content: flex-start; }
 }

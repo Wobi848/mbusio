@@ -44,7 +44,9 @@
 .ln-noconn { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--warn); font-weight: 560; }
 .ln-conn button { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin-left: 6px; }
 
-.tree-form { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; }
+/* Formular klappt unter der Zeile auf, die es betrifft (Linie, Gateway, Projekt) */
+.tree-form { margin: 8px 0 12px; padding: 14px 16px; border-top: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--accent-soft); border-radius: 10px; animation: fadeIn .25s var(--ease) both; }
 .tree-form h3 { margin: 0 0 8px; font-size: 14px; }
 
 @media (max-width: 640px) {

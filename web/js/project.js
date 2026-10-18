@@ -165,6 +165,7 @@ function renderTree() {
   const moveBtns = (kind, id, k, n) =>
     `<button class="icon-btn" data-${kind}-move="-1" data-id="${id}" ${k === 0 ? "disabled" : ""} title="${esc(t("move_up"))}" aria-label="${esc(t("move_up"))}">${ICON_UP}</button>` +
     `<button class="icon-btn" data-${kind}-move="1" data-id="${id}" ${k === n - 1 ? "disabled" : ""} title="${esc(t("move_down"))}" aria-label="${esc(t("move_down"))}">${ICON_DOWN}</button>`;
+  $("tree").after($("tree-form"));
   $("tree").innerHTML =
     node.gateways
       .map(
@@ -217,6 +218,7 @@ function renderTree() {
         }
       )
       .join("") + `<div><button class="small ghost" data-gw-add>${esc(t("gw_add"))}</button></div>`;
+  placeTreeForm();
   renderLineBar();
   renderGuide();
   updateSimTab();
@@ -355,13 +357,26 @@ function treeFields(kind, data) {
 }
 
 /// Formular für Projekt, Gateway oder Linie unter dem Baum
-function openTreeForm(kind, data, onSave) {
+/// wo das Formular im Baum steht (Element, hinter dem es aufklappt); null = unter dem Baum
+let treeFormAnchor = null;
+
+/// Formular in den Baum setzen: unter die Zeile, die es betrifft
+function placeTreeForm() {
   const f = $("tree-form");
+  const at = !f.hidden && treeFormAnchor?.();
+  if (at) at.after(f);
+  else $("tree").after(f);
+}
+
+function openTreeForm(kind, data, onSave, anchor = null) {
+  const f = $("tree-form");
+  treeFormAnchor = anchor;
   const fields = treeFields(kind, data);
   f.innerHTML = `<h3>${esc(t("form_" + kind))}</h3>${ui.form(fields, { ...data, baud: data.baud || 2400, thin: data.thin_days || 0 })}
     <datalist id="port-list">${[...$("port").options].map((o) => `<option value="${esc(o.value)}">`).join("")}</datalist>
     <div class="row"><button type="submit">${esc(t("save"))}</button><button type="button" class="quiet" data-form-cancel>${esc(t("cancel"))}</button></div>`;
   f.hidden = false;
+  placeTreeForm();
   if (f.querySelector("[name=plan_kind]")) wirePlanField(f);
   f.onsubmit = (ev) => {
     ev.preventDefault();
@@ -405,7 +420,7 @@ $("tree").addEventListener("click", (ev) => {
       // aktive Linie mit neuem Anschluss: gleich neu verbinden
       if (id === tree.active.line.id && (v.connection !== l.connection || v.baud !== l.baud)) return activateLine(id, v.name);
       await loadTree();
-    });
+    }, () => $("tree").querySelector(`[data-ln-edit="${id}"]`)?.closest(".ln"));
   }
   if (d.lnAdd) {
     const g = findGateway(id);
@@ -415,13 +430,13 @@ $("tree").addEventListener("click", (ev) => {
       const created = await api(`gateways/${id}/lines`, { method: "POST", body: v });
       if (plan !== null) await savePlan(`lines/${created.id}`, plan);
       await loadTree();
-    });
+    }, () => $("tree").querySelector(`[data-ln-add="${id}"]`)?.closest(".gw-foot"));
   }
   if (d.gwEdit) {
     return openTreeForm("gateway", findGateway(id), async (v) => {
       await api(`gateways/${id}`, { method: "PUT", body: v });
       await loadTree();
-    });
+    }, () => $("tree").querySelector(`[data-gw-edit="${id}"]`)?.closest(".gw-head"));
   }
   if (d.gwAdd !== undefined) {
     const n = activeProjectNode().gateways.length + 1;
@@ -468,7 +483,7 @@ $("project-edit").onclick = () =>
       await api(`projects/${tree.active.project.id}/thin`, { method: "PUT", body: { days: thin } });
     await loadMeters().catch(() => {});
     await loadTree();
-  });
+  }, () => document.querySelector(".project-tools"));
 
 $("project-delete").onclick = () => {
   const p = tree.active.project;

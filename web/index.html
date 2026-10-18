@@ -201,6 +201,7 @@
     <div class="card-head">
       <div class="head-text">
         <h2 id="h-meters" data-i18n="meters"></h2>
+        <p id="meters-sub" class="hint"></p>
         <p class="hint explain" data-i18n="meters_hint"></p>
         <p id="meters-file" class="hint mono explain"></p>
       </div>
@@ -213,10 +214,7 @@
             <button id="meters-clear" type="button" class="small quiet danger" data-i18n="meters_clear" hidden></button>
           </div>
         </details>
-        <button id="quick-toggle" class="small quiet" data-i18n="quick_edit" data-i18n-title="quick_edit_title"></button>
-        <button id="meter-add" class="small ghost" data-i18n="meter_add"></button>
-        <a id="meters-report" class="button small ghost" href="report.html" target="_blank" rel="noopener" data-i18n="report" data-i18n-title="report_title"></a>
-        <button id="meters-read-all" class="small needs-conn" data-i18n="meters_read_all"></button>
+        <a id="meters-report" class="button small quiet" href="report.html" target="_blank" rel="noopener" data-i18n="report" data-i18n-title="report_title"></a>
       </div>
     </div>
     <div id="meters-job" class="hint" hidden></div>
@@ -233,6 +231,7 @@
       <div id="list-result"></div>
     </div>
     <div id="names-panel" class="history" hidden></div>
+    <!-- Bearbeiten: das Formular wandert in die Zeile des Zählers (renderMeters) -->
     <form id="meter-form" class="meter-form" hidden>
       <div id="mf-fields"></div>
       <div class="row">
@@ -244,6 +243,14 @@
     </form>
     <p id="meters-empty" class="empty" data-i18n="meters_empty"></p>
     <datalist id="loc-list"></datalist>
+    <div class="table-bar">
+      <label class="table-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="meters-search" type="search" data-i18n-ph="meters_search" data-i18n-title="meters_search" autocomplete="off"></label>
+      <div id="meters-filter" class="seg" role="group" data-i18n-title="meters_filter"></div>
+      <span class="spacer"></span>
+      <button id="quick-toggle" class="small quiet" data-i18n="quick_edit" data-i18n-title="quick_edit_title"></button>
+      <button id="meter-add" class="small ghost" data-i18n="meter_add"></button>
+      <button id="meters-read-all" class="small needs-conn"></button>
+    </div>
     <div class="table-wrap">
       <table id="meters-table" hidden>
         <thead><tr>

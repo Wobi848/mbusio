@@ -8,6 +8,17 @@ let meters = [];
 let editingId = null;
 /// Schnellerfassung: Name, Ort, Notiz direkt in der Tabelle
 let quickEdit = false;
+/// Filter und Suche der Zählerliste
+let meterFilter = "all";
+let meterQuery = "";
+
+const METER_FILTERS = {
+  all: () => true,
+  err: (m) => !!(m.last_error || m.plan_info?.disturbed),
+  noname: (m) => !m.name,
+};
+const meterMatches = (m, q) =>
+  !q || [m.name, m.location, m.note, m.meter_id, m.address].some((x) => String(x ?? "").toLowerCase().includes(q));
 
 const svg = (d, size = 15, stroke = 2) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -44,17 +55,26 @@ function meterPlanCell(m) {
 function renderMeters() {
   const table = $("meters-table");
   // beim Tippen nicht neu zeichnen (sonst geht die Eingabe verloren); danach nachholen
-  const typing = document.activeElement?.dataset?.q && table.contains(document.activeElement);
+  const form = $("meter-form");
+  const typing = (document.activeElement?.dataset?.q && table.contains(document.activeElement)) || form.contains(document.activeElement);
   if (typing) {
     document.activeElement.addEventListener("blur", () => setTimeout(renderMeters, 0), { once: true });
     return;
   }
   const withPlan = showPlanColumn();
   $("th-plan").hidden = !withPlan;
-  table.hidden = meters.length === 0;
+  table.hidden = meters.length === 0 && form.hidden;
   $("meters-clear").hidden = meters.length === 0;
-  $("meters-empty").hidden = meters.length > 0;
-  table.querySelector("tbody").innerHTML = meters
+  $("meters-empty").hidden = meters.length > 0 || !form.hidden;
+  renderMetersHead();
+  // Formular aus der Tabelle nehmen, bevor sie neu gezeichnet wird; danach in die Zeile setzen
+  $("meters-empty").before(form);
+  const q = meterQuery.trim().toLowerCase();
+  const shown = meters.filter((m) => METER_FILTERS[meterFilter](m) && meterMatches(m, q));
+  const cols = 4 + (withPlan ? 1 : 0);
+  table.querySelector("tbody").innerHTML =
+    (meters.length && !shown.length ? `<tr><td colspan="${cols}" class="empty-row">${esc(t("meters_none_match"))}</td></tr>` : "") +
+    shown
     .map((m) => {
       // Zähler-Baustein: ID (über PA gemerkt: die ID aus der Auslesung), PA, Hersteller, eigene Baudrate
       const viaPa = /^\d+$/.test(m.address);
@@ -76,7 +96,8 @@ function renderMeters() {
       const locCell = quickEdit
         ? `<td><div class="quick-loc">${q("location", t("meter_location"), { list: "loc-list" })}<button class="icon-btn" data-q-same="${m.id}" title="${esc(t("quick_same"))}" aria-label="${esc(t("quick_same"))}">${ICON_DOWN}</button></div></td>`
         : `<td class="wrap">${esc(m.location)}${sub(m.note)}</td>`;
-      return `<tr>
+      const open = !form.hidden && editingId === m.id;
+      return `<tr data-row="${m.id}"${open ? ' class="sel"' : ""}>
         ${nameCell}
         ${locCell}
         <td class="wrap">${m.last_value ? `<span class="val">${esc(m.last_value)}</span>` : ""}${sub(
@@ -87,12 +108,23 @@ function renderMeters() {
           <button class="small quiet needs-conn" data-meter-read="${m.id}">${t("read")}</button>
           <button class="small quiet" data-meter-transfer="${m.id}" title="${esc(t("dp_values_title"))}">${esc(t("dp_values_btn"))}</button>
           <button class="icon-btn" data-meter-hist="${m.id}" title="${esc(t("history"))}" aria-label="${esc(t("history"))}">${ICON_CHART}</button>
-          <button class="icon-btn" data-meter-edit="${m.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
+          <button class="icon-btn${open ? " on" : ""}" data-meter-edit="${m.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}" aria-expanded="${open}">${ICON_EDIT}</button>
           <button class="icon-btn del" data-meter-del="${m.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>
         </div></td>
       </tr>`;
     })
     .join("");
+  // Bearbeiten klappt in der Zeile auf; neuer Zähler: oben in der Tabelle
+  if (!form.hidden) {
+    const tr = document.createElement("tr");
+    tr.className = "edit-row";
+    const td = tr.insertCell();
+    td.colSpan = cols;
+    td.append(form);
+    const row = editingId !== null && table.querySelector(`tr[data-row="${editingId}"]`);
+    if (row) row.after(tr);
+    else table.querySelector("tbody").prepend(tr);
+  }
   // Ortsvorschläge aus allen schon verwendeten Orten
   renderLocList();
   table.classList.toggle("quick-mode", quickEdit);
@@ -114,13 +146,49 @@ function meterFields(m) {
   ];
 }
 
+/// Kopf und Leiste der Tabelle: Untertitel, Filter mit Anzahl, „Alle N auslesen“
+function renderMetersHead() {
+  const last = meters.map((m) => m.last_read).filter(Boolean).sort().pop();
+  $("meters-sub").textContent = tree ? t("meters_sub", meters.length, tree.active.line.name, last ? slotText(last) : "") : "";
+  $("meters-filter").innerHTML = Object.keys(METER_FILTERS)
+    .map((k) => {
+      const n = meters.filter(METER_FILTERS[k]).length;
+      return `<button type="button" data-filter="${k}" class="${k === meterFilter ? "active" : ""}">${esc(t("mf_" + k))} <span class="seg-n${
+        k === "err" && n ? " err" : ""
+      }">${n}</span></button>`;
+    })
+    .join("");
+  $("meters-read-all").textContent = t("meters_read_all_n", meters.length);
+}
+
+$("meters-filter").onclick = (ev) => {
+  const b = ev.target.closest("[data-filter]");
+  if (!b) return;
+  meterFilter = b.dataset.filter;
+  renderMeters();
+};
+$("meters-search").oninput = () => {
+  meterQuery = $("meters-search").value;
+  renderMeters();
+};
+
+/// Bearbeiten (oder neuer Zähler) in der Zeile öffnen; nochmals = schliessen
 function openMeterForm(m) {
+  const form = $("meter-form");
+  if (!form.hidden && m && editingId === m.id) return closeMeterForm();
   editingId = m ? m.id : null;
   $("mf-fields").innerHTML = ui.form(meterFields(m), { ...m, baud: m?.baud ?? "" });
   wirePlanField($("mf-fields"));
   $("mf-exchange").hidden = !m;
-  $("meter-form").hidden = false;
+  form.hidden = false;
+  renderMeters();
   $("mf-fields").querySelector("input").focus();
+}
+
+function closeMeterForm() {
+  $("meter-form").hidden = true;
+  editingId = null;
+  renderMeters();
 }
 
 $("meter-add").onclick = () => openMeterForm(null);
@@ -134,12 +202,12 @@ $("mf-exchange").onclick = () => {
   if (!confirm(t("exchange_confirm", m.meter_id || m.address, addr.trim()))) return;
   guarded($("mf-exchange"), async () => {
     const r = await api(`meters/${m.id}/exchange`, { method: "POST", body: { address: addr.trim() } });
-    $("meter-form").hidden = true;
+    closeMeterForm();
     toast(t("exchange_done") + (r.details.length ? ": " + r.details.join(" · ") : ""));
     await loadMeters();
   });
 };
-$("mf-cancel").onclick = () => ($("meter-form").hidden = true);
+$("mf-cancel").onclick = () => closeMeterForm();
 
 $("meter-form").onsubmit = (ev) => {
   ev.preventDefault();
@@ -150,7 +218,7 @@ $("meter-form").onsubmit = (ev) => {
     const plan = planFrom(body);
     const saved = editingId === null ? await api("meters", { method: "POST", body }) : await api("meters/" + editingId, { method: "PUT", body });
     if (plan !== (old.plan ?? null)) await savePlan("meters/" + saved.id, plan);
-    $("meter-form").hidden = true;
+    closeMeterForm();
     toast(t("meter_saved"));
     await loadMeters();
   });
@@ -195,7 +263,7 @@ $("meters-clear").onclick = () => {
   if (!confirm(t("confirm_meters_clear", meters.length))) return;
   guarded($("meters-clear"), async () => {
     const r = await api("meters", { method: "DELETE" });
-    $("meter-form").hidden = true;
+    closeMeterForm();
     toast(t("meters_cleared", r.removed));
     await loadMeters();
   });

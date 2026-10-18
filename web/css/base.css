@@ -603,6 +603,16 @@ tr.new { animation: rowIn .45s var(--ease) both; }
 
 .actions { display: flex; gap: 2px; justify-content: flex-end; align-items: center; }
 
+/* Leiste direkt an der Tabelle: Suche, Filter, Aktionen; geht über die ganze Breite der Karte */
+.table-bar { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; margin: 0 -22px; padding: 10px 22px;
+  background: var(--sunken); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.table-search { position: relative; flex: 0 1 280px; flex-direction: row; align-items: center; }
+.table-search svg { position: absolute; left: 10px; color: var(--muted); pointer-events: none; }
+.table-search input { padding-left: 32px; height: 34px; }
+.seg-n { font-size: 11px; font-weight: 700; color: var(--muted); }
+.seg-n.err { color: var(--err); }
+.empty-row { text-align: center; color: var(--muted); padding: 20px; white-space: normal; }
+
 /* Sortierbare Spalten */
 th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 th.sortable:hover { color: var(--text); }
@@ -752,6 +762,8 @@ body.has-busbar #toast { bottom: calc(var(--busbar-h, 48px) + 12px); }
   .icon-btn { width: 40px; height: 40px; }
   .icon-btn.boxed { width: 44px; height: 44px; }
   .head-actions { margin-left: 0; width: 100%; }
+  .table-bar { margin: 0 -16px; padding: 10px 16px; }
+  .table-search { flex: 1 1 100%; }
   .head-actions.grow { flex: 1 1 100%; }
   .tile-row { flex-wrap: wrap; }
   .tile-row label { flex: 1 1 80px; }
