@@ -495,6 +495,10 @@ direkt in der Tabelle, Namen nach Muster, CSV-Export; Vorlagen auf Wunsch gleich
 mit MQTT. Bedienkonzept umgesetzt (Reiter Weitergabe, Bausteine), dazu die Karte „Nächster
 Schritt“ (PR #2). Code aufgeräumt: nichts doppelt, grosse Dateien nach Bereichen aufgeteilt.
 
+**Oberfläche v2** (Entwurf, Übergabe in [uebergabe-design-v2.md](uebergabe-design-v2.md)): Kopfzeile
+für das Projekt, Linien-Leiste mit Verbindung, Laschen je Linie, Zähler-Baustein mit Medium-Symbol,
+Bearbeiten in der Zeile, Auffälligkeiten an ihrer Zeile. Umsetzung schrittweise, je ein Commit.
+
 **Nächste Ideen: Scan** (noch nicht umgesetzt; Konzept in [konzept-scan.md](konzept-scan.md)):
 Änderungen seit dem letzten Scan erkennen und hervorheben (neu, fehlt, geändert), Sekundärscan über
 ein ID-Präfix eingrenzen und nach Abbruch weitersuchen, Schnellprüfung der bekannten Zähler.
