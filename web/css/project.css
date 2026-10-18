@@ -41,6 +41,9 @@
 }
 .ln .ln-plan svg { flex: none; }
 .ln .ln-plan b { color: var(--text); font-weight: 600; }
+/* Linie ohne Anschluss: Hinweis und Knopf „Anschluss festlegen“ */
+.ln-noconn { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--warn); font-weight: 560; }
+.ln-conn button { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin-left: 6px; }
 
 .tree-form { margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 10px; }
 .tree-form h3 { margin: 0 0 8px; font-size: 14px; }

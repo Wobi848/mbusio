@@ -90,11 +90,11 @@ function renderHitsWarn(hits, a) {
     ? `<b>⚠ ${esc(t("warn_title"))}</b><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` +
       (a.dupPa.size ? `<p class="hint">${esc(t("warn_fix_hint"))}</p>` : "") +
       (planSteps(hits, a).steps.length
-        ? `<button class="small cta needs-conn" data-fix-all>${esc(t("fix_all"))}</button> `
+        ? `<button class="small needs-conn" data-fix-all>${esc(t("fix_all"))}</button> `
         : "") +
       // Kollision im Primärscan: der Sekundärscan findet die Zähler einzeln
       (collisions.some((h) => h.primary_address != null)
-        ? `<button class="small cta needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>`
+        ? `<button class="small needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>`
         : "")
     : "";
 }
@@ -182,7 +182,7 @@ function renderPlan() {
       .join("")}</ul>
     ${plan.manual.length ? `<p class="hint"><b>${esc(t("plan_manual"))}</b></p><ul class="manual">${plan.manual.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}
     <div class="row">
-      ${!finished && !planRunning && plan.steps.length ? `<button class="cta needs-conn" data-plan-run ${checked ? "" : "disabled"}>${esc(t("plan_run", checked))}</button>` : ""}
+      ${!finished && !planRunning && plan.steps.length ? `<button class="needs-conn" data-plan-run ${checked ? "" : "disabled"}>${esc(t("plan_run", checked))}</button>` : ""}
       ${finished ? `<span class="hint result">${esc(t("plan_done", plan.steps.filter((s) => s.state === "ok").length, plan.steps.filter((s) => s.state).length))}</span>` : ""}
       <button class="quiet" data-plan-close ${planRunning ? "disabled" : ""}>${esc(t(finished ? "plan_close" : "cancel"))}</button>
     </div>`;

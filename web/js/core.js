@@ -148,6 +148,5 @@ function updateButtons() {
   $("connect").hidden = connected;
   $("disconnect").hidden = !connected;
   $("scan-cancel").hidden = !jobRunning;
-  // guide.js lädt erst nach den Reitern
-  if (typeof renderGuide === "function") renderGuide();
+  renderGuide();
 }

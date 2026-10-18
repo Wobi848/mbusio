@@ -464,8 +464,6 @@ $("scan-secondary").onclick = () =>
 // ------------------------------------------------------------ Baudraten für den Scan
 
 $("scan-bauds").innerHTML = BAUDS.map((b) => `<label><input type="checkbox" value="${b}"><span>${b}</span></label>`).join("");
-// bis zur Verbindung: Baudrate aus dem Verbindungsfeld
-setPickedBauds([Number($("baud").value)]);
 
 function pickedBauds() {
   const list = [...$("scan-bauds").querySelectorAll("input:checked")].map((i) => Number(i.value));

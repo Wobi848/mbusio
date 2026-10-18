@@ -4,17 +4,12 @@
 // einem Knopf. Die Reiter 1–4 zeigen dazu den Fortschritt (✓ erledigt, Punkt = als Nächstes).
 
 const GUIDE_TABS = ["project", "scan", "meters", "transfer"];
-
-/// Aktive Linie im Projektbaum (Zähler, letzte Auslesung, Datenpunkte)
-function guideLine() {
-  if (!tree) return null;
-  const id = tree.active.line.id;
-  return tree.projects.flatMap((p) => p.gateways).flatMap((g) => g.lines).find((l) => l.id === id) || null;
-}
+/// Knopf, den die Karte gerade hervorhebt
+let guideMarked = null;
 
 /// Zustand → nächster Schritt; null = alles eingerichtet
 function guideStep() {
-  const line = guideLine();
+  const line = tree && findLine(tree.active.line.id);
   if (!line) return null;
   const hasConn = !!(line.connection || connected);
   const okHits = lastJob && !lastJob.running ? lastJob.hits.filter((h) => h.status === "ok").length : 0;
@@ -25,7 +20,7 @@ function guideStep() {
   if (!hasConn) step = { key: "conn_set", tab: "project", target: "connect", go: () => openConnForm() };
   else if (!connected) step = { key: "connect", tab: "scan", target: "connect", arg: line.connection, go: () => $("connect").click() };
   else if (!meters.length && okHits)
-    step = { key: "remember", tab: "scan", target: "remember-all", arg: okHits, go: () => goClick("scan", "remember-all", "meters") };
+    step = { key: "remember", tab: "scan", target: "remember-all", arg: okHits, go: rememberAll };
   else if (!meters.length)
     step = { key: lastJob ? "scan_none" : "scan", tab: "scan", target: "scan-primary", go: () => goClick("scan", "scan-primary") };
   else if (!read) step = { key: "read", tab: "meters", target: "meters-read-all", arg: meters.length, go: () => goClick("meters", "meters-read-all") };
@@ -33,25 +28,21 @@ function guideStep() {
   return { step, done };
 }
 
-/// Reiter öffnen, Knopf zeigen und drücken (wenn er gerade geht); `then` = Reiter, in dem es danach
-/// weitergeht (sobald die Zählerliste gefüllt ist)
-function goClick(tabName, id, then = null) {
+/// Reiter öffnen, Knopf zeigen und seine Aktion ausführen (wenn er gerade geht); true = ausgeführt
+async function goClick(tabName, id) {
   showTab(tabName);
   const b = $(id);
   reveal(b, "center");
-  if (b.disabled || b.hidden) return;
-  b.click();
-  if (!then) return;
-  let tries = 0;
-  const wait = setInterval(() => {
-    if (meters.length || ++tries > 40) {
-      clearInterval(wait);
-      if (meters.length) {
-        showTab(then);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    }
-  }, 250);
+  if (b.disabled || b.hidden) return false;
+  await b.onclick();
+  return true;
+}
+
+/// Alle merken, danach geht es in der Zählerliste weiter
+async function rememberAll() {
+  if (!(await goClick("scan", "remember-all")) || !meters.length) return;
+  showTab("meters");
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 /// Weitergabe: Werteauswahl des ersten Zählers aufklappen
@@ -88,13 +79,13 @@ function renderGuide() {
     const done = !!state?.done[name];
     b.classList.toggle("done", done);
     b.classList.toggle("next", name === next && !done);
-    no.innerHTML = done ? CHECK_SVG : String(GUIDE_TABS.indexOf(name) + 1);
+    no.innerHTML = done ? ICON_CHECK : String(GUIDE_TABS.indexOf(name) + 1);
   }
   // Knopf des nächsten Schritts hervorheben (nur einer)
-  document.querySelectorAll(".go").forEach((e) => e.classList.remove("go"));
   const s = state?.step;
-  if (s?.target && !jobRunning) $(s.target)?.classList.add("go");
-  if (s?.key === "pick") document.querySelector("[data-tr-pick]")?.classList.add("go");
+  guideMarked?.classList.remove("go");
+  guideMarked = jobRunning ? null : s?.key === "pick" ? document.querySelector("[data-tr-pick]") : s?.target ? $(s.target) : null;
+  guideMarked?.classList.add("go");
   // Karte: nur in den Reitern 1–4, nicht während der Bus arbeitet, ausgeblendet bis zum nächsten Schritt
   const hidden = !s || jobRunning || planRuns.length || !GUIDE_TABS.includes(tab) || storageGet("guide_hidden") === s.key;
   box.hidden = hidden;
@@ -111,8 +102,8 @@ function renderGuide() {
       <p>${esc(t("guide_" + s.key + "_body", s.arg))}</p>
     </div>
     <div class="guide-actions">
-      <button type="button" class="guide-go" data-guide-go>${esc(t("guide_" + s.key + "_btn"))}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-      <button type="button" class="icon-btn" data-guide-hide title="${esc(t("guide_hide"))}" aria-label="${esc(t("guide_hide"))}">${ICON_DEL}</button>
+      <button type="button" class="guide-go" data-guide-go>${esc(t("guide_" + s.key + "_btn"))}${ICON_NEXT}</button>
+      ${ui.iconBtn(ICON_DEL, t("guide_hide"), { "guide-hide": "" })}
     </div>`;
   // Wechsel des Schritts: neu einblenden
   box.classList.remove("in");
@@ -120,8 +111,8 @@ function renderGuide() {
   box.classList.add("in");
 }
 
-const CHECK_SVG =
-  '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
+const ICON_CHECK = svg('<path d="M5 12l5 5L20 7"/>', 11, 3.2);
+const ICON_NEXT = svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 16);
 
 $("guide").addEventListener("click", (ev) => {
   if (ev.target.closest("[data-guide-hide]")) {

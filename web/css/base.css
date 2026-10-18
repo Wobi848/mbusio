@@ -376,16 +376,28 @@ button:focus-visible, a:focus-visible, label.button:focus-within { outline: 2px 
 .quiet:hover { background: var(--sunken) !important; color: var(--text) !important; }
 .danger { color: var(--err) !important; }
 .danger:hover { border-color: var(--err) !important; }
-button.cta { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--accent-ink) !important; }
 
 /* .small gilt auch für Links und Datei-Knöpfe (sonst gewinnt a.button mit 36 px) */
+/* Knopf, der als Nächstes dran ist (Nächster Schritt, nach „PA ändern“): Ring, der nach aussen läuft */
+button.go { position: relative; overflow: visible; }
+button.go:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+  animation: goRing 1.8s var(--ease) infinite;
+}
+@keyframes goRing { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.18, 1.45); opacity: 0; } }
+
 .small, button.small, a.button.small, label.button.small, summary.button.small { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
 
 /* gesperrt: grau statt blass, damit klar ist, dass es (noch) nicht geht; Grund steht im Tooltip */
 button:disabled { cursor: not-allowed; transform: none; background: var(--sunken); color: var(--muted); border-color: var(--line); opacity: .75; }
 button:disabled:hover { background: var(--sunken); color: var(--muted); }
 button.quiet:disabled, button.icon-btn:disabled, .seg button:disabled { background: transparent !important; border-color: transparent !important; }
-button.ghost:disabled, button.cta:disabled { background: var(--sunken) !important; color: var(--muted) !important; border-color: var(--line) !important; }
+button.ghost:disabled { background: var(--sunken) !important; color: var(--muted) !important; border-color: var(--line) !important; }
 
 .icon-btn {
   width: 30px;
