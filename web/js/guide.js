@@ -24,7 +24,7 @@ function guideStep() {
   const op = inOperation() || wantsOperation();
   const done = { project: hasConn, scan: meters.length > 0, meters: read, transfer: dps > 0 && outputOn() };
   const fix = connected && fixState();
-  const scanBtn = lastJob?.kind === "secondary" ? "scan-secondary" : "scan-primary";
+  const scanBtn = scanKind === "secondary" ? "scan-secondary" : "scan-primary";
   let step = null;
   // Anschluss und Verbinden zeigt die Linien-Leiste mit ihrem Knopf (bar: nicht in der Leiste unten)
   if (!hasConn) step = { key: "conn_set", tab: "project", target: "lb-action", bar: true, go: () => openConnForm() };
@@ -41,7 +41,7 @@ function guideStep() {
   else if (!meters.length && okHits)
     step = { key: "remember", tab: "scan", target: "remember-all", arg: okHits, go: rememberAll };
   else if (!meters.length)
-    step = { key: lastJob ? "scan_none" : "scan", tab: "scan", target: "scan-primary", go: () => goClick("scan", "scan-primary") };
+    step = { key: lastJob ? "scan_none" : "scan", tab: "scan", target: scanBtn, go: () => goClick("scan", scanBtn) };
   else if (!read) step = { key: "read", tab: "meters", target: "meters-read-all", arg: meters.length, go: () => goClick("meters", "meters-read-all") };
   else if (!op) step = { key: "ready", tab: "meters", go: () => $("project-report").click(), alt: { key: "op", go: startOperation } };
   else if (!line.plan_info?.meters) step = { key: "plan", tab: "project", target: "project-edit", go: openPlanForm };
@@ -172,8 +172,6 @@ function renderGuide() {
   box.classList.add("in");
 }
 
-const ICON_CHECK = svg('<path d="M5 12l5 5L20 7"/>', 11, 3.2);
-const ICON_NEXT = svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 14);
 
 $("guide").addEventListener("click", (ev) => {
   if (ev.target.closest("[data-guide-hide]")) {

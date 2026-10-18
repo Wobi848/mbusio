@@ -70,5 +70,5 @@ function renderBusbar() {
   issues.hidden = issueCount === null;
   issues.className = "busbar-issues " + (issueCount ? "warn" : "ok");
   issues.textContent = issueCount ? t("issues", issueCount) : t("issues_none");
-  issues.href = issueCount ? "#hits-warn" : "#hits";
+  issues.href = "#hits";
 }

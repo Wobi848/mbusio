@@ -49,9 +49,27 @@
 #bus-bauds { border: 1px solid var(--line-strong) !important; }
 #bus-bauds:disabled { opacity: 1; }
 
+/* ------------------------------------------------------------ Schritte: 1 Suche einstellen, 2 Ergebnis */
+
+.step-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.step-head h2 { font-size: 16px; font-weight: 700; }
+.step-no { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none;
+  background: var(--text); color: var(--surface); font-size: 12px; font-weight: 700; }
+.scan-set { display: flex; align-items: flex-end; gap: 14px 18px; flex-wrap: wrap; }
+.scan-field { display: flex; flex-direction: column; gap: 6px; }
+.scan-label { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.scan-range { display: flex; gap: 10px; align-items: flex-end; }
+.scan-range label { width: 96px; }
+.baud-pick { margin: 0; }
+.hits-block { display: flex; flex-direction: column; gap: 12px; margin: 6px -22px 0; padding: 20px 22px 0; border-top: 1px solid var(--line); }
+.seg-n.warn { color: var(--warn); }
+
+/* Satz mit den Hauptaktionen über der Tabelle */
+.hits-action { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px;
+  background: var(--accent-soft); font-size: 13.5px; }
+
 /* ------------------------------------------------------------ Trefferliste */
 
-.hits-opt { align-self: flex-start; }
 .hits-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
 .remember-mode { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 
@@ -60,6 +78,18 @@
 #hits tr.chg td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 #hits tr.missing td { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line-strong); }
 #hits tr.missing td:last-child, #hits tr.missing .chip { text-decoration: none; }
+
+/* Auffälligkeit direkt unter ihrer Zeile: was (fett), was tun, Knopf, der hilft */
+#hits tr.issue-strip:hover { background: transparent; }
+#hits tr.issue-strip > td { padding: 0 12px 10px; border-bottom: 1px solid var(--line); white-space: normal; background: var(--warn-soft); }
+#hits tr.issue-strip > td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.strip { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 8px 12px; border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent); color: var(--warn); font-size: 13px; line-height: 1.45; }
+.strip > svg { flex: none; }
+.strip > span:not(.spacer) { flex: 1 1 320px; color: var(--text); }
+.strip b { color: var(--warn); }
+/* Zeile mit Strip: keine Linie zwischen Zeile und Streifen */
+#hits tr.issue:has(+ tr.issue-strip) > td { border-bottom: 0; }
 
 /* Zeile mit Problem: getönt, links ein Strich in der Warnfarbe */
 #hits tr.issue td { background: var(--warn-soft); }
@@ -71,28 +101,7 @@
 #hits td:last-child .actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
 #hits td:last-child { white-space: normal; min-width: 150px; }
 
-/* Auffälligkeiten */
-.hits-warn {
-  margin: 10px 0 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: 13px;
-}
-.hits-warn b { font-weight: 650; }
-.hits-warn ul { margin: 4px 0 0; padding-left: 18px; }
-.hits-warn .hint { color: inherit; margin-top: 6px; }
-.hits-warn button { margin-top: 8px; }
 
-/* "Warum?": Ursache und Tipp unter der Zeile */
-#hits tr.why-row td { white-space: normal; padding-top: 0; }
-.why { background: var(--sunken); border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 1.5; }
-.why p { margin: 0 0 4px; }
-.why p:last-child { margin-bottom: 0; }
-.why-label { color: var(--muted); font-weight: 600; }
-.why-raw code { font-family: var(--mono); font-size: 12px; word-break: break-all; }
-.why .analyze-link { font-weight: 600; margin-left: 8px; }
 
 /* Alle beheben: Plan zum Abhaken */
 .fix-plan { margin: 10px 0; padding: 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--surface); }

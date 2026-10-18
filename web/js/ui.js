@@ -225,6 +225,19 @@ function parseTable(text) {
   return rows.map((r) => r.map((x) => x.trim())).filter((r) => r.some(Boolean));
 }
 
+/// Symbole (Strich-SVG, Farbe vom Text)
+const svg = (d, size = 15, stroke = 2) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON_EDIT = svg('<path d="M4 20h4L19 9l-4-4L4 16z"/>');
+const ICON_DEL = svg('<path d="M6 6l12 12M18 6L6 18"/>');
+const ICON_UP = svg('<path d="M6 15l6-6 6 6"/>');
+const ICON_DOWN = svg('<path d="M6 9l6 6 6-6"/>');
+const ICON_CHART = svg('<path d="M4 19h16M5 15l4-5 4 3 6-7"/>');
+const ICON_ALERT = svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/>');
+const ICON_CLOCK = svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
+const ICON_CHECK = svg('<path d="M5 12l5 5L20 7"/>', 11, 3.2);
+const ICON_NEXT = svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 14);
+
 /// Medium-Schlüssel vom Server → Art des Symbols
 const MEDIUM_KIND = {
   medium_heat_outlet: "heat",

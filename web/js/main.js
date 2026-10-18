@@ -65,6 +65,7 @@ if (storageGet("help") === "1") {
 
 // bis zur Verbindung: Baudrate aus dem Verbindungsfeld
 setPickedBauds([Number($("baud").value)]);
+setScanKind(scanKind);
 showTab(storageGet("tab") || "scan");
 
 setLang(lang);

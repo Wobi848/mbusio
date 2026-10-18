@@ -5,7 +5,6 @@
 // ------------------------------------------------------------ Ausleseplan
 
 const PLAN_KINDS = ["off", "monthly", "daily", "hourly", "15min"];
-const ICON_CLOCK = svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
 
 /// "2026-10-18 00:05:00" → "heute 00:05", "morgen 00:05" oder "20.10. 00:05"
 function slotText(s) {
@@ -236,6 +235,7 @@ function renderLineBar() {
   const line = findLine(a.line.id) || a.line;
   $("lb-line").textContent = a.line.name;
   $("lb-gateway").textContent = a.gateway.name;
+  $("scan-for").textContent = t("scan_for", a.line.name);
   $("lb-lines").innerHTML =
     activeProjectNode()
       .gateways.map(

@@ -159,7 +159,8 @@ function renderJob(job) {
     updateButtons();
     return;
   }
-  $("job").hidden = false;
+  // Fortschritt nur während der Suche; danach steht alles im Kopf des Ergebnisses
+  $("job").hidden = !job.running;
   const p = $("job-progress");
   const frac = job.total ? Math.min(job.done / job.total, 1) : 0;
   p.querySelector(".bar-fill").style.transform = `scaleX(${job.running ? frac : 1})`;
@@ -171,11 +172,16 @@ function renderJob(job) {
   renderedJob = job.kind;
   renderedHits = job.hits.length;
   const table = $("hits");
+  $("hits-block").hidden = false;
   const chg = scanChanges(job);
   renderChanges(chg);
   table.hidden = job.hits.length === 0 && !chg?.missing.length;
   const issues = analyzeHits(job.hits);
-  renderHitsWarn(job.hits, issues);
+  noteIssues(job.hits, issues);
+  // Zeile mit Problem: keine Daten, Kollision, doppelte PA, gleiche ID und Hersteller, fremde Baudrate
+  const problem = (h, i) => h.status !== "ok" || issues.rowDupPa.has(i) || issues.rowDupIdSame.has(i) || (h.baud && h.baud !== connBaud);
+  const attention = job.hits.filter(problem).length;
+  renderHitsHead(job, job.hits.length - attention, attention, issues);
   document.querySelector(".hits-opt").hidden = table.hidden;
   const cols = ["col_primary", "col_meter", "col_baud", "col_status", ""];
   const numCols = ["col_primary", "col_baud"];
@@ -190,16 +196,16 @@ function renderJob(job) {
       }</span></th>`;
     })
     .join("")}</tr>`;
-  table.querySelector("tbody").innerHTML = sortedHits(job.hits)
+  const order = sortedHits(job.hits).filter(([h, i]) => hitFilter === "all" || (hitFilter === "attention") === !!problem(h, i));
+  const groups = groupStrips(job.hits, issues, order.map(([, i]) => i), cols.length);
+  table.querySelector("tbody").innerHTML = order
     .map(([h, i]) => {
       const target = h.status === "ok" ? hitAddress(h) : "";
       const other = h.baud && h.baud !== connBaud;
       const dupPa = issues.rowDupPa.has(i);
       const dupId = issues.rowDupId.has(i);
-      // Zeile mit Problem hervorheben: keine Daten, Kollision, doppelte PA/ID, fremde Baudrate
-      const problem = h.status !== "ok" || dupPa || issues.rowDupIdSame.has(i) || other;
       const change = chg?.rows.get(i);
-      const cls = [i >= fresh ? "new" : "", problem ? "issue" : "", change ? "chg" : ""].filter(Boolean).join(" ");
+      const cls = [i >= fresh ? "new" : "", problem(h, i) ? "issue" : "", change ? "chg" : ""].filter(Boolean).join(" ");
       const anim = (cls ? ` class="${cls}"` : "") + (i >= fresh ? ` style="animation-delay:${Math.min(i - fresh, 8) * 50}ms"` : "");
       const paCount = dupPa ? issues.dupPa.get(`${h.baud}:${h.primary_address}`).length : 0;
       const warnChips =
@@ -215,11 +221,6 @@ function renderJob(job) {
         dupPa && fixTarget
           ? `<button class="small ghost needs-conn" data-fix="${esc(fixTarget)}" data-from="${other ? h.baud : ""}">${t("fix_pa")}</button>`
           : "";
-      // Empfehlung: Zähler auf die Baudrate des Busses umstellen
-      const fixBaud =
-        other && h.status === "ok" && fixTarget
-          ? `<button class="small ghost needs-conn" data-fixbaud="${esc(fixTarget)}" data-from="${h.baud}">${t("fix_baud")}</button>`
-          : "";
       const otherChip = other && h.status === "ok"
         ? " " + ui.chip("warn", t("other_baud"), t("other_baud_title", h.baud, connBaud))
         : "";
@@ -228,15 +229,13 @@ function renderJob(job) {
         <td>${hitMeter(h)}</td>
         <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
         <td>${ui.chip({ ok: "ok" }[h.status] || "warn", t("st_" + h.status))}${warnChips}${otherChip}${change ? " " + ui.chip("info", change.text) : ""}</td>
-        <td><div class="actions">${
-          h.status !== "ok" ? `<button class="small ghost" data-why="${esc(hitKey(h))}">${t("why")}</button>` : ""
-        }${fix}${fixBaud}${
+        <td><div class="actions">${fix}${
           target !== ""
             ? `<button class="small quiet needs-conn" data-read="${esc(target)}" data-baud="${h.baud ?? ""}">${t("read")}</button>
                <button class="small ghost" data-remember="${i}">${t("remember")}</button>`
             : ""
         }</div></td>
-      </tr>${openWhy.has(hitKey(h)) ? whyRow(h, cols.length) : ""}`;
+      </tr>${hitStrip(h, cols.length, fixTarget)}${groups.get(i) || ""}`;
     })
     .join("") +
     // fehlen diesmal: grau am Ende, gleiche Spalten
@@ -293,10 +292,39 @@ function meterFromHit(h) {
   };
 }
 
-$("hits-warn").addEventListener("click", (ev) => {
-  if (ev.target.closest("[data-start-secondary]")) $("scan-secondary").click();
+$("hits-block").addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-start-secondary]")) {
+    setScanKind("secondary");
+    $("scan-secondary").click();
+  }
   if (ev.target.closest("[data-fix-all]")) guarded(ev.target.closest("button"), openPlan);
+  const f = ev.target.closest("[data-hit-filter]");
+  if (f) {
+    hitFilter = f.dataset.hitFilter;
+    renderJob(lastJob);
+  }
 });
+
+/// Filter der Trefferliste: alle, eindeutig, auffällig
+let hitFilter = "all";
+
+/// Kopf des Ergebnisses: Art und Anzahl, Filter, Satz mit den Hauptaktionen
+function renderHitsHead(job, unique, attention, issues) {
+  $("hits-meta").textContent = `${t("job_" + job.kind)} · ${t("found", job.hits.length)}`;
+  const f = (k, n) => `<button type="button" data-hit-filter="${k}" class="${hitFilter === k ? "active" : ""}">${esc(t("hf_" + k))} <span class="seg-n${
+    k === "attention" && n ? " warn" : ""
+  }">${n}</span></button>`;
+  $("hits-filter").innerHTML = f("all", job.hits.length) + f("unique", unique) + f("attention", attention);
+  const done = !job.running && job.hits.length > 0;
+  $("hits-action").hidden = !done;
+  if (!done) return;
+  const steps = planSteps(job.hits, issues).steps.length;
+  $("hits-action-text").innerHTML = t("hits_action", unique, attention);
+  $("hits-fix").hidden = !steps;
+  $("hits-fix").textContent = t("fix_n", steps);
+  $("remember-all").hidden = !unique;
+  $("remember-all").innerHTML = `${esc(t("remember_n", unique))} ${ICON_NEXT}`;
+}
 
 function renderRememberMode() {
   document.querySelectorAll(".remember-mode [data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === addressing()));
@@ -444,12 +472,6 @@ $("hits").addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
   if (!btn) return;
   const d = btn.dataset;
-  if (d.why) {
-    if (openWhy.has(d.why)) openWhy.delete(d.why);
-    else openWhy.add(d.why);
-    renderJob(lastJob);
-    return;
-  }
   if (d.fixbaud) {
     // Zähler unter "Zähler einstellen" eintragen, Ziel = Baudrate des Busses
     setConfigTarget(d.fixbaud, Number(d.from));
@@ -510,6 +532,23 @@ $("scan-primary").onclick = () =>
 
 $("scan-secondary").onclick = () =>
   guarded($("scan-secondary"), () => startScan("scan/secondary", { bauds: pickedBauds() }));
+
+// ------------------------------------------------------------ Art des Scans
+
+/// Primärscan (Adressbereich) oder Sekundärscan (über die ID); gemerkt im Browser
+let scanKind = storageGet("scan_kind") === "secondary" ? "secondary" : "primary";
+
+function setScanKind(kind) {
+  scanKind = kind;
+  storageSet("scan_kind", kind);
+  document.querySelectorAll("#scan-kind [data-kind]").forEach((b) => b.classList.toggle("active", b.dataset.kind === kind));
+  document.querySelectorAll("#sec-scan [data-for]").forEach((el) => (el.hidden = el.dataset.for !== kind));
+}
+
+$("scan-kind").onclick = (ev) => {
+  const b = ev.target.closest("[data-kind]");
+  if (b) setScanKind(b.dataset.kind);
+};
 
 // ------------------------------------------------------------ Baudraten für den Scan
 

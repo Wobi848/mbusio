@@ -1,6 +1,7 @@
 "use strict";
 
-// Auffälligkeiten der Trefferliste: Ursache erklären („Warum?“), Hinweise, „Alle beheben“
+// Auffälligkeiten der Trefferliste: Streifen mit Ursache und Abhilfe unter der Zeile, Liste der
+// Auffälligkeiten (Leiste unten, Projekt, Bericht), „Alle beheben“
 
 /// Ursache eines Treffers in einfachen Worten: [was ist los, was tun]
 function explainReason(reason) {
@@ -25,17 +26,43 @@ function explainReason(reason) {
   }
 }
 
-/// geöffnete "Warum?"-Zeilen, bleiben beim Neuzeichnen offen
-const openWhy = new Set();
-const hitKey = (h) => `${h.baud}:${h.primary_address}:${h.secondary_address}`;
+/// Streifen unter einer Zeile: was ist los (fett), was tun, Knöpfe, die helfen
+function issueStrip(cols, what, tip, buttons = "") {
+  return `<tr class="issue-strip"><td colspan="${cols}"><div class="strip">${ICON_ALERT}<span><b>${esc(what)}</b> ${esc(tip)}</span><span class="spacer"></span>${buttons}</div></td></tr>`;
+}
 
-function whyRow(h, cols) {
-  const [what, tip] = explainReason(h.reason);
-  return `<tr class="why-row"><td colspan="${cols}"><div class="why">
-    <p><b>${esc(what)}</b></p>
-    <p><span class="why-label">${esc(t("why_tip"))}</span> ${esc(tip)}</p>
-    ${h.raw ? `<p class="why-raw"><span class="why-label">${esc(t("why_raw"))}:</span> <code>${esc(h.raw)}</code><a href="#analysis" class="analyze-link" data-analyze="${esc(h.raw)}">${esc(t("why_analyze"))} →</a></p>` : ""}
-  </div></td></tr>`;
+/// Streifen eines einzelnen Treffers (Kollision, keine Daten, fremde Baudrate); "" = nichts
+function hitStrip(h, cols, fixTarget) {
+  const analyze = h.raw ? `<a href="#analysis" class="button small quiet" data-analyze="${esc(h.raw)}">${esc(t("why_analyze"))}</a>` : "";
+  if (h.status === "collision") {
+    const what = h.primary_address != null ? t("warn_collision_pa", h.primary_address, h.baud) : t("warn_collision_id", h.id);
+    const btn = h.primary_address != null ? `<button class="small ghost needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>` : "";
+    return issueStrip(cols, what, "", btn + analyze);
+  }
+  if (h.status === "no_data") {
+    const [what, tip] = explainReason(h.reason);
+    return issueStrip(cols, what, tip, analyze);
+  }
+  if (h.baud && h.baud !== connBaud && fixTarget)
+    return issueStrip(
+      cols,
+      t("other_baud_title", h.baud, connBaud),
+      "",
+      `<button class="small ghost needs-conn" data-fixbaud="${esc(fixTarget)}" data-from="${h.baud}">${esc(t("fix_baud"))}</button>`
+    );
+  return "";
+}
+
+/// Streifen nach dem letzten Zähler einer Gruppe (gleiche PA, gleiche ID und Hersteller): Index → html
+function groupStrips(hits, a, order, cols) {
+  const out = new Map();
+  const after = (list, html) => out.set(list.reduce((last, i) => (order.indexOf(i) > order.indexOf(last) ? i : last), list[0]), html);
+  for (const [k, list] of a.dupPa) {
+    const [baud, pa] = k.split(":");
+    after(list, issueStrip(cols, t("warn_dup_pa", pa, baud, list.map((i) => hits[i].id || "?")), t("warn_fix_hint")));
+  }
+  for (const [id, list] of a.dupIdSame) after(list, (out.get(list.at(-1)) || "") + issueStrip(cols, t("plan_manual_sameid", id), ""));
+  return out;
 }
 
 /// Auffälligkeiten: doppelte Primäradressen (je Baudrate), doppelte IDs, fremde Baudraten
@@ -62,7 +89,8 @@ function analyzeHits(hits) {
   return { dupPa, dupId, dupIdSame, rowDupPa, rowDupId, rowDupIdSame, otherBaud };
 }
 
-function renderHitsWarn(hits, a) {
+/// Auffälligkeiten als Liste: Zähler unten in der Leiste, bei der Linie gemerkt (Projekt, Bericht)
+function noteIssues(hits, a) {
   const items = [];
   for (const [k, list] of a.dupPa) {
     const [baud, pa] = k.split(":");
@@ -80,23 +108,10 @@ function renderHitsWarn(hits, a) {
     items.push(`${name}: ${explainReason(h.reason)[0]}`);
   }
   if (a.otherBaud) items.push(t("warn_other_baud", a.otherBaud, connBaud));
-  const el = $("hits-warn");
-  el.hidden = items.length === 0;
   issueCount = items.length;
   // erst wenn der Scan durch ist: bei der Linie merken (Projekt-Karte, Bericht)
   if (!lastJob?.running) saveIssues(items);
   renderBusbar();
-  el.innerHTML = items.length
-    ? `<b>⚠ ${esc(t("warn_title"))}</b><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` +
-      (a.dupPa.size ? `<p class="hint">${esc(t("warn_fix_hint"))}</p>` : "") +
-      (planSteps(hits, a).steps.length
-        ? `<button class="small needs-conn" data-fix-all>${esc(t("fix_all"))}</button> `
-        : "") +
-      // Kollision im Primärscan: der Sekundärscan findet die Zähler einzeln
-      (collisions.some((h) => h.primary_address != null)
-        ? `<button class="small needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>`
-        : "")
-    : "";
 }
 
 // ------------------------------------------------------------ Alle beheben

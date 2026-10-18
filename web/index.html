@@ -134,44 +134,37 @@
   </section>
 
   <section class="card" id="sec-scan" data-tab="scan" aria-labelledby="h-scan">
-    <div class="card-head">
-      <h2 id="h-scan" data-i18n="scan"></h2>
-    </div>
-    <div class="baud-pick">
-      <span class="baud-pick-label" data-i18n="scan_bauds"></span>
-      <div id="scan-bauds" class="chips"></div>
-      <button id="bauds-all" class="small quiet" data-i18n="bauds_all"></button>
-      <button id="bus-bauds" class="small quiet needs-conn" data-i18n="bus_bauds"></button>
+    <!-- 1 Suche einstellen -->
+    <div class="step-head"><span class="step-no">1</span><h2 id="h-scan" data-i18n="scan_set"></h2><span id="scan-for" class="hint"></span></div>
+    <div class="scan-set">
+      <div class="scan-field"><span class="scan-label" data-i18n="scan_kind"></span>
+        <div id="scan-kind" class="seg" role="group">
+          <button type="button" data-kind="primary" data-i18n="scan_kind_pa"></button>
+          <button type="button" data-kind="secondary" data-i18n="scan_kind_sa"></button>
+        </div>
+      </div>
+      <div class="scan-field"><span class="scan-label" data-i18n="scan_bauds"></span>
+        <div class="baud-pick">
+          <div id="scan-bauds" class="chips"></div>
+          <button id="bauds-all" class="small quiet" data-i18n="bauds_all"></button>
+          <button id="bus-bauds" class="small quiet needs-conn" data-i18n="bus_bauds"></button>
+        </div>
+      </div>
+      <div class="scan-range" data-for="primary">
+        <label><span data-i18n="from"></span> <input id="scan-from" class="mono" type="number" min="0" max="250" value="0"></label>
+        <label><span data-i18n="to"></span> <input id="scan-to" class="mono" type="number" min="0" max="250" value="250"></label>
+        <label><span data-i18n="retries"></span> <input id="scan-retries" class="mono" type="number" min="0" max="5" value="1"></label>
+      </div>
+      <span class="spacer"></span>
+      <button id="scan-primary" class="needs-conn" data-for="primary" data-i18n="scan_primary_start"></button>
+      <button id="scan-secondary" class="needs-conn" data-for="secondary" data-i18n="scan_secondary_start"></button>
     </div>
     <p id="bauds-empty" class="hint warn" data-i18n="pick_baud" hidden></p>
     <p id="bus-bauds-result" class="hint result"></p>
+    <p id="scan-estimate" class="hint" data-for="primary"></p>
+    <p class="hint explain" data-for="primary" data-i18n="scan_primary_hint"></p>
+    <p class="hint explain" data-for="secondary" data-i18n="scan_secondary_hint"></p>
     <p class="hint baud-check-hint explain" data-i18n="scan_bauds_hint"></p>
-    <div class="tiles">
-      <div class="tile">
-        <div>
-          <h3 data-i18n="scan_primary"></h3>
-          <p class="hint" data-i18n="scan_primary_short"></p>
-          <p class="hint explain" data-i18n="scan_primary_hint"></p>
-        </div>
-        <div class="tile-row">
-          <label><span data-i18n="from"></span> <input id="scan-from" class="mono" type="number" min="0" max="250" value="0"></label>
-          <label><span data-i18n="to"></span> <input id="scan-to" class="mono" type="number" min="0" max="250" value="250"></label>
-          <label><span data-i18n="retries"></span> <input id="scan-retries" class="mono" type="number" min="0" max="5" value="1"></label>
-          <button id="scan-primary" class="needs-conn" data-i18n="scan_primary_start"></button>
-        </div>
-        <p id="scan-estimate" class="hint"></p>
-      </div>
-      <div class="tile">
-        <div>
-          <h3 data-i18n="scan_secondary"></h3>
-          <p class="hint" data-i18n="scan_secondary_short"></p>
-          <p class="hint explain" data-i18n="scan_secondary_hint"></p>
-        </div>
-        <div class="tile-end">
-          <button id="scan-secondary" class="ghost needs-conn" data-i18n="scan_secondary_start"></button>
-        </div>
-      </div>
-    </div>
     <div id="job" hidden>
       <div class="job-line">
         <span id="job-msg"></span>
@@ -179,21 +172,30 @@
       </div>
       <div id="job-progress" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar-fill"></div></div>
     </div>
-    <div id="hits-warn" class="hits-warn" role="alert" hidden></div>
-    <div id="fix-plan" class="fix-plan" hidden></div>
-    <p id="hits-changes" class="hits-changes" hidden></p>
-    <div class="hits-opt hits-tools" hidden>
-      <label class="inline"><input id="sa-raw" type="checkbox" class="switch"> <span data-i18n="sa_raw"></span></label>
-      <span class="remember-mode"><span class="hint" data-i18n="remember_via"></span>
-        <span class="seg" role="group"><button data-mode="secondary" data-i18n-title="mode_sa_title">SA</button><button data-mode="primary" data-i18n-title="mode_pa_title">PA</button></span>
-      </span>
-      <button id="remember-all" class="small ghost" data-i18n="remember_all"></button>
-    </div>
-    <div class="table-wrap">
-      <table id="hits" hidden>
-        <thead></thead>
-        <tbody></tbody>
-      </table>
+
+    <!-- 2 Ergebnis -->
+    <div id="hits-block" class="hits-block" hidden>
+      <div class="step-head"><span class="step-no">2</span><h2 data-i18n="scan_result"></h2><span id="hits-meta" class="hint"></span>
+        <span class="spacer"></span><div id="hits-filter" class="seg" role="group"></div></div>
+      <div id="hits-action" class="hits-action" hidden>
+        <span id="hits-action-text"></span><span class="spacer"></span>
+        <button id="hits-fix" type="button" class="small ghost needs-conn" data-fix-all hidden></button>
+        <button id="remember-all" type="button" class="small"></button>
+      </div>
+      <div id="fix-plan" class="fix-plan" hidden></div>
+      <p id="hits-changes" class="hits-changes" hidden></p>
+      <div class="hits-opt hits-tools">
+        <label class="inline"><input id="sa-raw" type="checkbox" class="switch"> <span data-i18n="sa_raw"></span></label>
+        <span class="remember-mode"><span class="hint" data-i18n="remember_via"></span>
+          <span class="seg" role="group"><button data-mode="secondary" data-i18n-title="mode_sa_title">SA</button><button data-mode="primary" data-i18n-title="mode_pa_title">PA</button></span>
+        </span>
+      </div>
+      <div class="table-wrap">
+        <table id="hits" hidden>
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </section>
 

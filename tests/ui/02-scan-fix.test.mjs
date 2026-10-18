@@ -1,4 +1,4 @@
-import { assert, simLine, primaryScan, scanDone, visibleSections } from "./helpers.mjs";
+import { assert, simLine, primaryScan, secondaryScan, visibleSections } from "./helpers.mjs";
 
 export default {
   name: "Scan, Auffälligkeiten, PA ändern, Alle beheben",
@@ -11,14 +11,18 @@ export default {
     assert.ok((await page.locator("#hits tr.issue").count()) > 0);
     const step = () => page.textContent("#guide .guide-title");
     assert.equal(await step(), "Gefundene Zähler übernehmen");
+    // Erklärung direkt an der Zeile, Filter „Auffällig“, Satz mit „N Zähler übernehmen“
+    assert.ok((await page.locator("#hits tr.issue-strip").count()) > 0);
+    assert.match(await page.textContent("#remember-all"), /\d+ Zähler übernehmen/);
+    await page.click("[data-hit-filter=attention]");
+    assert.equal(await page.locator("#hits tbody tr[class*=issue]:not(.issue-strip)").count(), await page.locator("#hits tbody tr:not(.issue-strip)").count());
+    await page.click("[data-hit-filter=all]");
     // Auslesen aus der Trefferliste springt zu Werkzeuge
     await page.locator("#hits [data-read]").first().click();
     await page.waitForSelector(".reading-table", { timeout: 20000 });
     assert.ok((await visibleSections(page)).includes("sec-read"));
     // Sekundärscan, dann PA ändern für den Zähler ohne Adresse
-    await page.click("[data-tab-go=scan]");
-    await page.click("#scan-secondary");
-    await scanDone(page);
+    await secondaryScan(page);
     // doppelte PA lässt sich beheben: zuerst beheben, übernehmen geht trotzdem
     await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Auffälligkeiten beheben");
     assert.ok(await page.isVisible("#guide [data-guide-alt]"), "trotzdem übernehmen geht");

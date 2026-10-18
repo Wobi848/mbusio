@@ -20,14 +20,6 @@ const METER_FILTERS = {
 const meterMatches = (m, q) =>
   !q || [m.name, m.location, m.note, m.meter_id, m.address].some((x) => String(x ?? "").toLowerCase().includes(q));
 
-const svg = (d, size = 15, stroke = 2) =>
-  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
-const ICON_EDIT = svg('<path d="M4 20h4L19 9l-4-4L4 16z"/>');
-const ICON_DEL = svg('<path d="M6 6l12 12M18 6L6 18"/>');
-const ICON_UP = svg('<path d="M6 15l6-6 6 6"/>');
-const ICON_DOWN = svg('<path d="M6 9l6 6 6-6"/>');
-const ICON_CHART = svg('<path d="M4 19h16M5 15l4-5 4 3 6-7"/>');
-const ICON_ALERT = svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/>');
 
 async function loadMeters() {
   meters = await api("meters");
