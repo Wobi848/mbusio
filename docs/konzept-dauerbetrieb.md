@@ -502,8 +502,8 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 **Offen, bevor ein Release als dauerbetriebstauglich gilt:**
 - 7 Tage auf einem Raspberry Pi 4 (Kriterien 1 und 10), Stecker ziehen (3), USB-Wandler abziehen
   bzw. Gateway neu starten (4), kleine SD-Karte (11). Hilfsmittel: `--time-scale 48`.
-- MQTT mit einem verbreiteten Broker (z.B. Mosquitto) und echtem Leitsystem prüfen, auch TLS und
-  „Uhrzeit vom Leitsystem“.
+- ~~MQTT mit einem echten Broker prüfen~~ – erledigt am 19.10.2026 (vom Benutzer mit einem echten
+  Broker getestet).
 - Danach Release v0.5.0 (bisher letztes Release: v0.4.0).
 
 **Ausserhalb der Phasen umgesetzt:** Simulator-Reiter mit Vorlagen (Praxis mit Fehlern, alles
