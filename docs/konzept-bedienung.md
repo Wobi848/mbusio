@@ -249,3 +249,28 @@ zeigt „pausiert, von Hand getrennt“).
 1. Der Service-Weg endet mit dem Knopf **Bericht**: das ist, was der Techniker dem Kunden abgibt.
 2. **Ausgang einrichten** ist ein eigener Schritt: ohne Ausgang gehen gewählte Werte nirgends hin.
    Weitergabe gilt erst als erledigt, wenn Werte gewählt **und** ein Ausgang eingeschaltet ist.
+
+## 10. Nächster Schritt in der Leiste unten (18.10.2026)
+
+**Problem:** Die Karte „Nächster Schritt“ stand oben im Reiter. Wer in einer langen Seite arbeitet
+(Trefferliste, Zählerliste), musste immer wieder hochscrollen, um zu sehen, was zu tun ist. Unten
+gab es schon eine Leiste, die immer sichtbar ist: zwei Orte für „was ist los / was ist zu tun“.
+
+**Lösung:** eine Leiste unten für beides, die Karte oben fällt weg.
+
+```
+Ruhe:      ● Bereit · SIMULATOR:ok10 · 2400 Bd   [Chips]  │ 2/3 Gefundene Zähler übernehmen  [Alle merken →] ⌃ ×
+Bus aktiv: ● Primärscan · Adresse 37 · 4 gefunden  ▓▓▓░░░  [Abbrechen]          (Schritt tritt zurück)
+Fertig:    ● Bereit …                              │ ✓ Linie in Ordnung  [Dauerbetrieb einrichten] [Bericht →]
+```
+
+- Links der Zustand des Busses wie bisher (nicht schliessbar, eine Zeile), rechts der nächste
+  Schritt mit genau einem Hauptknopf; gilt in allen Reitern.
+- **⌃ aufklappen:** über der Zeile erscheinen Fortschritt (●●○) und der Erklärungstext. Der Browser
+  merkt sich auf- oder zugeklappt. **×** blendet den Schritt aus, bis der nächste kommt.
+- Während der Bus arbeitet oder ein Plan liest, ist der Schritt ausgeblendet.
+- Handy: Zustand oben, Schritt darunter mit Knopf über die ganze Breite.
+- Der Seitenabstand unten folgt der wirklichen Höhe der Leiste (aufgeklappt höher), damit nie
+  etwas verdeckt ist.
+- Code: Platz `#guide` in der Leiste (`index.html`), Inhalt aus `guide.js`, Gestaltung in
+  `guide.css`; die Karte und ihr CSS entfallen.

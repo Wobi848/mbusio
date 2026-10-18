@@ -4,6 +4,8 @@
 // Uhrzeit, Speicher, MQTT und Auffälligkeiten
 
 let busbarTimer = null;
+/// Höhe der Leiste für den Seitenabstand unten (CSS --busbar-h)
+const busbarSize = new ResizeObserver(([e]) => document.body.style.setProperty("--busbar-h", e.target.offsetHeight + "px"));
 /// laufende Aktion oder kurz stehende Fertigmeldung; null = Ruhezustand
 let busbarState = null;
 /// Anzahl Auffälligkeiten der letzten Suche; null = noch keine Suche
@@ -48,6 +50,7 @@ function renderBusbar() {
   }
   el.hidden = false;
   document.body.classList.add("has-busbar");
+  busbarSize.observe(el);
   el.classList.toggle("idle", !!state.idle);
   el.classList.toggle("off", !!state.off);
   el.classList.toggle("done", !!state.done && !state.error);

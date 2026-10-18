@@ -638,8 +638,9 @@ th.sorted { color: var(--accent); }
 .busbar-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 540; }
 .busbar-progress { flex: 0 0 180px; }
 .busbar-link { font-weight: 600; text-decoration: none; white-space: nowrap; }
-body.has-busbar { padding-bottom: 64px; }
-body.has-busbar #toast { bottom: 76px; }
+/* Höhe der Leiste setzt busbar.js (aufgeklappt höher), damit unten nichts verdeckt ist */
+body.has-busbar { padding-bottom: calc(var(--busbar-h, 48px) + 16px); }
+body.has-busbar #toast { bottom: calc(var(--busbar-h, 48px) + 12px); }
 @keyframes busbarIn { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes busbarPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
@@ -683,8 +684,6 @@ body.has-busbar #toast { bottom: 76px; }
   .busbar-inner { flex-wrap: wrap; gap: 6px 12px; }
   .busbar-text { flex-basis: calc(100% - 21px); white-space: normal; }
   .busbar-progress { flex: 1 1 auto; }
-  body.has-busbar { padding-bottom: 96px; }
-  body.has-busbar #toast { bottom: 108px; }
   .theme-switch { display: none; }
   .crumb span { display: none; }
   .crumb { padding: 6px 8px; }

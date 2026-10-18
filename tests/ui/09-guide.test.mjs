@@ -1,6 +1,6 @@
 import { assert, simLine, scanDone, tab, visibleSections } from "./helpers.mjs";
 
-const title = (page) => page.textContent("#guide h2");
+const title = (page) => page.textContent("#guide .guide-title");
 
 export default {
   name: "Nächster Schritt: Service bis zum Bericht, dann Dauerbetrieb bis zum Ausgang, nur mit der Karte",
@@ -30,7 +30,7 @@ export default {
     // Linie mit Simulator verbunden: suchen, übernehmen, auslesen, weitergeben
     await simLine(api, "SIMULATOR:ok10");
     await page.reload();
-    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Zähler suchen");
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Zähler suchen");
     assert.ok(await page.isVisible(".tab[data-tab-go=sim]"));
     assert.ok(await page.$eval("[data-tab-go=project]", (b) => b.classList.contains("done")));
     assert.ok(await page.$eval("#scan-primary", (b) => b.classList.contains("go")));
@@ -39,28 +39,28 @@ export default {
     await page.fill("#scan-retries", "0");
     await page.click("[data-guide-go]");
     await scanDone(page);
-    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Gefundene Zähler übernehmen");
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Gefundene Zähler übernehmen");
     await page.click("[data-guide-go]");
     // weiter in der Zählerliste
-    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Zähler auslesen");
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Zähler auslesen");
     await page.waitForFunction(() => !document.querySelector("#sec-meters").hidden);
     await page.click("[data-guide-go]");
     // Service: fertig mit Bericht; Weitergabe ist (noch) kein Schritt, Reiter ohne Nummer
-    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Linie in Ordnung", null, { timeout: 60000 });
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Linie in Ordnung", null, { timeout: 60000 });
     assert.ok(await page.isHidden("[data-tab-go=transfer] .tab-no"));
     assert.ok(await page.isHidden("#plant-state"));
-    assert.match(await page.textContent("#guide .guide-eyebrow"), /Fertig/);
+    assert.equal(await page.getAttribute("#guide .guide-count", "title"), "Fertig");
     const [rep] = await Promise.all([ctx.waitForEvent("page"), page.click("[data-guide-go]")]);
     await rep.waitForSelector("#table tbody tr");
     await rep.close();
     // Dauerbetrieb einrichten: Plan, Werte, Ausgang
     await page.click("[data-guide-alt]");
-    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Ausleseplan festlegen");
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Ausleseplan festlegen");
     assert.ok(await page.isVisible("[data-tab-go=transfer] .tab-no"));
     await page.click("[data-guide-go]");
     await page.selectOption("#tree-form [name=plan_kind]", "daily");
     await page.click("#tree-form [type=submit]");
-    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Werte zum Weitergeben wählen");
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Werte zum Weitergeben wählen");
     assert.ok(await page.isVisible("#plant-state"));
     await page.click("[data-guide-go]");
     await page.waitForFunction(() => !document.querySelector("#sec-transfer").hidden);
@@ -68,7 +68,7 @@ export default {
     await page.waitForSelector(".tr-pick .dp-pick-row");
     await page.click("[data-pick-save]");
     // Werte gewählt, Ausgang fehlt noch: Karte öffnet die MQTT-Einstellungen
-    await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Ausgang einrichten", null, { timeout: 10000 });
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Ausgang einrichten", null, { timeout: 10000 });
     await page.click("[data-guide-go]");
     await page.waitForSelector('[data-out-form="mqtt"]');
     assert.equal(await page.$$eval(".tab.done", (l) => l.length), 3);

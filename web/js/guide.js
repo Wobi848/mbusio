@@ -103,7 +103,6 @@ function renderGuide() {
   const box = $("guide");
   if (!box || !tree) return;
   const state = guideStep();
-  const tab = storageGet("tab") || "scan";
   const tabs = guideTabs(state?.op);
   // Reiter des Ablaufs: erledigt / als Nächstes; die anderen mit Symbol statt Nummer
   const next = state?.step?.tab;
@@ -124,28 +123,27 @@ function renderGuide() {
   guideMarked?.classList.remove("go");
   guideMarked = jobRunning ? null : s?.key === "pick" ? document.querySelector("[data-tr-pick]") : s?.target ? $(s.target) : null;
   guideMarked?.classList.add("go");
-  // Karte: nur in den Reitern 1–4, nicht während der Bus arbeitet, ausgeblendet bis zum nächsten Schritt
-  const hidden = !s || jobRunning || planRuns.length || !GUIDE_TABS.includes(tab) || storageGet("guide_hidden") === s.key;
+  // in der Leiste unten: nicht während der Bus arbeitet, ausgeblendet bis zum nächsten Schritt
+  const hidden = !s || jobRunning || planRuns.length || storageGet("guide_hidden") === s.key;
+  const open = storageGet("guide_open") === "1";
   box.hidden = hidden;
+  $("guide-more").hidden = hidden || !open;
   if (hidden) return;
-  const key = [s.key, lang, s.arg, tabs.length].join("|");
+  const key = [s.key, lang, s.arg, tabs.length, open].join("|");
   if (box.dataset.key === key) return;
   box.dataset.key = key;
   const n = tabs.indexOf(s.tab) + 1;
   const ready = s.key === "ready";
   const segs = tabs.map((name) => `<span class="${state.done[name] ? "on" : name === s.tab ? "now" : ""}"></span>`).join("");
+  $("guide-more").innerHTML = `<span class="guide-segs" aria-hidden="true">${segs}</span><p>${esc(t("guide_" + s.key + "_body", s.arg))}</p>`;
+  const more = t(open ? "guide_less" : "guide_more");
   box.innerHTML = `
-    <div class="guide-no" aria-hidden="true">${ready ? ICON_CHECK : n}</div>
-    <div class="guide-text">
-      <div class="guide-eyebrow"><span>${esc(ready ? t("guide_finished") : t("guide_next", n, tabs.length))}</span><span class="guide-segs" aria-hidden="true">${segs}</span></div>
-      <h2>${esc(t("guide_" + s.key))}</h2>
-      <p>${esc(t("guide_" + s.key + "_body", s.arg))}</p>
-    </div>
-    <div class="guide-actions">
-      ${s.alt ? `<button type="button" class="ghost" data-guide-alt>${esc(t("guide_" + s.alt.key + "_btn"))}</button>` : ""}
-      <button type="button" class="guide-go" data-guide-go>${esc(t("guide_" + s.key + "_btn"))}${ICON_NEXT}</button>
-      ${ui.iconBtn(ICON_DEL, t("guide_hide"), { "guide-hide": "" })}
-    </div>`;
+    <span class="guide-count" title="${esc(ready ? t("guide_finished") : t("guide_next", n, tabs.length))}">${ready ? ICON_CHECK : `${n}/${tabs.length}`}</span>
+    <span class="guide-title">${esc(t("guide_" + s.key))}</span>
+    ${s.alt ? `<button type="button" class="small ghost" data-guide-alt>${esc(t("guide_" + s.alt.key + "_btn"))}</button>` : ""}
+    <button type="button" class="small guide-go" data-guide-go>${esc(t("guide_" + s.key + "_btn"))}${ICON_NEXT}</button>
+    <button type="button" class="icon-btn guide-toggle" data-guide-toggle aria-expanded="${open}" title="${esc(more)}" aria-label="${esc(more)}">${ICON_UP}</button>
+    ${ui.iconBtn(ICON_DEL, t("guide_hide"), { "guide-hide": "" })}`;
   // Wechsel des Schritts: neu einblenden
   box.classList.remove("in");
   void box.offsetWidth;
@@ -153,12 +151,17 @@ function renderGuide() {
 }
 
 const ICON_CHECK = svg('<path d="M5 12l5 5L20 7"/>', 11, 3.2);
-const ICON_NEXT = svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 16);
+const ICON_NEXT = svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 14);
 
 $("guide").addEventListener("click", (ev) => {
   if (ev.target.closest("[data-guide-hide]")) {
     const s = guideStep()?.step;
     if (s) storageSet("guide_hidden", s.key);
+    renderGuide();
+    return;
+  }
+  if (ev.target.closest("[data-guide-toggle]")) {
+    storageSet("guide_open", storageGet("guide_open") === "1" ? "0" : "1");
     renderGuide();
     return;
   }
