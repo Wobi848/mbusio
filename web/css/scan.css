@@ -61,6 +61,12 @@
 .hits-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
 .remember-mode { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 
+/* Vergleich mit dem letzten Scan: geänderte Zeilen mit Strich in der Akzentfarbe, fehlende grau */
+.hits-changes { margin: 6px 0; font-size: 13px; }
+#hits tr.chg td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+#hits tr.missing td { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+#hits tr.missing td:last-child, #hits tr.missing .chip { text-decoration: none; }
+
 /* Zeile mit Problem: getönt, links ein Strich in der Warnfarbe */
 #hits tr.issue td { background: var(--warn-soft); }
 #hits tr.issue td:first-child { box-shadow: inset 3px 0 0 var(--warn); }

@@ -476,6 +476,7 @@ details[open] summary .chev { transform: rotate(180deg); }
 .chip.st-collision { background: var(--warn-soft); color: var(--warn); }
 .chip.st-no_data { background: var(--sunken); color: var(--muted); }
 .chip.st-err { background: var(--err-soft); color: var(--err); }
+.chip.st-info { background: var(--accent-soft); color: var(--accent); }
 .st-other { color: var(--warn); font-weight: 600; }
 
 /* ------------------------------------------------------------ Fortschritt */

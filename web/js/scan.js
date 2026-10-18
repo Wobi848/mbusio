@@ -177,7 +177,9 @@ function renderJob(job) {
   renderedJob = job.kind;
   renderedHits = job.hits.length;
   const table = $("hits");
-  table.hidden = job.hits.length === 0;
+  const chg = scanChanges(job);
+  renderChanges(chg);
+  table.hidden = job.hits.length === 0 && !chg?.missing.length;
   const issues = analyzeHits(job.hits);
   renderHitsWarn(job.hits, issues);
   document.querySelector(".hits-opt").hidden = table.hidden;
@@ -213,7 +215,8 @@ function renderJob(job) {
       const dupId = issues.rowDupId.has(i);
       // Zeile mit Problem hervorheben: keine Daten, Kollision, doppelte PA/ID, fremde Baudrate
       const problem = h.status !== "ok" || dupPa || issues.rowDupIdSame.has(i) || other;
-      const cls = [i >= fresh ? "new" : "", problem ? "issue" : ""].filter(Boolean).join(" ");
+      const change = chg?.rows.get(i);
+      const cls = [i >= fresh ? "new" : "", problem ? "issue" : "", change ? "chg" : ""].filter(Boolean).join(" ");
       const anim = (cls ? ` class="${cls}"` : "") + (i >= fresh ? ` style="animation-delay:${Math.min(i - fresh, 8) * 50}ms"` : "");
       const paCount = dupPa ? issues.dupPa.get(`${h.baud}:${h.primary_address}`).length : 0;
       const warnChips =
@@ -242,7 +245,7 @@ function renderJob(job) {
         <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
         ${sa}
         <td>${esc(label(h.medium))}</td>
-        <td>${ui.chip({ ok: "ok" }[h.status] || "warn", t("st_" + h.status))}${warnChips}${otherChip}</td>
+        <td>${ui.chip({ ok: "ok" }[h.status] || "warn", t("st_" + h.status))}${warnChips}${otherChip}${change ? " " + ui.chip("info", change.text) : ""}</td>
         <td><div class="actions">${
           h.status !== "ok" ? `<button class="small ghost" data-why="${esc(hitKey(h))}">${t("why")}</button>` : ""
         }${fix}${fixBaud}${
@@ -253,7 +256,17 @@ function renderJob(job) {
         }</div></td>
       </tr>${openWhy.has(hitKey(h)) ? whyRow(h, cols.length) : ""}`;
     })
-    .join("");
+    .join("") +
+    // fehlen diesmal: grau am Ende, gleiche Spalten
+    (chg?.missing || [])
+      .map((h) => {
+        const td = (x, cls = "") => `<td class="${cls}">${esc(x ?? "")}</td>`;
+        const ident = raw
+          ? td(h.secondary_address ?? "–", "mono") + td(h.manufacturer)
+          : td(h.id ?? "–", "mono") + td(h.manufacturer) + td(h.version, "num mono");
+        return `<tr class="missing">${td(h.primary_address ?? "–", "num mono")}${td(h.baud, "num mono")}${ident}<td>${esc(label(h.medium))}</td><td>${ui.chip("warn", t("chg_missing"))}</td><td></td></tr>`;
+      })
+      .join("");
   updateButtons();
 }
 
@@ -355,6 +368,48 @@ const SORT_KEYS = {
   // Probleme zuerst
   col_status: (h) => ({ collision: 0, no_data: 1, ok: 2 })[h.status],
 };
+
+// ------------------------------------------------------------ Vergleich mit dem letzten Scan
+
+/// Gleicher Zähler: ID und Hersteller; ohne ID (Kollision, keine Daten) über Baudrate und PA
+const hitIdentity = (h) => (h.id ? `${h.id}:${h.manufacturer}` : `pa:${h.baud}:${h.primary_address}`);
+
+/// Unterschiede zum letzten vollständigen Scan gleicher Art und gleichen Bereichs (job.previous):
+/// rows: Index → { kind: "new" | "changed", text }, missing: Treffer, die diesmal fehlen
+function scanChanges(job) {
+  const prev = job.previous;
+  if (job.running || !prev) return null;
+  const pool = new Map();
+  for (const h of prev.hits) pool.set(hitIdentity(h), [...(pool.get(hitIdentity(h)) || []), h]);
+  const rows = new Map();
+  job.hits.forEach((h, i) => {
+    const old = pool.get(hitIdentity(h))?.shift();
+    if (!old) return rows.set(i, { kind: "new", text: t("chg_new") });
+    const diff = [
+      old.primary_address !== h.primary_address ? `PA ${old.primary_address ?? "–"} → ${h.primary_address ?? "–"}` : "",
+      old.baud !== h.baud ? `${old.baud} → ${h.baud} Bd` : "",
+      old.status !== h.status ? `${t("st_" + old.status)} → ${t("st_" + h.status)}` : "",
+    ].filter(Boolean);
+    if (diff.length) rows.set(i, { kind: "changed", text: t("chg_changed", diff.join(", ")) });
+  });
+  // eine frühere Kollision oder „keine Daten“ auf einer PA, die jetzt antwortet, fehlt nicht: sie ist aufgelöst
+  const nowPa = new Set(job.hits.map((h) => `${h.baud}:${h.primary_address}`));
+  const missing = [...pool.values()].flat().filter((h) => h.status === "ok" || !nowPa.has(`${h.baud}:${h.primary_address}`));
+  return { rows, missing, time: prev.time };
+}
+
+function renderChanges(chg) {
+  const el = $("hits-changes");
+  el.hidden = !chg;
+  if (!chg) return;
+  const count = (k) => [...chg.rows.values()].filter((r) => r.kind === k).length;
+  const [added, changed, gone] = [count("new"), count("changed"), chg.missing.length];
+  el.innerHTML =
+    added + changed + gone
+      ? `<b>${esc(t("chg_since", slotText(chg.time)))}</b> ` +
+        [added ? ui.chip("info", t("chg_n_new", added)) : "", gone ? ui.chip("warn", t("chg_n_missing", gone)) : "", changed ? ui.chip("info", t("chg_n_changed", changed)) : ""].join(" ")
+      : esc(t("chg_none", slotText(chg.time)));
+}
 
 /// [Treffer, Index im Scan]; der Index bleibt für Merken, Warum? usw. gültig
 function sortedHits(hits) {

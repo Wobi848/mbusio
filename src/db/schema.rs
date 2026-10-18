@@ -100,6 +100,11 @@ impl Db {
             self.conn
                 .execute_batch("ALTER TABLE lines ADD COLUMN issues TEXT")?;
         }
+        if !has(&self.conn, "lines", "scans")? {
+            // letzter vollständiger Scan je Art, zum Vergleich: {"primary": {time, scope, hits}, …}
+            self.conn
+                .execute_batch("ALTER TABLE lines ADD COLUMN scans TEXT")?;
+        }
         if !has(&self.conn, "lines", "addressing")? {
             self.conn.execute_batch(
                 "ALTER TABLE lines ADD COLUMN addressing TEXT NOT NULL DEFAULT 'secondary'",

@@ -1,6 +1,6 @@
 # Konzept: Änderungen erkennen, gezielter scannen
 
-Stand: 18.10.2026 · Status: **Entwurf zur Abstimmung**
+Stand: 18.10.2026 · Status: **Abschnitt 2 umgesetzt**, 3 und 4 offen
 
 ## 1. Ausgangslage
 
@@ -15,7 +15,7 @@ Stand: 18.10.2026 · Status: **Entwurf zur Abstimmung**
 ein Scan, der Teile auslässt, übersieht genau das, was man sucht. Es wird nichts automatisch in die
 Zählerliste übernommen oder ausgelesen.
 
-## 2. Änderungen seit dem letzten Scan (zuerst)
+## 2. Änderungen seit dem letzten Scan (umgesetzt, 18.10.2026)
 
 Nach jedem Scan vergleicht mbusio mit dem **letzten Scan derselben Art auf dieser Linie**
 (Primär mit Primär, Sekundär mit Sekundär). Kostet keine Buszeit.
@@ -76,7 +76,11 @@ Sekundäradresse direkt angesprochen, etwa 1 s pro Zähler statt eines vollen Sc
 | Schnellprüfung | `src/mbus/master/scan.rs` | je bekannter SA auswählen und Kopf lesen, mit Baudrate je Zähler |
 | Tests | Rust und `tests/ui` | Simulation ändern (Zähler weg, PA geändert) → Vergleich; Präfix; Weitersuchen nach Abbruch |
 
-## 6. Offene Frage
+## 6. Entschieden
 
-Soll der Vergleich auch beim **ersten Scan nach dem Neuladen** gelten, also mit dem gespeicherten
-Ergebnis von gestern? (Vorschlag: ja, das ist gerade der Nutzen beim zweiten Besuch einer Anlage.)
+- Der Vergleich gilt auch über Neuladen und Neustart hinweg (gespeichert je Linie und Art): gerade
+  beim zweiten Besuch einer Anlage ist das der Nutzen.
+- Nur vollständige Scans werden verglichen und gemerkt; ein abgebrochener Scan nicht.
+- Anderer Bereich (Adressen, Baudraten) als beim letzten Scan: kein Vergleich.
+- „PA ändern“ und „Baudrate ändern“ führen den gemerkten Scan nach, gewollte Änderungen erscheinen
+  also nicht als Änderung.

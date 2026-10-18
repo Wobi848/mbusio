@@ -166,19 +166,69 @@ impl Db {
         len(p) + len(&p.with_extension("db-wal"))
     }
 
-    pub fn set_last_scan(&mut self, line_id: i64, scan: &Value) -> Result<()> {
+    /// Ergebnis eines Scans merken; ein vollständiger Scan wird zusätzlich je Art (und Bereich,
+    /// `scope`) für den Vergleich mit dem nächsten Scan gemerkt
+    pub fn set_last_scan(&mut self, line_id: i64, scan: &Value, complete: bool) -> Result<()> {
+        let time = now();
         self.conn.execute(
             "UPDATE lines SET last_scan = ?2, scanned = ?3 WHERE id = ?1",
-            params![line_id, scan.to_string(), now()],
+            params![line_id, scan.to_string(), time],
         )?;
+        if complete {
+            self.set_scan_of_kind(line_id, scan, Some(&time))?;
+        }
         Ok(())
     }
 
-    /// Trefferliste nachführen (z.B. nach "PA ändern"), ohne den Zeitpunkt des Scans zu ändern
+    /// Trefferliste nachführen (z.B. nach "PA ändern"), ohne den Zeitpunkt des Scans zu ändern;
+    /// auch der gemerkte Scan dieser Art, damit gewollte Änderungen nicht als Änderung erscheinen
     pub fn replace_last_scan(&mut self, line_id: i64, scan: &Value) -> Result<()> {
         self.conn.execute(
             "UPDATE lines SET last_scan = ?2 WHERE id = ?1",
             params![line_id, scan.to_string()],
+        )?;
+        self.set_scan_of_kind(line_id, scan, None)
+    }
+
+    /// Letzter vollständiger Scan dieser Art mit gleichem Bereich: {time, scope, hits}
+    pub fn previous_scan(&self, line_id: i64, kind: &str, scope: &str) -> Result<Option<Value>> {
+        let prev = self.scans(line_id)?.remove(kind);
+        Ok(prev.filter(|p| p["scope"] == scope))
+    }
+
+    fn scans(&self, line_id: i64) -> Result<serde_json::Map<String, Value>> {
+        let text: Option<String> = self
+            .conn
+            .query_row("SELECT scans FROM lines WHERE id = ?1", [line_id], |r| {
+                r.get(0)
+            })
+            .optional()?
+            .flatten();
+        Ok(text
+            .and_then(|t| serde_json::from_str(&t).ok())
+            .unwrap_or_default())
+    }
+
+    /// `time` None = Zeit des gemerkten Scans behalten (nur Treffer nachführen)
+    fn set_scan_of_kind(&mut self, line_id: i64, scan: &Value, time: Option<&str>) -> Result<()> {
+        let Some(kind) = scan["kind"].as_str() else {
+            return Ok(());
+        };
+        let mut all = self.scans(line_id)?;
+        let entry = match (time, all.get(kind)) {
+            (Some(t), _) => json!({ "time": t, "scope": scan["scope"], "hits": scan["hits"] }),
+            // nachführen nur, wenn der gemerkte Scan derselbe Bereich ist
+            (None, Some(old)) if old["scope"] == scan["scope"] => {
+                let mut e = old.clone();
+                e["hits"] = scan["hits"].clone();
+                e
+            }
+            _ => return Ok(()),
+        };
+        all.insert(kind.to_string(), entry);
+        self.conn.execute(
+            "UPDATE lines SET scans = ?2 WHERE id = ?1",
+            params![line_id, Value::Object(all).to_string()],
         )?;
         Ok(())
     }

@@ -501,6 +501,30 @@ mod tests {
     }
 
     #[test]
+    fn complete_scans_are_remembered_per_kind_and_scope() {
+        let mut db = Db::memory().unwrap();
+        let line = db.active_line().unwrap().id;
+        let all = "0-250 [2400]";
+        let scan = |pa: u8| json!({ "kind": "primary", "scope": all, "hits": [{ "primary_address": pa }] });
+        let prev = |db: &Db, scope: &str| db.previous_scan(line, "primary", scope).unwrap();
+        assert!(
+            prev(&db, all).is_none(),
+            "erster Scan: nichts zu vergleichen"
+        );
+        db.set_last_scan(line, &scan(1), true).unwrap();
+        // abgebrochener Scan wird nicht gemerkt
+        db.set_last_scan(line, &scan(9), false).unwrap();
+        assert_eq!(prev(&db, all).unwrap()["hits"][0]["primary_address"], 1);
+        assert!(
+            prev(&db, "0-12 [2400]").is_none(),
+            "anderer Bereich: kein Vergleich"
+        );
+        // „PA ändern“ führt den gemerkten Scan nach: keine Änderung beim nächsten Vergleich
+        db.replace_last_scan(line, &scan(5)).unwrap();
+        assert_eq!(prev(&db, all).unwrap()["hits"][0]["primary_address"], 5);
+    }
+
+    #[test]
     fn meters_are_per_line_and_reject_duplicates() {
         let mut db = Db::memory().unwrap();
         let l1 = db.active_line().unwrap().id;

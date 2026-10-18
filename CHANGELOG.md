@@ -9,6 +9,9 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Neu
 
+- **Änderungen seit dem letzten Scan:** nach jedem vollständigen Scan Vergleich mit dem letzten
+  Scan gleicher Art und gleichen Bereichs auf der Linie: neu, fehlt (graue Zeile), geändert
+  (PA, Baudrate, Status als alt → neu), mit Zusammenfassung über der Trefferliste.
 - **Geplantes Auslesen (Dauerbetrieb):** Ausleseplan je Projekt, Linie oder Zähler (aus, monatlich,
   täglich, stündlich, alle 15 Minuten; Standard aus). Jede Linie hat ihre eigene Verbindung und
   Warteschlange; Bedienung von Hand geht immer vor. Verpasste Termine werden einmal nachgeholt,

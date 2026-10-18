@@ -83,7 +83,12 @@ pub(super) async fn disconnect(State(st): State<AppState>) -> ApiResult<serde_js
     Ok(Json(json!({ "ok": true, "plan_paused": planned })))
 }
 
-pub(super) fn start_job<F>(st: &AppState, kind: &str, work: F) -> ApiResult<JobStatus>
+pub(super) fn start_job<F>(
+    st: &AppState,
+    kind: &str,
+    scope: String,
+    work: F,
+) -> ApiResult<JobStatus>
 where
     F: FnOnce(&mut Master, &mut dyn FnMut(Progress) -> bool) -> anyhow::Result<()> + Send + 'static,
 {
@@ -95,6 +100,7 @@ where
         }
         *job = JobStatus {
             kind: kind.into(),
+            scope,
             running: true,
             message: String::new(),
             ..Default::default()
@@ -150,8 +156,14 @@ where
             ),
         );
         if job.kind != "read_all" {
+            // nur ein vollständiger Scan wird verglichen und für den nächsten Vergleich gemerkt
+            let complete = job.error.is_none() && !s.cancel.load(Ordering::SeqCst);
+            let mut db = s.db.lock().unwrap();
+            if complete {
+                job.previous = db.previous_scan(line, &job.kind, &job.scope).ok().flatten();
+            }
             let value = serde_json::to_value(&*job).unwrap_or_default();
-            if let Err(e) = s.db.lock().unwrap().set_last_scan(line, &value) {
+            if let Err(e) = db.set_last_scan(line, &value, complete) {
                 s.log.push("INFO", format!("DB: {e:#}"));
             }
         }
@@ -210,7 +222,8 @@ pub(super) async fn scan_primary(
         ));
     }
     let retries = req.retries.min(5);
-    start_job(&st, "primary", move |m, p| {
+    let scope = format!("{from}-{to} {:?}", req.bauds);
+    start_job(&st, "primary", scope, move |m, p| {
         m.scan_with(bauds_of(req.bauds), p, &mut |m, p| {
             m.scan_primary(from, to, retries, p)
         })
@@ -221,7 +234,8 @@ pub(super) async fn scan_secondary(
     State(st): State<AppState>,
     Json(req): Json<SecondaryScanReq>,
 ) -> ApiResult<JobStatus> {
-    start_job(&st, "secondary", move |m, p| {
+    let scope = format!("{:?}", req.bauds);
+    start_job(&st, "secondary", scope, move |m, p| {
         m.scan_with(bauds_of(req.bauds), p, &mut |m, p| m.scan_secondary(p))
     })
 }

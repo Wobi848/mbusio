@@ -3,9 +3,9 @@
 // Bausteine der Oberfläche: einmal gebaut, überall gleich verwendet (siehe docs/konzept-bedienung.md)
 
 const ui = {
-  /// Status-Chip: kind "ok" (grün), "warn" (orange), "muted" (grau), "err" (rot)
+  /// Status-Chip: kind "ok" (grün), "warn" (orange), "muted" (grau), "err" (rot), "info" (Akzent)
   chip(kind, text, title = "") {
-    const cls = { ok: "st-ok", warn: "st-collision", muted: "st-no_data", err: "st-err" }[kind] || "st-no_data";
+    const cls = { ok: "st-ok", warn: "st-collision", muted: "st-no_data", err: "st-err", info: "st-info" }[kind] || "st-no_data";
     return `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(text)}</span>`;
   },
 

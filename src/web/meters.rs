@@ -132,7 +132,7 @@ pub(super) async fn meters_read_all(State(st): State<AppState>) -> ApiResult<Job
         )));
     }
     let s = st.clone();
-    start_job(&st, "read_all", move |m, progress| {
+    start_job(&st, "read_all", String::new(), move |m, progress| {
         let total = meters.len() as u32;
         for (k, meter) in meters.iter().enumerate() {
             let name = if meter.name.is_empty() {
