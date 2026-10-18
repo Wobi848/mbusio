@@ -9,8 +9,8 @@ let editingId = null;
 /// Schnellerfassung: Name, Ort, Notiz direkt in der Tabelle
 let quickEdit = false;
 
-const svg = (d) =>
-  `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const svg = (d, size = 15, stroke = 2) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICON_EDIT = svg('<path d="M4 20h4L19 9l-4-4L4 16z"/>');
 const ICON_DEL = svg('<path d="M6 6l12 12M18 6L6 18"/>');
 const ICON_UP = svg('<path d="M6 15l6-6 6 6"/>');

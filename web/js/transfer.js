@@ -54,6 +54,7 @@ function renderTransfer() {
       `api/projects/${tree.active.project.id}/datapoints/csv?lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
   }
   $("tr-scope").value = transfer.scope;
+  renderGuide();
 }
 
 // ------------------------------------------------------------ Ausgänge

@@ -13,6 +13,7 @@
   --text: #121614;
   --muted: #59625e;
   --accent: #0f766e;
+  --accent-strong: #0b5c55;
   --accent-ink: #ffffff;
   --accent-soft: #e3f2ef;
   --ok: #15803d;
@@ -42,6 +43,7 @@
   --text: #e8ecea;
   --muted: #9aa5a0;
   --accent: #2fb5a7;
+  --accent-strong: #52cbbe;
   --accent-ink: #04201d;
   --accent-soft: #12302c;
   --ok: #4cc77a;
@@ -68,6 +70,7 @@
     --text: #e8ecea;
     --muted: #9aa5a0;
     --accent: #2fb5a7;
+    --accent-strong: #52cbbe;
     --accent-ink: #04201d;
     --accent-soft: #12302c;
     --ok: #4cc77a;
@@ -193,6 +196,9 @@ main {
   gap: 24px;
 }
 
+main > [data-tab]:not([hidden]) { animation: tabIn .28s var(--ease) both; }
+@keyframes tabIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -254,9 +260,9 @@ label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 540;
-  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
   min-width: 0;
 }
 
@@ -277,7 +283,7 @@ input, select {
   background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: 9px;
-  height: 36px;
+  height: 38px;
   padding: 0 11px;
   width: 100%;
   min-width: 0;
@@ -344,12 +350,12 @@ button, a.button, label.button {
   font: inherit;
   font-size: 14px;
   font-weight: 560;
-  height: 36px;
+  height: 38px;
   padding: 0 14px;
   border: 1px solid transparent;
   border-radius: 9px;
-  background: var(--text);
-  color: var(--surface);
+  background: var(--accent);
+  color: var(--accent-ink);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -360,7 +366,7 @@ button, a.button, label.button {
   text-decoration: none;
   transition: background-color .15s, border-color .15s, color .15s, transform .1s;
 }
-button:hover, a.button:hover, label.button:hover { background: var(--accent); color: var(--accent-ink); }
+button:hover, a.button:hover, label.button:hover { background: var(--accent-strong); color: var(--accent-ink); }
 button:active, a.button:active, label.button:active { transform: scale(.97); }
 button:focus-visible, a:focus-visible, label.button:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -370,12 +376,28 @@ button:focus-visible, a:focus-visible, label.button:focus-within { outline: 2px 
 .quiet:hover { background: var(--sunken) !important; color: var(--text) !important; }
 .danger { color: var(--err) !important; }
 .danger:hover { border-color: var(--err) !important; }
-button.cta { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--accent-ink) !important; }
 
-.small { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
+/* .small gilt auch für Links und Datei-Knöpfe (sonst gewinnt a.button mit 36 px) */
+/* Knopf, der als Nächstes dran ist (Nächster Schritt, nach „PA ändern“): Ring, der nach aussen läuft */
+button.go { position: relative; overflow: visible; }
+button.go:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid var(--accent);
+  pointer-events: none;
+  animation: goRing 1.8s var(--ease) infinite;
+}
+@keyframes goRing { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.18, 1.45); opacity: 0; } }
 
-button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
-button:disabled:hover { background: var(--text); color: var(--surface); }
+.small, button.small, a.button.small, label.button.small, summary.button.small { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
+
+/* gesperrt: grau statt blass, damit klar ist, dass es (noch) nicht geht; Grund steht im Tooltip */
+button:disabled { cursor: not-allowed; transform: none; background: var(--sunken); color: var(--muted); border-color: var(--line); opacity: .75; }
+button:disabled:hover { background: var(--sunken); color: var(--muted); }
+button.quiet:disabled, button.icon-btn:disabled, .seg button:disabled { background: transparent !important; border-color: transparent !important; }
+button.ghost:disabled { background: var(--sunken) !important; color: var(--muted) !important; border-color: var(--line) !important; }
 
 .icon-btn {
   width: 30px;
@@ -385,7 +407,7 @@ button:disabled:hover { background: var(--text); color: var(--surface); }
   color: var(--muted);
 }
 .icon-btn:hover { background: var(--sunken); color: var(--text); }
-.icon-btn.boxed { width: 36px; height: 36px; border-color: var(--line-strong); }
+.icon-btn.boxed { width: 38px; height: 38px; border-color: var(--line-strong); }
 .icon-btn.del:hover { background: var(--err-soft); color: var(--err); }
 .icon-btn svg { pointer-events: none; }
 .icon-btn:disabled { opacity: .25; cursor: default; }

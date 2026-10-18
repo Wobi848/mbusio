@@ -177,7 +177,11 @@ function renderTree() {
           return `<div class="ln${active ? " active" : ""}">
           <span>${active ? `<span class="badge-active">${esc(t("ln_active"))}</span>` : `<button class="small ghost" data-ln-use="${l.id}">${esc(t("ln_use"))}</button>`}</span>
           <span class="ln-name">${esc(l.name)}</span>
-          <span class="ln-conn">${l.connection ? `${esc(l.connection)} · ${l.baud} Bd` : esc(t("ln_no_conn"))}</span>
+          <span class="ln-conn">${
+            l.connection
+              ? `${esc(l.connection)} · ${l.baud} Bd`
+              : `<span class="ln-noconn">${esc(t("ln_no_conn"))}</span>${active ? ` <button class="small ghost" data-guide-conn>${esc(t("ln_set_conn"))}</button>` : ""}`
+          }</span>
           <span class="ln-info">${esc(t("ln_info", l.meters, l.last_read))}${
             l.datapoints?.count ? ` · ${esc(t("ln_dp", l.datapoints.count))}` : ""
           }${
@@ -203,6 +207,7 @@ function renderTree() {
         }
       )
       .join("") + `<div><button class="small ghost" data-gw-add>${esc(t("gw_add"))}</button></div>`;
+  renderGuide();
 }
 
 /// Seite neu laden mit einer Meldung danach (Wechsel von Projekt/Linie betrifft fast alles)

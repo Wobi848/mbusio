@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/project.css">
 <link rel="stylesheet" href="css/transfer.css">
 <link rel="stylesheet" href="css/sim.css">
+<link rel="stylesheet" href="css/guide.css">
 <script>
   // Theme vor dem ersten Zeichnen setzen, sonst blitzt kurz das falsche auf
   try {
@@ -53,6 +54,7 @@
 </header>
 
 <main id="top">
+  <div id="guide" class="guide" role="region" aria-live="polite" hidden></div>
   <section class="card" id="sec-project" data-tab="project" aria-labelledby="h-project">
     <div class="card-head">
       <div class="head-text">
@@ -71,7 +73,7 @@
       <a id="project-export" class="button small quiet" data-i18n="export"></a>
       <label class="button small quiet file-button"><span data-i18n="import"></span><input id="project-import" type="file" accept=".json,application/json" hidden></label>
       <a id="project-report" class="button small quiet" href="report.html" target="_blank" rel="noopener" data-i18n="report"></a>
-      <button id="project-delete" class="small quiet danger" data-i18n="project_delete"></button>
+      <button id="project-delete" class="small quiet danger push" data-i18n="project_delete"></button>
     </div>
     <div id="tree" class="tree"></div>
     <form id="tree-form" class="tree-form" hidden></form>
@@ -412,6 +414,7 @@
 <script src="js/transfer.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/project.js"></script>
+<script src="js/guide.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

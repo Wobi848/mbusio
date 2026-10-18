@@ -120,12 +120,16 @@ $("read-addr").addEventListener("keydown", (e) => e.key === "Enter" && readMeter
 
 // ------------------------------------------------------------ Hervorheben, was zu tun ist
 
-/// Kachel hervorheben, die anderen abblenden, Knopf einfärben und in einem Satz sagen, was zu tun ist
+/// Knopf, der gerade hervorgehoben ist
+let spotButton = null;
+
+/// Kachel hervorheben, die anderen abblenden, Knopf mit Ring zeigen und in einem Satz sagen, was zu tun ist
 function spotlight(tileId, buttonId, text) {
   clearSpotlight();
   $(tileId).closest(".tiles").classList.add("has-spotlight");
   $(tileId).classList.add("spotlight");
-  $(buttonId).classList.add("cta");
+  spotButton = $(buttonId);
+  spotButton.classList.add("go");
   const c = document.createElement("div");
   c.id = "callout";
   c.className = "callout";
@@ -141,14 +145,14 @@ function spotlightDone(text) {
   c.classList.add("done");
   c.querySelector("p").textContent = text;
   document.querySelectorAll(".has-spotlight").forEach((e) => e.classList.remove("has-spotlight"));
-  document.querySelectorAll(".cta").forEach((e) => e.classList.remove("cta"));
+  spotButton?.classList.remove("go");
 }
 
 function clearSpotlight() {
   $("callout")?.remove();
   document.querySelectorAll(".has-spotlight").forEach((e) => e.classList.remove("has-spotlight"));
   document.querySelectorAll(".spotlight").forEach((e) => e.classList.remove("spotlight"));
-  document.querySelectorAll(".cta").forEach((e) => e.classList.remove("cta"));
+  spotButton?.classList.remove("go");
 }
 
 /// Baudrate, mit der der eingetragene Zähler läuft (null = wie der Bus)

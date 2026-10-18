@@ -14,6 +14,7 @@ function showTab(name) {
     b.setAttribute("aria-selected", b.dataset.tabGo === name);
   });
   storageSet("tab", name);
+  renderGuide();
   if (name === "sim") loadSim().catch((e) => toast(e.message, true));
   if (name === "transfer") loadTransfer().catch((e) => toast(e.message, true));
 }
@@ -62,9 +63,11 @@ $("conn-edit").onclick = () => {
 };
 $("conn-sum-disconnect").onclick = () => $("disconnect").click();
 
-showTab(storageGet("tab") || "scan");
-
 // ------------------------------------------------------------ Start
+
+// bis zur Verbindung: Baudrate aus dem Verbindungsfeld
+setPickedBauds([Number($("baud").value)]);
+showTab(storageGet("tab") || "scan");
 
 setLang(lang);
 loadPorts().catch((e) => toast(e.message, true));
