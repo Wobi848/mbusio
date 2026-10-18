@@ -505,7 +505,7 @@ mod tests {
         let mut db = Db::memory().unwrap();
         let line = db.active_line().unwrap().id;
         let all = "0-250 [2400]";
-        let scan = |pa: u8| json!({ "kind": "primary", "scope": all, "hits": [{ "primary_address": pa }] });
+        let scan = |pa: u8| json!({ "kind": "primary", "scope": all, "complete": true, "hits": [{ "primary_address": pa }] });
         let prev = |db: &Db, scope: &str| db.previous_scan(line, "primary", scope).unwrap();
         assert!(
             prev(&db, all).is_none(),
@@ -521,6 +521,12 @@ mod tests {
         );
         // „PA ändern“ führt den gemerkten Scan nach: keine Änderung beim nächsten Vergleich
         db.replace_last_scan(line, &scan(5)).unwrap();
+        assert_eq!(prev(&db, all).unwrap()["hits"][0]["primary_address"], 5);
+        // nach einem abgebrochenen Scan verkürzt „PA ändern“ den gemerkten Scan nicht
+        let mut cut = scan(7);
+        cut["complete"] = json!(false);
+        cut["hits"] = json!([]);
+        db.replace_last_scan(line, &cut).unwrap();
         assert_eq!(prev(&db, all).unwrap()["hits"][0]["primary_address"], 5);
     }
 

@@ -46,8 +46,6 @@
 }
 .baud-check-hint { margin: 4px 0 14px; }
 #scan-estimate { color: var(--text); font-weight: 540; }
-#bus-bauds { border: 1px solid var(--line-strong) !important; }
-#bus-bauds:disabled { opacity: 1; }
 
 /* ------------------------------------------------------------ Schritte: 1 Suche einstellen, 2 Ergebnis */
 

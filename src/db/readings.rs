@@ -217,8 +217,9 @@ impl Db {
         let mut all = self.scans(line_id)?;
         let entry = match (time, all.get(kind)) {
             (Some(t), _) => json!({ "time": t, "scope": scan["scope"], "hits": scan["hits"] }),
-            // nachführen nur, wenn der gemerkte Scan derselbe Bereich ist
-            (None, Some(old)) if old["scope"] == scan["scope"] => {
+            // nachführen nur aus einem vollständigen Scan desselben Bereichs (ein abgebrochener
+            // hat nicht alle Zähler und würde den gemerkten Scan verkürzen)
+            (None, Some(old)) if old["scope"] == scan["scope"] && scan["complete"] == true => {
                 let mut e = old.clone();
                 e["hits"] = scan["hits"].clone();
                 e

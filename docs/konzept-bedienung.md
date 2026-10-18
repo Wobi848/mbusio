@@ -295,3 +295,12 @@ Entwurf und Übergabe: [uebergabe-design-v2.md](uebergabe-design-v2.md). Umgeset
 **Abweichungen vom Entwurf:** „Nächster Schritt“ bleibt in der Leiste unten (Abschnitt 10), nicht als
 Karte in der Inhaltskarte; Anschluss und Verbinden zeigt nur die Linien-Leiste. Bei gleicher PA oder
 ID steht ein Streifen nach der Gruppe statt einer Klammer über die Zeilen.
+
+### 11.1 Knöpfe in drei Stufen (18.10.2026)
+
+| Stufe | Klasse | Aussehen | wofür |
+| --- | --- | --- | --- |
+| Primär | (keine) | Akzentfarbe gefüllt | der eine nächste Schritt eines Bereichs (Scan starten, Alle auslesen, N übernehmen) |
+| Sekundär | `tonal` | helle Akzentfläche, Text und Rand in Akzentfarbe | wichtig, aber nicht der Hauptweg (Prüfen, N beheben, Sekundärscan starten, Zähler hinzufügen, Dauerbetrieb einrichten, Setzen/Umstellen) |
+| Neutral | `ghost` | weiss mit Rand | Aktionen, die sich je Zeile wiederholen (Merken, Wählen, Werte wählen) |
+| Leise | `quiet` | nur Text | Seltenes (Bericht, Liste, Schliessen, Auslesen je Zeile) |

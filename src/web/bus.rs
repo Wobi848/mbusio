@@ -162,7 +162,9 @@ where
             if complete {
                 job.previous = db.previous_scan(line, &job.kind, &job.scope).ok().flatten();
             }
-            let value = serde_json::to_value(&*job).unwrap_or_default();
+            let mut value = serde_json::to_value(&*job).unwrap_or_default();
+            // „PA ändern“ führt den gemerkten Scan nur nach, wenn dies ein vollständiger Scan war
+            value["complete"] = json!(complete);
             if let Err(e) = db.set_last_scan(line, &value, complete) {
                 s.log.push("INFO", format!("DB: {e:#}"));
             }

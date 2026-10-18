@@ -8,6 +8,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/meter.css">
 <link rel="stylesheet" href="css/scan.css">
 <link rel="stylesheet" href="css/tools.css">
 <link rel="stylesheet" href="css/meters.css">
@@ -147,7 +148,7 @@
         <div class="baud-pick">
           <div id="scan-bauds" class="chips"></div>
           <button id="bauds-all" class="small quiet" data-i18n="bauds_all"></button>
-          <button id="bus-bauds" class="small quiet needs-conn" data-i18n="bus_bauds"></button>
+          <button id="bus-bauds" class="small tonal needs-conn" data-i18n="bus_bauds"></button>
         </div>
       </div>
       <div class="scan-range" data-for="primary">
@@ -179,7 +180,7 @@
         <span class="spacer"></span><div id="hits-filter" class="seg" role="group"></div></div>
       <div id="hits-action" class="hits-action" hidden>
         <span id="hits-action-text"></span><span class="spacer"></span>
-        <button id="hits-fix" type="button" class="small ghost needs-conn" data-fix-all hidden></button>
+        <button id="hits-fix" type="button" class="small tonal needs-conn" data-fix-all hidden></button>
         <button id="remember-all" type="button" class="small"></button>
       </div>
       <div id="fix-plan" class="fix-plan" hidden></div>
@@ -250,7 +251,7 @@
       <div id="meters-filter" class="seg" role="group" data-i18n-title="meters_filter"></div>
       <span class="spacer"></span>
       <button id="quick-toggle" class="small quiet" data-i18n="quick_edit" data-i18n-title="quick_edit_title"></button>
-      <button id="meter-add" class="small ghost" data-i18n="meter_add"></button>
+      <button id="meter-add" class="small tonal" data-i18n="meter_add"></button>
       <button id="meters-read-all" class="small needs-conn"></button>
     </div>
     <div class="table-wrap">
@@ -339,7 +340,7 @@
         <p id="cur-pa" class="hint"></p>
         <div class="tile-row">
           <label><span data-i18n="new_primary"></span> <input id="set-new" class="mono" type="number" min="0" max="250"></label>
-          <button id="set-addr" class="ghost needs-conn" data-needs-value="set-old" data-i18n="set"></button>
+          <button id="set-addr" class="tonal needs-conn" data-needs-value="set-old" data-i18n="set"></button>
         </div>
       </div>
       <div class="tile" id="tile-baud">
@@ -352,7 +353,7 @@
               <option>4800</option><option>9600</option><option>19200</option><option>38400</option>
             </select>
           </label>
-          <button id="switch-baud" class="ghost needs-conn" data-needs-value="set-old" data-i18n="switch"></button>
+          <button id="switch-baud" class="tonal needs-conn" data-needs-value="set-old" data-i18n="switch"></button>
         </div>
         <div class="row tight">
           <button id="detect-baud" class="small quiet needs-conn" data-needs-value="set-old" data-i18n="detect_baud"></button>

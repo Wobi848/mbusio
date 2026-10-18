@@ -123,7 +123,7 @@ function renderPlantState() {
       `<b>${esc(t("ps_time"))}</b> ` +
         (timeState.confirmed
           ? esc(t("ps_time_ok", timeState.source))
-          : `${ui.chip("warn", t("time_unsure"))} <button type="button" class="small ghost" data-ps-time>${esc(t("ps_time_take"))}</button>`)
+          : `${ui.chip("warn", t("time_unsure"))} <button type="button" class="small tonal" data-ps-time>${esc(t("ps_time_take"))}</button>`)
     );
   if (disk) {
     const pct = Math.round(disk.free_pct);
@@ -190,7 +190,7 @@ function renderTree() {
           <span class="ln-conn">${
             l.connection
               ? `${esc(l.connection)} · ${l.baud} Bd`
-              : `<span class="ln-noconn">${esc(t("ln_no_conn"))}</span>${active ? ` <button class="small ghost" data-guide-conn>${esc(t("ln_set_conn"))}</button>` : ""}`
+              : `<span class="ln-noconn">${esc(t("ln_no_conn"))}</span>${active ? ` <button class="small tonal" data-guide-conn>${esc(t("ln_set_conn"))}</button>` : ""}`
           }</span>
           <span class="ln-info">${esc(t("ln_info", l.meters, l.last_read))}${
             l.datapoints?.count ? ` · ${esc(t("ln_dp", l.datapoints.count))}` : ""

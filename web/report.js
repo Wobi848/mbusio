@@ -74,15 +74,10 @@ function renderTable() {
       const rows = l.meters
         .map(({ meter: m, reading: r }) => {
           n += 1;
-          // ID steht auf dem Zähler, deshalb vorne; volle Adresse klein darunter
-          const main = m.meter_id || m.address;
-          const info = [main !== m.address ? m.address : null, m.manufacturer].filter(Boolean).join(" · ");
+          // Zähler wie in der App (Symbol, Name, ID · PA · Hersteller), Ort und Notiz darunter
           return `<tr>
             <td class="num">${n}</td>
-            <td><b>${esc(m.name || "–")}</b><span class="small">${esc([m.location, m.note].filter(Boolean).join(" · "))}</span></td>
-            <td class="mono">${esc(main)}<span class="small">${esc(info)}</span></td>
-            <td>${esc(label(m.medium))}</td>
-            <td class="num mono">${m.primary_address ?? ""}</td>
+            <td>${ui.meter({ ...meterBlock(m), info: "" })}<span class="small">${esc([m.location, m.note].filter(Boolean).join(" · "))}</span></td>
             <td class="num mono">${m.baud ?? l.line.baud}</td>
             <td class="num">${esc(m.last_value ?? "")}<span class="small">${esc(m.last_value ? label(m.last_quantity) : "")}</span></td>
             <td class="mono">${esc(m.last_read ?? "")}${
@@ -100,8 +95,7 @@ function renderTable() {
       return `${head}
       <table>
         <thead><tr>
-          <th class="num">${t("th_no")}</th><th>${t("th_name")}</th><th>${t("th_id")}</th><th>${t("th_medium")}</th>
-          <th class="num">${t("th_pa")}</th><th class="num">${t("th_baud")}</th><th class="num">${t("rp_th_value")}</th>
+          <th class="num">${t("th_no")}</th><th>${t("col_meter")}</th><th class="num">${t("th_baud")}</th><th class="num">${t("rp_th_value")}</th>
           <th>${t("th_read")}</th><th>${t("th_status")}</th>
         </tr></thead>
         <tbody>${rows}</tbody>

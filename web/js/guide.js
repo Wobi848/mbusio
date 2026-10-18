@@ -162,7 +162,7 @@ function renderGuide() {
   box.innerHTML = `
     <span class="guide-count" title="${esc(ready ? t("guide_finished") : t("guide_next", n, tabs.length))}">${ready ? ICON_CHECK : `${n}/${tabs.length}`}</span>
     <span class="guide-title">${esc(t("guide_" + s.key))}</span>
-    ${s.alt ? `<button type="button" class="small ghost" data-guide-alt>${esc(t("guide_" + s.alt.key + "_btn"))}</button>` : ""}
+    ${s.alt ? `<button type="button" class="small tonal" data-guide-alt>${esc(t("guide_" + s.alt.key + "_btn"))}</button>` : ""}
     <button type="button" class="small guide-go" data-guide-go>${esc(t("guide_" + s.key + "_btn"))}${ICON_NEXT}</button>
     <button type="button" class="icon-btn guide-toggle" data-guide-toggle aria-expanded="${open}" title="${esc(more)}" aria-label="${esc(more)}">${ICON_UP}</button>
     ${ui.iconBtn(ICON_DEL, t("guide_hide"), { "guide-hide": "" })}`;

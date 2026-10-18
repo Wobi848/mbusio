@@ -36,7 +36,7 @@ function hitStrip(h, cols, fixTarget) {
   const analyze = h.raw ? `<a href="#analysis" class="button small quiet" data-analyze="${esc(h.raw)}">${esc(t("why_analyze"))}</a>` : "";
   if (h.status === "collision") {
     const what = h.primary_address != null ? t("warn_collision_pa", h.primary_address, h.baud) : t("warn_collision_id", h.id);
-    const btn = h.primary_address != null ? `<button class="small ghost needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>` : "";
+    const btn = h.primary_address != null ? `<button class="small tonal needs-conn" data-start-secondary>${esc(t("start_secondary"))}</button>` : "";
     return issueStrip(cols, what, "", btn + analyze);
   }
   if (h.status === "no_data") {
@@ -48,7 +48,7 @@ function hitStrip(h, cols, fixTarget) {
       cols,
       t("other_baud_title", h.baud, connBaud),
       "",
-      `<button class="small ghost needs-conn" data-fixbaud="${esc(fixTarget)}" data-from="${h.baud}">${esc(t("fix_baud"))}</button>`
+      `<button class="small tonal needs-conn" data-fixbaud="${esc(fixTarget)}" data-from="${h.baud}">${esc(t("fix_baud"))}</button>`
     );
   return "";
 }

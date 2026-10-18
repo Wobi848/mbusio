@@ -182,7 +182,7 @@ function renderNames() {
     `<p class="hint">${esc(t("names_hint"))}</p>
     <div class="row names-row"><label class="grow"><span>${esc(t("names_pattern"))}</span> <input id="names-pattern" class="mono" value="{ort} {medium}"></label>
       <label class="check"><input type="checkbox" id="names-only"> ${esc(t("names_only_empty"))}</label>
-      <button type="button" class="small ghost" id="names-preview">${esc(t("quick_names"))}</button></div>
+      <button type="button" class="small tonal" id="names-preview">${esc(t("quick_names"))}</button></div>
     <div id="names-result" hidden></div>`,
     { close: false }
   );

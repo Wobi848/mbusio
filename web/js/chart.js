@@ -55,6 +55,7 @@ function renderHistory() {
   el.hidden = false;
   const m = hist.meter;
   const name = m.name || m.meter_id || m.address;
+  const meterTitle = ui.meter(meterBlock(m));
   const series = hist.key ? historySeries() : [];
   const opts = [...hist.keys]
     .map(([k, v]) => `<option value="${esc(k)}" ${k === hist.key ? "selected" : ""}>${esc(seriesName(v))}</option>`)
@@ -74,7 +75,7 @@ function renderHistory() {
       }</span></div>`;
   }
   el.innerHTML = `<div class="history-head">
-      <h3>${esc(t("history_title", name))}</h3>
+      <h3>${esc(t("history"))}</h3>${meterTitle}
       ${hist.keys.size ? `<label class="inline"><span>${esc(t("history_series"))}</span> <select id="hist-key">${opts}</select></label>` : ""}
       <span class="spacer"></span>
       <div class="seg" role="group"><button data-hview="chart" class="${hist.view === "chart" ? "active" : ""}">${esc(t("history_chart"))}</button><button data-hview="table" class="${hist.view === "table" ? "active" : ""}">${esc(t("history_table"))}</button></div>

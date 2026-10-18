@@ -74,7 +74,7 @@ function renderSendBar(r) {
   if (!bar) return;
   const m = meterOfReading(r);
   bar.innerHTML = m
-    ? `<p class="hint">${esc(t("send_link_hint"))} <button type="button" class="small ghost" data-open-transfer="${m.id}">${esc(t("send_link"))}</button></p>`
+    ? `<p class="hint">${esc(t("send_link_hint"))} <button type="button" class="small tonal" data-open-transfer="${m.id}">${esc(t("send_link"))}</button></p>`
     : `<p class="hint">${esc(t("send_not_listed"))} <button type="button" class="small ghost" id="send-add">${esc(t("send_add"))}</button></p>`;
 }
 
@@ -170,7 +170,7 @@ function renderTarget() {
   const m = a && meters.find((x) => [x.address, x.meter_id, x.secondary_address, String(x.primary_address)].includes(a));
   const h = !m && a && lastJob?.hits.find((x) => [x.id, x.secondary_address, String(x.primary_address)].includes(a));
   const block = m
-    ? { name: m.name, ident: m.meter_id, pa: m.primary_address, man: m.manufacturer, medium: m.medium, info: m.baud ? `${m.baud} Bd` : "" }
+    ? meterBlock(m)
     : h
       ? { name: h.medium ? `${label(h.medium)} · ${h.manufacturer || ""}` : "", ident: h.id, pa: h.primary_address, medium: h.medium, info: h.baud ? `${h.baud} Bd` : "" }
       : null;

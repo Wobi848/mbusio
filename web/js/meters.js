@@ -68,23 +68,13 @@ function renderMeters() {
     (meters.length && !shown.length ? `<tr><td colspan="${cols}" class="empty-row">${esc(t("meters_none_match"))}</td></tr>` : "") +
     shown
     .map((m) => {
-      // Zähler-Baustein: ID (über PA gemerkt: die ID aus der Auslesung), PA, Hersteller, eigene Baudrate
-      const viaPa = /^\d+$/.test(m.address);
-      const block = {
-        name: m.name,
-        ident: viaPa ? m.meter_id : m.meter_id || m.address,
-        pa: viaPa ? m.address : m.primary_address,
-        man: m.manufacturer,
-        medium: m.medium,
-        info: m.baud ? `${m.baud} Bd` : "",
-      };
       const sub = (text) => (text ? `<span class="sub">${esc(text)}</span>` : "");
       const q = (f, label, more = {}) => ui.input({ name: f, label, placeholder: label, cls: "quick", data: { q: f, id: m.id }, ...more }, m[f]);
       const nameCell = quickEdit
         ? `<td><div class="mtr">${ui.mediumIcon(m.medium)}<span class="mtr-text">${q("name", t("meter_name"))}${q("note", t("meter_note"), {
             cls: "quick sub-input",
           })}</span></div></td>`
-        : `<td class="wrap">${ui.meter(block, { alert: !!m.last_error })}</td>`;
+        : `<td class="wrap">${ui.meter(meterBlock(m), { alert: !!m.last_error })}</td>`;
       const locCell = quickEdit
         ? `<td><div class="quick-loc">${q("location", t("meter_location"), { list: "loc-list" })}<button class="icon-btn" data-q-same="${m.id}" title="${esc(t("quick_same"))}" aria-label="${esc(t("quick_same"))}">${ICON_DOWN}</button></div></td>`
         : `<td class="wrap">${esc(m.location)}${sub(m.note)}</td>`;

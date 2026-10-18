@@ -225,6 +225,20 @@ function parseTable(text) {
   return rows.map((r) => r.map((x) => x.trim())).filter((r) => r.some(Boolean));
 }
 
+/// Zähler der Liste für den Zähler-Baustein: ID (über PA gemerkt: die ID aus der Auslesung), PA,
+/// Hersteller, eigene Baudrate
+function meterBlock(m) {
+  const viaPa = /^\d+$/.test(m.address);
+  return {
+    name: m.name,
+    ident: viaPa ? m.meter_id : m.meter_id || m.address,
+    pa: viaPa ? m.address : m.primary_address,
+    man: m.manufacturer,
+    medium: m.medium,
+    info: m.baud ? `${m.baud} Bd` : "",
+  };
+}
+
 /// Symbole (Strich-SVG, Farbe vom Text)
 const svg = (d, size = 15, stroke = 2) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;

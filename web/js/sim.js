@@ -79,7 +79,7 @@ function renderSim() {
         <button type="button" class="small ghost" data-sim-add>${esc(t("sim_add"))}</button>
         <span class="sim-many"><input id="sim-n" class="mono" value="10" inputmode="numeric" aria-label="${esc(t("sim_add_n"))}">
           ${ui.input({ name: "sim-n-medium", label: t("sim_col_medium"), type: "select", options: media }, "water")}
-          <button type="button" class="small ghost" data-sim-add-many>${esc(t("sim_add_many"))}</button></span>
+          <button type="button" class="small tonal" data-sim-add-many>${esc(t("sim_add_many"))}</button></span>
         <span class="spacer"></span>
         <button type="button" data-sim-save ${simDirty ? "" : "disabled"}>${esc(t("sim_save"))}</button></div>`
     }`;
