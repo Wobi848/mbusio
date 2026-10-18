@@ -495,7 +495,8 @@ direkt in der Tabelle, Namen nach Muster, CSV-Export; Vorlagen auf Wunsch gleich
 mit MQTT. Bedienkonzept umgesetzt (Reiter Weitergabe, Bausteine), dazu die Karte „Nächster
 Schritt“ (PR #2). Code aufgeräumt: nichts doppelt, grosse Dateien nach Bereichen aufgeteilt.
 
-**Nächste Ideen: schneller und gezielter scannen** (noch nicht umgesetzt, Konzept vor dem Bau):
+**Nächste Ideen: schneller und gezielter scannen** (noch nicht umgesetzt; Konzept in
+[konzept-scan.md](konzept-scan.md)):
 
 1. **Gezielter Sekundärscan über bekannte IDs.** Steht die ID schon in der Zählerliste (z.B. aus der
    importierten Liste des Kunden), wird jeder Zähler direkt über seine Sekundäradresse
