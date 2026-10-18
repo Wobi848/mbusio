@@ -18,6 +18,13 @@ async function loadSim() {
   selectSim(simKey, true);
 }
 
+/// Reiter Simulator nur, solange die aktive Linie eine Simulation benutzt oder er offen ist;
+/// sonst erreichbar über Werkzeuge
+function updateSimTab() {
+  const inUse = (tree?.active.line.connection || "").startsWith("SIMULATOR");
+  document.querySelector(".tab[data-tab-go=sim]").hidden = !inUse && storageGet("tab") !== "sim";
+}
+
 const simScenario = () => sim.scenarios.find((x) => x.key === simKey);
 const simConn = (key) => (key === "praxis" ? "SIMULATOR" : `SIMULATOR:${key}`);
 

@@ -260,7 +260,8 @@ mbusio --port tcp://192.168.1.50:10001 raw "10 40 05 45 16"
 ## Simulator
 
 Im Reiter **Simulator** lassen sich virtuelle Anlagen zusammenstellen, ohne Hardware: zum Üben,
-Testen und Vorführen. Eingebaute Vorlagen:
+Testen und Vorführen. Der Reiter erscheint nur, solange die aktive Linie eine Simulation benutzt;
+sonst öffnet man ihn unter **Werkzeuge → Simulator öffnen**. Eingebaute Vorlagen:
 
 | Simulation | Anschluss | Inhalt |
 | --- | --- | --- |

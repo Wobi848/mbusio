@@ -8,6 +8,13 @@ export default {
     await tab(page, "project");
     // neu: Anschluss fehlt, Knopf führt zum Verbindungsfeld
     assert.equal(await title(page), "Anschluss festlegen");
+    // ohne Simulation kein Reiter Simulator, aber über Werkzeuge erreichbar
+    assert.ok(await page.isHidden(".tab[data-tab-go=sim]"));
+    await tab(page, "tools");
+    await page.click("#sec-sim-link [data-tab-go=sim]");
+    assert.ok(await page.isVisible(".tab[data-tab-go=sim]"));
+    await tab(page, "project");
+    assert.ok(await page.isHidden(".tab[data-tab-go=sim]"));
     assert.ok(await page.isVisible(".ln-noconn"));
     await page.click("[data-guide-go]");
     await page.waitForTimeout(300);
@@ -19,6 +26,7 @@ export default {
     await simLine(api, "SIMULATOR:ok10");
     await page.reload();
     await page.waitForFunction(() => document.querySelector("#guide h2")?.textContent === "Zähler suchen");
+    assert.ok(await page.isVisible(".tab[data-tab-go=sim]"));
     assert.ok(await page.$eval("[data-tab-go=project]", (b) => b.classList.contains("done")));
     assert.ok(await page.$eval("#scan-primary", (b) => b.classList.contains("go")));
     await page.fill("#scan-to", "12");

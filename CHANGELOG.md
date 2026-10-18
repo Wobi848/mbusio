@@ -39,6 +39,7 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Geändert
 
+- Reiter Simulator nur, solange die aktive Linie eine Simulation benutzt; sonst unter Werkzeuge.
 - Uhrzeiten immer 24 h (HH:MM).
 - Die Oberfläche nutzt die ganze Fensterbreite.
 - Knöpfe: Hauptknöpfe in der Akzentfarbe, gesperrte grau mit Grund im Tooltip; Felder etwas grösser.

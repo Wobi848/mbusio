@@ -221,6 +221,9 @@ der Zustand der Anlage heute schon hat, wird damit ersetzt.
 
 **Zustand der Anlage** (Reiter Projekt): erscheint genau dann, wenn `inOperation()` gilt.
 
+**Simulator:** der Reiter erscheint nur, solange die aktive Linie eine Simulation benutzt (oder er
+gerade offen ist); sonst führt unter Werkzeuge ein Knopf „Simulator öffnen“ hin.
+
 **Unverändert:** alle Funktionen, Formulare, Tabellen und der Server. Kein neuer Speicherort,
 keine neue Einstellung.
 

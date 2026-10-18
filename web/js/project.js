@@ -219,6 +219,7 @@ function renderTree() {
       )
       .join("") + `<div><button class="small ghost" data-gw-add>${esc(t("gw_add"))}</button></div>`;
   renderGuide();
+  updateSimTab();
 }
 
 /// Seite neu laden mit einer Meldung danach (Wechsel von Projekt/Linie betrifft fast alles)

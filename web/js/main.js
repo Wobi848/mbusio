@@ -15,6 +15,7 @@ function showTab(name) {
   });
   storageSet("tab", name);
   renderGuide();
+  updateSimTab();
   if (name === "sim") loadSim().catch((e) => toast(e.message, true));
   if (name === "transfer") loadTransfer().catch((e) => toast(e.message, true));
 }
