@@ -4,7 +4,7 @@
 
 // ------------------------------------------------------------ Reiter, Hilfe, Verbindung
 
-const TABS = ["project", "scan", "meters", "tools", "sim"];
+const TABS = ["project", "scan", "meters", "transfer", "tools", "sim"];
 
 function showTab(name) {
   if (!TABS.includes(name)) name = "scan";
@@ -15,6 +15,7 @@ function showTab(name) {
   });
   storageSet("tab", name);
   if (name === "sim") loadSim().catch((e) => toast(e.message, true));
+  if (name === "transfer") loadTransfer().catch((e) => toast(e.message, true));
 }
 
 /// Element zeigen: richtigen Reiter öffnen, dann hinscrollen
@@ -87,6 +88,5 @@ refreshStatus()
   })
   .catch(() => {});
 loadMeters().catch((e) => toast(e.message, true));
-loadMqtt().catch(() => {});
 setInterval(() => pollLog().catch(() => {}), 1000);
 setInterval(() => !jobRunning && refreshStatus().catch(() => {}), 5000);

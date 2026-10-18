@@ -94,7 +94,7 @@ function historyTable(series) {
     .map((p, i) => {
       const d = i ? p.value - series[i - 1].value : null;
       const unsure = p.unsure
-        ? ` <span class="chip st-collision" title="${esc(t("reading_time_unsure_title"))}">${esc(t("reading_time_unsure"))}</span>`
+        ? " " + ui.chip("warn", t("reading_time_unsure"), t("reading_time_unsure_title"))
         : "";
       return `<tr><td class="mono">${esc(p.ts)}${unsure}</td><td class="num">${esc(p.text)} ${esc(p.unit)}</td><td class="num">${
         d === null ? "" : (d > 0 ? "+" : "") + formatNum(d)

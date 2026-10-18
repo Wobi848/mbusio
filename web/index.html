@@ -25,7 +25,8 @@
       <button class="tab" role="tab" data-tab-go="project"><span class="tab-no">1</span><span data-i18n="tab_project"></span></button>
       <button class="tab" role="tab" data-tab-go="scan"><span class="tab-no">2</span><span data-i18n="tab_scan"></span></button>
       <button class="tab" role="tab" data-tab-go="meters"><span class="tab-no">3</span><span data-i18n="tab_meters"></span></button>
-      <button class="tab" role="tab" data-tab-go="tools"><span class="tab-no">4</span><span data-i18n="tab_tools"></span></button>
+      <button class="tab" role="tab" data-tab-go="transfer"><span class="tab-no">4</span><span data-i18n="tab_transfer"></span></button>
+      <button class="tab tab-sim" role="tab" data-tab-go="tools"><svg class="tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z"/></svg><span data-i18n="tab_tools"></span></button>
       <button class="tab tab-sim" role="tab" data-tab-go="sim"><svg class="tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg><span data-i18n="tab_sim"></span></button>
     </nav>
     <div class="header-right">
@@ -201,20 +202,7 @@
     </div>
     <div id="names-panel" class="history" hidden></div>
     <form id="meter-form" class="meter-form" hidden>
-      <div class="form-grid">
-        <label><span data-i18n="meter_name"></span> <input id="mf-name" data-i18n-ph="meter_name_ph"></label>
-        <label><span data-i18n="meter_location"></span> <input id="mf-location" data-i18n-ph="meter_location_ph"></label>
-        <label><span data-i18n="address"></span> <input id="mf-address" class="mono" data-i18n-ph="address_ph" required></label>
-        <label><span data-i18n="baud"></span>
-          <select id="mf-baud">
-            <option value="" data-i18n="baud_bus"></option>
-            <option>300</option><option>600</option><option>1200</option><option>2400</option>
-            <option>4800</option><option>9600</option><option>19200</option><option>38400</option>
-          </select>
-        </label>
-        <label class="span-2"><span data-i18n="meter_note"></span> <input id="mf-note"></label>
-      </div>
-      <div id="mf-plan"></div>
+      <div id="mf-fields"></div>
       <div class="row">
         <button type="submit" data-i18n="save"></button>
         <button type="button" id="mf-cancel" class="quiet" data-i18n="cancel"></button>
@@ -233,89 +221,46 @@
         <tbody></tbody>
       </table>
     </div>
-    <div id="dp-picker" class="history" hidden></div>
     <div id="history" class="history" hidden></div>
   </section>
 
-  <section class="card" id="sec-datapoints" data-tab="meters" aria-labelledby="h-dp">
+  <section class="card" id="sec-outputs" data-tab="transfer" aria-labelledby="h-outputs">
+    <div class="card-head">
+      <div class="head-text">
+        <h2 id="h-outputs" data-i18n="out_title"></h2>
+        <p class="hint explain" data-i18n="out_hint"></p>
+      </div>
+    </div>
+    <div id="tr-outputs" class="out-list"></div>
+  </section>
+
+  <section class="card" id="sec-transfer" data-tab="transfer" aria-labelledby="h-dp">
     <div class="card-head">
       <div class="head-text">
         <h2 id="h-dp" data-i18n="dp_title"></h2>
         <p class="hint explain" data-i18n="dp_hint"></p>
       </div>
       <div class="head-actions">
-        <label class="button small quiet file-button"><span data-i18n="dp_csv_import"></span><input id="dp-import" type="file" accept=".csv,text/csv" hidden></label>
-        <a id="dp-export" class="button small quiet" data-i18n="dp_csv_export"></a>
+        <select id="tr-scope" aria-label="scope">
+          <option value="line" data-i18n="tr_scope_line"></option>
+          <option value="project" data-i18n="tr_scope_project"></option>
+        </select>
+        <label class="button small quiet file-button"><span data-i18n="dp_csv_import"></span><input id="tr-import" type="file" accept=".csv,text/csv" hidden></label>
+        <a id="tr-export" class="button small quiet" data-i18n="dp_csv_export"></a>
       </div>
     </div>
     <div id="dp-templates" class="dp-templates" hidden></div>
-    <div id="dp-import-preview" class="history" hidden></div>
+    <div id="tr-preview" hidden></div>
     <div id="dp-bulk" class="dp-bulk" hidden>
       <span id="dp-bulk-n"></span>
       <button type="button" class="small quiet" data-dp-bulk="on" data-i18n="dp_on"></button>
       <button type="button" class="small quiet" data-dp-bulk="off" data-i18n="dp_off"></button>
-      <button type="button" class="small quiet" data-dp-bulk="mqtt:on" data-i18n="dp_mqtt_on"></button>
-      <button type="button" class="small quiet" data-dp-bulk="mqtt:off" data-i18n="dp_mqtt_off"></button>
+      <select id="dp-bulk-out" aria-label="output"></select>
       <select id="dp-bulk-send" aria-label="send"></select>
       <button type="button" class="small quiet danger" data-dp-bulk="delete" data-i18n="dp_delete"></button>
     </div>
-    <p id="dp-empty" class="empty" data-i18n="dp_empty"></p>
-    <div class="table-wrap">
-      <table id="dp-table" hidden>
-        <thead><tr>
-          <th><input type="checkbox" id="dp-all" data-i18n-title="dp_select_all"></th>
-          <th class="num" data-i18n="th_no"></th><th data-i18n="th_dp"></th><th class="num" data-i18n="th_value"></th>
-          <th data-i18n="th_quality"></th><th data-i18n="th_send"></th><th data-i18n="th_active"></th><th>MQTT</th><th></th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <form id="dp-form" class="meter-form" hidden>
-      <h3 data-i18n="dp_form_title"></h3>
-      <div class="form-grid">
-        <label class="span-2"><span data-i18n="f_name"></span> <input id="dpf-name" required></label>
-        <label><span data-i18n="f_unit"></span> <input id="dpf-unit"></label>
-        <label><span data-i18n="f_factor"></span> <input id="dpf-factor" class="mono" inputmode="decimal" required></label>
-        <label class="span-2"><span data-i18n="f_send"></span> <select id="dpf-send"></select></label>
-        <label class="check"><input type="checkbox" id="dpf-active"> <span data-i18n="f_active"></span></label>
-        <label class="check"><input type="checkbox" id="dpf-mqtt"> <span data-i18n="f_mqtt"></span></label>
-        <label class="span-2"><span data-i18n="f_topic"></span> <input id="dpf-topic" class="mono" data-i18n-ph="f_topic_ph"></label>
-      </div>
-      <p class="hint" data-i18n="f_factor_hint"></p>
-      <div class="row">
-        <button type="submit" data-i18n="save"></button>
-        <button type="button" id="dpf-cancel" class="quiet" data-i18n="cancel"></button>
-      </div>
-    </form>
-  </section>
-
-  <section class="card" id="sec-mqtt" data-tab="meters" aria-labelledby="h-mqtt">
-    <div class="card-head">
-      <div class="head-text">
-        <h2 id="h-mqtt">MQTT <span id="mqtt-chip" class="chip off"></span></h2>
-        <p class="hint explain" data-i18n="mqtt_hint"></p>
-      </div>
-    </div>
-    <p id="mqtt-state" class="hint"></p>
-    <form id="mqtt-form" class="meter-form">
-      <div class="form-grid">
-        <label class="check span-2"><input type="checkbox" id="mq-enabled"> <span data-i18n="mqtt_enabled"></span></label>
-        <label class="span-2"><span data-i18n="mqtt_host"></span> <input id="mq-host" class="mono" placeholder="192.168.1.10"></label>
-        <label><span data-i18n="mqtt_port"></span> <input id="mq-port" class="mono" inputmode="numeric"></label>
-        <label class="check"><input type="checkbox" id="mq-tls"> TLS</label>
-        <label class="check span-2"><input type="checkbox" id="mq-insecure"> <span data-i18n="mqtt_insecure"></span></label>
-        <label><span data-i18n="mqtt_user"></span> <input id="mq-user" autocomplete="off"></label>
-        <label><span data-i18n="mqtt_password"></span> <input id="mq-pass" type="password" autocomplete="new-password"></label>
-        <label><span data-i18n="mqtt_client"></span> <input id="mq-client" class="mono" placeholder="mbusio-…"></label>
-        <label><span data-i18n="mqtt_base"></span> <input id="mq-base" class="mono" placeholder="mbusio"></label>
-        <label class="check span-2"><input type="checkbox" id="mq-time"> <span id="mq-time-label"></span></label>
-      </div>
-      <details class="mqtt-ca"><summary data-i18n="mqtt_ca"></summary>
-        <textarea id="mq-ca" class="mono" rows="5" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
-      </details>
-      <p id="mqtt-example" class="hint mono"></p>
-      <div class="row"><button type="submit" data-i18n="save"></button></div>
-    </form>
+    <div id="tr-table"></div>
+    <div id="tr-edit" hidden></div>
   </section>
 
   <section class="card" id="sec-read" data-tab="tools" aria-labelledby="h-read">
@@ -437,20 +382,20 @@
     <a id="busbar-issues" class="busbar-issues" href="#hits-warn" hidden></a>
     <button id="busbar-time" class="busbar-time" type="button" data-i18n="time_unsure" data-i18n-title="time_unsure_title" hidden></button>
     <span id="busbar-disk" class="busbar-time" data-i18n-title="disk_title" hidden></span>
-    <a id="busbar-mqtt" class="busbar-time" href="#sec-mqtt" hidden></a>
+    <a id="busbar-mqtt" class="busbar-time" href="#sec-outputs" hidden></a>
   </div>
 </div>
 <div id="toast" role="status" hidden></div>
 <script src="js/texts.js"></script>
 <script src="js/core.js"></script>
+<script src="js/ui.js"></script>
 <script src="js/scan.js"></script>
 <script src="js/tools.js"></script>
 <script src="js/meters.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/meterlist.js"></script>
-<script src="js/datapoints.js"></script>
+<script src="js/transfer.js"></script>
 <script src="js/sim.js"></script>
-<script src="js/mqtt.js"></script>
 <script src="js/project.js"></script>
 <script src="js/main.js"></script>
 </body>

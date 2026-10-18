@@ -34,23 +34,8 @@ function planField(value, inherit, hint) {
       <label><span>${esc(t("plan"))}</span><select name="plan_kind">${opts
         .map(([v, l]) => `<option value="${v}" ${v === kind ? "selected" : ""}>${esc(l)}</option>`)
         .join("")}</select></label>
-      <label class="plan-time"><span>${esc(t("plan_time"))}</span><input name="plan_time" class="mono time24" value="${esc(time || "00:05")}" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></label>
+      <label class="plan-time"><span>${esc(t("plan_time"))}</span><input name="plan_time" class="mono time24" data-time24 value="${esc(time || "00:05")}" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></label>
     </div>${hint ? `<p class="hint plan-hint">${esc(hint)}</p>` : ""}`;
-}
-
-/// Uhrzeit immer 24 h als HH:MM; Kurzformen: "5" → 05:00, "530" → 05:30, "17:5" → 17:05.
-/// null, wenn es keine gültige Uhrzeit ist.
-function time24(s) {
-  const v = String(s || "").trim();
-  let h;
-  let m;
-  const parts = v.split(/[:.h ]/).filter(Boolean);
-  if (parts.length === 2) [h, m] = parts;
-  else if (/^\d{1,2}$/.test(v)) [h, m] = [v, "0"];
-  else if (/^\d{3,4}$/.test(v)) [h, m] = [v.slice(0, -2), v.slice(-2)];
-  else return null;
-  if (!/^\d{1,2}$/.test(h) || !/^\d{1,2}$/.test(m) || Number(h) > 23 || Number(m) > 59) return null;
-  return `${h.padStart(2, "0")}:${m.padStart(2, "0")}`;
 }
 
 /// Uhrzeit nur bei täglich und monatlich
@@ -60,13 +45,6 @@ function wirePlanField(root) {
   const update = () => (wrap.hidden = !["daily", "monthly"].includes(sel.value));
   sel.addEventListener("change", update);
   update();
-  // beim Verlassen in die Normalform bringen, Ungültiges markieren
-  const input = root.querySelector("[name=plan_time]");
-  input.addEventListener("blur", () => {
-    const v = time24(input.value);
-    input.classList.toggle("invalid", !v);
-    if (v) input.value = v;
-  });
 }
 
 /// Plan aus den Formularwerten; null = erben
@@ -90,20 +68,19 @@ async function savePlan(path, plan) {
 function linePlanHtml(l) {
   const p = l.plan_info;
   if (!p || !p.meters) return "";
-  const chip = (cls, text, title = "") => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(text)}</span>`;
   const parts = [`<b>${esc(p.effective !== "off" ? planText(p.effective) : t("plan_meters_own", p.meters))}</b>`];
   const svc = l.service;
-  if (l.held) parts.push(chip("st-no_data", t("plan_held"), t("plan_held_title")));
-  else if (svc && !svc.connected && svc.error) parts.push(chip("st-collision", t("plan_offline"), svc.error));
+  if (l.held) parts.push(ui.chip("muted", t("plan_held"), t("plan_held_title")));
+  else if (svc && !svc.connected && svc.error) parts.push(ui.chip("warn", t("plan_offline"), svc.error));
   if (p.next && !l.held) parts.push(esc(t("plan_next", slotText(p.next))));
   const r = p.result;
   if (r && r.time && !r.offline) {
-    if (r.line_down) parts.push(chip("st-collision", t("plan_line_down"), r.error || ""));
-    else parts.push(chip(r.ok === r.total ? "st-ok" : "st-collision", t("plan_last", r.ok, r.total), `${r.time}${r.error ? "\n" + r.error : ""}`));
+    if (r.line_down) parts.push(ui.chip("warn", t("plan_line_down"), r.error || ""));
+    else parts.push(ui.chip(r.ok === r.total ? "ok" : "warn", t("plan_last", r.ok, r.total), `${r.time}${r.error ? "\n" + r.error : ""}`));
   }
-  if (p.disturbed) parts.push(chip("st-collision", t("plan_disturbed", p.disturbed)));
-  if (p.paused) parts.push(chip("st-no_data", t("plan_paused", p.paused), t("meter_paused_title")));
-  if (p.load_warn) parts.push(chip("st-collision", t("plan_load", Math.round(p.load * 100)), t("plan_load_title")));
+  if (p.disturbed) parts.push(ui.chip("warn", t("plan_disturbed", p.disturbed)));
+  if (p.paused) parts.push(ui.chip("muted", t("plan_paused", p.paused), t("meter_paused_title")));
+  if (p.load_warn) parts.push(ui.chip("warn", t("plan_load", Math.round(p.load * 100)), t("plan_load_title")));
   return `<div class="ln-plan">${ICON_CLOCK}${parts.join(" · ")}</div>`;
 }
 
@@ -165,12 +142,12 @@ function renderTree() {
           <span class="ln-info">${esc(t("ln_info", l.meters, l.last_read))}${
             l.datapoints?.count ? ` · ${esc(t("ln_dp", l.datapoints.count))}` : ""
           }${
-            l.datapoints?.invalid ? ` <span class="chip st-collision" title="${esc(t("q_decreased_title"))}">${esc(t("ln_dp_invalid", l.datapoints.invalid))}</span>` : ""
+            l.datapoints?.invalid ? " " + ui.chip("warn", t("ln_dp_invalid", l.datapoints.invalid), t("q_decreased_title")) : ""
           }${
             l.issues
               ? l.issues.count
-                ? ` <span class="chip st-collision" title="${esc(l.issues.items.join("\n"))}">⚠ ${esc(t("ln_issues", l.issues.count))}</span>`
-                : ` <span class="chip st-ok">✓ ${esc(t("ln_no_issues"))}</span>`
+                ? " " + ui.chip("warn", "⚠ " + t("ln_issues", l.issues.count), l.issues.items.join("\n"))
+                : " " + ui.chip("ok", "✓ " + t("ln_no_issues"))
               : ""
           }</span>
           <span class="actions">
@@ -210,36 +187,53 @@ const findGateway = (id) => activeProjectNode().gateways.find((g) => g.id === id
 const findLine = (id) => activeProjectNode().gateways.flatMap((g) => g.lines).find((l) => l.id === id);
 
 /// Formular für Projekt, Gateway oder Linie unter dem Baum
+/// Felder der Formulare für Projekt, Gateway und Linie (Baustein Formular)
+function treeFields(kind, data) {
+  if (kind === "project")
+    return [
+      { name: "name", label: t("f_name"), required: true },
+      { name: "customer", label: t("f_customer") },
+      { name: "site", label: t("f_site") },
+      { name: "technician", label: t("f_technician") },
+      { name: "order_no", label: t("f_order") },
+      { name: "remarks", label: t("f_remarks"), wide: true },
+      { type: "html", html: planField(data.plan || "off", null, t("plan_hint_project")) },
+      {
+        name: "thin",
+        label: t("thin"),
+        type: "select",
+        num: true,
+        options: [0, 30, 90, 365].map((d) => [d, d ? t("thin_days", d) : t("thin_off")]),
+        hint: t("thin_hint"),
+      },
+    ];
+  if (kind === "gateway")
+    return [
+      { name: "name", label: t("f_name"), required: true },
+      { name: "address", label: t("f_address"), cls: "mono" },
+      { name: "note", label: t("f_note"), wide: true },
+    ];
+  return [
+    { name: "name", label: t("f_name"), required: true },
+    { name: "connection", label: t("f_connection"), cls: "mono", placeholder: t("f_connection_ph"), list: "port-list", wide: true },
+    { name: "baud", label: t("baud"), type: "select", num: true, options: BAUDS.map((b) => [b, b]) },
+    { type: "html", html: planField(data.plan ?? null, t("plan_inherit_project", planText(tree.active.project.plan || "off")), t("plan_hint_line")) },
+  ];
+}
+
+/// Formular für Projekt, Gateway oder Linie unter dem Baum
 function openTreeForm(kind, data, onSave) {
   const f = $("tree-form");
-  const field = (key, label, value, attrs = "") =>
-    `<label><span>${esc(t(label))}</span> <input name="${key}" value="${esc(value ?? "")}" ${attrs}></label>`;
-  let body = "";
-  if (kind === "project") {
-    body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("customer", "f_customer", data.customer)}</div>
-      <div class="row">${field("site", "f_site", data.site)}${field("technician", "f_technician", data.technician)}${field("order_no", "f_order", data.order_no)}</div>
-      <div class="row">${field("remarks", "f_remarks", data.remarks)}</div>
-      ${planField(data.plan || "off", null, t("plan_hint_project"))}
-      <div class="row"><label><span>${esc(t("thin"))}</span><select name="thin">${[0, 30, 90, 365]
-        .map((d) => `<option value="${d}" ${d === (data.thin_days || 0) ? "selected" : ""}>${esc(d ? t("thin_days", d) : t("thin_off"))}</option>`)
-        .join("")}</select></label></div><p class="hint plan-hint">${esc(t("thin_hint"))}</p>`;
-  } else if (kind === "gateway") {
-    body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("address", "f_address", data.address, 'class="mono"')}${field("note", "f_note", data.note)}</div>`;
-  } else {
-    body = `<div class="row">${field("name", "f_name", data.name, "required")}${field("connection", "f_connection", data.connection, `class="mono" placeholder="${esc(t("f_connection_ph"))}" list="port-list"`)}
-      <label><span>${esc(t("baud"))}</span><select name="baud">${BAUDS.map((b) => `<option ${b === (data.baud || 2400) ? "selected" : ""}>${b}</option>`).join("")}</select></label></div>
-      ${planField(data.plan ?? null, t("plan_inherit_project", planText(tree.active.project.plan || "off")), t("plan_hint_line"))}`;
-  }
-  f.innerHTML = `<h3>${esc(t("form_" + kind))}</h3>${body}
+  const fields = treeFields(kind, data);
+  f.innerHTML = `<h3>${esc(t("form_" + kind))}</h3>${ui.form(fields, { ...data, baud: data.baud || 2400, thin: data.thin_days || 0 })}
     <datalist id="port-list">${[...$("port").options].map((o) => `<option value="${esc(o.value)}">`).join("")}</datalist>
     <div class="row"><button type="submit">${esc(t("save"))}</button><button type="button" class="quiet" data-form-cancel>${esc(t("cancel"))}</button></div>`;
   f.hidden = false;
   if (f.querySelector("[name=plan_kind]")) wirePlanField(f);
   f.onsubmit = (ev) => {
     ev.preventDefault();
-    const values = Object.fromEntries(new FormData(f).entries());
-    if (values.baud) values.baud = Number(values.baud);
     guarded(f.querySelector("[type=submit]"), async () => {
+      const values = { ...ui.formValues(f, fields), ...planInputs(f) };
       await onSave({ ...data, ...values });
       f.hidden = true;
     });
@@ -248,6 +242,12 @@ function openTreeForm(kind, data, onSave) {
   f.querySelector("input").focus();
   f.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
+
+/// Eingaben des Planfelds (Art und Uhrzeit), für planFrom
+const planInputs = (root) => ({
+  plan_kind: root.querySelector("[name=plan_kind]")?.value,
+  plan_time: root.querySelector("[name=plan_time]")?.value,
+});
 
 $("tree").addEventListener("click", (ev) => {
   const toggle = ev.target.closest("[data-gw-toggle]");

@@ -4,7 +4,7 @@ export default {
   name: "Reiter, Hilfe, Sprache ohne fehlende Texte",
   setup: (api) => simLine(api),
   async run({ page }) {
-    const expect = { project: "sec-project", scan: "sec-scan", meters: "sec-meters", tools: "sec-read", sim: "sec-sim" };
+    const expect = { project: "sec-project", scan: "sec-scan", meters: "sec-meters", transfer: "sec-transfer", tools: "sec-read", sim: "sec-sim" };
     for (const [name, sec] of Object.entries(expect)) {
       await tab(page, name);
       assert.ok((await visibleSections(page)).includes(sec), `Reiter ${name} zeigt ${sec}`);

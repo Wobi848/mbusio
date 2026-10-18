@@ -34,7 +34,7 @@ export default {
     await tab(page, "meters");
     await page.waitForFunction(() => !document.querySelector("#th-plan").hidden);
     await page.locator("[data-meter-edit]").nth(1).click();
-    await page.selectOption("#mf-plan [name=plan_kind]", "off");
+    await page.selectOption("#meter-form [name=plan_kind]", "off");
     await page.click("#meter-form [type=submit]");
     await page.waitForTimeout(600);
     const rows = await rowTexts(page, "#meters-table tbody tr");

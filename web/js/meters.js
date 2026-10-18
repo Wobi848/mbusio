@@ -21,7 +21,6 @@ const ICON_ALERT = svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v
 async function loadMeters() {
   meters = await api("meters");
   renderMeters();
-  loadDatapoints().catch(() => {});
   // Anzahl Zähler und letzte Auslesung je Linie in der Projekt-Karte mitführen
   if (tree) await loadTree().catch(() => {});
 }
@@ -34,8 +33,8 @@ function meterPlanCell(m) {
   const own = !!m.plan;
   if (pi.effective === "off") return `<td><span class="${own ? "" : "muted"}">${esc(t("plan_off"))}</span></td>`;
   const chips = [
-    pi.disturbed ? `<span class="chip st-collision" title="${esc(t("meter_disturbed_title", pi.fails))}">${esc(t("meter_disturbed"))}</span>` : "",
-    pi.paused_until ? `<span class="chip st-no_data" title="${esc(t("meter_paused_title"))}">${esc(t("meter_paused", slotText(pi.paused_until)))}</span>` : "",
+    pi.disturbed ? ui.chip("warn", t("meter_disturbed"), t("meter_disturbed_title", pi.fails)) : "",
+    pi.paused_until ? ui.chip("muted", t("meter_paused", slotText(pi.paused_until)), t("meter_paused_title")) : "",
   ].join("");
   return `<td class="wrap"><span class="${own ? "" : "muted"}">${esc(planText(pi.effective))}</span>${chips}${
     pi.next ? `<span class="sub">${esc(t("plan_next", slotText(pi.next)))}</span>` : ""
@@ -87,7 +86,7 @@ function renderMeters() {
         )}${m.last_error ? `<span class="err">${ICON_ALERT}${esc(m.last_error)}</span>` : ""}</td>
         <td><div class="actions">
           <button class="small quiet needs-conn" data-meter-read="${m.id}">${t("read")}</button>
-          <button class="small quiet" data-meter-values="${m.id}" title="${esc(t("dp_values_title"))}">${esc(t("dp_values_btn"))}</button>
+          <button class="small quiet" data-meter-transfer="${m.id}" title="${esc(t("dp_values_title"))}">${esc(t("dp_values_btn"))}</button>
           <button class="icon-btn" data-meter-hist="${m.id}" title="${esc(t("history"))}" aria-label="${esc(t("history"))}">${ICON_CHART}</button>
           <button class="icon-btn" data-meter-edit="${m.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
           <button class="icon-btn del" data-meter-del="${m.id}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button>
@@ -103,38 +102,53 @@ function renderMeters() {
   updateButtons();
 }
 
+/// Felder des Zählerformulars (Baustein Formular), mit Plan je Zähler
+function meterFields(m) {
+  const line = tree ? findLine(activeLineId) : null;
+  return [
+    { name: "name", label: t("meter_name"), placeholder: t("meter_name_ph") },
+    { name: "location", label: t("meter_location"), placeholder: t("meter_location_ph"), list: "loc-list" },
+    { name: "address", label: t("address"), cls: "mono", placeholder: t("address_ph"), required: true },
+    { name: "baud", label: t("baud"), type: "select", num: true, options: [["", t("baud_bus")], ...BAUDS.map((b) => [b, b])] },
+    { name: "note", label: t("meter_note"), wide: true },
+    { type: "html", html: planField(m?.plan ?? null, t("plan_inherit_line", planText(line?.plan_info?.effective || "off")), t("plan_hint_meter")) },
+  ];
+}
+
 function openMeterForm(m) {
   editingId = m ? m.id : null;
-  $("mf-name").value = m?.name ?? "";
-  $("mf-location").value = m?.location ?? "";
-  $("mf-address").value = m?.address ?? "";
-  $("mf-baud").value = m?.baud ?? "";
-  $("mf-note").value = m?.note ?? "";
-  const line = tree ? findLine(activeLineId) : null;
-  $("mf-plan").innerHTML = planField(m?.plan ?? null, t("plan_inherit_line", planText(line?.plan_info?.effective || "off")), t("plan_hint_meter"));
-  wirePlanField($("mf-plan"));
+  $("mf-fields").innerHTML = ui.form(meterFields(m), { ...m, baud: m?.baud ?? "" });
+  wirePlanField($("mf-fields"));
   $("mf-exchange").hidden = !m;
   $("meter-form").hidden = false;
-  $("mf-name").focus();
+  $("mf-fields").querySelector("input").focus();
 }
 
 $("meter-add").onclick = () => openMeterForm(null);
+
+/// Zähler getauscht: neuen Zähler auslesen, Zählerstände der Datenpunkte laufen weiter
+$("mf-exchange").onclick = () => {
+  const m = meters.find((x) => x.id === editingId);
+  if (!m) return;
+  const addr = prompt(t("exchange_prompt"));
+  if (!addr || !addr.trim()) return;
+  if (!confirm(t("exchange_confirm", m.meter_id || m.address, addr.trim()))) return;
+  guarded($("mf-exchange"), async () => {
+    const r = await api(`meters/${m.id}/exchange`, { method: "POST", body: { address: addr.trim() } });
+    $("meter-form").hidden = true;
+    toast(t("exchange_done") + (r.details.length ? ": " + r.details.join(" · ") : ""));
+    await loadMeters();
+  });
+};
 $("mf-cancel").onclick = () => ($("meter-form").hidden = true);
 
 $("meter-form").onsubmit = (ev) => {
   ev.preventDefault();
   guarded(ev.submitter || $("meter-form").querySelector("[type=submit]"), async () => {
     const old = meters.find((m) => m.id === editingId) || {};
-    const body = {
-      ...old,
-      name: $("mf-name").value.trim(),
-      location: $("mf-location").value.trim(),
-      address: $("mf-address").value.trim(),
-      baud: $("mf-baud").value ? Number($("mf-baud").value) : null,
-      note: $("mf-note").value.trim(),
-    };
-    // Plan zuerst prüfen (ungültige Uhrzeit: nichts speichern)
-    const plan = planFrom(Object.fromEntries(new FormData($("meter-form")).entries()));
+    // alles zuerst prüfen (auch die Uhrzeit des Plans), dann speichern
+    const body = { ...old, ...ui.formValues($("mf-fields"), meterFields(old)) };
+    const plan = planFrom(planInputs($("mf-fields")));
     const saved = editingId === null ? await api("meters", { method: "POST", body }) : await api("meters/" + editingId, { method: "PUT", body });
     if (plan !== (old.plan ?? null)) await savePlan("meters/" + saved.id, plan);
     $("meter-form").hidden = true;
@@ -148,10 +162,10 @@ $("meters-table").addEventListener("click", (ev) => {
   if (!btn) return;
   const d = btn.dataset;
   if (d.qSame) return quickSame(Number(d.qSame));
-  const m = meters.find((x) => String(x.id) === (d.meterRead ?? d.meterEdit ?? d.meterDel ?? d.meterHist ?? d.meterValues));
+  const m = meters.find((x) => String(x.id) === (d.meterRead ?? d.meterEdit ?? d.meterDel ?? d.meterHist ?? d.meterTransfer));
   if (!m) return;
   if (d.meterEdit) return openMeterForm(m);
-  if (d.meterValues) return guarded(btn, () => openPicker(m));
+  if (d.meterTransfer) return guarded(btn, () => openTransfer(m.id));
   if (d.meterHist) return guarded(btn, () => openHistory(m));
   if (d.meterDel) {
     if (!confirm(t("confirm_delete_meter", m.name || m.address))) return;

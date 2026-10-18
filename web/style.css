@@ -375,6 +375,7 @@ button:disabled:hover { background: var(--text); color: var(--surface); }
 .chip.st-ok { background: var(--ok-soft); color: var(--ok); }
 .chip.st-collision { background: var(--warn-soft); color: var(--warn); }
 .chip.st-no_data { background: var(--sunken); color: var(--muted); }
+.chip.st-err { background: var(--err-soft); color: var(--err); }
 .st-other { color: var(--warn); font-weight: 600; }
 
 /* ------------------------------------------------------------ Fortschritt */
@@ -858,7 +859,6 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 .ln .ln-plan b { color: var(--text); font-weight: 600; }
 .plan-row { align-items: end; }
 .plan-hint { margin: 4px 0 8px; }
-#mf-plan { margin-top: 12px; }
 .muted { color: var(--muted); }
 td .chip { white-space: nowrap; }
 .busbar-time {
@@ -882,10 +882,10 @@ th.sorted { color: var(--accent); }
 .sort-ind { display: inline-block; width: 1em; margin-left: 3px; font-size: 9px; }
 
 /* Verlauf eines Zählers */
-.history { margin-top: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
-.history-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
-.history-head h3 { margin: 0; font-size: 15px; }
-.history-head .spacer { flex: 1; }
+.history, .panel { margin-top: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.history-head, .panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
+.history-head h3, .panel-head h3 { margin: 0; font-size: 15px; }
+.history-head .spacer, .panel-head .spacer { flex: 1; }
 .history-head select { width: auto; }
 .history-sum { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 13px; color: var(--muted); margin: 4px 0 10px; }
 .history-sum b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -1001,7 +1001,7 @@ label.check.sub-check { margin-left: 24px; }
 .sim-table .sim-id { width: 96px; }
 .sim-table .sim-man { width: 56px; text-transform: uppercase; }
 .sim-table td { padding: 4px 6px; }
-.sim-warn { color: var(--warn); font-size: 13px; margin: 4px 0 10px; padding-left: 18px; }
+.sim-warn, .warn-list { color: var(--warn); font-size: 13px; margin: 4px 0 10px; padding-left: 18px; }
 .sim-actions { align-items: center; margin-top: 10px; }
 .sim-actions .spacer { flex: 1; }
 .sim-many { display: inline-flex; gap: 6px; align-items: center; }
@@ -1043,3 +1043,19 @@ input.time24.invalid { border-color: var(--err); box-shadow: 0 0 0 2px var(--err
 .reading-table .send-cell input { width: 16px; height: 16px; }
 .send-bar { margin-top: 10px; }
 .send-actions { align-items: center; gap: 16px; }
+
+/* Reiter Weitergabe */
+.out-list { display: grid; gap: 10px; }
+.out-row { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.out-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.out-head .spacer { flex: 1; }
+.out-form { margin-top: 12px; }
+#tr-scope { width: auto; }
+#dp-table tr.tr-meter td { background: var(--sunken); padding: 8px 10px; }
+.tr-meter-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.tr-meter-head .spacer { flex: 1; }
+.tr-pick { margin-top: 10px; padding: 10px 12px; background: var(--surface); border-radius: 10px; }
+#dp-table td.out-cell { min-width: 90px; }
+.cs-summary { font-weight: 600; margin: 4px 0 8px; }
+.cs-table td { font-size: 13px; }
+.form-grid > .span-all { grid-column: 1 / -1; }

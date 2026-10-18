@@ -26,7 +26,7 @@ async function refreshStatus() {
   planActive = !!s.plan_active;
   disk = s.disk;
   mqttStatus = s.mqtt;
-  renderMqttState();
+  if (transfer.data && !$("sec-outputs").hidden) renderOutputs();
   if (runsBefore && !planRuns.length) loadMeters().catch(() => {});
   // verbunden: Verbindung als eine Zeile, Formular erst auf "Ändern"
   $("sec-conn").classList.toggle("compact", connected && !connEditing);
@@ -372,11 +372,11 @@ function renderJob(job) {
       const dupId = issues.rowDupId.has(i);
       const paCount = dupPa ? issues.dupPa.get(`${h.baud}:${h.primary_address}`).length : 0;
       const warnChips =
-        (dupPa ? ` <span class="chip st-collision" title="${esc(t("dup_pa_title", h.primary_address, paCount))}">${t("dup_pa")}</span>` : "") +
+        (dupPa ? " " + ui.chip("warn", t("dup_pa"), t("dup_pa_title", h.primary_address, paCount)) : "") +
         (dupId
           ? issues.rowDupIdSame.has(i)
-            ? ` <span class="chip st-collision" title="${esc(t("dup_id_title"))}">${t("dup_id")}</span>`
-            : ` <span class="chip st-no_data" title="${esc(t("dup_id_info_title"))}">${t("dup_id_info")}</span>`
+            ? " " + ui.chip("warn", t("dup_id"), t("dup_id_title"))
+            : " " + ui.chip("muted", t("dup_id_info"), t("dup_id_info_title"))
           : "");
       // PA ändern: lieber über die ID, bei doppelter ID über die volle Sekundäradresse
       const fixTarget = dupId ? h.secondary_address : h.id || h.secondary_address;
@@ -390,14 +390,14 @@ function renderJob(job) {
           ? `<button class="small ghost needs-conn" data-fixbaud="${esc(fixTarget)}" data-from="${h.baud}">${t("fix_baud")}</button>`
           : "";
       const otherChip = other && h.status === "ok"
-        ? ` <span class="chip st-collision" title="${esc(t("other_baud_title", h.baud, connBaud))}">${t("other_baud")}</span>`
+        ? " " + ui.chip("warn", t("other_baud"), t("other_baud_title", h.baud, connBaud))
         : "";
       return `<tr${anim}>
         <td class="num mono${dupPa ? " st-other" : ""}"${dupPa ? ` title="${esc(t("dup_pa_title", h.primary_address, paCount))}"` : ""}>${h.primary_address ?? "–"}${dupPa ? " ⚠" : ""}</td>
         <td class="num mono${other ? " st-other" : ""}">${h.baud ?? ""}</td>
         ${sa}
         <td>${esc(label(h.medium))}</td>
-        <td><span class="chip st-${h.status}">${t("st_" + h.status)}</span>${warnChips}${otherChip}</td>
+        <td>${ui.chip({ ok: "ok", collision: "warn" }[h.status] || "muted", t("st_" + h.status))}${warnChips}${otherChip}</td>
         <td><div class="actions">${
           h.status !== "ok" ? `<button class="small ghost" data-why="${esc(hitKey(h))}">${t("why")}</button>` : ""
         }${fix}${fixBaud}${

@@ -53,9 +53,7 @@ async function setLang(l) {
   renderHistory();
   renderBusbar();
   // Bezeichnungen der Datenpunkte kommen vom Server in der gewählten Sprache
-  loadDatapoints().catch(() => {});
-  if (picker) openPicker(picker.meter).catch(() => {});
-  if (mqttConfig) updateMqttForm();
+  if (transfer.data) loadTransfer().catch(() => {});
   if (sim) loadSim().catch(() => {});
   refreshStatus().catch(() => {});
 }

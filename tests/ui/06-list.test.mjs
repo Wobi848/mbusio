@@ -18,17 +18,17 @@ export default {
     assert.equal(map.id, "Zählernummer");
     assert.equal(map.location, "Wohnung");
     await page.click("#list-check");
-    await page.waitForSelector("#list-apply");
-    assert.match(await page.textContent("#list-result h3"), /4 neu/);
-    await page.click("#list-apply");
+    await page.waitForSelector("#list-result [data-cs-apply]");
+    assert.match(await page.textContent("#list-result .cs-summary"), /4 neu/);
+    await page.click("#list-result [data-cs-apply]");
     await page.waitForFunction(() => document.querySelectorAll("#meters-table tbody tr").length === 4);
     // auslesen, damit das Medium bekannt ist; dann Namen erzeugen für Zähler ohne Namen
     for (const m of await api("meters")) await api(`meters/${m.id}/read`, "POST").catch(() => {});
     await page.click("#quick-toggle");
     await page.check("#names-only");
     await page.click("#names-preview");
-    await page.waitForSelector("#names-apply");
-    await page.click("#names-apply");
+    await page.waitForSelector("#names-result [data-cs-apply]");
+    await page.click("#names-result [data-cs-apply]");
     await page.waitForTimeout(500);
     // Benennen direkt in der Tabelle, Enter = nächster
     const loc = page.locator("input[data-q=location]");

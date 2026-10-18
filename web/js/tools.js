@@ -37,11 +37,7 @@ function renderReading(r) {
       if (x.tariff) extra.push(`${t("tariff")} ${x.tariff}`);
       if (x.subunit) extra.push(`${t("subunit")} ${x.subunit}`);
       const notes = x.notes.length ? ` (${x.notes.map(label).join(", ")})` : "";
-      // Datenpunkt-Kennung wie im Server (Funktion|Speicher|Tarif|Untereinheit|Grösse|Einheit)
-      const key = `${x.function}|${x.storage}|${x.tariff}|${x.subunit}|${x.quantity}|${x.unit}`;
-      const send = typeof x.value === "number" ? `<input type="checkbox" class="send-pick" value="${esc(key)}" aria-label="${esc(t("send_col"))}">` : "";
       return `<tr>
-        <td class="send-cell">${send}</td>
         <td class="num mono dim">${i + 1}</td>
         <td>${esc(label(x.quantity) + notes)}</td>
         <td class="num mono strong">${esc(x.value_text)}</td>
@@ -54,11 +50,11 @@ function renderReading(r) {
   $("reading").innerHTML = `
     <div class="${hero ? "reading-top" : ""}">${hero}<div class="meta">${meta}</div></div>
     <div class="table-wrap"><table class="reading-table">
-      <thead><tr><th title="${esc(t("send_hint"))}">${t("send_col")}</th><th>#</th><th>${t("th_desc")}</th><th class="num">${t("th_value")}</th><th>${t("th_unit")}</th><th>${t("th_kind")}</th><th>DIF | VIF</th></tr></thead>
+      <thead><tr><th>#</th><th>${t("th_desc")}</th><th class="num">${t("th_value")}</th><th>${t("th_unit")}</th><th>${t("th_kind")}</th><th>DIF | VIF</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
     <div id="send-bar" class="send-bar"></div>`;
-  renderSendBar(r).catch(() => {});
+  renderSendBar(r);
 }
 
 /// Zähler der Zählerliste zu dieser Auslesung (über Sekundäradresse, ID oder Adresse)
@@ -72,42 +68,19 @@ function meterOfReading(r) {
   );
 }
 
-/// Unter der Auslesung: wählen, was gesendet wird (Datenpunkte des Zählers)
-async function renderSendBar(r) {
+/// Unter der Auslesung: Link zur Weitergabe (bzw. erst in die Zählerliste aufnehmen)
+function renderSendBar(r) {
   const bar = $("send-bar");
   if (!bar) return;
   const m = meterOfReading(r);
-  if (!m) {
-    $("reading").querySelectorAll(".send-pick").forEach((c) => (c.disabled = true));
-    bar.innerHTML = `<p class="hint">${esc(t("send_not_listed"))}</p>
-      <div class="row"><button type="button" class="small ghost" id="send-add">${esc(t("send_add"))}</button></div>`;
-    return;
-  }
-  const v = await api(`meters/${m.id}/values`);
-  const selected = new Set(v.values.filter((x) => x.selected).map((x) => x.key));
-  $("reading").querySelectorAll(".send-pick").forEach((c) => (c.checked = selected.has(c.value)));
-  const mqttOn = !!mqttConfig?.enabled;
-  bar.innerHTML = `<p class="hint">${esc(t("send_hint"))}</p>
-    <div class="row send-actions">
-      <label class="check"><input type="checkbox" id="send-mqtt" ${mqttOn ? "checked" : ""}> ${esc(t("dp_pick_mqtt"))}</label>
-      <button type="button" id="send-save" data-meter="${m.id}">${esc(t("send_save"))}</button>
-    </div>
-    ${mqttOn ? "" : `<p class="hint">${esc(t("send_no_mqtt"))}</p>`}`;
+  bar.innerHTML = m
+    ? `<p class="hint">${esc(t("send_link_hint"))} <button type="button" class="small ghost" data-open-transfer="${m.id}">${esc(t("send_link"))}</button></p>`
+    : `<p class="hint">${esc(t("send_not_listed"))} <button type="button" class="small ghost" id="send-add">${esc(t("send_add"))}</button></p>`;
 }
 
 $("reading").addEventListener("click", (ev) => {
-  const save = ev.target.closest("#send-save");
-  if (save) {
-    guarded(save, async () => {
-      const keys = [...$("reading").querySelectorAll(".send-pick:checked")].map((c) => c.value);
-      const r = await api(`meters/${save.dataset.meter}/datapoints`, {
-        method: "PUT",
-        body: { keys, mqtt: $("send-mqtt").checked },
-      });
-      toast(t("dp_saved", r.added, r.removed, r.others));
-      loadDatapoints().catch(() => {});
-    });
-  }
+  const open = ev.target.closest("[data-open-transfer]");
+  if (open) return guarded(open, () => openTransfer(Number(open.dataset.openTransfer)));
   const add = ev.target.closest("#send-add");
   if (add && lastReading) {
     guarded(add, async () => {
@@ -117,7 +90,7 @@ $("reading").addEventListener("click", (ev) => {
       await api("meters", { method: "POST", body: { address } });
       meters = await api("meters");
       renderMeters();
-      // die Auslesung gehört jetzt zum Zähler: noch einmal speichern, damit „Senden“ die Werte kennt
+      // die Auslesung gehört jetzt zum Zähler: noch einmal speichern, damit die Weitergabe die Werte kennt
       await api("read", { method: "POST", body: { address } }).then(renderReading).catch(() => renderSendBar(lastReading));
     });
   }

@@ -108,35 +108,22 @@ function listRows() {
   return d.rows.slice(d.header ? 1 : 0).map((r) => Object.fromEntries(LIST_FIELDS.map((f) => [f, d.map[f] !== undefined ? r[d.map[f]] || "" : ""])));
 }
 
-async function listCheck(apply) {
+/// Liste prüfen (Vorschau), dann übernehmen; Baustein „Vorschau → Übernehmen“
+function listCheck() {
   if (listData?.map.id === undefined) throw new Error(t("list_need_id"));
-  const r = await api("meters/import-list", { method: "POST", body: { rows: listRows(), apply } });
-  if (r.applied) {
-    toast(t("list_done", r.added.length, r.changed.length));
-    $("list-panel").hidden = true;
-    $("list-paste").value = "";
-    listData = null;
-    $("list-map").innerHTML = "";
-    await loadMeters();
-    return;
-  }
-  const field = (f) => t("list_field_" + f);
-  const n = r.added.length + r.changed.length;
-  $("list-result").innerHTML = `<h3 class="list-h">${esc(t("list_summary", r.added.length, r.changed.length, r.unchanged))}</h3>
-    ${r.errors.length ? `<ul class="err-list">${r.errors.map((e) => `<li>${esc(e)}</li>`).join("")}</ul><p class="hint">${esc(t("list_errors_note"))}</p>` : ""}
-    ${r.warnings.length ? `<ul class="sim-warn">${r.warnings.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}
-    ${!n && !r.errors.length ? `<p class="hint">${esc(t("list_nothing"))}</p>` : ""}
-    ${
-      n
-        ? `<div class="table-wrap"><table><tbody>${r.added
-            .map((a) => `<tr><td><span class="chip st-ok">${esc(t("list_new"))}</span></td><td class="mono">${esc(a.id)}</td><td>${esc(a.name)}</td><td>${esc(a.location)}</td></tr>`)
-            .join("")}${r.changed
-            .map((c) => `<tr><td>${esc(field(c.field))}</td><td class="mono">${esc(c.id)}</td><td>${esc(c.old || "–")} → <b>${esc(c.new)}</b></td><td></td></tr>`)
-            .join("")}</tbody></table></div>`
-        : ""
-    }
-    ${n && !r.errors.length ? `<div class="row"><button type="button" id="list-apply">${esc(t("list_apply"))}</button></div>` : ""}`;
-  $("list-result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const rows = listRows();
+  return ui.previewApply($("list-result"), {
+    title: t("list_check"),
+    run: (apply) => api("meters/import-list", { method: "POST", body: { rows, apply } }),
+    done: async (cs) => {
+      toast(t("list_done", cs.added.length, cs.changed.length));
+      $("list-panel").hidden = true;
+      $("list-paste").value = "";
+      listData = null;
+      $("list-map").innerHTML = "";
+      await loadMeters();
+    },
+  });
 }
 
 $("list-open").onclick = listOpen;
@@ -158,8 +145,7 @@ $("list-map").addEventListener("change", (ev) => {
   renderListMap();
 });
 $("list-panel").addEventListener("click", (ev) => {
-  if (ev.target.id === "list-check") guarded(ev.target, () => listCheck(false));
-  if (ev.target.id === "list-apply") guarded(ev.target, () => listCheck(true));
+  if (ev.target.id === "list-check") guarded(ev.target, listCheck);
 });
 
 // Schnellerfassung
@@ -226,43 +212,30 @@ $("meters-table").addEventListener("keydown", (ev) => {
   }
 });
 
-// Namen nach Muster
-function renderNames(preview = null) {
-  const box = $("names-panel");
-  const pattern = $("names-pattern")?.value ?? "{ort} {medium}";
-  const only = $("names-only")?.checked ?? false;
-  box.innerHTML = `<div class="history-head"><h3>${esc(t("names_title"))}</h3></div>
-    <p class="hint">${esc(t("names_hint"))}</p>
-    <div class="row names-row"><label class="grow"><span>${esc(t("names_pattern"))}</span> <input id="names-pattern" class="mono" value="${esc(pattern)}"></label>
-      <label class="check"><input type="checkbox" id="names-only" ${only ? "checked" : ""}> ${esc(t("names_only_empty"))}</label></div>
-    ${
-      preview
-        ? preview.length
-          ? `<p class="hint">${esc(t("names_preview", preview.length))}</p><div class="table-wrap"><table><tbody>${preview
-              .slice(0, 50)
-              .map((n) => `<tr><td class="mono">${esc(n.ident || "")}</td><td>${esc(n.old || "–")} → <b>${esc(n.new)}</b></td></tr>`)
-              .join("")}</tbody></table></div>
-            <div class="row"><button type="button" id="names-apply">${esc(t("names_apply"))}</button></div>`
-          : `<p class="hint">${esc(t("names_none"))}</p>`
-        : `<div class="row"><button type="button" class="small ghost" id="names-preview">${esc(t("quick_names"))}</button></div>`
-    }`;
-}
-
-async function namesRun(apply) {
-  const body = { pattern: $("names-pattern").value, only_empty: $("names-only").checked, apply };
-  const r = await api("meters/names", { method: "POST", body });
-  if (apply) {
-    toast(t("names_done", r.names.length));
-    await loadMeters();
-    renderNames();
-  } else renderNames(r.names);
+// Namen nach Muster (Vorschau → Übernehmen wie überall)
+function renderNames() {
+  $("names-panel").innerHTML = ui.panel(
+    t("names_title"),
+    `<p class="hint">${esc(t("names_hint"))}</p>
+    <div class="row names-row"><label class="grow"><span>${esc(t("names_pattern"))}</span> <input id="names-pattern" class="mono" value="{ort} {medium}"></label>
+      <label class="check"><input type="checkbox" id="names-only"> ${esc(t("names_only_empty"))}</label>
+      <button type="button" class="small ghost" id="names-preview">${esc(t("quick_names"))}</button></div>
+    <div id="names-result" hidden></div>`,
+    { close: false }
+  );
 }
 
 $("names-panel").addEventListener("click", (ev) => {
-  if (ev.target.id === "names-preview") guarded(ev.target, () => namesRun(false));
-  if (ev.target.id === "names-apply") guarded(ev.target, () => namesRun(true));
-});
-$("names-panel").addEventListener("input", (ev) => {
-  // Muster geändert: Vorschau neu
-  if (ev.target.id === "names-pattern" || ev.target.id === "names-only") renderNames();
+  if (ev.target.id !== "names-preview") return;
+  const body = { pattern: $("names-pattern").value, only_empty: $("names-only").checked };
+  guarded(ev.target, () =>
+    ui.previewApply($("names-result"), {
+      title: t("names_title"),
+      run: (apply) => api("meters/names", { method: "POST", body: { ...body, apply } }),
+      done: async (cs) => {
+        toast(t("names_done", cs.changed.length));
+        await loadMeters();
+      },
+    })
+  );
 });

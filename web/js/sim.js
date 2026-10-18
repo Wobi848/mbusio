@@ -50,7 +50,7 @@ function renderSim() {
       ro
         ? `<tr><td class="num mono">${m.primary}</td><td class="mono">${esc(m.id)}</td><td class="mono">${esc(m.manufacturer)}</td>
             <td>${esc(t("sim_m_" + m.medium))}</td><td class="mono">${m.baud ?? esc(t("sim_baud_bus"))}</td>
-            <td>${m.fault === "none" ? esc(t("sim_f_none")) : `<span class="chip st-collision">${esc(t("sim_f_" + m.fault))}</span>`}</td><td></td></tr>`
+            <td>${m.fault === "none" ? esc(t("sim_f_none")) : ui.chip("warn", t("sim_f_" + m.fault))}</td><td></td></tr>`
         : `<tr data-i="${i}">
             <td><input class="mono sim-pa" data-f="primary" value="${m.primary}" inputmode="numeric" aria-label="PA"></td>
             <td><input class="mono sim-id" data-f="id" value="${esc(m.id)}" inputmode="numeric" maxlength="8" aria-label="ID"></td>
