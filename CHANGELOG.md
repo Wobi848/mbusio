@@ -1,0 +1,86 @@
+# Änderungen
+
+Was sich für Benutzer ändert, je Version. Neuestes oben.
+
+## Unveröffentlicht (wird v0.5.0)
+
+Erscheint nach den Hardware-Tests (7 Tage Raspberry Pi, Stromausfall, USB-Wandler abziehen, kleine
+SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschnitt 11.
+
+### Neu
+
+- **Geplantes Auslesen (Dauerbetrieb):** Ausleseplan je Projekt, Linie oder Zähler (aus, monatlich,
+  täglich, stündlich, alle 15 Minuten; Standard aus). Jede Linie hat ihre eigene Verbindung und
+  Warteschlange; Bedienung von Hand geht immer vor. Verpasste Termine werden einmal nachgeholt,
+  Zähler mit Störung oder „zu viele Auslesungen“ werden markiert und geschont.
+- **Uhrzeit:** Auslesungen ohne bestätigte Uhrzeit werden als „Zeit unsicher“ markiert; Uhrzeit aus
+  dem Browser, vom System (NTP) oder vom Leitsystem übernehmen.
+- **Speicher:** kompakte Speicherung, Messwerte auf Wunsch ausdünnen, Schutz vor vollem Speicher.
+- **Datenpunkte:** je Zähler wählen, welche Werte weitergegeben werden; Vorlagen je Linie und Medium,
+  feste Nummern, Qualität (gut, veraltet, gestört, ungültig), Prüfung „Zählerstand gesunken“,
+  Zählertausch mit durchlaufendem Zählerstand, CSV-Export und -Import mit Vorschau.
+- **MQTT-Ausgang:** ein Topic je Datenpunkt (JSON mit Wert, Einheit, UTC-Zeit, Qualität), QoS 1,
+  retained, Status-Topic mit Last Will, Warteschlange in der Datenbank (wird nach einem Ausfall in
+  richtiger Reihenfolge nachgeliefert), TLS, Benutzer/Passwort, Uhrzeit vom Leitsystem.
+- **Reiter Weitergabe:** was (Datenpunkte) wohin (Ausgänge) und wie oft, an einer Stelle; auch aus
+  der Auslesung heraus direkt wählbar („Senden“).
+- **Zählerliste schnell füllen:** Liste vom Kunden importieren (CSV oder aus Excel kopiert, Zuordnung
+  über die ID, mit Vorschau), Name und Ort direkt in der Tabelle bearbeiten, Namen nach Muster
+  erzeugen, Zählerliste als CSV.
+- **Simulator-Reiter:** Vorlagen (Praxis mit Fehlern, alles i.O. mit 10 Zählern, Mehrfamilienhaus mit
+  30 Zählern, gemischte Baudraten) und eigene, frei zusammengestellte Anlagen.
+- **Nächster Schritt:** eine Karte mit genau einem Knopf führt vom leeren Projekt bis zur Weitergabe;
+  die Reiter 1–4 zeigen den Fortschritt.
+- **Zustand der Anlage** im Reiter Projekt: Plan, Uhrzeit, Speicher, MQTT auf einen Blick.
+
+### Geändert
+
+- Uhrzeiten immer 24 h (HH:MM).
+- Die Oberfläche nutzt die ganze Fensterbreite.
+- Knöpfe: Hauptknöpfe in der Akzentfarbe, gesperrte grau mit Grund im Tooltip; Felder etwas grösser.
+- Zählerliste mit Menü „Liste ▾“ (Importieren, Exportieren, Leeren).
+
+### Entfernt
+
+- Live-Auslesen (widerspricht dem Grundsatz, M-Bus-Zähler sparsam auszulesen; batteriebetriebene
+  Zähler).
+
+### Behoben
+
+- Die Statusleiste zeigte bei einem laufenden Ausleseplan „Behebe …“ statt „Plan … liest“.
+- „klein“ gestaltete Links und Datei-Knöpfe waren grösser als die übrigen kleinen Knöpfe.
+
+### Intern
+
+- Code nach Bereichen aufgeteilt (Server, Datenbank, Datenpunkte, Simulator, M-Bus-Master, MQTT,
+  Oberfläche, Stile), Doppeltes zusammengelegt; gemeinsame Bausteine für die Oberfläche (`ui.js`).
+- Browser-Tests der Oberfläche (`tests/ui`), laufen in der CI zusammen mit Format- und
+  Rust-Tests.
+
+## v0.4.0 (17.10.2026)
+
+- Projekte, Gateways und Linien, gespeichert in einer SQLite-Datenbank (`mbusio.db`)
+- Oberfläche nach Arbeitsschritten: Reiter statt einer langen Seite
+- Zählerliste je Linie, gemerkt über SA oder PA (je Linie einstellbar, keine gemischten Listen)
+- Verlauf je Zähler (Diagramm, Tabelle), sortierbare Trefferliste, Gateways und Linien sortierbar
+- Auffälligkeiten je Linie gemerkt (Projekt-Karte, Bericht); im Bericht ausblendbar
+
+## v0.3.0 (17.10.2026)
+
+- Neu gestaltete Oberfläche, hell und dunkel; Statusleiste unten mit Zähler der Auffälligkeiten
+- Scan über mehrere Baudraten (Busse mit gemischten Baudraten), Prüfen, wo Geräte antworten,
+  Dauer-Schätzung
+- Auffälligkeiten erkennen: doppelte Primäradressen und IDs, Kollisionen, fremde Baudrate
+- „Warum?“: Ursache in einfachen Worten; „Alle beheben“: Plan zum Abhaken
+- Telegramm-Analyse Byte für Byte, auch für gestörte Telegramme
+- Bericht als PDF, „Alle merken“, Zählerliste leeren, „Neue Anlage“
+- Auslesen über eine Primäradresse bricht ab, wenn mehrere Zähler antworten
+- Windows ohne Adminrechte, portabler Datenordner
+
+## v0.2.0 (17.10.2026)
+
+- M-Bus-Master mit Weboberfläche und Simulator
+- Funktionsumfang wie libmbus: Primär- und Sekundärscan, Auslesen, Primäradresse setzen, Baudrate
+  suchen und umstellen, Application Reset, Rohtelegramme
+- Zählerliste, Deutsch und Englisch, Schutz für den Zugriff aus dem LAN, Builds für Windows, Linux
+  und Raspberry Pi
