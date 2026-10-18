@@ -1017,8 +1017,6 @@ label.check.sub-check { margin-left: 24px; }
 #meters-table input.quick.saved { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-soft); }
 .quick-loc { display: flex; gap: 4px; align-items: center; }
 #quick-toggle.on { background: var(--accent); color: var(--accent-ink); }
-#meters-table tr.live td { background: var(--accent-soft); }
-.live-btn.on { background: var(--accent); color: var(--accent-ink); }
 #list-paste { width: 100%; font-size: 12px; margin: 6px 0 10px; }
 .list-source { align-items: center; gap: 10px; }
 .list-h { font-size: 14px; margin: 10px 0 6px; }

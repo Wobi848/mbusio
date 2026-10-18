@@ -8,9 +8,6 @@ let meters = [];
 let editingId = null;
 /// Schnellerfassung: Name, Ort, Notiz direkt in der Tabelle
 let quickEdit = false;
-/// Zähler, der gerade immer wieder gelesen wird
-let liveId = null;
-let liveTimer = null;
 
 const svg = (d) =>
   `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -78,7 +75,7 @@ function renderMeters() {
       const locCell = quickEdit
         ? `<td><div class="quick-loc">${q("location", m.location, `list="loc-list" placeholder="${esc(t("meter_location"))}" aria-label="${esc(t("meter_location"))}"`)}<button class="icon-btn" data-q-same="${m.id}" title="${esc(t("quick_same"))}" aria-label="${esc(t("quick_same"))}">${ICON_DOWN}</button></div></td>`
         : `<td class="wrap">${esc(m.location)}</td>`;
-      return `<tr class="${liveId === m.id ? "live" : ""}">
+      return `<tr>
         ${nameCell}
         ${locCell}
         <td class="mono">${esc(m.address)}${sub(info)}</td>
@@ -90,7 +87,6 @@ function renderMeters() {
         )}${m.last_error ? `<span class="err">${ICON_ALERT}${esc(m.last_error)}</span>` : ""}</td>
         <td><div class="actions">
           <button class="small quiet needs-conn" data-meter-read="${m.id}">${t("read")}</button>
-          <button class="small quiet needs-conn live-btn${liveId === m.id ? " on" : ""}" data-meter-live="${m.id}" title="${esc(t("live_title"))}">${esc(t("live"))}</button>
           <button class="small quiet" data-meter-values="${m.id}" title="${esc(t("dp_values_title"))}">${esc(t("dp_values_btn"))}</button>
           <button class="icon-btn" data-meter-hist="${m.id}" title="${esc(t("history"))}" aria-label="${esc(t("history"))}">${ICON_CHART}</button>
           <button class="icon-btn" data-meter-edit="${m.id}" title="${esc(t("edit"))}" aria-label="${esc(t("edit"))}">${ICON_EDIT}</button>
@@ -152,9 +148,8 @@ $("meters-table").addEventListener("click", (ev) => {
   if (!btn) return;
   const d = btn.dataset;
   if (d.qSame) return quickSame(Number(d.qSame));
-  const m = meters.find((x) => String(x.id) === (d.meterRead ?? d.meterEdit ?? d.meterDel ?? d.meterHist ?? d.meterValues ?? d.meterLive));
+  const m = meters.find((x) => String(x.id) === (d.meterRead ?? d.meterEdit ?? d.meterDel ?? d.meterHist ?? d.meterValues));
   if (!m) return;
-  if (d.meterLive) return toggleLive(m);
   if (d.meterEdit) return openMeterForm(m);
   if (d.meterValues) return guarded(btn, () => openPicker(m));
   if (d.meterHist) return guarded(btn, () => openHistory(m));

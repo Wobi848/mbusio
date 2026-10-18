@@ -14,10 +14,6 @@ function showTab(name) {
     b.setAttribute("aria-selected", b.dataset.tabGo === name);
   });
   storageSet("tab", name);
-  if (name !== "meters" && liveId) {
-    stopLive();
-    renderMeters();
-  }
   if (name === "sim") loadSim().catch((e) => toast(e.message, true));
 }
 

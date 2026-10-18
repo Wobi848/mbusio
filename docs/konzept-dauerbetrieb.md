@@ -491,7 +491,7 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 **Ausserhalb der Phasen umgesetzt:** Simulator-Reiter mit Vorlagen (Praxis mit Fehlern, alles
 i.O. mit 10 Zählern, Mehrfamilienhaus mit 30 Zählern, gemischte Baudraten) und eigenen Anlagen.
 Zählerliste schnell füllen: Liste vom Kunden importieren (über die ID, mit Vorschau), Benennen
-direkt in der Tabelle, Namen nach Muster, CSV-Export, Live-Auslesen; Vorlagen auf Wunsch gleich
+direkt in der Tabelle, Namen nach Muster, CSV-Export; Vorlagen auf Wunsch gleich
 mit MQTT. Der alte Branch `claude/vibrant-pascal-1vangk` ist gelöscht.
 
 **Bekannte Grenzen** (siehe auch README): Antworten zweier Zähler exakt gleichzeitig mit `E5`

@@ -66,7 +66,6 @@ sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Beri
   gespeichert wird sofort. Ortsvorschläge und „wie oben“
 - **Namen erzeugen** nach Muster, z.B. `{ort} {medium}` → „Whg 3 Kaltwasser“ (Platzhalter
   `{ort}`, `{medium}`, `{id}`, `{pa}`, `{nr}`, `{name}`), für alle oder nur Zähler ohne Namen
-- **Live:** einen Zähler alle 4 s lesen, um ihn am Display wiederzuerkennen
 
 ### Geplantes Auslesen (Dauerbetrieb)
 
@@ -352,7 +351,7 @@ installation; the UI runs in the browser, phones included.
   export/import with preview)
 - Fill the meter list fast: import the customer's list (CSV or pasted from Excel, matched by the ID
   on the name plate, with preview), edit names and locations directly in the table, generate names
-  from a pattern, export as CSV, read one meter live to identify it
+  from a pattern, export as CSV
 - MQTT output: one retained topic per datapoint with JSON (value, unit, UTC time, quality), QoS 1,
   status topic with last will, persistent queue with in-order redelivery, TLS, user/password,
   optional time from the control system

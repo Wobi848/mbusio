@@ -1,6 +1,6 @@
 "use strict";
 
-// Zählerliste schnell füllen: Liste importieren, Benennen, Namen, Live
+// Zählerliste schnell füllen: Liste importieren, Benennen, Namen erzeugen
 
 // ------------------------------------------------------------ Zählerliste schnell füllen
 
@@ -266,37 +266,3 @@ $("names-panel").addEventListener("input", (ev) => {
   // Muster geändert: Vorschau neu
   if (ev.target.id === "names-pattern" || ev.target.id === "names-only") renderNames();
 });
-
-// Live: einen Zähler immer wieder lesen
-function stopLive() {
-  clearInterval(liveTimer);
-  liveTimer = null;
-  liveId = null;
-}
-
-function toggleLive(m) {
-  if (liveId === m.id) {
-    stopLive();
-    return renderMeters();
-  }
-  stopLive();
-  liveId = m.id;
-  toast(t("live_on", m.name || m.meter_id || m.address));
-  let busy = false;
-  const tick = async () => {
-    if (busy || liveId !== m.id || jobRunning) return;
-    busy = true;
-    try {
-      await api(`meters/${m.id}/read`, { method: "POST" });
-    } catch {
-      /* Fehler steht beim Zähler */
-    }
-    busy = false;
-    if (liveId !== m.id) return;
-    meters = await api("meters").catch(() => meters);
-    renderMeters();
-  };
-  liveTimer = setInterval(tick, 4000);
-  tick();
-  renderMeters();
-}
