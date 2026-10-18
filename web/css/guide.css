@@ -62,7 +62,9 @@
 
 @media (max-width: 560px) {
   .guide { flex: 1 1 100%; padding: 8px 0 0; border-left: 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
-  .guide-title { flex: 1 1 0; }
-  .guide-go { flex: 1 1 100%; order: 9; }
+  /* erste Zeile: Zähler, Titel, Aufklappen, Ausblenden; darunter die Knöpfe */
+  .guide-title { flex: 1 1 calc(100% - 140px); white-space: normal; }
+  /* Knöpfe in eine eigene Zeile, der Titel behält Platz */
+  .guide-go, .guide [data-guide-alt] { flex: 1 1 0; order: 9; }
   .guide-more { flex-direction: column; align-items: flex-start; gap: 8px; }
 }

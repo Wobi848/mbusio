@@ -97,22 +97,24 @@
   .list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 640px) {
   #meters-read-all { width: 100%; }
 
-  /* Zählerliste als Karten */
+  /* Zählerliste als Karten: Zähler, Ort, Wert, Plan untereinander, Aktionen darunter */
   #meters-table thead { display: none; }
   #meters-table tr {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 2px 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
     padding: 12px 0;
     border-bottom: 1px solid var(--line);
   }
   #meters-table tr:hover { background: transparent; }
   #meters-table td { border: 0; padding: 0; white-space: normal; text-align: left; min-width: 0; }
   #meters-table td:empty { display: none; }
-  #meters-table td:last-child { grid-column: 1 / -1; margin-top: 6px; }
+  #meters-table td:last-child { margin-top: 6px; }
+  #meters-table td:first-child { min-width: 0; }
+  #meters-table td.wrap:not(:first-child) { padding-left: 46px; }
   #meters-table tr.edit-row { display: block; padding: 0; }
   #meters-table .edit-row .meter-form { padding: 14px 0; }
   #meters-table .actions { justify-content: flex-start; }

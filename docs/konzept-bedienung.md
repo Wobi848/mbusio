@@ -274,3 +274,24 @@ Fertig:    ● Bereit …                              │ ✓ Linie in Ordnung 
   etwas verdeckt ist.
 - Code: Platz `#guide` in der Leiste (`index.html`), Inhalt aus `guide.js`, Gestaltung in
   `guide.css`; die Karte und ihr CSS entfallen.
+
+## 11. Oberfläche v2: was gehört wozu (umgesetzt, 18.10.2026)
+
+Entwurf und Übergabe: [uebergabe-design-v2.md](uebergabe-design-v2.md). Umgesetzt in sechs Schritten:
+
+1. **Zähler-Baustein** `ui.meter` überall gleich (Medium-Symbol und Farbe, Name oder „ohne Namen“,
+   ID · PA · Hersteller): Trefferliste, Zählerliste, Weitergabe, Werkzeuge.
+2. **Drei Ebenen:** Kopfzeile = Projekt (Auswahl, Anlage, Werkzeuge, Simulator, ⚙), Linien-Leiste =
+   Linie (Wahl, Verbindung mit einem Knopf für den nächsten Schritt, Plan; Verbindungsformular
+   darunter), Laschen Scan · Zähler · Weitergabe, die in die Karte übergehen.
+3. **Zählerliste:** Leiste an der Tabelle (Suche, Filter, Hinzufügen, „Alle N auslesen“),
+   Bearbeiten klappt in der Zeile auf; ebenso im Projektbaum.
+4. **Scan:** „1 Suche einstellen“ und „2 Ergebnis“ mit Filter und Satz der Hauptaktionen;
+   Auffälligkeiten als Streifen unter ihrer Zeile statt Sammelkasten.
+5. **Werkzeuge:** Ziel zuerst, Einstellungen darunter (jetzt → neu), gesperrt ohne Ziel.
+   **Weniger Rahmen:** nur die Karte hat einen Rahmen; innen Flächen und Trennlinien.
+6. **Handy:** Treffer und Zähler als Karten, Leiste unten zweizeilig; Dunkelmodus geprüft.
+
+**Abweichungen vom Entwurf:** „Nächster Schritt“ bleibt in der Leiste unten (Abschnitt 10), nicht als
+Karte in der Inhaltskarte; Anschluss und Verbinden zeigt nur die Linien-Leiste. Bei gleicher PA oder
+ID steht ein Streifen nach der Gruppe statt einer Klammer über die Zeilen.

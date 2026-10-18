@@ -42,6 +42,11 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Geändert
 
+- **Oberfläche v2:** Kopfzeile für das Projekt, Linien-Leiste mit Verbindung und Plan, Laschen
+  Scan · Zähler · Weitergabe; Zähler-Baustein mit Medium-Symbol überall; Zählerliste mit Suche,
+  Filtern und Bearbeiten in der Zeile; Scan in zwei Schritten mit Auffälligkeiten direkt an der
+  Zeile; Werkzeuge mit Ziel zuerst; Einstellungen (Erklärungen, Design, Sprache) unter ⚙; weniger
+  Rahmen; Handy-Ansicht mit Karten.
 - Reiter Simulator nur, solange die aktive Linie eine Simulation benutzt; sonst unter Werkzeuge.
 - Nächster Schritt steht in der Leiste unten (immer sichtbar, aufklappbar) statt als Karte oben.
 - Nach einem Scan mit behebbaren Auffälligkeiten heisst der nächste Schritt „Auffälligkeiten beheben“

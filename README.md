@@ -8,32 +8,39 @@ Installation; die Oberfläche läuft im Browser, auch auf dem Handy.
 
 ## So arbeitet man damit
 
-Die Oberfläche ist in vier Schritte gegliedert; jeder Ablauf hat genau eine Stelle
+Die Oberfläche hat drei Ebenen; jeder Ablauf hat genau eine Stelle
 (siehe [docs/konzept-bedienung.md](docs/konzept-bedienung.md)):
 
-1. **Projekt** – Projekt (Kunde, Objekt) → Gateways → Linien. Jede Linie ist ein M-Bus-Strang mit
-   eigenem Anschluss und eigener Zählerliste. Linie wählen verbindet sofort. Oben, sobald geplant
-   ausgelesen oder weitergegeben wird: **Zustand der Anlage** (Plan, Uhrzeit, Speicher, MQTT).
-2. **Scan** – auf welchen Baudraten antworten Geräte („Prüfen“), dann Primär- oder Sekundärscan.
-   Die Trefferliste zeigt Auffälligkeiten (doppelte Adressen, fremde Baudrate, Zähler ohne Daten)
-   mit **„Warum?“** und behebt sie auf Wunsch mit **„Alle beheben“**.
-3. **Zähler** – gefundene Zähler merken, benennen, Liste importieren, alle auslesen, Verlauf,
-   Plan je Zähler, Zählertausch.
-4. **Weitergabe** – was (Datenpunkte je Zähler) wohin (Ausgänge: MQTT, später Modbus) und wie oft.
+- **Kopfzeile = Projekt:** Projekt wählen oder anlegen, **Anlage** (Gateways und Linien, Bericht,
+  Export/Import, Zustand der Anlage), rechts **Werkzeuge**, **Simulator** und ⚙ (Erklärungen,
+  Design, Sprache).
+- **Linien-Leiste = Linie:** welche Linie (Name und Gateway), Verbindung mit genau einem Knopf für
+  den nächsten Schritt (Anschluss festlegen, Verbinden, Anschluss ändern, Abbrechen), Ausleseplan.
+  Das Verbindungsformular klappt darunter auf.
+- **Laschen der Linie:**
+  1. **Scan** – Suche einstellen (Primär oder Sekundär, Baudraten, Bereich), dann das Ergebnis:
+     jede Auffälligkeit steht als Streifen direkt unter ihrer Zeile, mit Erklärung und dem Knopf,
+     der hilft; „N beheben …“ und „N Zähler übernehmen“; Vergleich mit dem letzten Scan.
+  2. **Zähler** – Zählerliste mit Suche und Filtern (gestört, ohne Namen), benennen, Liste
+     importieren, alle auslesen, Verlauf, Plan je Zähler; Bearbeiten klappt in der Zeile auf.
+  3. **Weitergabe** – was (Datenpunkte je Zähler) wohin (Ausgänge: MQTT, später Modbus) und wie oft.
 
-Dazu **Werkzeuge** (einzelnen Zähler roh auslesen, Adresse/Baudrate ändern, Reset, Telegramm-Log und
--Analyse) und der **Simulator**.
+Jeder Zähler erscheint überall gleich: Symbol und Farbe des Mediums, Name (oder „ohne Namen“),
+darunter ID · PA · Hersteller.
 
-Neue Benutzer führt oben die Karte **„Nächster Schritt“** mit genau einem Knopf: Anschluss
-festlegen → verbinden → suchen → merken → auslesen → **Linie in Ordnung** (Bericht). Wer danach
-regelmässig auslesen und weitergeben will, drückt **„Dauerbetrieb einrichten“**: Plan festlegen →
-Werte wählen → Ausgang (MQTT) einrichten. Einen Modus gibt es nicht: Sobald ein Plan, ein
-Datenpunkt oder ein Ausgang eingerichtet ist, gilt das Projekt als Dauerbetrieb, die Weitergabe
-wird Reiter 4 und oben erscheint der Zustand der Anlage. Die Reiter zeigen den Fortschritt
-(✓ erledigt, Punkt = als Nächstes).
+Neue Benutzer führt die Leiste unten mit **„Nächster Schritt“** und genau einem Knopf: suchen →
+merken → auslesen → **Linie in Ordnung** (Bericht); Anschluss und Verbinden zeigt die
+Linien-Leiste. Wer danach regelmässig auslesen und weitergeben will, drückt **„Dauerbetrieb
+einrichten“**: Plan festlegen → Werte wählen → Ausgang (MQTT) einrichten. Einen Modus gibt es
+nicht: Sobald ein Plan, ein Datenpunkt oder ein Ausgang eingerichtet ist, gilt das Projekt als
+Dauerbetrieb und oben erscheint der Zustand der Anlage. Die Laschen zeigen den Fortschritt
+(✓ erledigt, Anzahl Zähler bzw. Datenpunkte, Punkt = als Nächstes).
 
 Unten zeigt eine Statusleiste immer, was der Bus gerade macht und wie viele Auffälligkeiten offen
-sind. Das **„?“** oben blendet Erklärungen ein. Am Ende entsteht ein **Bericht** (PDF) fürs Projekt.
+sind. Unter ⚙ blendet **„Erklärungen anzeigen“** Hilfetexte ein. Am Ende entsteht ein **Bericht**
+(PDF) fürs Projekt. **Werkzeuge:** zuerst das Ziel (Zähler aus Liste oder Scan, oder eine Adresse),
+darunter Primäradresse, Baudrate und Reset; dazu einzelnen Zähler roh auslesen, Telegramm-Log und
+-Analyse.
 
 ## Funktionen
 
@@ -349,7 +356,8 @@ Aufbau:
   Chip, Symbol-Knopf, Tabelle, Eingabefeld, Formular, Aufklapp-Bereich, Vorschau → Übernehmen,
   CSV zerlegen), dann je Bereich eine Datei (busbar, scan, fix, tools, meters, chart, meterlist,
   transfer, sim, project, guide); `main.js` startet alles
-- `web/css/`: `base.css` (Farben, Elemente, Bausteine, Statusleiste), dann je Reiter eine Datei
+- `web/css/`: `base.css` (Farben, Elemente, Bausteine: Kopfzeile, Linien-Leiste, Laschen, Zähler-Baustein,
+  Tabellen-Leiste, Statusleiste), dann je Reiter eine Datei
 - `tests/ui/`: Browser-Tests der Oberfläche (siehe `tests/ui/README.md`)
 
 Der Decoder ist eine Eigenentwicklung und wird gegen das Referenztelegramm aus der

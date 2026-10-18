@@ -129,3 +129,18 @@
   .conn-grid { grid-template-columns: minmax(0, 1fr); }
   .conn-actions button { width: 100%; }
 }
+
+@media (max-width: 640px) {
+  /* Treffer als Karten: PA und Zähler, Baudrate und Status, Aktionen; Streifen über die ganze Breite */
+  #hits thead { display: none; }
+  #hits tbody tr { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 10px; padding: 10px 0; }
+  #hits tbody tr > td { border: 0; padding: 0; white-space: normal; min-width: 0; text-align: left; }
+  #hits tbody tr > td:last-child { grid-column: 1 / -1; }
+  #hits tbody tr > td:last-child .actions { justify-content: flex-start; }
+  #hits tbody tr:not(.issue-strip) { border-top: 1px solid var(--line); }
+  #hits tbody tr.issue { background: var(--warn-soft); box-shadow: inset 3px 0 0 var(--warn); padding-left: 10px; }
+  #hits tbody tr.issue > td, #hits tbody tr.issue > td:first-child { background: transparent; box-shadow: none; }
+  #hits tr.issue-strip { display: block; padding: 0 0 10px; }
+  #hits tr.issue-strip > td { display: block; padding: 0 8px 0 12px; box-shadow: inset 3px 0 0 var(--warn); }
+  .scan-range label { width: auto; flex: 1 1 0; }
+}
