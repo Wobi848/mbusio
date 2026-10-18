@@ -132,37 +132,43 @@ pub(super) async fn meters_read_all(State(st): State<AppState>) -> ApiResult<Job
         )));
     }
     let s = st.clone();
-    start_job(&st, "read_all", String::new(), move |m, progress| {
-        let total = meters.len() as u32;
-        for (k, meter) in meters.iter().enumerate() {
-            let name = if meter.name.is_empty() {
-                &meter.address
-            } else {
-                &meter.name
-            };
-            if !progress(Progress::Step {
-                done: k as u32,
-                total,
-                message: name.clone(),
-            }) {
-                break;
-            }
-            match read_listed(m, meter) {
-                Ok((target, r)) => s.record(line, &target, Ok(&r)),
-                Err(e) => {
-                    if let Ok(target) = Target::parse(&meter.address) {
-                        s.record(line, &target, Err(format!("{e:#}")));
+    start_job(
+        &st,
+        "read_all",
+        String::new(),
+        Vec::new(),
+        move |m, progress| {
+            let total = meters.len() as u32;
+            for (k, meter) in meters.iter().enumerate() {
+                let name = if meter.name.is_empty() {
+                    &meter.address
+                } else {
+                    &meter.name
+                };
+                if !progress(Progress::Step {
+                    done: k as u32,
+                    total,
+                    message: name.clone(),
+                }) {
+                    break;
+                }
+                match read_listed(m, meter) {
+                    Ok((target, r)) => s.record(line, &target, Ok(&r)),
+                    Err(e) => {
+                        if let Ok(target) = Target::parse(&meter.address) {
+                            s.record(line, &target, Err(format!("{e:#}")));
+                        }
                     }
                 }
             }
-        }
-        progress(Progress::Step {
-            done: total,
-            total,
-            message: tr("Fertig", "Done"),
-        });
-        Ok(())
-    })
+            progress(Progress::Step {
+                done: total,
+                total,
+                message: tr("Fertig", "Done"),
+            });
+            Ok(())
+        },
+    )
 }
 
 #[derive(Deserialize)]

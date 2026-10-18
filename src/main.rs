@@ -126,6 +126,7 @@ fn collect(hits: &mut Vec<ScanHit>) -> impl FnMut(Progress) -> bool + '_ {
         match p {
             Progress::Hit(h) => hits.push(h),
             Progress::Step { message, .. } => eprintln!("{message}"),
+            Progress::Stopped { .. } => {}
         }
         true
     }

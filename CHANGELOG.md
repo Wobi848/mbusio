@@ -9,6 +9,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Neu
 
+- **Sekundärscan eingrenzen und weitersuchen:** „ID beginnt mit …“ sucht nur IDs mit diesem
+  Anfang; nach einem Abbruch macht „Weitersuchen“ dort weiter, die bisherigen Treffer bleiben.
 - **Änderungen seit dem letzten Scan:** nach jedem vollständigen Scan Vergleich mit dem letzten
   Scan gleicher Art und gleichen Bereichs auf der Linie: neu, fehlt (graue Zeile), geändert
   (PA, Baudrate, Status als alt → neu), mit Zusammenfassung über der Trefferliste.

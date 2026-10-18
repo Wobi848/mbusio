@@ -59,6 +59,9 @@ pub struct JobStatus {
     /// Letzter vollständiger Scan gleicher Art und gleichen Bereichs, zum Vergleich: {time, hits}
     #[serde(skip_serializing_if = "Option::is_none")]
     pub previous: Option<serde_json::Value>,
+    /// Abgebrochener Sekundärscan: hier geht „Weitersuchen“ weiter {mask, baud}
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resume: Option<serde_json::Value>,
 }
 
 pub struct Shared {

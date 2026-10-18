@@ -161,6 +161,7 @@ function renderJob(job) {
   }
   // Fortschritt nur während der Suche; danach steht alles im Kopf des Ergebnisses
   $("job").hidden = !job.running;
+  renderResume();
   const p = $("job-progress");
   const frac = job.total ? Math.min(job.done / job.total, 1) : 0;
   p.querySelector(".bar-fill").style.transform = `scaleX(${job.running ? frac : 1})`;
@@ -531,8 +532,26 @@ $("scan-primary").onclick = () =>
     })
   );
 
+/// Anfang der ID für den Sekundärscan: nur Ziffern, höchstens 7
+function scanPrefix() {
+  const p = $("scan-prefix").value.trim();
+  if (!/^\d{0,7}$/.test(p)) throw new Error(t("scan_prefix_bad"));
+  return p;
+}
+
 $("scan-secondary").onclick = () =>
-  guarded($("scan-secondary"), () => startScan("scan/secondary", { bauds: pickedBauds() }));
+  guarded($("scan-secondary"), () => startScan("scan/secondary", { bauds: pickedBauds(), prefix: scanPrefix() }));
+
+// abgebrochenen Sekundärscan dort fortsetzen, wo er stand; bisherige Treffer bleiben
+$("scan-resume").onclick = () =>
+  guarded($("scan-resume"), () => startScan("scan/secondary", { bauds: pickedBauds(), prefix: scanPrefix(), resume: lastJob.resume }));
+
+/// „Weitersuchen“ nur nach einem abgebrochenen Sekundärscan
+function renderResume() {
+  const r = scanKind === "secondary" && lastJob?.kind === "secondary" && !lastJob.running && lastJob.resume;
+  $("scan-resume").hidden = !r;
+  if (r) $("scan-resume").textContent = t("scan_resume", r.mask.replace(/F+$/, "") || "0", r.baud || "");
+}
 
 // ------------------------------------------------------------ Art des Scans
 
@@ -544,6 +563,7 @@ function setScanKind(kind) {
   storageSet("scan_kind", kind);
   document.querySelectorAll("#scan-kind [data-kind]").forEach((b) => b.classList.toggle("active", b.dataset.kind === kind));
   document.querySelectorAll("#sec-scan [data-for]").forEach((el) => (el.hidden = el.dataset.for !== kind));
+  renderResume();
 }
 
 $("scan-kind").onclick = (ev) => {

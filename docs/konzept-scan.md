@@ -1,6 +1,6 @@
 # Konzept: Änderungen erkennen, gezielter scannen
 
-Stand: 18.10.2026 · Status: **Abschnitt 2 umgesetzt**, 3 und 4 offen
+Stand: 18.10.2026 · Status: **Abschnitte 2 und 3 umgesetzt**, 4 offen
 
 ## 1. Ausgangslage
 
@@ -41,7 +41,7 @@ Seit dem letzten Scan (gestern 14:02):  2 neu · 1 fehlt · 1 geändert
 - Gespeichert wird je Linie und Art das letzte Ergebnis (die Linie merkt sich heute schon ihre
   Auffälligkeiten). Der Vergleich gilt immer zum unmittelbar vorherigen Scan.
 
-## 3. Sekundärscan eingrenzen und weitersuchen
+## 3. Sekundärscan eingrenzen und weitersuchen (umgesetzt, 18.10.2026)
 
 In der Kachel Sekundärscan:
 
@@ -55,6 +55,11 @@ Abgebrochen bei 12** · [Weitersuchen]
   Beispiel `1234` sucht nur `12340000` bis `12349999`.
 - **Weitersuchen:** bricht man einen Sekundärscan ab, merkt sich mbusio die Stelle; „Weitersuchen“
   macht dort weiter, die bisherigen Treffer bleiben stehen.
+
+Umgesetzt: Feld „ID beginnt mit“ beim Sekundärscan (gehört zum Bereich: Scans mit anderem Anfang
+werden nicht miteinander verglichen). Beim Abbruch meldet der Scan Maske und Baudrate;
+„Weitersuchen“ übernimmt die bisherigen Treffer, überspringt Baudraten und Masken davor und setzt
+genau dort fort. Tests: Rust (`secondary_scan_with_prefix…`, `secondary_scan_resumes…`), UI `11-secondary`.
 
 ## 4. Schnellprüfung der bekannten Zähler
 

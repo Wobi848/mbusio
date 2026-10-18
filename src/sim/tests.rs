@@ -1,4 +1,13 @@
 use super::*;
+
+/// Status als &'static str für die Vergleiche in den Tests
+fn stat(s: &str) -> &'static str {
+    match s {
+        "ok" => "ok",
+        "collision" => "collision",
+        _ => "no_data",
+    }
+}
 use crate::mbus::master::{Bauds, FrameLog, Master, MeterReading, Progress, Target};
 use std::sync::Arc;
 
@@ -24,7 +33,7 @@ fn primary_scan_finds_meters_and_collision() {
     .unwrap();
     let addrs: Vec<_> = hits
         .iter()
-        .map(|h| (h.primary_address.unwrap(), h.status))
+        .map(|h| (h.primary_address.unwrap(), stat(&h.status)))
         .collect();
     assert_eq!(
         addrs,
@@ -47,7 +56,7 @@ fn secondary_scan_resolves_all() {
     let mut hits = Vec::new();
     m.scan_secondary(&mut |p| {
         if let Progress::Hit(h) = p {
-            hits.push((h.id.clone().unwrap_or_default(), h.status));
+            hits.push((h.id.clone().unwrap_or_default(), stat(&h.status)));
         }
         true
     })
@@ -277,7 +286,7 @@ fn primary_scan_on_all_bauds() {
         Bauds::Probe,
         &mut |p| {
             if let Progress::Hit(h) = p {
-                hits.push((h.primary_address.unwrap(), h.baud.unwrap(), h.status));
+                hits.push((h.primary_address.unwrap(), h.baud.unwrap(), stat(&h.status)));
             }
             true
         },
@@ -350,7 +359,7 @@ fn faulty_meters_are_reported() {
     let mut st = Vec::new();
     m.scan_primary(11, 11, 0, &mut |p| {
         if let Progress::Hit(h) = p {
-            st.push(h.status);
+            st.push(stat(&h.status));
         }
         true
     })
@@ -363,7 +372,7 @@ fn faulty_meters_are_reported() {
     let mut st = Vec::new();
     m.scan_primary(10, 10, 0, &mut |p| {
         if let Progress::Hit(h) = p {
-            st.push(h.status);
+            st.push(stat(&h.status));
         }
         true
     })
@@ -443,7 +452,7 @@ fn template_all_ok_has_ten_clean_meters() {
     let mut hits = Vec::new();
     m.scan_primary(0, 15, 0, &mut |p| {
         if let Progress::Hit(h) = p {
-            hits.push((h.primary_address, h.status));
+            hits.push((h.primary_address, stat(&h.status)));
         }
         true
     })
@@ -539,4 +548,66 @@ fn own_simulation_is_stored_and_used() {
     assert!(m.read_meter(&Target::Primary(1)).is_ok());
     assert!(format!("{:#}", m.read_meter(&Target::Primary(3)).unwrap_err()).contains("08"));
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// IDs, die ein Sekundärscan findet (sortiert); `stop_after` = nach so vielen Masken abbrechen
+fn secondary_ids(
+    m: &mut Master,
+    prefix: &str,
+    resume: Option<&str>,
+    stop_after: Option<usize>,
+) -> (Vec<String>, Option<String>) {
+    let (mut ids, mut stopped, mut steps) = (Vec::new(), None, 0);
+    m.scan_secondary_from(prefix, resume, &mut |p| match p {
+        Progress::Hit(h) => {
+            ids.push(h.id.unwrap_or_default());
+            true
+        }
+        Progress::Stopped { mask, .. } => {
+            stopped = Some(mask);
+            false
+        }
+        Progress::Step { .. } => {
+            steps += 1;
+            stop_after.is_none_or(|n| steps <= n)
+        }
+    })
+    .unwrap();
+    ids.sort();
+    (ids, stopped)
+}
+
+#[test]
+fn secondary_scan_with_prefix_finds_only_those_ids() {
+    let mut m = master_for("mfh30", 2400);
+    let (all, _) = secondary_ids(&mut m, "", None, None);
+    // Präfix aus einer gefundenen ID: genau die IDs mit diesem Anfang
+    let prefix = &all[0][..3];
+    let (some, _) = secondary_ids(&mut m, prefix, None, None);
+    let expected: Vec<String> = all
+        .iter()
+        .filter(|id| id.starts_with(prefix))
+        .cloned()
+        .collect();
+    assert!(
+        !some.is_empty() && some.len() < all.len(),
+        "{prefix}: {some:?} von {all:?}"
+    );
+    assert_eq!(some, expected);
+    assert!(
+        m.scan_secondary_from("12a", None, &mut |_| true).is_err(),
+        "nur Ziffern"
+    );
+}
+
+#[test]
+fn secondary_scan_resumes_where_it_stopped() {
+    let mut m = master_for("mfh30", 2400);
+    let (all, _) = secondary_ids(&mut m, "", None, None);
+    let (first, stopped) = secondary_ids(&mut m, "", None, Some(15));
+    let mask = stopped.expect("Abbruch meldet die Stelle");
+    let (rest, _) = secondary_ids(&mut m, "", Some(&mask), None);
+    let mut both = [first, rest].concat();
+    both.sort();
+    assert_eq!(both, all, "zusammen alle, keiner doppelt");
 }

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, bail, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::decode::{decode_rsp_ud, Header, Record};
 use super::frame::{
@@ -244,7 +244,7 @@ impl std::fmt::Display for MeterRefused {
 
 impl std::error::Error for MeterRefused {}
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanHit {
     pub primary_address: Option<u8>,
     pub secondary_address: Option<String>,
@@ -253,7 +253,7 @@ pub struct ScanHit {
     pub medium: Option<String>,
     pub version: Option<u8>,
     /// "ok", "collision", "no_data"
-    pub status: &'static str,
+    pub status: String,
     /// Baudrate, auf der der Zähler gefunden wurde
     pub baud: Option<u32>,
     /// Ursache bei "collision"/"no_data" als Schlüssel, z.B. `checksum`, `app_error:08`
@@ -271,7 +271,7 @@ impl ScanHit {
             manufacturer: h.map(|h| h.manufacturer.clone()),
             medium: h.map(|h| h.medium.clone()),
             version: h.map(|h| h.version),
-            status,
+            status: status.into(),
             baud: None,
             reason: None,
             raw: None,
@@ -286,6 +286,11 @@ pub enum Progress {
         message: String,
     },
     Hit(ScanHit),
+    /// Abgebrochen: hier ginge die Suche weiter (Sekundärscan: Maske, Baudrate setzt scan_bauds)
+    Stopped {
+        mask: String,
+        baud: Option<u32>,
+    },
 }
 
 /// Rückgabe `false` = Abbruch.
@@ -371,7 +376,6 @@ impl Master {
         hit
     }
 
-    #[cfg(test)]
     pub fn baud(&self) -> u32 {
         self.baud
     }

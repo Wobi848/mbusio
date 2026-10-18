@@ -58,6 +58,7 @@
 .scan-label { font-size: 12.5px; font-weight: 600; color: var(--text); }
 .scan-range { display: flex; gap: 10px; align-items: flex-end; }
 .scan-range label { width: 96px; }
+.scan-prefix { width: 150px; }
 .baud-pick { margin: 0; }
 .hits-block { display: flex; flex-direction: column; gap: 12px; margin: 6px -22px 0; padding: 20px 22px 0; border-top: 1px solid var(--line); }
 .seg-n.warn { color: var(--warn); }

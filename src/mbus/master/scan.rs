@@ -75,6 +75,10 @@ impl Master {
                         h.baud = Some(baud);
                         Progress::Hit(h)
                     }
+                    Progress::Stopped { mask, .. } => Progress::Stopped {
+                        mask,
+                        baud: Some(baud),
+                    },
                 };
                 let go = progress(p);
                 cancelled |= !go;
@@ -204,12 +208,43 @@ impl Master {
 
     /// Wildcard-Suche über die ID-Stellen (wie libmbus).
     pub fn scan_secondary(&mut self, progress: ProgressFn) -> Result<()> {
+        self.scan_secondary_from("", None, progress)
+    }
+
+    /// Sekundärscan nur über IDs, die mit `prefix` beginnen (0–7 Ziffern); `resume` = Maske, bei der
+    /// ein abgebrochener Scan stand (`Progress::Stopped`): alles davor wird übersprungen.
+    pub fn scan_secondary_from(
+        &mut self,
+        prefix: &str,
+        resume: Option<&str>,
+        progress: ProgressFn,
+    ) -> Result<()> {
+        if prefix.len() > 7 || !prefix.chars().all(|c| c.is_ascii_digit()) {
+            bail!(
+                "{}: {prefix}",
+                tr(
+                    "Anfang der ID: höchstens 7 Ziffern",
+                    "Start of the ID: at most 7 digits"
+                )
+            );
+        }
+        let resume: Option<Vec<char>> = resume
+            .map(|r| r.to_ascii_uppercase().chars().collect::<Vec<char>>())
+            .filter(|r| r.len() == 16 && r.starts_with(&prefix.chars().collect::<Vec<_>>()));
         // Eventuell noch selektierte Zähler freigeben
         self.send(&Frame::snd_nke(ADDR_BROADCAST))?;
         std::thread::sleep(self.inter_byte);
-        let mut mask: Vec<char> = "FFFFFFFFFFFFFFFF".chars().collect();
+        let mut mask: Vec<char> = format!("{prefix:F<16}").chars().collect();
         let mut cancelled = false;
-        self.scan_secondary_pos(0, &mut mask, progress, &mut cancelled)?;
+        let start = prefix.len();
+        self.scan_secondary_pos(
+            start,
+            start,
+            resume.as_deref(),
+            &mut mask,
+            progress,
+            &mut cancelled,
+        )?;
         if !cancelled {
             progress(Progress::Step {
                 done: 10,
@@ -222,18 +257,23 @@ impl Master {
 
     fn scan_secondary_pos(
         &mut self,
+        start: usize,
         pos: usize,
+        resume: Option<&[char]>,
         mask: &mut Vec<char>,
         progress: ProgressFn,
         cancelled: &mut bool,
     ) -> Result<()> {
-        for digit in 0..=9u8 {
+        // auf dem Weg zur Stelle des Abbruchs: erst ab deren Ziffer weitersuchen
+        let on_path = resume.filter(|r| r[..pos] == mask[..pos]);
+        let first = on_path.and_then(|r| r[pos].to_digit(10)).unwrap_or(0) as u8;
+        for digit in first..=9u8 {
             mask[pos] = char::from(b'0' + digit);
             let m: String = mask.iter().collect();
-            let done = if pos == 0 {
+            let done = if pos == start {
                 digit as u32
             } else {
-                u32::from(mask[0] as u8 - b'0')
+                u32::from(mask[start] as u8 - b'0')
             };
             if !progress(Progress::Step {
                 done,
@@ -241,6 +281,10 @@ impl Master {
                 message: format!("{} {m}", tr("Maske", "Mask")),
             }) {
                 *cancelled = true;
+                progress(Progress::Stopped {
+                    mask: m,
+                    baud: None,
+                });
                 return Ok(());
             }
             let collision = match self.select(&m)? {
@@ -302,7 +346,7 @@ impl Master {
             };
             if collision {
                 if pos < 7 {
-                    self.scan_secondary_pos(pos + 1, mask, progress, cancelled)?;
+                    self.scan_secondary_pos(start, pos + 1, on_path, mask, progress, cancelled)?;
                     if *cancelled {
                         return Ok(());
                     }

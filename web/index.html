@@ -156,7 +156,10 @@
         <label><span data-i18n="to"></span> <input id="scan-to" class="mono" type="number" min="0" max="250" value="250"></label>
         <label><span data-i18n="retries"></span> <input id="scan-retries" class="mono" type="number" min="0" max="5" value="1"></label>
       </div>
+      <label class="scan-prefix" data-for="secondary"><span data-i18n="scan_prefix"></span>
+        <input id="scan-prefix" class="mono" inputmode="numeric" maxlength="7" autocomplete="off" data-i18n-ph="scan_prefix_ph" data-i18n-title="scan_prefix_title"></label>
       <span class="spacer"></span>
+      <button id="scan-resume" class="tonal needs-conn" hidden></button>
       <button id="scan-primary" class="needs-conn" data-for="primary" data-i18n="scan_primary_start"></button>
       <button id="scan-secondary" class="needs-conn" data-for="secondary" data-i18n="scan_secondary_start"></button>
     </div>

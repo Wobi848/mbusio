@@ -18,7 +18,8 @@ Die Oberfläche hat drei Ebenen; jeder Ablauf hat genau eine Stelle
   den nächsten Schritt (Anschluss festlegen, Verbinden, Anschluss ändern, Abbrechen), Ausleseplan.
   Das Verbindungsformular klappt darunter auf.
 - **Laschen der Linie:**
-  1. **Scan** – Suche einstellen (Primär oder Sekundär, Baudraten, Bereich), dann das Ergebnis:
+  1. **Scan** – Suche einstellen (Primär mit Adressbereich oder Sekundär mit „ID beginnt mit …“,
+     Baudraten; abgebrochenen Sekundärscan weitersuchen), dann das Ergebnis:
      jede Auffälligkeit steht als Streifen direkt unter ihrer Zeile, mit Erklärung und dem Knopf,
      der hilft; „N beheben …“ und „N Zähler übernehmen“; Vergleich mit dem letzten Scan.
   2. **Zähler** – Zählerliste mit Suche und Filtern (gestört, ohne Namen), benennen, Liste

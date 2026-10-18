@@ -87,6 +87,7 @@ pub(super) fn start_job<F>(
     st: &AppState,
     kind: &str,
     scope: String,
+    hits: Vec<ScanHit>,
     work: F,
 ) -> ApiResult<JobStatus>
 where
@@ -101,6 +102,7 @@ where
         *job = JobStatus {
             kind: kind.into(),
             scope,
+            hits,
             running: true,
             message: String::new(),
             ..Default::default()
@@ -132,6 +134,9 @@ where
                             job.message = message;
                         }
                         Progress::Hit(h) => job.hits.push(h),
+                        Progress::Stopped { mask, baud } => {
+                            job.resume = Some(json!({ "mask": mask, "baud": baud }))
+                        }
                     }
                     !s.cancel.load(Ordering::SeqCst)
                 };
@@ -191,6 +196,18 @@ pub(super) struct PrimaryScanReq {
 pub(super) struct SecondaryScanReq {
     #[serde(default)]
     bauds: Vec<u32>,
+    /// nur IDs, die so beginnen (0–7 Ziffern)
+    #[serde(default)]
+    prefix: String,
+    /// abgebrochenen Scan fortsetzen: Stelle {mask, baud} aus dem Job
+    #[serde(default)]
+    resume: Option<Resume>,
+}
+
+#[derive(Deserialize)]
+pub(super) struct Resume {
+    mask: String,
+    baud: Option<u32>,
 }
 
 pub(super) fn bauds_of(list: Vec<u32>) -> Bauds {
@@ -225,7 +242,7 @@ pub(super) async fn scan_primary(
     }
     let retries = req.retries.min(5);
     let scope = format!("{from}-{to} {:?}", req.bauds);
-    start_job(&st, "primary", scope, move |m, p| {
+    start_job(&st, "primary", scope, Vec::new(), move |m, p| {
         m.scan_with(bauds_of(req.bauds), p, &mut |m, p| {
             m.scan_primary(from, to, retries, p)
         })
@@ -236,9 +253,30 @@ pub(super) async fn scan_secondary(
     State(st): State<AppState>,
     Json(req): Json<SecondaryScanReq>,
 ) -> ApiResult<JobStatus> {
-    let scope = format!("{:?}", req.bauds);
-    start_job(&st, "secondary", scope, move |m, p| {
-        m.scan_with(bauds_of(req.bauds), p, &mut |m, p| m.scan_secondary(p))
+    let prefix = req.prefix.trim().to_string();
+    let scope = format!("{:?} {prefix}", req.bauds);
+    // Weitersuchen: bisherige Treffer übernehmen, Baudraten vor der Stelle des Abbruchs überspringen
+    let hits = match &req.resume {
+        Some(_) => {
+            let db = st.db.lock().unwrap();
+            db.last_scan(db.active_line()?.id)?
+                .filter(|s| s["kind"] == "secondary")
+                .and_then(|s| serde_json::from_value(s["hits"].clone()).ok())
+                .unwrap_or_default()
+        }
+        None => Vec::new(),
+    };
+    let mut resume = req.resume;
+    start_job(&st, "secondary", scope, hits, move |m, p| {
+        m.scan_with(bauds_of(req.bauds), p, &mut |m, p| match &resume {
+            Some(r) if r.baud.is_some_and(|b| b != m.baud()) => Ok(()),
+            Some(r) => {
+                let mask = r.mask.clone();
+                resume = None;
+                m.scan_secondary_from(&prefix, Some(&mask), p)
+            }
+            None => m.scan_secondary_from(&prefix, None, p),
+        })
     })
 }
 
@@ -358,7 +396,7 @@ pub(super) fn update_hits(
         if job.kind != "read_all" {
             for h in job.hits.iter_mut() {
                 if !matches(
-                    h.status,
+                    &h.status,
                     h.primary_address,
                     h.secondary_address.as_deref(),
                     h.baud,
