@@ -108,9 +108,10 @@ async function pollJob() {
   try {
     for (;;) {
       const job = await api("job");
-      renderJob(job);
-      // Zählerliste während "Alle auslesen" mitlaufend aktualisieren
+      // Zählerliste während "Alle auslesen" mitlaufend aktualisieren (vor dem Zeichnen: die
+      // Zusammenfassung am Ende braucht den neuen Stand)
       if (job.kind === "read_all") await loadMeters().catch(() => {});
+      renderJob(job);
       if (!job.running) {
         jobRunning = false;
         updateButtons();
@@ -118,14 +119,18 @@ async function pollJob() {
         cancelRequested = false;
         const done =
           job.kind === "read_all"
-            ? t(cancelled ? "read_all_cancelled" : "read_all_done")
+            ? cancelled
+              ? t("read_all_cancelled")
+              : readAllSummary()
             : t(cancelled ? "job_cancelled" : "job_done", t("job_" + job.kind), job.hits.length);
+        // „Alle auslesen“ mit Zählern, die nicht antworten: rot wie ein Fehler
+        const missing = job.kind === "read_all" && !cancelled && meters.some((m) => m.last_error);
         busbar({
           text: job.error || done,
           frac: 1,
           link: jobLink(job),
           done: true,
-          error: !!job.error,
+          error: !!job.error || missing,
         });
         // Erfolg meldet die Leiste unten, nur Fehler zusätzlich als Toast
         if (job.error) toast(job.error, true);
@@ -155,7 +160,7 @@ function renderJob(job) {
     el.hidden = false;
     el.textContent = job.running
       ? `${t("job_read_all")}: ${Math.min(job.done + 1, job.total)}/${job.total} · ${job.message}`
-      : `${t("job_read_all")}: ${job.error || job.message}`;
+      : `${t("job_read_all")}: ${job.error || (cancelRequested ? job.message : readAllSummary())}`;
     updateButtons();
     return;
   }

@@ -1,6 +1,6 @@
 # Konzept: Änderungen erkennen, gezielter scannen
 
-Stand: 18.10.2026 · Status: **Abschnitte 2 und 3 umgesetzt**, 4 offen
+Stand: 18.10.2026 · Status: **Abschnitte 2 und 3 umgesetzt**, 4 verworfen
 
 ## 1. Ausgangslage
 
@@ -61,7 +61,7 @@ werden nicht miteinander verglichen). Beim Abbruch meldet der Scan Maske und Bau
 „Weitersuchen“ übernimmt die bisherigen Treffer, überspringt Baudraten und Masken davor und setzt
 genau dort fort. Tests: Rust (`secondary_scan_with_prefix…`, `secondary_scan_resumes…`), UI `11-secondary`.
 
-## 4. Schnellprüfung der bekannten Zähler
+## 4. Schnellprüfung der bekannten Zähler (verworfen, 18.10.2026)
 
 „Sind die Zähler vom letzten Scan noch alle da?“ – jeder bekannte Zähler wird über seine
 Sekundäradresse direkt angesprochen, etwa 1 s pro Zähler statt eines vollen Scans.
@@ -70,6 +70,11 @@ Sekundäradresse direkt angesprochen, etwa 1 s pro Zähler statt eines vollen Sc
 - Ergebnis wie in 2: alle da, oder „fehlt“ bzw. „geändert“.
 - Findet **keine neuen** Zähler; heisst deshalb Prüfung, nicht Scan. Für die volle Wahrheit bleibt
   der volle Scan.
+
+**Verworfen:** „Alle auslesen“ in der Zählerliste spricht schon jeden bekannten Zähler einzeln an.
+Eine zweite Funktion, die fast dasselbe tut, wäre doppelt. Stattdessen sagt „Alle auslesen“ am
+Ende, wie viele antworten: „28 von 30 Zählern antworten, 2 nicht (Filter „Gestört“)“, in der
+Zählerliste und in der Leiste unten (rot, wenn welche fehlen).
 
 ## 5. Umsetzung (nach Freigabe, in dieser Reihenfolge)
 

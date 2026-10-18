@@ -130,6 +130,13 @@ function meterFields(m) {
   ];
 }
 
+/// Ergebnis von „Alle auslesen“: wie viele Zähler antworten, wie viele nicht (zu finden über den
+/// Filter „Gestört“). Ersetzt eine eigene Schnellprüfung: Auslesen prüft jeden bekannten Zähler.
+function readAllSummary() {
+  const bad = meters.filter((m) => m.last_error).length;
+  return bad ? t("read_all_sum_bad", meters.length - bad, meters.length, bad) : t("read_all_sum_ok", meters.length);
+}
+
 /// Kopf und Leiste der Tabelle: Untertitel, Filter mit Anzahl, „Alle N auslesen“
 function renderMetersHead() {
   const last = meters.map((m) => m.last_read).filter(Boolean).sort().pop();

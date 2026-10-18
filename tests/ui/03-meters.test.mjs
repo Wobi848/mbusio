@@ -11,6 +11,8 @@ export default {
     await page.waitForFunction(() => document.querySelectorAll("#meters-table tbody tr").length === 10);
     await page.click("#meters-read-all");
     await page.waitForFunction(() => [...document.querySelectorAll("#meters-table .val")].length === 10, null, { timeout: 60000 });
+    // Zusammenfassung: wie viele antworten
+    await page.waitForFunction(() => document.querySelector("#meters-job").textContent.includes("Alle 10 Zähler antworten"));
     // Suche und Filter an der Tabelle
     await page.fill("#meters-search", "1000000");
     await page.waitForFunction(() => document.querySelectorAll("#meters-table tbody tr[data-row]").length < 10);
