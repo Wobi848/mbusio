@@ -4,43 +4,6 @@
 
 // ------------------------------------------------------------ Zählerliste schnell füllen
 
-/// Tabelle aus CSV oder aus Excel kopiert (Tabulator); Trennzeichen wird erkannt
-function parseTable(text) {
-  text = text.replace(/^\uFEFF/, "");
-  const first = text.split(/\r?\n/)[0] || "";
-  const delim = ["\t", ";", ","].map((d) => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
-  const rows = [];
-  let row = [];
-  let cur = "";
-  let quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quoted) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else quoted = false;
-      } else cur += c;
-    } else if (c === '"' && cur === "") quoted = true;
-    else if (c === delim) {
-      row.push(cur);
-      cur = "";
-    } else if (c === "\n" || c === "\r") {
-      if (c === "\r" && text[i + 1] === "\n") i++;
-      row.push(cur);
-      rows.push(row);
-      row = [];
-      cur = "";
-    } else cur += c;
-  }
-  if (cur || row.length) {
-    row.push(cur);
-    rows.push(row);
-  }
-  return rows.map((r) => r.map((x) => x.trim())).filter((r) => r.some(Boolean));
-}
-
 const LIST_FIELDS = ["id", "name", "location", "note", "pa"];
 const LIST_GUESS = {
   id: /^(id|ident|z(ä|ae)hler.?(nr|nummer)|serien.?(nr|nummer)|fab(rikations)?.?(nr|nummer)|meter.?(id|no)|serial|nummer|nr\.?)$/i,

@@ -316,6 +316,19 @@ pub enum Bauds {
 /// Standard-Baudraten, langsamste zuerst
 pub const BAUD_RATES: [u32; 8] = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 
+/// Fehler, wenn eine der Baudraten keine Standard-Baudrate ist
+pub fn check_baud(bauds: impl IntoIterator<Item = u32>) -> Result<()> {
+    for b in bauds {
+        if !BAUD_RATES.contains(&b) {
+            bail!(
+                "{}: {b}",
+                tr("Keine Standard-Baudrate", "Not a standard baud rate")
+            );
+        }
+    }
+    Ok(())
+}
+
 /// `timeout_ms = 0` → automatisch aus der Baudrate (330 Bitzeiten + 50 ms + Reserve für USB-Wandler).
 fn timings(baud: u32, timeout_ms: u64) -> (Duration, Duration) {
     let bit = 1.0 / baud.max(1) as f64;
@@ -355,8 +368,24 @@ impl Master {
         hit
     }
 
+    #[cfg(test)]
     pub fn baud(&self) -> u32 {
         self.baud
+    }
+
+    /// `f` mit dieser Baudrate ausführen (None = wie jetzt), danach zurückschalten
+    pub fn at_baud<T>(
+        &mut self,
+        baud: Option<u32>,
+        f: impl FnOnce(&mut Self) -> Result<T>,
+    ) -> Result<T> {
+        let home = self.baud;
+        self.set_baud(baud.unwrap_or(home))?;
+        let r = f(self);
+        let restore = self.set_baud(home);
+        let v = r?;
+        restore?;
+        Ok(v)
     }
 
     /// Baudrate des Masters wechseln; Timeouts werden mit angepasst.
@@ -766,12 +795,7 @@ impl Master {
         } else {
             bauds
         };
-        if let Some(b) = bauds.iter().find(|b| !BAUD_RATES.contains(b)) {
-            bail!(
-                "{}: {b}",
-                tr("Keine Standard-Baudrate", "Not a standard baud rate")
-            );
-        }
+        check_baud(bauds.iter().copied())?;
         let old = self.baud;
         self.link.set_baud(old)?;
         let result = self.probe_bus_bauds(bauds);
@@ -855,12 +879,7 @@ impl Master {
         let mut list = match bauds {
             Bauds::Current => vec![self.baud],
             Bauds::List(list) => {
-                if let Some(b) = list.iter().find(|b| !BAUD_RATES.contains(b)) {
-                    bail!(
-                        "{}: {b}",
-                        tr("Keine Standard-Baudrate", "Not a standard baud rate")
-                    );
-                }
+                check_baud(list.iter().copied())?;
                 list
             }
             Bauds::Probe => {
@@ -1138,13 +1157,12 @@ fn data_has_more(ci: u8, data: &[u8]) -> bool {
 
 /// CI-Feld für den Baudratenwechsel (EN 13757-3): B8 = 300 … BF = 38400
 fn baud_ci(baud: u32) -> Result<u8> {
-    match BAUD_RATES.iter().position(|&b| b == baud) {
-        Some(k) => Ok(0xB8 + k as u8),
-        None => bail!(
-            "{}: {baud}",
-            tr("Keine Standard-Baudrate", "Not a standard baud rate")
-        ),
-    }
+    check_baud([baud])?;
+    let k = BAUD_RATES
+        .iter()
+        .position(|&b| b == baud)
+        .unwrap_or_default();
+    Ok(0xB8 + k as u8)
 }
 
 /// Passt die Sekundäradresse auf die Maske (`F` = Platzhalter)?

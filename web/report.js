@@ -2,201 +2,6 @@
 
 // Bericht der Zählerliste zum Drucken bzw. "Als PDF speichern" im Druckdialog.
 
-const TEXT = {
-  de: {
-    print: "Drucken / Als PDF speichern",
-    with_details: "Alle Messwerte anhängen",
-    with_issues: "Auffälligkeiten anzeigen",
-    with_dps: "Datenpunkte anzeigen",
-    dps: "Datenpunkte",
-    th_dp: "Datenpunkt",
-    th_unit: "Einheit",
-    th_send: "Weitergabe",
-    th_active: "Aktiv",
-    send_every: "jede Auslesung",
-    send_change: "bei Änderung",
-    send_daily: "1× täglich",
-    tariff: "Tarif",
-    storage_n: "Speicher",
-    yes: "ja",
-    no: "nein",
-    changes: "Durchgeführte Änderungen",
-    open_issues: "Offene Auffälligkeiten",
-    project: "Projekt",
-    lines: "Linien",
-    th_line: "Gateway › Linie",
-    clear_changes: "Änderungen leeren",
-    confirm_clear_changes: "Liste der durchgeführten Änderungen leeren?",
-    th_time: "Zeitpunkt",
-    th_change: "Änderung",
-    close: "Schliessen",
-    title: "M-Bus Zählerprotokoll",
-    subtitle: "Erstellt mit mbusio",
-    customer: "Kunde",
-    site: "Objekt / Anlage",
-    technician: "Bearbeiter",
-    order: "Auftrag",
-    remarks: "Bemerkungen",
-    meters: "Zähler",
-    date: "Datum",
-    connection: "Verbindung",
-    plan: "Ausleseplan",
-    plan_monthly: "monatlich am 1.,",
-    plan_daily: "täglich",
-    plan_hourly: "stündlich",
-    plan_15min: "alle 15 min",
-    time_unsure: "Zeit unsicher",
-    count: "Zähler",
-    ok_count: "gelesen",
-    err_count: "mit Fehler",
-    th_no: "Nr",
-    th_name: "Name / Ort",
-    th_address: "Adresse",
-    th_medium: "Medium",
-    th_pa: "PA",
-    th_baud: "Baud",
-    th_value: "Zählerstand",
-    th_read: "Gelesen",
-    th_status: "Status",
-    st_ok: "OK",
-    st_err: "Fehler",
-    st_none: "nicht gelesen",
-    bus: "Bus",
-    details: "Messwerte",
-    no_details: "Keine Auslesung in dieser Sitzung gespeichert.",
-    th_desc: "Beschreibung",
-    th_val: "Wert",
-    th_id: "ID / Adresse",
-    th_unit: "Einheit",
-    th_kind: "Art",
-    storage: "Speicher",
-    tariff: "Tarif",
-    empty: "Die Zählerliste ist leer. Zähler in mbusio mit „Merken“ übernehmen und auslesen.",
-    sign_tech: "Datum, Unterschrift Bearbeiter",
-    sign_customer: "Datum, Unterschrift Kunde",
-    foot: (v) => `mbusio ${v} · Werte wie vom Zähler übertragen, ohne Gewähr für die Richtigkeit der Zählerdaten.`,
-  },
-  en: {
-    print: "Print / save as PDF",
-    with_details: "Attach all readings",
-    with_issues: "Show issues",
-    with_dps: "Show datapoints",
-    dps: "Datapoints",
-    th_dp: "Datapoint",
-    th_unit: "Unit",
-    th_send: "Send",
-    th_active: "Active",
-    send_every: "every reading",
-    send_change: "on change",
-    send_daily: "once a day",
-    tariff: "tariff",
-    storage_n: "storage",
-    yes: "yes",
-    no: "no",
-    changes: "Changes made",
-    open_issues: "Open issues",
-    project: "Project",
-    lines: "lines",
-    th_line: "Gateway › line",
-    clear_changes: "Clear changes",
-    confirm_clear_changes: "Clear the list of changes made?",
-    th_time: "Time",
-    th_change: "Change",
-    close: "Close",
-    title: "M-Bus meter report",
-    subtitle: "Created with mbusio",
-    customer: "Customer",
-    site: "Site / installation",
-    technician: "Technician",
-    order: "Order",
-    remarks: "Remarks",
-    meters: "Meters",
-    date: "Date",
-    connection: "Connection",
-    plan: "Read plan",
-    plan_monthly: "monthly on the 1st,",
-    plan_daily: "daily",
-    plan_hourly: "hourly",
-    plan_15min: "every 15 min",
-    time_unsure: "time unsure",
-    count: "meters",
-    ok_count: "read",
-    err_count: "with errors",
-    th_no: "No",
-    th_name: "Name / location",
-    th_address: "Address",
-    th_medium: "Medium",
-    th_pa: "PA",
-    th_baud: "Baud",
-    th_value: "Reading",
-    th_read: "Read at",
-    th_status: "Status",
-    st_ok: "OK",
-    st_err: "Error",
-    st_none: "not read",
-    bus: "bus",
-    details: "Readings",
-    no_details: "No reading stored in this session.",
-    th_desc: "Description",
-    th_val: "Value",
-    th_id: "ID / address",
-    th_unit: "Unit",
-    th_kind: "Kind",
-    storage: "Storage",
-    tariff: "Tariff",
-    empty: "The meter list is empty. Add meters in mbusio with “Remember” and read them.",
-    sign_tech: "Date, signature technician",
-    sign_customer: "Date, signature customer",
-    foot: (v) => `mbusio ${v} · Values as transmitted by the meters, no warranty for the correctness of meter data.`,
-  },
-};
-
-const $ = (id) => document.getElementById(id);
-
-function get(key) {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function put(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* privater Modus */
-  }
-}
-
-let lang = get("lang") || (navigator.language || "de").slice(0, 2);
-if (!TEXT[lang]) lang = "de";
-const t = (k, ...a) => {
-  const v = TEXT[lang][k] ?? k;
-  return typeof v === "function" ? v(...a) : v;
-};
-const token = get("token") || "";
-let labels = {};
-
-function label(key) {
-  if (!key) return "";
-  const [base, arg] = key.split(":");
-  const text = labels[base] ?? base;
-  return arg ? `${text} ${arg}` : text;
-}
-
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-}
-
-async function api(path, options = {}) {
-  const headers = { "X-Lang": lang, "Content-Type": "application/json" };
-  if (token) headers["X-Token"] = token;
-  const res = await fetch("api/" + path, { ...options, headers, body: options.body && JSON.stringify(options.body) });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
-  return res.json();
-}
-
 // ------------------------------------------------------------ Kopffelder (gehören zum Projekt)
 
 /// Feld im Bericht → Feld im Projekt
@@ -220,7 +25,7 @@ function loadFields() {
 async function saveFields() {
   for (const [f, key] of Object.entries(FIELDS)) data.project[key] = $("f-" + f).value;
   try {
-    await api(`projects/${data.project.id}`, { method: "PUT", body: data.project });
+    await request(`projects/${data.project.id}`, { method: "PUT", body: data.project });
   } catch (e) {
     console.warn(e);
   }
@@ -250,12 +55,6 @@ function allMeters() {
   for (const g of data.gateways)
     for (const l of g.lines) for (const e of l.meters) out.push({ ...e, gateway: g.gateway, line: l.line });
   return out;
-}
-
-/// "daily 00:05" → "täglich 00:05"
-function planText(key) {
-  const [kind, time] = key.split(" ");
-  return `${t("plan_" + kind)}${time ? " " + time : ""}`;
 }
 
 /// Ausleseplan der Linie (eigener oder vom Projekt), nur wenn eingeschaltet
@@ -302,7 +101,7 @@ function renderTable() {
       <table>
         <thead><tr>
           <th class="num">${t("th_no")}</th><th>${t("th_name")}</th><th>${t("th_id")}</th><th>${t("th_medium")}</th>
-          <th class="num">${t("th_pa")}</th><th class="num">${t("th_baud")}</th><th class="num">${t("th_value")}</th>
+          <th class="num">${t("th_pa")}</th><th class="num">${t("th_baud")}</th><th class="num">${t("rp_th_value")}</th>
           <th>${t("th_read")}</th><th>${t("th_status")}</th>
         </tr></thead>
         <tbody>${rows}</tbody>
@@ -416,26 +215,26 @@ async function main() {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
   document.title = `mbusio – ${t("title")}`;
-  $("details").checked = get("report_details") === "1";
-  $("show-issues").checked = get("report_issues") !== "0";
+  $("details").checked = storageGet("report_details") === "1";
+  $("show-issues").checked = storageGet("report_issues") !== "0";
   $("show-issues").onchange = () => {
-    put("report_issues", $("show-issues").checked ? "1" : "0");
+    storageSet("report_issues", $("show-issues").checked ? "1" : "0");
     render();
   };
-  $("show-dps").checked = get("report_dps") !== "0";
+  $("show-dps").checked = storageGet("report_dps") !== "0";
   $("show-dps").onchange = () => {
-    put("report_dps", $("show-dps").checked ? "1" : "0");
+    storageSet("report_dps", $("show-dps").checked ? "1" : "0");
     render();
   };
   $("details").onchange = () => {
-    put("report_details", $("details").checked ? "1" : "0");
+    storageSet("report_details", $("details").checked ? "1" : "0");
     render();
   };
   $("print").onclick = () => window.print();
   $("close").onclick = () => window.close();
   $("clear-changes").onclick = async () => {
     if (!confirm(t("confirm_clear_changes"))) return;
-    await api(`projects/${data.project.id}/changes`, { method: "DELETE" });
+    await request(`projects/${data.project.id}/changes`, { method: "DELETE" });
     data.changes = [];
     render();
   };
@@ -443,9 +242,9 @@ async function main() {
     // ?project=ID für ein anderes als das aktive Projekt
     const q = new URLSearchParams(location.search).get("project");
     const [report, status, l] = await Promise.all([
-      api("report" + (q ? `?project=${encodeURIComponent(q)}` : "")),
-      api("status"),
-      api("labels?lang=" + lang),
+      request("report" + (q ? `?project=${encodeURIComponent(q)}` : "")),
+      request("status"),
+      request("labels?lang=" + lang),
     ]);
     labels = l;
     data = { ...report, version: status.version };

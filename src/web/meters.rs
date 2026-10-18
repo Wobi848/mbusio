@@ -65,19 +65,12 @@ pub(super) async fn meters_remove(
 
 pub(super) async fn meters_read_one(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
 ) -> ApiResult<MeterReading> {
     let meter = st.db.lock().unwrap().meter(id).map_err(bad_request)?;
     let line = meter.line_id;
     let target = parse_target(&meter.address)?;
-    let result = with_bus(&st, lang_of(&headers), move |m| {
-        let home = m.baud();
-        let r = read_listed(m, &meter, home);
-        m.set_baud(home)?;
-        r
-    })
-    .await;
+    let result = with_bus(&st, move |m| read_listed(m, &meter)).await;
     match result {
         Ok((_, r)) => {
             st.record(line, &target, Ok(&r));
@@ -126,10 +119,7 @@ pub(super) async fn meter_history(
     Ok(Json(json!({ "meter": meter, "points": points })))
 }
 
-pub(super) async fn meters_read_all(
-    State(st): State<AppState>,
-    headers: HeaderMap,
-) -> ApiResult<JobStatus> {
+pub(super) async fn meters_read_all(State(st): State<AppState>) -> ApiResult<JobStatus> {
     let (line, meters) = {
         let db = st.db.lock().unwrap();
         let line = db.active_line()?.id;
@@ -142,9 +132,8 @@ pub(super) async fn meters_read_all(
         )));
     }
     let s = st.clone();
-    start_job(&st, "read_all", lang_of(&headers), move |m, progress| {
+    start_job(&st, "read_all", move |m, progress| {
         let total = meters.len() as u32;
-        let home = m.baud();
         for (k, meter) in meters.iter().enumerate() {
             let name = if meter.name.is_empty() {
                 &meter.address
@@ -158,7 +147,7 @@ pub(super) async fn meters_read_all(
             }) {
                 break;
             }
-            match read_listed(m, meter, home) {
+            match read_listed(m, meter) {
                 Ok((target, r)) => s.record(line, &target, Ok(&r)),
                 Err(e) => {
                     if let Ok(target) = Target::parse(&meter.address) {
@@ -167,7 +156,6 @@ pub(super) async fn meters_read_all(
                 }
             }
         }
-        m.set_baud(home)?;
         progress(Progress::Step {
             done: total,
             total,
@@ -216,12 +204,9 @@ pub(super) struct ExchangeReq {
 /// Zähler getauscht: neuen Zähler auslesen, Zählerstände fortführen, Adresse übernehmen
 pub(super) async fn meter_exchange(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(r): Json<ExchangeReq>,
 ) -> ApiResult<serde_json::Value> {
-    let lang = lang_of(&headers);
-    i18n::set(lang);
     let meter = st.db.lock().unwrap().meter(id).map_err(bad_request)?;
     parse_target(&r.address)?;
     let probe = Meter {
@@ -229,13 +214,7 @@ pub(super) async fn meter_exchange(
         baud: r.baud.or(meter.baud),
         ..Default::default()
     };
-    let (_, reading) = with_bus(&st, lang, move |m| {
-        let home = m.baud();
-        let res = read_listed(m, &probe, home);
-        m.set_baud(home)?;
-        res
-    })
-    .await?;
+    let (_, reading) = with_bus(&st, move |m| read_listed(m, &probe)).await?;
     let (lines, notes) = {
         let mut db = st.db.lock().unwrap();
         let lines = db
@@ -261,10 +240,8 @@ pub(super) struct ListImportReq {
 /// Liste vom Kunden/Installateur: Zähler über die ID anlegen bzw. benennen (zuerst Vorschau)
 pub(super) async fn meters_import_list(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(r): Json<ListImportReq>,
 ) -> ApiResult<crate::changeset::ChangeSet> {
-    i18n::set(lang_of(&headers));
     let mut db = st.db.lock().unwrap();
     let line = db.active_line()?.id;
     Ok(Json(
@@ -288,11 +265,9 @@ pub(super) struct NamesReq {
 
 pub(super) async fn meters_names(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(r): Json<NamesReq>,
 ) -> ApiResult<crate::changeset::ChangeSet> {
-    let lang = lang_of(&headers);
-    i18n::set(lang);
+    let lang = i18n::current();
     let mut db = st.db.lock().unwrap();
     let line = db.active_line()?.id;
     Ok(Json(db.auto_names(
@@ -305,29 +280,14 @@ pub(super) async fn meters_names(
     )?))
 }
 
-pub(super) async fn meters_csv(
-    State(st): State<AppState>,
-    headers: HeaderMap,
-    Query(q): Query<LangQuery>,
-) -> Result<Response, ApiError> {
-    let lang = q
-        .lang
-        .as_deref()
-        .map(Lang::parse)
-        .unwrap_or_else(|| lang_of(&headers));
-    i18n::set(lang);
+pub(super) async fn meters_csv(State(st): State<AppState>) -> Result<Response, ApiError> {
+    let lang = i18n::current();
     let db = st.db.lock().unwrap();
     let line = db.active_line()?;
-    let body = format!("\u{feff}{}", db.meters_csv(line.id, lang)?);
-    let file: String = line
-        .name
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect();
-    Ok(download(
-        body,
-        "text/csv; charset=utf-8",
-        &format!("mbusio-zaehler-{file}.csv"),
+    Ok(csv_download(
+        db.meters_csv(line.id, lang)?,
+        "zaehler",
+        &line.name,
     ))
 }
 
@@ -335,8 +295,6 @@ pub(super) async fn meters_csv(
 pub(super) struct ExportQuery {
     #[serde(default)]
     format: String,
-    #[serde(default)]
-    lang: String,
 }
 
 pub(super) async fn export_readings(
@@ -351,7 +309,7 @@ pub(super) async fn export_readings(
     let (body, mime, ext) = match q.format.as_str() {
         "json" => (export::json(&readings), "application/json", "json"),
         _ => (
-            export::csv(&readings, Lang::parse(&q.lang)),
+            export::csv(&readings, i18n::current()),
             "text/csv; charset=utf-8",
             "csv",
         ),

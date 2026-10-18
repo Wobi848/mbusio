@@ -39,15 +39,7 @@ impl Db {
                 m.address
             );
         }
-        if let Some(b) = m.baud {
-            if !BAUD_RATES.contains(&b) {
-                bail!(
-                    "{}: {b}",
-                    tr("Keine Standard-Baudrate", "Not a standard baud rate")
-                );
-            }
-        }
-        Ok(())
+        check_baud(m.baud)
     }
 
     pub(super) fn insert_meter(&mut self, line_id: i64, m: &Meter) -> Result<i64> {

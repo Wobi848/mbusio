@@ -17,7 +17,7 @@ export default {
     await page.waitForSelector(".sim-table input");
     await page.fill("#sim-n", "2");
     await page.click("[data-sim-add-many]");
-    await page.locator(".sim-table tbody tr").last().locator("[data-f=fault]").selectOption("checksum");
+    await page.locator(".sim-table tbody tr").last().locator("[name=fault]").selectOption("checksum");
     await page.click("[data-sim-save]");
     await page.waitForFunction(() => document.querySelector("#toast").textContent.includes("gespeichert"));
     await page.click("#sim-use");

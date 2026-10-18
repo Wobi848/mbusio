@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, Result};
 use serde::Serialize;
 
-use crate::i18n::{self, tr, Lang};
+use crate::i18n::{self, tr};
 use crate::link;
 use crate::mbus::master::{FrameLog, Master};
 
@@ -138,9 +138,9 @@ impl LineService {
     /// Auftrag aus der Bedienung ausführen und auf das Ergebnis warten (blockierend).
     pub fn run<T: Send + 'static>(
         &self,
-        lang: Lang,
         f: impl FnOnce(&mut Master) -> Result<T> + Send + 'static,
     ) -> Result<T> {
+        let lang = i18n::current();
         let (tx, rx) = mpsc::channel();
         self.submit(Box::new(move |m| {
             i18n::set(lang);
@@ -160,8 +160,8 @@ impl LineService {
     }
 
     /// Verbindung aufbauen (bzw. prüfen), ohne etwas auf den Bus zu senden
-    pub fn connect(&self, lang: Lang) -> Result<()> {
-        self.run(lang, |_| Ok(()))
+    pub fn connect(&self) -> Result<()> {
+        self.run(|_| Ok(()))
     }
 
     /// Dienst beenden; laufender Auftrag wird zu Ende geführt, wartende bekommen einen Fehler.
@@ -356,9 +356,7 @@ mod tests {
     fn reads_and_reports_status() {
         let s = sim();
         let r = s
-            .run(Lang::De, |m| {
-                m.read_meter(&crate::mbus::master::Target::Primary(1))
-            })
+            .run(|m| m.read_meter(&crate::mbus::master::Target::Primary(1)))
             .unwrap();
         assert_eq!(r.header.unwrap().id, "12345678");
         // "arbeitet" geht erst kurz nach dem Ergebnis aus
@@ -382,11 +380,11 @@ mod tests {
             },
             Arc::new(FrameLog::default()),
         );
-        assert!(s.connect(Lang::De).is_err());
+        assert!(s.connect().is_err());
         let st = s.status();
         assert!(!st.connected && st.error.is_some());
         // Bedienung versucht es sofort wieder, nicht erst nach der Wartezeit
-        assert!(s.connect(Lang::De).is_err());
+        assert!(s.connect().is_err());
         s.stop();
     }
 }

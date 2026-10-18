@@ -578,7 +578,7 @@ async function runPlan() {
   todo.sort((x, y) => (x.kind === "baud" ? 0 : 1) - (y.kind === "baud" ? 0 : 1));
   const switched = new Set();
   for (const [k, s] of todo.entries()) {
-    busbar({ text: t("plan_running", k + 1, todo.length), frac: k / todo.length, link: "#fix-plan" });
+    busbar({ text: t("fix_running", k + 1, todo.length), frac: k / todo.length, link: "#fix-plan" });
     s.state = "run";
     renderPlan();
     try {

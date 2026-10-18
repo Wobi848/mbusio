@@ -12,10 +12,8 @@ pub(super) struct ScopeQuery {
 /// Reiter Weitergabe: Zähler mit ihren Datenpunkten, Vorlagen der Linie, Ausgänge
 pub(super) async fn datapoints(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Query(q): Query<ScopeQuery>,
 ) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
     let db = st.db.lock().unwrap();
     let active = db.active()?;
     let meters = if q.scope.as_deref() == Some("project") {
@@ -33,11 +31,9 @@ pub(super) async fn datapoints(
 /// Werte eines Zählers zur Auswahl als Datenpunkte
 pub(super) async fn meter_values(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
 ) -> ApiResult<serde_json::Value> {
-    let lang = lang_of(&headers);
-    i18n::set(lang);
+    let lang = i18n::current();
     Ok(Json(
         st.db
             .lock()
@@ -67,12 +63,10 @@ pub(super) struct SelectReq {
 
 pub(super) async fn meter_datapoints(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(r): Json<SelectReq>,
 ) -> ApiResult<serde_json::Value> {
-    let lang = lang_of(&headers);
-    i18n::set(lang);
+    let lang = i18n::current();
     let mut db = st.db.lock().unwrap();
     let (added, removed) = db
         .dp_select(id, &r.keys, &r.outputs, lang)
@@ -98,11 +92,9 @@ pub(super) async fn meter_datapoints(
 
 pub(super) async fn datapoint_update(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(d): Json<crate::datapoint::Datapoint>,
 ) -> ApiResult<crate::datapoint::Datapoint> {
-    i18n::set(lang_of(&headers));
     let mut db = st.db.lock().unwrap();
     let d = db.dp_update(id, &d).map_err(bad_request)?;
     db.outputs_refresh()?;
@@ -140,34 +132,18 @@ pub(super) async fn template_delete(
 /// Datenpunkt-Liste des Projekts als CSV (Excel), auch für den Integrator
 pub(super) async fn datapoints_csv(
     State(st): State<AppState>,
-    headers: HeaderMap,
-    Query(q): Query<LangQuery>,
     Path(id): Path<i64>,
 ) -> Result<Response, ApiError> {
-    let lang = q
-        .lang
-        .as_deref()
-        .map(Lang::parse)
-        .unwrap_or_else(|| lang_of(&headers));
-    i18n::set(lang);
+    let lang = i18n::current();
     let db = st.db.lock().unwrap();
     let name = db.project(id)?.name;
-    // BOM, damit Excel die Umlaute richtig liest
-    let body = format!("\u{feff}{}", db.dp_csv(id, lang)?);
-    let file: String = name
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect();
-    Ok(download(
-        body,
-        "text/csv; charset=utf-8",
-        &format!("mbusio-datenpunkte-{file}.csv"),
-    ))
+    Ok(csv_download(db.dp_csv(id, lang)?, "datenpunkte", &name))
 }
 
 #[derive(Deserialize)]
 pub(super) struct CsvImportReq {
-    csv: String,
+    /// Zeilen der Datei, schon in Felder zerlegt
+    rows: Vec<Vec<String>>,
     /// false = nur zeigen, was sich ändert
     #[serde(default)]
     apply: bool,
@@ -175,17 +151,15 @@ pub(super) struct CsvImportReq {
 
 pub(super) async fn datapoints_import(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(r): Json<CsvImportReq>,
 ) -> ApiResult<crate::changeset::ChangeSet> {
-    let lang = lang_of(&headers);
-    i18n::set(lang);
+    let lang = i18n::current();
     Ok(Json(
         st.db
             .lock()
             .unwrap()
-            .dp_import(id, &r.csv, r.apply, lang)
+            .dp_import(id, &r.rows, r.apply, lang)
             .map_err(bad_request)?,
     ))
 }

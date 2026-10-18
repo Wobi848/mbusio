@@ -1,40 +1,6 @@
 "use strict";
 
-// Grundlagen: Sprache, Speicher, API, Meldungen, Knöpfe
-
-function storageGet(key) {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function storageSet(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* privater Modus */
-  }
-}
-
-let lang = storageGet("lang") || (navigator.language || "de").slice(0, 2);
-if (!UI[lang]) lang = "de";
-let labels = {}; // Messdaten-Begriffe vom Server
-let token = storageGet("token") || "";
-
-function t(key, ...args) {
-  const v = UI[lang][key] ?? UI.de[key] ?? key;
-  return typeof v === "function" ? v(...args) : v;
-}
-
-/// Schlüssel vom Server übersetzen, z.B. "note_error_code:05"
-function label(key) {
-  if (!key) return "";
-  const [base, arg] = key.split(":");
-  const text = labels[base] ?? base;
-  return arg ? `${text} ${arg}` : text;
-}
+// Grundlagen der App: Sprache umschalten, Bus-Anfragen, Meldungen, Knöpfe (Basis in base.js)
 
 async function setLang(l) {
   lang = l;
@@ -73,7 +39,6 @@ setTheme(["light", "dark"].includes(storageGet("theme")) ? storageGet("theme") :
 
 // ------------------------------------------------------------ Helfer
 
-const $ = (id) => document.getElementById(id);
 let connected = false;
 let jobRunning = false;
 let logSeq = 0;
@@ -132,25 +97,8 @@ async function api(path, options = {}) {
   }
 }
 
-async function request(path, options = {}) {
-  const headers = { "Content-Type": "application/json", "X-Lang": lang };
-  if (token) headers["X-Token"] = token;
-  const opts = { ...options, headers };
-  if (opts.body && typeof opts.body !== "string") opts.body = JSON.stringify(opts.body);
-  const res = await fetch("api/" + path, opts);
-  if (res.status === 401 && !options.retried) {
-    const entered = prompt(t("token_prompt"));
-    if (entered) {
-      token = entered.trim();
-      storageSet("token", token);
-      updateExportLinks();
-      return request(path, { ...options, retried: true });
-    }
-  }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || res.statusText);
-  return data;
-}
+
+onToken = () => updateExportLinks();
 
 function updateExportLinks() {
   $("meters-export").href = `api/meters/csv?lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
@@ -168,9 +116,6 @@ function toast(msg, isError = false) {
   toast.timer = setTimeout(() => (el.hidden = true), isError ? 6000 : 3000);
 }
 
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-}
 
 async function guarded(button, fn) {
   button.disabled = true;

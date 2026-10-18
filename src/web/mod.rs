@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use axum::extract::{Path, Query, Request, State};
-use axum::http::{header, HeaderMap, StatusCode, Uri};
+use axum::http::{header, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
@@ -111,16 +111,16 @@ impl Shared {
 
     /// Linie mit diesem Anschluss verbinden; ein vorhandener Dienst der Linie wird ersetzt.
     /// Klappt die Verbindung nicht, bleibt die Linie getrennt und der Fehler kommt zurück.
-    pub fn connect_line(&self, line_id: i64, conf: LineConf, lang: Lang) -> anyhow::Result<()> {
+    pub fn connect_line(&self, line_id: i64, conf: LineConf) -> anyhow::Result<()> {
         self.planner.release(line_id);
         // läuft schon mit diesem Anschluss (z.B. wegen des Ausleseplans): weiter benutzen
         let running = self.lines.lock().unwrap().get(&line_id).cloned();
         if let Some(svc) = running.filter(|s| *s.conf() == conf) {
-            return svc.connect(lang);
+            return svc.connect();
         }
         self.stop_line_wait(line_id);
         let svc = LineService::start(line_id, conf, self.log.clone());
-        match svc.connect(lang) {
+        match svc.connect() {
             Ok(()) => {
                 self.lines.lock().unwrap().insert(line_id, svc);
                 Ok(())
@@ -180,7 +180,7 @@ impl Shared {
 
     /// Alle Linien mit diesem Anschluss neu verbinden (z.B. weil die Simulation geändert wurde).
     /// Liefert die Anzahl.
-    pub(crate) fn restart_connection(&self, connection: &str, lang: Lang) -> usize {
+    pub(crate) fn restart_connection(&self, connection: &str) -> usize {
         let ids: Vec<(i64, LineConf)> = self
             .lines
             .lock()
@@ -194,7 +194,7 @@ impl Shared {
             self.stop_line_wait(*id);
             // die angesehene Linie gleich wieder verbinden; Linien mit Plan startet der Zeitplan
             if Some(*id) == active {
-                if let Err(e) = self.connect_line(*id, conf.clone(), lang) {
+                if let Err(e) = self.connect_line(*id, conf.clone()) {
                     self.log.push("INFO", format!("{connection}: {e:#}"));
                 }
             }
@@ -239,7 +239,16 @@ fn parse_target(address: &str) -> Result<Target, ApiError> {
 }
 
 /// Sprache aus `X-Lang` oder `Accept-Language`.
-fn lang_of(headers: &HeaderMap) -> Lang {
+/// Sprache eines Requests: `?lang=` (Downloads), sonst Header `X-Lang` bzw. `Accept-Language`
+fn lang_of(req: &Request) -> Lang {
+    if let Some(l) = req
+        .uri()
+        .query()
+        .and_then(|q| q.split('&').find_map(|kv| kv.strip_prefix("lang=")))
+    {
+        return Lang::parse(l);
+    }
+    let headers = req.headers();
     headers
         .get("x-lang")
         .or_else(|| headers.get(header::ACCEPT_LANGUAGE))
@@ -285,22 +294,26 @@ fn not_connected() -> ApiError {
 
 /// Führt `f` auf dem Bus der aktiven Linie aus: als Auftrag an ihren Linien-Dienst, der ihn
 /// nach den laufenden Aufträgen abarbeitet (kein "Bus belegt").
-async fn with_bus<T, F>(state: &AppState, lang: Lang, f: F) -> Result<T, ApiError>
+async fn with_bus<T, F>(state: &AppState, f: F) -> Result<T, ApiError>
 where
     T: Send + 'static,
     F: FnOnce(&mut Master) -> anyhow::Result<T> + Send + 'static,
 {
     let svc = state.service()?;
-    blocking(move || svc.run(lang, f).map_err(ApiError::from)).await?
+    blocking(move || svc.run(f).map_err(ApiError::from)).await?
 }
 
 /// Blockierende Arbeit (Bus, Port öffnen) ausserhalb der Web-Threads ausführen
 async fn blocking<T: Send + 'static>(
     f: impl FnOnce() -> T + Send + 'static,
 ) -> Result<T, ApiError> {
-    tokio::task::spawn_blocking(f)
-        .await
-        .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    let lang = i18n::current();
+    tokio::task::spawn_blocking(move || {
+        i18n::set(lang);
+        f()
+    })
+    .await
+    .map_err(|e| ApiError(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 pub fn router(state: AppState) -> Router {
@@ -394,7 +407,10 @@ pub fn router(state: AppState) -> Router {
 
 /// Prüft den Zugriffsschlüssel (Header `X-Token` oder `?token=`), falls einer gesetzt ist.
 async fn auth(State(st): State<AppState>, req: Request, next: Next) -> Response {
-    i18n::set(lang_of(req.headers()));
+    i18n::scope(lang_of(&req), check_token(st, req, next)).await
+}
+
+async fn check_token(st: AppState, req: Request, next: Next) -> Response {
     if let Some(token) = &st.token {
         let header_ok =
             req.headers().get("x-token").and_then(|v| v.to_str().ok()) == Some(token.as_str());
@@ -417,15 +433,23 @@ async fn auth(State(st): State<AppState>, req: Request, next: Next) -> Response 
 }
 
 /// Liest einen Zähler der Liste, mit seiner eigenen Baudrate falls angegeben.
-pub(crate) fn read_listed(
-    m: &mut Master,
-    meter: &Meter,
-    home: u32,
-) -> anyhow::Result<(Target, MeterReading)> {
+pub(crate) fn read_listed(m: &mut Master, meter: &Meter) -> anyhow::Result<(Target, MeterReading)> {
     let target = Target::parse(&meter.address)?;
-    m.set_baud(meter.baud.unwrap_or(home))?;
-    let r = m.read_meter(&target)?;
+    let r = m.at_baud(meter.baud, |m| m.read_meter(&target))?;
     Ok((target, r))
+}
+
+/// CSV für Excel (mit BOM für die Umlaute) als `mbusio-<was>-<name>.csv`
+fn csv_download(csv: String, what: &str, name: &str) -> Response {
+    let name: String = name
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect();
+    download(
+        format!("\u{feff}{csv}"),
+        "text/csv; charset=utf-8",
+        &format!("mbusio-{what}-{name}.csv"),
+    )
 }
 
 fn download(body: String, mime: &str, filename: &str) -> Response {
@@ -440,12 +464,6 @@ fn download(body: String, mime: &str, filename: &str) -> Response {
         body,
     )
         .into_response()
-}
-
-#[derive(Deserialize)]
-struct LangQuery {
-    #[serde(default)]
-    lang: Option<String>,
 }
 
 fn ensure_idle(st: &AppState) -> Result<(), ApiError> {

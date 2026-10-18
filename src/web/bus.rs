@@ -49,10 +49,8 @@ pub(super) struct ConnectReq {
 
 pub(super) async fn connect(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<ConnectReq>,
 ) -> ApiResult<serde_json::Value> {
-    let lang = lang_of(&headers);
     if st.job.lock().unwrap().running {
         return Err(busy());
     }
@@ -63,7 +61,7 @@ pub(super) async fn connect(
         timeout_ms: req.timeout_ms,
     };
     let s = st.clone();
-    blocking(move || s.connect_line(line, conf, lang))
+    blocking(move || s.connect_line(line, conf))
         .await?
         .map_err(|e| ApiError(StatusCode::BAD_REQUEST, format!("{e:#}")))?;
     // erfolgreiche Verbindung gehört zur aktiven Linie: beim nächsten Mal wieder so verbinden
@@ -85,7 +83,7 @@ pub(super) async fn disconnect(State(st): State<AppState>) -> ApiResult<serde_js
     Ok(Json(json!({ "ok": true, "plan_paused": planned })))
 }
 
-pub(super) fn start_job<F>(st: &AppState, kind: &str, lang: Lang, work: F) -> ApiResult<JobStatus>
+pub(super) fn start_job<F>(st: &AppState, kind: &str, work: F) -> ApiResult<JobStatus>
 where
     F: FnOnce(&mut Master, &mut dyn FnMut(Progress) -> bool) -> anyhow::Result<()> + Send + 'static,
 {
@@ -107,6 +105,7 @@ where
         .push("INFO", format!("{} {kind}", tr("Starte", "Starting")));
     // Ergebnis gehört zur Linie, die beim Start aktiv war
     let line = st.line_id()?;
+    let lang = i18n::current();
     let s = st.clone();
     // als Auftrag an den Linien-Dienst; der Fortschritt läuft über job
     svc.submit(Box::new(move |m| {
@@ -198,7 +197,6 @@ pub(super) fn default_retries() -> u32 {
 
 pub(super) async fn scan_primary(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<PrimaryScanReq>,
 ) -> ApiResult<JobStatus> {
     let (from, to) = (req.from.min(250), req.to.min(250));
@@ -212,7 +210,7 @@ pub(super) async fn scan_primary(
         ));
     }
     let retries = req.retries.min(5);
-    start_job(&st, "primary", lang_of(&headers), move |m, p| {
+    start_job(&st, "primary", move |m, p| {
         m.scan_with(bauds_of(req.bauds), p, &mut |m, p| {
             m.scan_primary(from, to, retries, p)
         })
@@ -221,10 +219,9 @@ pub(super) async fn scan_primary(
 
 pub(super) async fn scan_secondary(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<SecondaryScanReq>,
 ) -> ApiResult<JobStatus> {
-    start_job(&st, "secondary", lang_of(&headers), move |m, p| {
+    start_job(&st, "secondary", move |m, p| {
         m.scan_with(bauds_of(req.bauds), p, &mut |m, p| m.scan_secondary(p))
     })
 }
@@ -240,13 +237,9 @@ pub(super) struct FreeAddressReq {
 
 pub(super) async fn free_address(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<FreeAddressReq>,
 ) -> ApiResult<serde_json::Value> {
-    let address = with_bus(&st, lang_of(&headers), move |m| {
-        m.free_primary(req.from, &req.skip)
-    })
-    .await?;
+    let address = with_bus(&st, move |m| m.free_primary(req.from, &req.skip)).await?;
     Ok(Json(json!({ "address": address })))
 }
 
@@ -259,10 +252,9 @@ pub(super) struct BusBaudsReq {
 
 pub(super) async fn bus_bauds(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<BusBaudsReq>,
 ) -> ApiResult<serde_json::Value> {
-    let bauds = with_bus(&st, lang_of(&headers), move |m| m.bus_bauds(&req.bauds)).await?;
+    let bauds = with_bus(&st, move |m| m.bus_bauds(&req.bauds)).await?;
     Ok(Json(json!({ "bauds": bauds })))
 }
 
@@ -292,17 +284,13 @@ pub(super) struct ReadReq {
 
 pub(super) async fn read(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<ReadReq>,
 ) -> ApiResult<MeterReading> {
     let target = parse_target(&req.address)?;
     let line = st.line_id()?;
     let t = target.clone();
     let baud = req.baud;
-    let result = with_bus(&st, lang_of(&headers), move |m| {
-        at_baud(m, baud, |m| m.read_meter(&t))
-    })
-    .await;
+    let result = with_bus(&st, move |m| m.at_baud(baud, |m| m.read_meter(&t))).await;
     // Ergebnis speichern (Verlauf) und in der Zählerliste vermerken, falls der Zähler dort steht
     match &result {
         Ok(r) => st.record(line, &target, Ok(r)),
@@ -322,18 +310,6 @@ pub(super) struct SetAddressReq {
 }
 
 /// Führt `f` mit der Baudrate `baud` aus (falls angegeben) und stellt danach die alte wieder her.
-pub(super) fn at_baud<T>(
-    m: &mut Master,
-    baud: Option<u32>,
-    f: impl FnOnce(&mut Master) -> anyhow::Result<T>,
-) -> anyhow::Result<T> {
-    let home = m.baud();
-    m.set_baud(baud.unwrap_or(home))?;
-    let r = f(m);
-    m.set_baud(home)?;
-    r
-}
-
 /// Was an einem Treffer geändert wurde
 #[derive(Clone, Copy)]
 pub(super) enum HitUpdate {
@@ -428,19 +404,16 @@ pub(super) fn update_hits(
 
 pub(super) async fn set_address(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<SetAddressReq>,
 ) -> ApiResult<serde_json::Value> {
-    let lang = lang_of(&headers);
     let target = parse_target(&req.address)?;
     let new = req.new_address;
     let line = st.line_id()?;
     let t = target.clone();
-    with_bus(&st, lang, move |m| {
-        at_baud(m, req.from_baud, |m| m.set_primary(&t, new))
+    with_bus(&st, move |m| {
+        m.at_baud(req.from_baud, |m| m.set_primary(&t, new))
     })
     .await?;
-    i18n::set(lang);
     let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Pa(new))
         .unwrap_or_else(|| (target.label(), "?".into()));
     let text = format!(
@@ -462,19 +435,16 @@ pub(super) struct SwitchBaudReq {
 
 pub(super) async fn switch_baud(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<SwitchBaudReq>,
 ) -> ApiResult<serde_json::Value> {
-    let lang = lang_of(&headers);
     let target = parse_target(&req.address)?;
     let baud = req.baud;
     let line = st.line_id()?;
     let t = target.clone();
-    with_bus(&st, lang, move |m| {
-        at_baud(m, req.from_baud, |m| m.switch_baud(&t, baud))
+    with_bus(&st, move |m| {
+        m.at_baud(req.from_baud, |m| m.switch_baud(&t, baud))
     })
     .await?;
-    i18n::set(lang);
     let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Baud(baud))
         .unwrap_or_else(|| (target.label(), "?".into()));
     let text = format!("{name}: {} {old} → {baud} Bd", tr("Baudrate", "baud rate"));
@@ -484,11 +454,10 @@ pub(super) async fn switch_baud(
 
 pub(super) async fn detect_baud(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<ReadReq>,
 ) -> ApiResult<serde_json::Value> {
     let target = parse_target(&req.address)?;
-    let bauds = with_bus(&st, lang_of(&headers), move |m| m.detect_baud(&target)).await?;
+    let bauds = with_bus(&st, move |m| m.detect_baud(&target)).await?;
     Ok(Json(json!({ "bauds": bauds })))
 }
 
@@ -503,13 +472,12 @@ pub(super) struct ResetReq {
 
 pub(super) async fn app_reset(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<ResetReq>,
 ) -> ApiResult<serde_json::Value> {
     let target = parse_target(&req.address)?;
     let sub = req.subcode;
-    with_bus(&st, lang_of(&headers), move |m| {
-        at_baud(m, req.from_baud, |m| m.application_reset(&target, sub))
+    with_bus(&st, move |m| {
+        m.at_baud(req.from_baud, |m| m.application_reset(&target, sub))
     })
     .await?;
     Ok(Json(json!({ "ok": true })))
@@ -539,22 +507,17 @@ pub fn parse_hex(text: &str) -> anyhow::Result<Vec<u8>> {
 }
 
 /// Telegramm erklären, ohne etwas zu senden
-pub(super) async fn analyze(
-    headers: HeaderMap,
-    Json(req): Json<RawReq>,
-) -> ApiResult<crate::mbus::analyze::Analysis> {
-    i18n::set(lang_of(&headers));
+pub(super) async fn analyze(Json(req): Json<RawReq>) -> ApiResult<crate::mbus::analyze::Analysis> {
     let bytes = parse_hex(&req.hex).map_err(bad_request)?;
     Ok(Json(crate::mbus::analyze::analyze(&bytes)))
 }
 
 pub(super) async fn raw_send(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(req): Json<RawReq>,
 ) -> ApiResult<serde_json::Value> {
     let bytes = parse_hex(&req.hex).map_err(bad_request)?;
-    let reply = with_bus(&st, lang_of(&headers), move |m| m.raw_send(&bytes)).await?;
+    let reply = with_bus(&st, move |m| m.raw_send(&bytes)).await?;
     Ok(Json(match reply {
         Reply::None => json!({ "kind": "none" }),
         Reply::Collision(b) => json!({ "kind": "collision", "hex": hex(&b) }),
@@ -585,16 +548,8 @@ pub(super) async fn log(
     Json(json!(st.log.since(q.since)))
 }
 
-#[derive(Deserialize)]
-pub(super) struct LabelsQuery {
-    #[serde(default)]
-    lang: String,
-}
-
-pub(super) async fn labels(
-    Query(q): Query<LabelsQuery>,
-) -> Json<serde_json::Map<String, serde_json::Value>> {
-    Json(i18n::labels(Lang::parse(&q.lang)))
+pub(super) async fn labels() -> Json<serde_json::Map<String, serde_json::Value>> {
+    Json(i18n::labels(i18n::current()))
 }
 
 pub(super) async fn clear_log(State(st): State<AppState>) -> Json<serde_json::Value> {

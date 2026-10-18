@@ -7,13 +7,6 @@
 const PLAN_KINDS = ["off", "monthly", "daily", "hourly", "15min"];
 const ICON_CLOCK = svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>');
 
-/// "daily 00:05" → "täglich 00:05"
-function planText(key) {
-  if (!key) return "";
-  const [kind, time] = key.split(" ");
-  return kind === "daily" || kind === "monthly" ? t("plan_" + kind, time) : t("plan_" + kind);
-}
-
 /// "2026-10-18 00:05:00" → "heute 00:05", "morgen 00:05" oder "20.10. 00:05"
 function slotText(s) {
   if (!s) return "";
@@ -26,22 +19,20 @@ function slotText(s) {
   return `${d.getDate()}.${d.getMonth() + 1}. ${hm}`;
 }
 
-/// Auswahl des Plans für Formulare; `inherit` = Text der Option "wie Projekt/Linie" (sonst keine)
-function planField(value, inherit, hint) {
+/// Felder des Ausleseplans (Baustein Formular); `inherit` = Text für „wie übergeordnet“
+function planFields(value, inherit, hint) {
   const [kind, time] = value ? value.split(" ") : [inherit ? "" : "off", null];
   const opts = (inherit ? [["", inherit]] : []).concat(PLAN_KINDS.map((k) => [k, t("plan_opt_" + k)]));
-  return `<div class="row plan-row">
-      <label><span>${esc(t("plan"))}</span><select name="plan_kind">${opts
-        .map(([v, l]) => `<option value="${v}" ${v === kind ? "selected" : ""}>${esc(l)}</option>`)
-        .join("")}</select></label>
-      <label class="plan-time"><span>${esc(t("plan_time"))}</span><input name="plan_time" class="mono time24" data-time24 value="${esc(time || "00:05")}" inputmode="numeric" maxlength="5" placeholder="HH:MM" autocomplete="off"></label>
-    </div>${hint ? `<p class="hint plan-hint">${esc(hint)}</p>` : ""}`;
+  return [
+    { name: "plan_kind", label: t("plan"), type: "select", options: opts, value: kind },
+    { name: "plan_time", label: t("plan_time"), type: "time24", cls: "mono time24", placeholder: "HH:MM", value: time || "00:05", hint },
+  ];
 }
 
 /// Uhrzeit nur bei täglich und monatlich
 function wirePlanField(root) {
   const sel = root.querySelector("[name=plan_kind]");
-  const wrap = root.querySelector(".plan-time");
+  const wrap = root.querySelector("[data-field=plan_time]");
   const update = () => (wrap.hidden = !["daily", "monthly"].includes(sel.value));
   sel.addEventListener("change", update);
   update();
@@ -51,10 +42,7 @@ function wirePlanField(root) {
 function planFrom(values) {
   const k = values.plan_kind;
   if (!k) return null;
-  if (k !== "daily" && k !== "monthly") return k;
-  const time = time24(values.plan_time || "00:05");
-  if (!time) throw new Error(t("plan_time_bad"));
-  return `${k} ${time}`;
+  return k === "daily" || k === "monthly" ? `${k} ${values.plan_time}` : k;
 }
 
 async function savePlan(path, plan) {
@@ -248,7 +236,7 @@ function treeFields(kind, data) {
       { name: "technician", label: t("f_technician") },
       { name: "order_no", label: t("f_order") },
       { name: "remarks", label: t("f_remarks"), wide: true },
-      { type: "html", html: planField(data.plan || "off", null, t("plan_hint_project")) },
+      ...planFields(data.plan || "off", null, t("plan_hint_project")),
       {
         name: "thin",
         label: t("thin"),
@@ -268,7 +256,7 @@ function treeFields(kind, data) {
     { name: "name", label: t("f_name"), required: true },
     { name: "connection", label: t("f_connection"), cls: "mono", placeholder: t("f_connection_ph"), list: "port-list", wide: true },
     { name: "baud", label: t("baud"), type: "select", num: true, options: BAUDS.map((b) => [b, b]) },
-    { type: "html", html: planField(data.plan ?? null, t("plan_inherit_project", planText(tree.active.project.plan || "off")), t("plan_hint_line")) },
+    ...planFields(data.plan ?? null, t("plan_inherit_project", planText(tree.active.project.plan || "off")), t("plan_hint_line")),
   ];
 }
 
@@ -284,8 +272,7 @@ function openTreeForm(kind, data, onSave) {
   f.onsubmit = (ev) => {
     ev.preventDefault();
     guarded(f.querySelector("[type=submit]"), async () => {
-      const values = { ...ui.formValues(f, fields), ...planInputs(f) };
-      await onSave({ ...data, ...values });
+      await onSave({ ...data, ...ui.formValues(f, fields) });
       f.hidden = true;
     });
   };
@@ -293,12 +280,6 @@ function openTreeForm(kind, data, onSave) {
   f.querySelector("input").focus();
   f.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
-
-/// Eingaben des Planfelds (Art und Uhrzeit), für planFrom
-const planInputs = (root) => ({
-  plan_kind: root.querySelector("[name=plan_kind]")?.value,
-  plan_time: root.querySelector("[name=plan_time]")?.value,
-});
 
 $("tree").addEventListener("click", (ev) => {
   const toggle = ev.target.closest("[data-gw-toggle]");

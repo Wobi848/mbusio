@@ -18,7 +18,7 @@ impl Db {
                 let mut meters = Vec::new();
                 for m in self.meters(l.line.id)? {
                     let reading = self.latest_reading(m.id)?;
-                    let datapoints = self.dp_export(m.id)?;
+                    let datapoints = self.dp_by_meter(m.id)?;
                     meters
                         .push(json!({ "meter": m, "reading": reading, "datapoints": datapoints }));
                 }

@@ -818,8 +818,6 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 .analysis tr.bad td.bytes { color: var(--err); }
 .why .analyze-link { font-weight: 600; margin-left: 8px; }
 
-.new-site { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line-strong) !important; }
-@media (max-width: 560px) { .new-site span { display: none; } }
 
 /* Projekt: Pfad in der Kopfzeile, Gateways mit ihren Linien */
 .crumb {
@@ -839,7 +837,6 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 .gw-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .gw-head h3 { margin: 0; font-size: 14px; }
 .gw-head .hint { margin: 0; }
-.gw-head .spacer { flex: 1; }
 .ln {
   display: grid; grid-template-columns: auto minmax(0, 1.2fr) minmax(0, 1.6fr) auto auto;
   gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; font-size: 13px;
@@ -857,8 +854,6 @@ button.cta { background: var(--accent) !important; border-color: var(--accent) !
 }
 .ln .ln-plan svg { flex: none; }
 .ln .ln-plan b { color: var(--text); font-weight: 600; }
-.plan-row { align-items: end; }
-.plan-hint { margin: 4px 0 8px; }
 .muted { color: var(--muted); }
 td .chip { white-space: nowrap; }
 .busbar-time {
@@ -883,9 +878,11 @@ th.sorted { color: var(--accent); }
 
 /* Verlauf eines Zählers */
 .history, .panel { margin-top: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
-.history-head, .panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
+/* Kopfzeilen: Titel, Hinweise, Knöpfe; .spacer schiebt den Rest nach rechts */
+.history-head, .panel-head, .out-head, .tr-meter-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.history-head, .panel-head { margin-bottom: 8px; }
+.spacer { flex: 1; }
 .history-head h3, .panel-head h3 { margin: 0; font-size: 15px; }
-.history-head .spacer, .panel-head .spacer { flex: 1; }
 .history-head select { width: auto; }
 .history-sum { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 13px; color: var(--muted); margin: 4px 0 10px; }
 .history-sum b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -981,14 +978,10 @@ body:not(.show-help) .explain { display: none !important; }
 .dp-pick-row input, label.check input { width: 16px; height: 16px; flex: none; }
 label.check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; }
 label.check.sub-check { margin-left: 24px; }
-#meter-form .spacer { flex: 1; }
 .err-list { color: var(--err); font-size: 13px; margin: 6px 0; padding-left: 18px; }
 #dp-form h3 { margin: 0 0 8px; font-size: 14px; }
 
 /* MQTT */
-#h-mqtt .chip { margin-left: 8px; vertical-align: middle; font-size: 11px; }
-.mqtt-ca { margin: 10px 0; font-size: 13px; }
-.mqtt-ca textarea { width: 100%; margin-top: 6px; font-size: 12px; }
 #mqtt-example { word-break: break-all; }
 #busbar-mqtt { text-decoration: none; }
 
@@ -1003,7 +996,6 @@ label.check.sub-check { margin-left: 24px; }
 .sim-table td { padding: 4px 6px; }
 .sim-warn, .warn-list { color: var(--warn); font-size: 13px; margin: 4px 0 10px; padding-left: 18px; }
 .sim-actions { align-items: center; margin-top: 10px; }
-.sim-actions .spacer { flex: 1; }
 .sim-many { display: inline-flex; gap: 6px; align-items: center; }
 .sim-many input { width: 56px; }
 .sim-many select { width: auto; }
@@ -1036,24 +1028,17 @@ input.time24.invalid { border-color: var(--err); box-shadow: 0 0 0 2px var(--err
 #meters-table td:first-child { min-width: 140px; }
 
 /* Formulare nicht über die ganze Breite ziehen (Tabellen schon) */
-.form-grid, .tree-form, .meter-form > .row, #mqtt-form, .conn-grid, .hint.explain { max-width: 1200px; }
+.form-grid, .tree-form, .meter-form > .row, .conn-grid, .hint.explain { max-width: 1200px; }
 
 /* Auslesung: wählen, was gesendet wird */
-.reading-table .send-cell { width: 1%; text-align: center; }
-.reading-table .send-cell input { width: 16px; height: 16px; }
 .send-bar { margin-top: 10px; }
-.send-actions { align-items: center; gap: 16px; }
 
 /* Reiter Weitergabe */
 .out-list { display: grid; gap: 10px; }
 .out-row { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
-.out-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.out-head .spacer { flex: 1; }
 .out-form { margin-top: 12px; }
 #tr-scope { width: auto; }
 #dp-table tr.tr-meter td { background: var(--sunken); padding: 8px 10px; }
-.tr-meter-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
-.tr-meter-head .spacer { flex: 1; }
 .tr-pick { margin-top: 10px; padding: 10px 12px; background: var(--surface); border-radius: 10px; }
 #dp-table td.out-cell { min-width: 90px; }
 .cs-summary { font-weight: 600; margin: 4px 0 8px; }

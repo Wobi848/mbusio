@@ -138,14 +138,7 @@ impl SimMeter {
         if !MEDIA.iter().any(|(k, _)| *k == self.medium) {
             bail!("{who}: medium {}", self.medium);
         }
-        if let Some(b) = self.baud {
-            if !crate::mbus::master::BAUD_RATES.contains(&b) {
-                bail!(
-                    "{who}: {} {b}",
-                    tr("keine Standard-Baudrate", "not a standard baud rate")
-                );
-            }
-        }
+        crate::mbus::master::check_baud(self.baud).map_err(|e| anyhow::anyhow!("{who}: {e}"))?;
         if !FAULTS.contains(&self.fault.as_str()) {
             bail!("{who}: fault {}", self.fault);
         }

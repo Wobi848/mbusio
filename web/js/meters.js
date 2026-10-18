@@ -67,12 +67,12 @@ function renderMeters() {
         .filter(Boolean)
         .join(" · ");
       const sub = (text) => (text ? `<span class="sub">${esc(text)}</span>` : "");
-      const q = (f, v, extra = "", cls = "quick") => `<input class="${cls}" data-q="${f}" data-id="${m.id}" value="${esc(v)}" ${extra}>`;
+      const q = (f, label, more = {}) => ui.input({ name: f, label, placeholder: label, cls: "quick", data: { q: f, id: m.id }, ...more }, m[f]);
       const nameCell = quickEdit
-        ? `<td>${q("name", m.name, `placeholder="${esc(t("meter_name"))}" aria-label="${esc(t("meter_name"))}"`)}${q("note", m.note, `placeholder="${esc(t("meter_note"))}" aria-label="${esc(t("meter_note"))}"`, "quick sub-input")}</td>`
+        ? `<td>${q("name", t("meter_name"))}${q("note", t("meter_note"), { cls: "quick sub-input" })}</td>`
         : `<td class="wrap"><span class="name">${esc(m.name || "–")}</span>${sub(m.note)}</td>`;
       const locCell = quickEdit
-        ? `<td><div class="quick-loc">${q("location", m.location, `list="loc-list" placeholder="${esc(t("meter_location"))}" aria-label="${esc(t("meter_location"))}"`)}<button class="icon-btn" data-q-same="${m.id}" title="${esc(t("quick_same"))}" aria-label="${esc(t("quick_same"))}">${ICON_DOWN}</button></div></td>`
+        ? `<td><div class="quick-loc">${q("location", t("meter_location"), { list: "loc-list" })}<button class="icon-btn" data-q-same="${m.id}" title="${esc(t("quick_same"))}" aria-label="${esc(t("quick_same"))}">${ICON_DOWN}</button></div></td>`
         : `<td class="wrap">${esc(m.location)}</td>`;
       return `<tr>
         ${nameCell}
@@ -111,7 +111,7 @@ function meterFields(m) {
     { name: "address", label: t("address"), cls: "mono", placeholder: t("address_ph"), required: true },
     { name: "baud", label: t("baud"), type: "select", num: true, options: [["", t("baud_bus")], ...BAUDS.map((b) => [b, b])] },
     { name: "note", label: t("meter_note"), wide: true },
-    { type: "html", html: planField(m?.plan ?? null, t("plan_inherit_line", planText(line?.plan_info?.effective || "off")), t("plan_hint_meter")) },
+    ...planFields(m?.plan ?? null, t("plan_inherit_line", planText(line?.plan_info?.effective || "off")), t("plan_hint_meter")),
   ];
 }
 
@@ -148,7 +148,7 @@ $("meter-form").onsubmit = (ev) => {
     const old = meters.find((m) => m.id === editingId) || {};
     // alles zuerst prüfen (auch die Uhrzeit des Plans), dann speichern
     const body = { ...old, ...ui.formValues($("mf-fields"), meterFields(old)) };
-    const plan = planFrom(planInputs($("mf-fields")));
+    const plan = planFrom(body);
     const saved = editingId === null ? await api("meters", { method: "POST", body }) : await api("meters/" + editingId, { method: "PUT", body });
     if (plan !== (old.plan ?? null)) await savePlan("meters/" + saved.id, plan);
     $("meter-form").hidden = true;

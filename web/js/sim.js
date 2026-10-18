@@ -44,44 +44,34 @@ function renderSim() {
   $("sim-use").disabled = inUse && connected;
   const meters = simDraft ? simDraft.meters : s.meters;
   const ro = !simDraft;
-  const opt = (list, val, text) => list.map((v) => `<option value="${esc(v)}" ${String(v) === String(val) ? "selected" : ""}>${esc(text(v))}</option>`).join("");
-  const rows = meters
-    .map((m, i) =>
-      ro
-        ? `<tr><td class="num mono">${m.primary}</td><td class="mono">${esc(m.id)}</td><td class="mono">${esc(m.manufacturer)}</td>
-            <td>${esc(t("sim_m_" + m.medium))}</td><td class="mono">${m.baud ?? esc(t("sim_baud_bus"))}</td>
-            <td>${m.fault === "none" ? esc(t("sim_f_none")) : ui.chip("warn", t("sim_f_" + m.fault))}</td><td></td></tr>`
-        : `<tr data-i="${i}">
-            <td><input class="mono sim-pa" data-f="primary" value="${m.primary}" inputmode="numeric" aria-label="PA"></td>
-            <td><input class="mono sim-id" data-f="id" value="${esc(m.id)}" inputmode="numeric" maxlength="8" aria-label="ID"></td>
-            <td><input class="mono sim-man" data-f="manufacturer" value="${esc(m.manufacturer)}" maxlength="3" aria-label="${esc(t("sim_col_man"))}"></td>
-            <td><select data-f="medium">${opt(sim.media, m.medium, (v) => t("sim_m_" + v))}</select></td>
-            <td><select data-f="baud"><option value="">${esc(t("sim_baud_bus"))}</option>${opt(BAUDS, m.baud ?? "", String)}</select></td>
-            <td><select data-f="fault">${opt(sim.faults, m.fault, (v) => t("sim_f_" + v))}</select></td>
-            <td><button class="icon-btn del" data-sim-del="${i}" title="${esc(t("delete"))}" aria-label="${esc(t("delete"))}">${ICON_DEL}</button></td>
-          </tr>`
-    )
-    .join("");
+  const media = sim.media.map((v) => [v, t("sim_m_" + v)]);
+  // Spalte: Feld zum Bearbeiten (eigene Simulation) bzw. Text (Vorlage)
+  const col = (head, f, show, cls = "") => ({ head, cls: ro ? cls : "", cell: (m) => (ro ? show(m) : ui.input({ label: head, ...f }, m[f.name] ?? "")) });
+  const columns = [
+    col(t("sim_col_pa"), { name: "primary", cls: "mono sim-pa", max: 3 }, (m) => m.primary, "num mono"),
+    col(t("sim_col_id"), { name: "id", cls: "mono sim-id", max: 8 }, (m) => esc(m.id), "mono"),
+    col(t("sim_col_man"), { name: "manufacturer", cls: "mono sim-man", max: 3 }, (m) => esc(m.manufacturer), "mono"),
+    col(t("sim_col_medium"), { name: "medium", type: "select", options: media }, (m) => esc(t("sim_m_" + m.medium))),
+    col(t("sim_col_baud"), { name: "baud", type: "select", options: [["", t("sim_baud_bus")], ...BAUDS.map((b) => [b, b])] }, (m) => m.baud ?? esc(t("sim_baud_bus")), "mono"),
+    col(t("sim_col_fault"), { name: "fault", type: "select", options: sim.faults.map((v) => [v, t("sim_f_" + v)]) }, (m) =>
+      m.fault === "none" ? esc(t("sim_f_none")) : ui.chip("warn", t("sim_f_" + m.fault))
+    ),
+    { cell: (m) => (ro ? "" : ui.iconBtn(ICON_DEL, t("delete"), { "sim-del": m.i }, "del")) },
+  ];
   const faults = meters.filter((m) => m.fault !== "none").length;
   const warn = simWarnings(meters);
   $("sim-editor").innerHTML = `
     ${ro ? `<p class="hint">${esc(t("sim_builtin_note"))}</p>` : `<div class="row"><label class="grow"><span>${esc(t("sim_name"))}</span> <input id="sim-name" value="${esc(simDraft.name)}"></label></div>`}
     <p class="hint"><b>${esc(t("sim_count", meters.length, faults))}</b></p>
     ${warn.length ? `<ul class="sim-warn">${warn.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
-    ${
-      meters.length
-        ? `<div class="table-wrap"><table class="sim-table"><thead><tr><th class="num">${esc(t("sim_col_pa"))}</th><th>${esc(t("sim_col_id"))}</th><th>${esc(
-            t("sim_col_man")
-          )}</th><th>${esc(t("sim_col_medium"))}</th><th>${esc(t("sim_col_baud"))}</th><th>${esc(t("sim_col_fault"))}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
-        : `<p class="empty">${esc(t("sim_empty"))}</p>`
-    }
+    ${ui.table({ columns, rows: meters.map((m, i) => ({ ...m, i })), cls: "sim-table", empty: t("sim_empty"), rowAttrs: (m) => `data-i="${m.i}"` })}
     ${
       ro
         ? ""
         : `<div class="row sim-actions">
         <button type="button" class="small ghost" data-sim-add>${esc(t("sim_add"))}</button>
         <span class="sim-many"><input id="sim-n" class="mono" value="10" inputmode="numeric" aria-label="${esc(t("sim_add_n"))}">
-          <select id="sim-n-medium">${opt(sim.media, "water", (v) => t("sim_m_" + v))}</select>
+          ${ui.input({ name: "sim-n-medium", label: t("sim_col_medium"), type: "select", options: media }, "water")}
           <button type="button" class="small ghost" data-sim-add-many>${esc(t("sim_add_many"))}</button></span>
         <span class="spacer"></span>
         <button type="button" data-sim-save ${simDirty ? "" : "disabled"}>${esc(t("sim_save"))}</button></div>`
@@ -125,9 +115,9 @@ $("sim-editor").addEventListener("change", (ev) => {
     return simChanged();
   }
   const row = el.closest("tr[data-i]");
-  if (!row || !el.dataset.f) return;
+  if (!row || !el.name) return;
   const m = simDraft.meters[Number(row.dataset.i)];
-  const f = el.dataset.f;
+  const f = el.name;
   if (f === "primary") m.primary = Math.max(0, Math.min(250, Number(el.value) || 0));
   else if (f === "baud") m.baud = el.value ? Number(el.value) : null;
   else if (f === "manufacturer") m.manufacturer = el.value.trim().toUpperCase();
@@ -149,7 +139,7 @@ $("sim-editor").addEventListener("click", (ev) => {
   }
   if (b.dataset.simAddMany !== undefined) {
     const n = Math.max(1, Math.min(100, Number($("sim-n").value) || 1));
-    const medium = $("sim-n-medium").value;
+    const medium = $("sim-editor").querySelector("[name=sim-n-medium]").value;
     for (let k = 0; k < n; k++) simDraft.meters.push(simNext(medium));
     return simChanged();
   }

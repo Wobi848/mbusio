@@ -181,14 +181,7 @@ impl Db {
         if l.name.trim().is_empty() {
             bail!(tr("Name fehlt", "Name missing"));
         }
-        if !BAUD_RATES.contains(&l.baud) {
-            bail!(
-                "{}: {}",
-                tr("Keine Standard-Baudrate", "Not a standard baud rate"),
-                l.baud
-            );
-        }
-        Ok(())
+        check_baud([l.baud])
     }
 
     pub fn create_line(&mut self, gateway_id: i64, l: Line) -> Result<Line> {
@@ -403,7 +396,11 @@ impl Db {
                 let mut ls = self.conn.prepare(
                     "SELECT lines.*,
                        (SELECT COUNT(*) FROM meters WHERE line_id = lines.id) AS n,
-                       (SELECT MAX(last_read) FROM meters WHERE line_id = lines.id) AS lr
+                       (SELECT MAX(last_read) FROM meters WHERE line_id = lines.id) AS lr,
+                       (SELECT COUNT(*) FROM datapoints JOIN meters ON meters.id = datapoints.meter_id
+                         WHERE meters.line_id = lines.id) AS dp_n,
+                       (SELECT COUNT(*) FROM datapoints JOIN meters ON meters.id = datapoints.meter_id
+                         WHERE meters.line_id = lines.id AND datapoints.invalid IS NOT NULL) AS dp_bad
                      FROM lines WHERE gateway_id = ?1 ORDER BY position, id",
                 )?;
                 let mut lines: Vec<LineInfo> = ls
@@ -420,6 +417,10 @@ impl Db {
                                 .get::<_, Option<String>>("plan_result")?
                                 .and_then(|t| serde_json::from_str(&t).ok())
                                 .unwrap_or(Value::Null),
+                            datapoints: serde_json::json!({
+                                "count": r.get::<_, i64>("dp_n")?,
+                                "invalid": r.get::<_, i64>("dp_bad")?,
+                            }),
                         })
                     })?
                     .collect::<rusqlite::Result<_>>()?;

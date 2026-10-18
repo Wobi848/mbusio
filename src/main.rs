@@ -276,13 +276,13 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
             baud: args.baud,
             timeout_ms: args.timeout_ms,
         };
-        state.connect_line(active.line.id, conf, i18n::Lang::De)?;
+        state.connect_line(active.line.id, conf)?;
         println!("Verbunden mit {port} ({} Bd)", args.baud);
     } else if !active.line.connection.is_empty() {
         // zuletzt benutzte Linie gleich wieder verbinden; klappt das nicht, geht es trotzdem weiter
         let l = &active.line;
         let conf = line::LineConf::of(l);
-        match state.connect_line(l.id, conf, i18n::Lang::De) {
+        match state.connect_line(l.id, conf) {
             Ok(()) => println!("Verbunden mit {} ({} Bd)", l.connection, l.baud),
             Err(e) => println!("{}: {e:#}", l.connection),
         }

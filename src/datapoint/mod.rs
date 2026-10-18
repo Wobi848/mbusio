@@ -730,21 +730,6 @@ impl Db {
             .collect()
     }
 
-    /// Anzahl Datenpunkte und ungültige je Linie (für die Projekt-Karte)
-    pub(crate) fn dp_counts(&self, line_id: i64) -> Result<(i64, i64)> {
-        Ok(self.conn.query_row(
-            "SELECT COUNT(*), COALESCE(SUM(invalid IS NOT NULL), 0) FROM datapoints
-             JOIN meters ON meters.id = datapoints.meter_id WHERE meters.line_id = ?1",
-            [line_id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?)
-    }
-
-    /// Datenpunkte für den Projekt-Export (je Zähler) und Vorlagen (je Linie)
-    pub(crate) fn dp_export(&self, meter_id: i64) -> Result<Vec<Datapoint>> {
-        self.dp_by_meter(meter_id)
-    }
-
     /// Datenpunkt aus einem Projekt-Export übernehmen (Nummer bleibt)
     pub(crate) fn dp_import_one(&mut self, meter_id: i64, d: &Datapoint) -> Result<()> {
         if parts(&d.key).is_none() {

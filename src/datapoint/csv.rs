@@ -2,7 +2,7 @@
 //!
 //! Feste Spalten `Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv`, danach je
 //! Ausgang zwei Spalten (z.B. `MQTT;Topic`). Fehlen die Spalten eines Ausgangs (ältere Datei),
-//! bleibt dessen Einstellung, wie sie ist.
+//! bleibt dessen Einstellung, wie sie ist. Die Datei zerlegt die Oberfläche (`parseTable`).
 
 use crate::changeset::ChangeSet;
 
@@ -65,13 +65,13 @@ impl Db {
         Ok(out)
     }
 
-    /// CSV einlesen: zuerst nur zeigen, was sich ändert (`apply` = false), dann übernehmen.
+    /// Zeilen der CSV einlesen: zuerst nur zeigen, was sich ändert (`apply` = false), dann übernehmen.
     /// Zuordnung über die Nummer; Zeilen ohne Nummer legen neue Datenpunkte an (Linie, Adresse,
     /// Kennung). Fehlende Zeilen löschen nichts.
     pub fn dp_import(
         &mut self,
         project_id: i64,
-        text: &str,
+        rows: &[Vec<String>],
         apply: bool,
         lang: Lang,
     ) -> Result<ChangeSet> {
@@ -83,11 +83,7 @@ impl Db {
         let mut cs = ChangeSet::default();
         let mut updates: Vec<(i64, Datapoint)> = Vec::new();
         let mut creates: Vec<(Meter, Datapoint)> = Vec::new();
-        for (n, line) in text.trim_start_matches('\u{feff}').lines().enumerate() {
-            if line.trim().is_empty() {
-                continue;
-            }
-            let c = crate::export::split_line(line);
+        for (n, c) in rows.iter().enumerate() {
             let row = n + 1;
             let col = |i: usize| c.get(i).cloned().unwrap_or_default();
             if n == 0 && parse_num(&col(0)).is_none() && !col(0).is_empty() {

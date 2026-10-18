@@ -165,7 +165,7 @@ fn csv_preview_then_apply() {
     assert!(csv.starts_with("Nr;Linie;Zähler"));
     // in Excel geändert: Name, Faktor (mit Komma), inaktiv; dazu ein neuer Wert ohne Nummer
     let row = csv.lines().nth(1).unwrap();
-    let mut c = crate::export::split_line(row);
+    let mut c = fields(row);
     c[5] = "Wohnung 1 Energie".into();
     c[6] = "MWh".into();
     c[7] = "0,001".into();
@@ -182,7 +182,7 @@ fn csv_preview_then_apply() {
         c.join(";"),
         new.join(";")
     );
-    let preview = db.dp_import(1, &text, false, Lang::De).unwrap();
+    let preview = db.dp_import(1, &table(&text), false, Lang::De).unwrap();
     assert!(preview.errors.is_empty(), "{:?}", preview.errors);
     assert_eq!(preview.changed.len(), 4);
     assert_eq!(preview.added.len(), 1);
@@ -192,7 +192,7 @@ fn csv_preview_then_apply() {
         1,
         "Vorschau ändert nichts"
     );
-    let done = db.dp_import(1, &text, true, Lang::De).unwrap();
+    let done = db.dp_import(1, &table(&text), true, Lang::De).unwrap();
     assert!(done.applied);
     let dps = db.dp_by_meter(mid).unwrap();
     assert_eq!(dps.len(), 2);
@@ -203,7 +203,7 @@ fn csv_preview_then_apply() {
     assert_eq!(dps[1].name, "Wohnung 1 Volumen");
     // fehlerhafte Zeile: nichts wird übernommen
     let bad = db
-        .dp_import(1, "99;x;x;x;x;x;x;1;every;1", true, Lang::De)
+        .dp_import(1, &table("99;x;x;x;x;x;x;1;every;1"), true, Lang::De)
         .unwrap();
     assert!(!bad.applied && bad.errors.len() == 1);
 }
@@ -339,12 +339,17 @@ fn mqtt_queue_follows_send_mode_and_quality() {
     assert!(crate::mqtt::check_topic(&topic).is_ok());
 }
 
+/// Zeile in Felder, wie es die Oberfläche tut (hier ohne Anführungszeichen)
+fn fields(line: &str) -> Vec<String> {
+    line.split(';').map(String::from).collect()
+}
+
+fn table(text: &str) -> Vec<Vec<String>> {
+    text.lines().filter(|l| !l.is_empty()).map(fields).collect()
+}
+
 #[test]
-fn csv_split_handles_quotes() {
-    assert_eq!(
-        crate::export::split_line(r#"1;"A; B";"say ""hi""";x"#),
-        vec!["1", "A; B", "say \"hi\"", "x"]
-    );
+fn csv_numbers_from_excel() {
     assert_eq!(parse_num("0,001"), Some(0.001));
     assert_eq!(parse_num("1'234.5"), Some(1234.5));
 }
@@ -383,11 +388,11 @@ fn outputs_in_csv_round_trip() {
         "{row}"
     );
     // Topic in Excel geändert, MQTT aus
-    let mut c = crate::export::split_line(&row);
+    let mut c = fields(&row);
     c[10] = "0".into();
     c[11] = "haus/whg1/energie".into();
     let text = format!("{}\n{}\n", csv.lines().next().unwrap(), c.join(";"));
-    let p = db.dp_import(1, &text, true, Lang::De).unwrap();
+    let p = db.dp_import(1, &table(&text), true, Lang::De).unwrap();
     assert!(p.applied && p.changed.len() == 2, "{:?}", p.changed);
     let d = &db.dp_by_meter(mid).unwrap()[0];
     assert_eq!(

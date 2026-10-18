@@ -340,11 +340,10 @@ enum Attempt {
 
 /// Einmal lesen und bei einem Fehler einmal wiederholen (nicht, wenn der Zähler ablehnt)
 fn attempt(master: &mut Master, meter: &Meter) -> Attempt {
-    let home = master.baud();
     let mut result = Attempt::Failed(String::new());
     for _ in 0..2 {
         let t0 = Instant::now();
-        match read_listed(master, meter, home) {
+        match read_listed(master, meter) {
             Ok((target, r)) => {
                 result = Attempt::Read(target, Box::new(r), t0.elapsed().as_secs_f64() * 1000.0);
                 break;
@@ -364,7 +363,6 @@ fn attempt(master: &mut Master, meter: &Meter) -> Attempt {
             }
         }
     }
-    let _ = master.set_baud(home);
     result
 }
 

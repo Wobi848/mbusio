@@ -2,9 +2,10 @@
 //!
 //! Messdaten tragen sprachneutrale Schlüssel (`energy`, `medium_water` …), übersetzt
 //! wird erst bei der Anzeige oder beim Export. Meldungen aus dem Backend verwenden
-//! die Sprache des aktuellen Threads, die pro Request bzw. Scan gesetzt wird.
+//! die Sprache des aktuellen Requests (Task) bzw. Threads.
 
 use std::cell::Cell;
+use std::future::Future;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Lang {
@@ -28,12 +29,24 @@ thread_local! {
     static CURRENT: Cell<Lang> = const { Cell::new(Lang::De) };
 }
 
+tokio::task_local! {
+    static TASK: Lang;
+}
+
+/// Sprache des Threads setzen (Bus-Aufträge, Hintergrund-Threads)
 pub fn set(lang: Lang) {
     CURRENT.with(|c| c.set(lang));
 }
 
+/// `f` mit dieser Sprache ausführen, auch über `await` hinweg (ein Request)
+pub async fn scope<F: Future>(lang: Lang, f: F) -> F::Output {
+    TASK.scope(lang, f).await
+}
+
+/// Sprache des Requests, sonst des Threads
 pub fn current() -> Lang {
-    CURRENT.with(|c| c.get())
+    TASK.try_with(|l| *l)
+        .unwrap_or_else(|_| CURRENT.with(|c| c.get()))
 }
 
 /// Meldung in der Sprache des aktuellen Threads.

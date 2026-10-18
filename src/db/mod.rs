@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::i18n::tr;
-use crate::mbus::master::{mask_matches, MeterReading, Target, BAUD_RATES};
+use crate::mbus::master::{check_baud, mask_matches, MeterReading, Target};
 use crate::plan::{self, Plan};
 
 /// Name des Ordners neben dem Programm für den portablen Betrieb
@@ -211,6 +211,8 @@ pub struct LineInfo {
     pub issues: Option<Value>,
     /// Ausleseplan der Linie mit nächstem Termin und letztem Ergebnis
     pub plan_info: Value,
+    /// Datenpunkte der Linie: {"count": n, "invalid": n}
+    pub datapoints: Value,
 }
 
 #[derive(Debug, Serialize)]
@@ -430,22 +432,14 @@ impl Db {
     }
 
     /// Einstellung lesen (z.B. "mqtt"); Fehler gelten als nicht gesetzt
-    pub(crate) fn meta_value(&self, key: &str) -> Option<String> {
-        self.meta(key).ok().flatten()
-    }
-
-    pub(crate) fn set_meta_value(&self, key: &str, value: &str) -> Result<()> {
-        self.set_meta(key, value)
-    }
-
-    fn meta(&self, key: &str) -> Result<Option<String>> {
+    pub(crate) fn meta(&self, key: &str) -> Result<Option<String>> {
         Ok(self
             .conn
             .query_row("SELECT value FROM meta WHERE key = ?1", [key], |r| r.get(0))
             .optional()?)
     }
 
-    fn set_meta(&self, key: &str, value: &str) -> Result<()> {
+    pub(crate) fn set_meta(&self, key: &str, value: &str) -> Result<()> {
         self.conn.execute(
             "INSERT INTO meta (key, value) VALUES (?1, ?2)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",

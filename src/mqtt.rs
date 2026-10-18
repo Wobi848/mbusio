@@ -173,14 +173,16 @@ CREATE TABLE IF NOT EXISTS mqtt_queue (
 
 impl Db {
     pub fn mqtt_config(&self) -> MqttConfig {
-        self.meta_value("mqtt")
+        self.meta("mqtt")
+            .ok()
+            .flatten()
             .and_then(|v| serde_json::from_str(&v).ok())
             .unwrap_or_default()
     }
 
     pub fn set_mqtt_config(&mut self, c: &MqttConfig) -> Result<()> {
         c.check()?;
-        self.set_meta_value("mqtt", &serde_json::to_string(c)?)?;
+        self.set_meta("mqtt", &serde_json::to_string(c)?)?;
         self.mqtt_enabled = c.enabled;
         Ok(())
     }

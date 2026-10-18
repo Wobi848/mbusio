@@ -51,10 +51,15 @@ pub fn address_label(key: &str) -> String {
     }
 }
 
+/// Fehler für einen Ausgang, den es nicht gibt
+fn unknown(key: &str) -> anyhow::Error {
+    anyhow::anyhow!("{}: {key}", tr("Unbekannter Ausgang", "Unknown output"))
+}
+
 pub fn check_address(key: &str, address: &str) -> Result<()> {
     match key {
         "mqtt" => crate::mqtt::check_topic(address),
-        k => bail!("{}: {k}", tr("Unbekannter Ausgang", "Unknown output")),
+        k => Err(unknown(k)),
     }
 }
 
@@ -173,7 +178,7 @@ impl Db {
                     key_slug(&d.key)
                 )
             }
-            k => bail!("{}: {k}", tr("Unbekannter Ausgang", "Unknown output")),
+            k => return Err(unknown(k)),
         };
         let taken: bool = self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM dp_outputs WHERE output = ?1 AND address = ?2 AND dp != ?3)",
@@ -191,7 +196,7 @@ impl Db {
     /// vorschlagen (falls noch keine) und den aktuellen Wert beim nächsten Durchgang senden
     pub(super) fn dp_set_output(&mut self, dp_id: i64, key: &str, on: bool) -> Result<()> {
         if !OUTPUTS.contains(&key) {
-            bail!("{}: {key}", tr("Unbekannter Ausgang", "Unknown output"));
+            return Err(unknown(key));
         }
         if !on {
             self.conn.execute(
@@ -275,7 +280,7 @@ impl Db {
     fn send_to(&mut self, key: &str, d: &Datapoint, address: &str, s: &Sample) -> Result<()> {
         match key {
             "mqtt" => self.mqtt_enqueue(address, &mqtt_payload(d, s))?,
-            k => bail!("{}: {k}", tr("Unbekannter Ausgang", "Unknown output")),
+            k => return Err(unknown(k)),
         }
         self.conn.execute(
             "UPDATE dp_outputs SET sent_value = ?3, sent_quality = ?4, sent_day = ?5

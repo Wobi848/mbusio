@@ -459,11 +459,11 @@ $("tr-import").onchange = (ev) => {
   ev.target.value = "";
   if (!file) return;
   guarded($("tr-export"), async () => {
-    const csv = await file.text();
+    const rows = parseTable(await file.text());
     const path = `projects/${tree.active.project.id}/datapoints/import`;
     await ui.previewApply($("tr-preview"), {
       title: t("dp_csv_import"),
-      run: (apply) => api(path, { method: "POST", body: { csv, apply } }),
+      run: (apply) => api(path, { method: "POST", body: { rows, apply } }),
       done: async () => {
         toast(t("dp_import_done"));
         await loadTransfer();

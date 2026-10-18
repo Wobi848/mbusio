@@ -29,10 +29,8 @@ pub(super) struct MqttReq {
 
 pub(super) async fn mqtt_put(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(r): Json<MqttReq>,
 ) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
     {
         let mut db = st.db.lock().unwrap();
         let mut c = r.config;

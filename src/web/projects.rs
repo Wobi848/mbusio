@@ -19,17 +19,10 @@ pub(super) fn annotate_lines(st: &AppState, tree: &mut serde_json::Value) {
 pub(super) async fn tree(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     let (mut projects, active) = {
         let db = st.db.lock().unwrap();
-        let mut projects = serde_json::to_value(db.tree()?).unwrap_or_default();
-        // Datenpunkte je Linie: Anzahl und ungültige
-        for p in projects.as_array_mut().into_iter().flatten() {
-            for g in p["gateways"].as_array_mut().into_iter().flatten() {
-                for l in g["lines"].as_array_mut().into_iter().flatten() {
-                    let (n, invalid) = db.dp_counts(l["id"].as_i64().unwrap_or(0))?;
-                    l["datapoints"] = json!({ "count": n, "invalid": invalid });
-                }
-            }
-        }
-        (projects, db.active()?)
+        (
+            serde_json::to_value(db.tree()?).unwrap_or_default(),
+            db.active()?,
+        )
     };
     annotate_lines(&st, &mut projects);
     Ok(Json(json!({ "projects": projects, "active": active })))
@@ -82,11 +75,9 @@ pub(super) fn load_warnings(
 
 pub(super) async fn project_plan(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(r): Json<PlanReq>,
 ) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
     let plan = r.plan.unwrap_or_else(|| "off".into());
     st.db
         .lock()
@@ -100,11 +91,9 @@ pub(super) async fn project_plan(
 
 pub(super) async fn line_plan(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(r): Json<PlanReq>,
 ) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
     st.db
         .lock()
         .unwrap()
@@ -117,11 +106,9 @@ pub(super) async fn line_plan(
 
 pub(super) async fn meter_plan(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(r): Json<PlanReq>,
 ) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
     let line = {
         let mut db = st.db.lock().unwrap();
         db.set_meter_plan(id, r.plan.as_deref())
@@ -361,11 +348,9 @@ pub(super) struct AddressingReq {
 /// Merken über SA oder PA; stellt die Zählerliste der Linie mit um
 pub(super) async fn line_addressing(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(req): Json<AddressingReq>,
 ) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
     let (changed, kept) = st
         .db
         .lock()
@@ -394,11 +379,9 @@ pub(super) async fn line_issues(
 /// Linie aktivieren und, wenn sie eine Verbindung hat, gleich damit verbinden
 pub(super) async fn line_activate(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(id): Path<i64>,
 ) -> ApiResult<serde_json::Value> {
     ensure_idle(&st)?;
-    let lang = lang_of(&headers);
     let line = st.db.lock().unwrap().set_active(id).map_err(bad_request)?;
     disconnect_bus(&st);
     if line.connection.is_empty() {
@@ -406,7 +389,7 @@ pub(super) async fn line_activate(
     }
     let s = st.clone();
     let conf = LineConf::of(&line);
-    let result = blocking(move || s.connect_line(id, conf, lang)).await?;
+    let result = blocking(move || s.connect_line(id, conf)).await?;
     // Linie bleibt aktiv, auch wenn der Anschluss gerade nicht erreichbar ist
     Ok(Json(match result {
         Ok(()) => json!({ "ok": true, "connected": true }),

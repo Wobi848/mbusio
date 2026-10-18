@@ -101,30 +101,35 @@ const ui = {
     render(await run(false));
   },
 
-  // ---------------------------------------------------------- Formular
+  // ---------------------------------------------------------- Eingabe, Formular
   // Felder: { name, label, type: text|number|password|select|check|textarea|time24|html,
   //           options: [[wert, text]], num (Auswahl liefert Zahl, "" = null), list (Vorschläge),
-  //           wide, cls, placeholder, hint, required, html (bei type html: fertiger Baustein) }
+  //           wide, cls, placeholder, hint, required, max (Zeichen), data ({ name: wert }),
+//           value (Vorgabe, wenn in den Werten nichts steht),
+  //           html (bei type html: fertiger Baustein)
+
+  /// Ein Eingabefeld ohne Beschriftung (im Formular und in bearbeitbaren Tabellen)
+  input(f, v) {
+    const data = Object.entries(f.data || {})
+      .map(([k, x]) => ` data-${k}="${esc(x)}"`)
+      .join("");
+    const common = `name="${f.name}" class="${f.cls || ""}" aria-label="${esc(f.label)}"${data} ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ""} ${
+      f.required ? "required" : ""
+    } ${f.list ? `list="${f.list}"` : ""} ${f.max ? `maxlength="${f.max}"` : ""}`;
+    if (f.type === "check") return `<input type="checkbox" ${common} ${v ? "checked" : ""}>`;
+    if (f.type === "select")
+      return `<select ${common}>${f.options.map(([o, txt]) => `<option value="${esc(o)}" ${String(o) === String(v ?? "") ? "selected" : ""}>${esc(txt)}</option>`).join("")}</select>`;
+    if (f.type === "textarea") return `<textarea ${common} rows="${f.rows || 4}">${esc(v ?? "")}</textarea>`;
+    if (f.type === "time24") return `<input ${common} value="${esc(v ?? "")}" inputmode="numeric" maxlength="5" autocomplete="off" data-time24>`;
+    return `<input ${common} type="${f.type === "password" ? "password" : "text"}" value="${esc(v ?? "")}" ${f.type === "number" ? 'inputmode="decimal"' : ""} autocomplete="off">`;
+  },
 
   form(fields, values = {}) {
     const field = (f) => {
       if (f.type === "html") return `<div class="span-all">${f.html}</div>`;
-      const v = values[f.name];
-      const label = esc(f.label);
-      const common = `name="${f.name}" class="${f.cls || ""}" ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ""} ${f.required ? "required" : ""} ${
-        f.list ? `list="${f.list}"` : ""
-      }`;
-      let input;
-      if (f.type === "check")
-        return `<label class="check ${f.wide ? "span-2" : ""}" data-field="${f.name}"><input type="checkbox" name="${f.name}" ${v ? "checked" : ""}> ${label}</label>`;
-      if (f.type === "select")
-        input = `<select ${common}>${f.options.map(([o, txt]) => `<option value="${esc(o)}" ${String(o) === String(v ?? "") ? "selected" : ""}>${esc(txt)}</option>`).join("")}</select>`;
-      else if (f.type === "textarea") input = `<textarea ${common} rows="${f.rows || 4}">${esc(v ?? "")}</textarea>`;
-      else if (f.type === "time24")
-        input = `<input ${common} value="${esc(v ?? "")}" inputmode="numeric" maxlength="5" autocomplete="off" data-time24>`;
-      else
-        input = `<input ${common} type="${f.type === "password" ? "password" : "text"}" value="${esc(v ?? "")}" ${f.type === "number" ? 'inputmode="decimal"' : ""} autocomplete="off">`;
-      return `<label class="${f.wide ? "span-2" : ""}" data-field="${f.name}"><span>${label}</span> ${input}</label>`;
+      const input = ui.input(f, values[f.name] ?? f.value);
+      if (f.type === "check") return `<label class="check ${f.wide ? "span-2" : ""}" data-field="${f.name}">${input} ${esc(f.label)}</label>`;
+      return `<label class="${f.wide ? "span-2" : ""}" data-field="${f.name}"><span>${esc(f.label)}</span> ${input}</label>`;
     };
     return `<div class="form-grid">${fields.map(field).join("")}</div>${fields
       .filter((f) => f.hint)
@@ -137,7 +142,8 @@ const ui = {
     const out = {};
     for (const f of fields) {
       const el = root.querySelector(`[name="${f.name}"]`);
-      if (!el) continue;
+      // ausgeblendete Felder (z.B. Uhrzeit bei „stündlich“) zählen nicht
+      if (!el || el.closest("[hidden]")) continue;
       if (f.type === "check") out[f.name] = el.checked;
       else if (f.type === "number") {
         const n = Number(String(el.value).trim().replace(",", "."));
@@ -155,6 +161,43 @@ const ui = {
     return out;
   },
 };
+
+/// Tabelle aus CSV oder aus Excel kopiert (Tabulator); Trennzeichen wird erkannt
+function parseTable(text) {
+  text = text.replace(/^\uFEFF/, "");
+  const first = text.split(/\r?\n/)[0] || "";
+  const delim = ["\t", ";", ","].map((d) => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = [];
+  let row = [];
+  let cur = "";
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else quoted = false;
+      } else cur += c;
+    } else if (c === '"' && cur === "") quoted = true;
+    else if (c === delim) {
+      row.push(cur);
+      cur = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cur);
+      rows.push(row);
+      row = [];
+      cur = "";
+    } else cur += c;
+  }
+  if (cur || row.length) {
+    row.push(cur);
+    rows.push(row);
+  }
+  return rows.map((r) => r.map((x) => x.trim())).filter((r) => r.some(Boolean));
+}
 
 /// Uhrzeit immer 24 h als HH:MM; Kurzformen: "5" → 05:00, "530" → 05:30, "17:5" → 17:05.
 /// null, wenn es keine gültige Uhrzeit ist.
@@ -176,7 +219,7 @@ document.addEventListener(
   "blur",
   (ev) => {
     const el = ev.target;
-    if (!el.matches?.("[data-time24], [name=plan_time]")) return;
+    if (!el.matches?.("[data-time24]")) return;
     const v = time24(el.value);
     el.classList.toggle("invalid", !v);
     if (v) el.value = v;

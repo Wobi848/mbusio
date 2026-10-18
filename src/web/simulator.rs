@@ -2,11 +2,7 @@
 
 use super::*;
 
-pub(super) async fn sim_get(
-    State(st): State<AppState>,
-    headers: HeaderMap,
-) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
+pub(super) async fn sim_get(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     let active = st.db.lock().unwrap().active_line()?;
     Ok(Json(json!({
         "scenarios": crate::sim::all(),
@@ -26,10 +22,8 @@ pub(super) struct SimCreateReq {
 
 pub(super) async fn sim_create(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Json(r): Json<SimCreateReq>,
 ) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
     let key = st
         .db
         .lock()
@@ -48,29 +42,23 @@ pub(super) struct SimSaveReq {
 /// Simulation speichern; Linien, die sie gerade verwenden, verbinden neu (neue Zähler gelten sofort)
 pub(super) async fn sim_save(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(key): Path<String>,
     Json(r): Json<SimSaveReq>,
 ) -> ApiResult<serde_json::Value> {
-    let lang = lang_of(&headers);
-    i18n::set(lang);
     st.db
         .lock()
         .unwrap()
         .sim_save(&key, &r.name, &r.meters)
         .map_err(bad_request)?;
     let s = st.clone();
-    let restarted =
-        blocking(move || s.restart_connection(&format!("SIMULATOR:{key}"), lang)).await?;
+    let restarted = blocking(move || s.restart_connection(&format!("SIMULATOR:{key}"))).await?;
     Ok(Json(json!({ "ok": true, "restarted": restarted })))
 }
 
 pub(super) async fn sim_delete(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(key): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    i18n::set(lang_of(&headers));
     st.db
         .lock()
         .unwrap()
@@ -82,11 +70,8 @@ pub(super) async fn sim_delete(
 /// Simulation für die aktive Linie verwenden und verbinden
 pub(super) async fn sim_use(
     State(st): State<AppState>,
-    headers: HeaderMap,
     Path(key): Path<String>,
 ) -> ApiResult<serde_json::Value> {
-    let lang = lang_of(&headers);
-    i18n::set(lang);
     ensure_idle(&st)?;
     let connection = if key == "praxis" {
         "SIMULATOR".to_string()
@@ -108,7 +93,7 @@ pub(super) async fn sim_use(
     };
     let s = st.clone();
     let id = line.id;
-    blocking(move || s.connect_line(id, conf, lang))
+    blocking(move || s.connect_line(id, conf))
         .await?
         .map_err(bad_request)?;
     st.db
