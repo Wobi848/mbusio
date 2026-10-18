@@ -63,6 +63,9 @@ pub struct MqttConfig {
     /// Uhrzeit vom Leitsystem über `<basis>/time` übernehmen
     #[serde(default)]
     pub time_sync: bool,
+    /// Muster für die Topics der Datenpunkte (relativ zum Basis-Topic), siehe `render_topic`
+    #[serde(default = "default_topic")]
+    pub topic: String,
 }
 
 fn default_port() -> u16 {
@@ -71,6 +74,40 @@ fn default_port() -> u16 {
 
 fn default_base() -> String {
     "mbusio".into()
+}
+
+/// bisheriger fester Aufbau: Projekt / Gateway-Linie / Zähler / Grösse
+pub const DEFAULT_TOPIC: &str = "{projekt}/{gateway}-{linie}/{zaehler}/{wert}";
+
+fn default_topic() -> String {
+    DEFAULT_TOPIC.into()
+}
+
+/// Platzhalter im Topic-Muster
+pub const TOPIC_VARS: [&str; 10] = [
+    "projekt", "gateway", "linie", "zaehler", "id", "pa", "ort", "medium", "wert", "nr",
+];
+
+/// Topic aus Muster und Werten: jeder Wert für Topics lesbar gemacht (slug), leere Teile und
+/// überzählige Trenner fallen weg. `vars`: (Platzhalter ohne Klammern, Wert)
+pub fn render_topic(pattern: &str, vars: &[(&str, String)]) -> String {
+    let mut s = pattern.trim().to_string();
+    for (k, v) in vars {
+        s = s.replace(&format!("{{{k}}}"), &slug(v));
+    }
+    s.split('/')
+        .map(|part| {
+            let mut p = String::new();
+            for c in part.chars() {
+                if !(c == '-' && (p.is_empty() || p.ends_with('-'))) {
+                    p.push(c);
+                }
+            }
+            p.trim_end_matches('-').to_string()
+        })
+        .filter(|p| !p.is_empty())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 impl Default for MqttConfig {
@@ -87,6 +124,7 @@ impl Default for MqttConfig {
             client_id: String::new(),
             base: default_base(),
             time_sync: false,
+            topic: default_topic(),
         }
     }
 }
@@ -104,6 +142,32 @@ impl MqttConfig {
                 "Basis-Topic ungültig (nicht leer, ohne + und #, nicht mit / beginnen)",
                 "Invalid base topic (not empty, no + or #, must not start with /)"
             ));
+        }
+        // Muster: nur bekannte Platzhalter, ohne + und #, mit {wert} oder {nr} (sonst wären die
+        // Topics der Werte eines Zählers gleich)
+        let p = &self.topic;
+        let unknown = p
+            .split('{')
+            .skip(1)
+            .filter_map(|x| x.split_once('}').map(|(k, _)| k))
+            .find(|k| !TOPIC_VARS.contains(k));
+        if p.trim().is_empty()
+            || p.contains(['+', '#'])
+            || !(p.contains("{wert}") || p.contains("{nr}"))
+        {
+            bail!(tr(
+                "Topic-Muster ungültig (ohne + und #, mit {wert} oder {nr})",
+                "Invalid topic pattern (no + or #, must contain {wert} or {nr})"
+            ));
+        }
+        if let Some(k) = unknown {
+            bail!(
+                "{}: {{{k}}}",
+                tr(
+                    "Unbekannter Platzhalter im Topic-Muster",
+                    "Unknown placeholder in topic pattern"
+                )
+            );
         }
         Ok(())
     }

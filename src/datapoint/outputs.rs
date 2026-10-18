@@ -6,7 +6,9 @@
 //! steht nur in den `match`-Zweigen unten (Name, Adresse prüfen/vorschlagen, senden). Ein neuer
 //! Ausgang ist ein neuer Eintrag in [`OUTPUTS`] und je ein Zweig.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
+
+use crate::changeset::ChangeSet;
 
 use super::*;
 
@@ -154,42 +156,172 @@ impl Db {
         Ok(out)
     }
 
+    /// Projekt, Gateway und Linie eines Datenpunkts (für Adressen und die Liste des Ausgangs)
+    fn dp_place(&self, dp_id: i64) -> Result<(String, String, String, Meter)> {
+        let (project, gateway, line, meter_id): (String, String, String, i64) = self.conn.query_row(
+            "SELECT projects.name, gateways.name, lines.name, meters.id FROM datapoints
+             JOIN meters ON meters.id = datapoints.meter_id JOIN lines ON lines.id = meters.line_id
+             JOIN gateways ON gateways.id = lines.gateway_id JOIN projects ON projects.id = gateways.project_id
+             WHERE datapoints.id = ?1",
+            [dp_id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )?;
+        Ok((project, gateway, line, self.meter(meter_id)?))
+    }
+
+    /// Adresse eines Datenpunkts an einem Ausgang nach dem Muster (noch nicht eindeutig gemacht)
+    fn pattern_address(&self, key: &str, dp_id: i64) -> Result<String> {
+        let d = self.dp(dp_id)?;
+        match key {
+            "mqtt" => {
+                let (project, gateway, line, m) = self.dp_place(dp_id)?;
+                let vars = [
+                    ("projekt", project),
+                    ("gateway", gateway),
+                    ("linie", line),
+                    ("zaehler", meter_label(&m)),
+                    ("id", crate::meterlist::meter_ident(&m).unwrap_or_default()),
+                    (
+                        "pa",
+                        m.primary_address.map(|p| p.to_string()).unwrap_or_default(),
+                    ),
+                    ("ort", m.location.clone()),
+                    // sprachunabhängig wie die Grösse: heat-outlet, water …
+                    (
+                        "medium",
+                        m.medium
+                            .as_deref()
+                            .unwrap_or("")
+                            .trim_start_matches("medium_")
+                            .to_string(),
+                    ),
+                    ("wert", key_slug(&d.key)),
+                    ("nr", d.no.to_string()),
+                ];
+                Ok(crate::mqtt::render_topic(&self.mqtt_config().topic, &vars))
+            }
+            k => Err(unknown(k)),
+        }
+    }
+
     /// Vorschlag für die Adresse eines Datenpunkts an einem Ausgang, eindeutig gemacht
     fn default_address(&self, key: &str, dp_id: i64) -> Result<String> {
-        let d = self.dp(dp_id)?;
-        let address = match key {
-            "mqtt" => {
-                let (project, gateway, line, meter_id): (String, String, String, i64) =
-                    self.conn.query_row(
-                        "SELECT projects.name, gateways.name, lines.name, meters.id FROM datapoints
-                         JOIN meters ON meters.id = datapoints.meter_id JOIN lines ON lines.id = meters.line_id
-                         JOIN gateways ON gateways.id = lines.gateway_id JOIN projects ON projects.id = gateways.project_id
-                         WHERE datapoints.id = ?1",
-                        [dp_id],
-                        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-                    )?;
-                let slug = crate::mqtt::slug;
-                format!(
-                    "{}/{}-{}/{}/{}",
-                    slug(&project),
-                    slug(&gateway),
-                    slug(&line),
-                    slug(&meter_label(&self.meter(meter_id)?)),
-                    key_slug(&d.key)
-                )
-            }
-            k => return Err(unknown(k)),
-        };
+        let address = self.pattern_address(key, dp_id)?;
         let taken: bool = self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM dp_outputs WHERE output = ?1 AND address = ?2 AND dp != ?3)",
             params![key, address, dp_id],
             |r| r.get(0),
         )?;
         Ok(if taken {
-            format!("{address}-{}", d.no)
+            format!("{address}-{}", self.dp(dp_id)?.no)
         } else {
             address
         })
+    }
+
+    /// Datenpunkte eines Projekts, die einen Ausgang haben (eingeschaltet oder mit Adresse)
+    fn dps_with_output(
+        &self,
+        project_id: i64,
+        key: &str,
+    ) -> Result<Vec<(i64, Option<String>, bool)>> {
+        let mut st = self.conn.prepare(
+            "SELECT dp_outputs.dp, dp_outputs.address, dp_outputs.enabled FROM dp_outputs
+             JOIN datapoints ON datapoints.id = dp_outputs.dp JOIN meters ON meters.id = datapoints.meter_id
+             JOIN lines ON lines.id = meters.line_id JOIN gateways ON gateways.id = lines.gateway_id
+             WHERE gateways.project_id = ?1 AND dp_outputs.output = ?2 ORDER BY datapoints.no",
+        )?;
+        let rows = st.query_map(params![project_id, key], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Alle Adressen eines Projekts an einem Ausgang nach dem Muster neu setzen: zuerst nur zeigen,
+    /// was sich ändert (`apply` = false). Doppelte werden mit der Nummer des Datenpunkts eindeutig.
+    pub fn dp_readdress(&mut self, project_id: i64, key: &str, apply: bool) -> Result<ChangeSet> {
+        let list = self.dps_with_output(project_id, key)?;
+        let mine: HashSet<i64> = list.iter().map(|(dp, ..)| *dp).collect();
+        // Adressen anderer Projekte bleiben belegt
+        let mut used: HashSet<String> = {
+            let mut st = self.conn.prepare(
+                "SELECT dp, address FROM dp_outputs WHERE output = ?1 AND address IS NOT NULL",
+            )?;
+            let rows =
+                st.query_map([key], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?;
+            rows.filter_map(|r| r.ok())
+                .filter(|(dp, _)| !mine.contains(dp))
+                .map(|(_, a)| a)
+                .collect()
+        };
+        let mut cs = ChangeSet::default();
+        let mut updates = Vec::new();
+        for (dp, old, _) in &list {
+            let mut new = self.pattern_address(key, *dp)?;
+            if used.contains(&new) {
+                new = format!("{new}-{}", self.dp(*dp)?.no);
+            }
+            used.insert(new.clone());
+            let d = self.dp(*dp)?;
+            let item = format!("{} · {}", d.no, d.name);
+            if cs.change(
+                &item,
+                address_label(key),
+                old.as_deref().unwrap_or(""),
+                &new,
+            ) {
+                updates.push((*dp, new));
+            } else {
+                cs.unchanged += 1;
+            }
+        }
+        let key = key.to_string();
+        cs.finish(apply, || {
+            self.tx(|db| {
+                for (dp, a) in &updates {
+                    db.dp_set_output_address(*dp, &key, Some(a))?;
+                }
+                Ok(())
+            })
+        })
+    }
+
+    /// Liste für den Integrator: eingeschaltete Datenpunkte eines Ausgangs mit voller Adresse
+    /// und allem, was man zum Einbinden braucht
+    pub fn output_list(&self, project_id: i64, key: &str, lang: Lang) -> Result<Vec<Value>> {
+        let base = match key {
+            "mqtt" => self
+                .mqtt_config()
+                .base
+                .trim()
+                .trim_end_matches('/')
+                .to_string(),
+            _ => String::new(),
+        };
+        let mut out = Vec::new();
+        for (dp, address, enabled) in self.dps_with_output(project_id, key)? {
+            let Some(address) = address.filter(|_| enabled) else {
+                continue;
+            };
+            let d = self.dp(dp)?;
+            let (_, gateway, line, m) = self.dp_place(dp)?;
+            out.push(json!({
+                "no": d.no,
+                "address": if base.is_empty() { address } else { format!("{base}/{address}") },
+                "name": d.name,
+                "unit": d.unit,
+                "factor": d.factor,
+                "send": d.send,
+                "meter": meter_label(&m),
+                "id": crate::meterlist::meter_ident(&m),
+                "pa": m.primary_address,
+                "location": m.location,
+                "medium": m.medium.as_deref().map(|k| crate::i18n::label(k, lang)),
+                "line": format!("{gateway} › {line}"),
+                "key": d.key,
+            }));
+        }
+        Ok(out)
     }
 
     /// Ausgang für einen Datenpunkt ein- oder ausschalten; beim Einschalten eine Adresse

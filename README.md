@@ -141,9 +141,14 @@ Zählerliste („Weitergabe“) und aus einer Auslesung führt ein Link direkt z
 - Reiter Weitergabe → Ausgänge → MQTT → **Einstellungen**: Broker, Port, Benutzer/Passwort, TLS
   (mit eigenem CA-Zertifikat oder, für selbst signierte Broker, ohne Prüfung), Client-ID und
   Basis-Topic
-- Je Datenpunkt das Häkchen **MQTT**; das Topic wird beim Einschalten vorgeschlagen
-  (`mbusio/<projekt>/<gateway>-<linie>/<zähler>/<wert>`, z.B. `…/whg-1/energy`) und bleibt danach
-  gleich, auch wenn Namen sich ändern; überschreibbar
+- Je Datenpunkt das Häkchen **MQTT**; das Topic entsteht beim Einschalten aus dem **Topic-Muster**
+  der Einstellungen (Standard `{projekt}/{gateway}-{linie}/{zaehler}/{wert}`, z.B. `…/whg-1/energy`;
+  Platzhalter auch `{id}`, `{pa}`, `{ort}`, `{medium}`, `{nr}`) und bleibt danach gleich, auch wenn
+  Namen sich ändern; einzeln überschreibbar. **„Alle Topics nach Muster setzen …“** rechnet alle
+  Topics des Projekts nach dem Muster neu, mit Vorschau
+- **Topic-Liste für den Integrator** als CSV (Excel) oder JSON: je Datenpunkt das volle Topic,
+  Name, Einheit, Zähler, ID, PA, Ort, Linie; im JSON dazu Status-Topic, QoS, retained und der
+  Aufbau der Nachricht
 - Nachricht JSON, retained, QoS 1:
   `{"value": 123456, "unit": "kWh", "time": "2026-10-17T19:03:12Z", "quality": "good", "name": "Whg 1 · Energie", "no": 1}`,
   bei unsicherer Uhrzeit zusätzlich `"time_unsure": true`. Ändert sich nur die Qualität (Zähler

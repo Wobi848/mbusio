@@ -51,6 +51,12 @@ function planText(key) {
   return kind === "daily" || kind === "monthly" ? t("plan_" + kind, time) : t("plan_" + kind);
 }
 
+/// Link auf die API für Downloads (Links schicken keine Kopfzeilen): Sprache und Zugriffsschlüssel
+/// als Parameter
+function apiHref(path) {
+  return `api/${path}${path.includes("?") ? "&" : "?"}lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
+}
+
 async function request(path, options = {}) {
   const headers = { "Content-Type": "application/json", "X-Lang": lang };
   if (token) headers["X-Token"] = token;

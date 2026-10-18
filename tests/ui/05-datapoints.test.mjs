@@ -60,5 +60,24 @@ export default {
     await page.fill("[data-out-form=mqtt] [name=host]", "10.0.0.7");
     await page.waitForTimeout(6000);
     assert.equal(await page.inputValue("[data-out-form=mqtt] [name=host]"), "10.0.0.7");
+    // MQTT bei einem Datenpunkt: Topic nach dem bisherigen Muster
+    await page.click("[data-out-settings=mqtt]");
+    await page.locator("[data-dp-out=mqtt]").first().check();
+    await page.waitForFunction(() => document.querySelector("#dp-table .out-addr")?.title === "mbusio/standard/gateway-1-haus-a/z1/energy");
+    // anderes Muster speichern, dann alle Topics danach setzen (Vorschau → Übernehmen)
+    await page.click("[data-out-settings=mqtt]");
+    await page.fill("[data-out-form=mqtt] [name=topic]", "{linie}/{nr}/{wert}");
+    await page.click("[data-out-form=mqtt] [type=submit]");
+    await page.waitForSelector("[data-out-form=mqtt]", { state: "detached" });
+    await page.click("[data-out-readdress=mqtt]");
+    await page.waitForSelector("[data-out-preview=mqtt] [data-cs-apply]");
+    await page.click("[data-out-preview=mqtt] [data-cs-apply]");
+    // neues Topic in der Tabelle (gekürzt, voll im Tooltip)
+    await page.waitForFunction(() => document.querySelector("#dp-table .out-addr")?.title === "mbusio/haus-a/1/energy");
+    // Liste für den Integrator als CSV: volles Topic mit Basis
+    const [list] = await Promise.all([page.waitForEvent("download"), page.click("[data-out-list]")]);
+    const csv = fs.readFileSync(await list.path(), "utf8");
+    assert.match(csv, /^\uFEFFNr;Topic;Name/);
+    assert.match(csv, /;mbusio\/haus-a\/1\/energy;/);
   },
 };

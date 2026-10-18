@@ -50,8 +50,7 @@ function renderTransfer() {
   renderDatapointTable();
   renderTemplates();
   if (tree) {
-    $("tr-export").href =
-      `api/projects/${tree.active.project.id}/datapoints/csv?lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
+    $("tr-export").href = apiHref(`projects/${tree.active.project.id}/datapoints/csv`);
   }
   $("tr-scope").value = transfer.scope;
   renderGuide();
@@ -84,6 +83,19 @@ function renderOutputState() {
   });
 }
 
+/// Unter einem Ausgang: Adressen nach Muster setzen (Vorschau), Liste für den Integrator (CSV, JSON)
+function outputTools(o) {
+  if (!tree || !allDatapoints().some((d) => d.outputs[o.key]?.address)) return "";
+  const list = (format) => apiHref(`projects/${tree.active.project.id}/outputs/${o.key}/list?format=${format}`);
+  return `<div class="row tight out-tools">
+      <button type="button" class="small tonal" data-out-readdress="${o.key}">${esc(t("out_readdress", o.address_label))}</button>
+      <span class="hint">${esc(t("out_list", o.address_label))}</span>
+      <a class="button small ghost" href="${list("csv")}" data-out-list>CSV</a>
+      <a class="button small ghost" href="${list("json")}" data-out-list>JSON</a>
+    </div>
+    <div class="out-preview" data-out-preview="${o.key}" hidden></div>`;
+}
+
 function renderOutputs() {
   $("tr-outputs").innerHTML = transfer.data.outputs
     .map((o) => {
@@ -93,6 +105,7 @@ function renderOutputs() {
         <div class="out-head"><b>${esc(o.label)}</b><span class="out-state" data-out-state="${o.key}">${st.chip}<span class="hint">${esc(st.text)}</span></span><span class="spacer"></span>
           <button type="button" class="small quiet" data-out-settings="${o.key}">${esc(t(open ? "history_close" : "out_settings"))}</button></div>
         ${open ? `<form class="out-form" data-out-form="${o.key}">${outputForm(o.key)}</form>` : ""}
+        ${outputTools(o)}
       </div>`;
     })
     .join("");
@@ -112,6 +125,7 @@ function mqttFields() {
     { name: "password", label: t("mqtt_password"), type: "password", placeholder: mqttHasPassword ? t("mqtt_pass_saved") : "" },
     { name: "client_id", label: t("mqtt_client"), cls: "mono", placeholder: "mbusio-…" },
     { name: "base", label: t("mqtt_base"), cls: "mono", placeholder: "mbusio" },
+    { name: "topic", label: t("mqtt_topic"), cls: "mono", wide: true, placeholder: "{projekt}/{gateway}-{linie}/{zaehler}/{wert}", hint: t("mqtt_topic_hint") },
     { name: "time_sync", label: t("mqtt_time", base + "/time"), type: "check", wide: true },
     { name: "ca", label: t("mqtt_ca"), type: "textarea", cls: "mono", placeholder: "-----BEGIN CERTIFICATE-----", wide: true },
   ];
@@ -136,6 +150,21 @@ function updateMqttForm() {
 }
 
 $("tr-outputs").addEventListener("click", (ev) => {
+  const re = ev.target.closest("[data-out-readdress]");
+  if (re) {
+    const key = re.dataset.outReaddress;
+    const path = `projects/${tree.active.project.id}/outputs/${key}/readdress`;
+    return guarded(re, () =>
+      ui.previewApply(document.querySelector(`[data-out-preview="${key}"]`), {
+        title: re.textContent,
+        run: (apply) => api(path, { method: "POST", body: { apply } }),
+        done: async () => {
+          toast(t("out_readdressed"));
+          await loadTransfer();
+        },
+      })
+    );
+  }
   const b = ev.target.closest("[data-out-settings]");
   if (!b) return;
   transfer.outputOpen = transfer.outputOpen === b.dataset.outSettings ? null : b.dataset.outSettings;
@@ -213,7 +242,9 @@ function dpColumns() {
       cell: (d) => {
         const x = d.outputs[o.key] || {};
         return `<input type="checkbox" data-dp-out="${o.key}" data-id="${d.id}" ${x.enabled ? "checked" : ""} aria-label="${esc(o.label)}">${
-          x.enabled && x.address ? `<span class="sub mono">${esc(o.key === "mqtt" ? mqttBase() + "/" : "")}${esc(x.address)}</span>` : ""
+          x.enabled && x.address
+            ? `<span class="sub mono out-addr" title="${esc((o.key === "mqtt" ? mqttBase() + "/" : "") + x.address)}"><bdi dir="ltr">${esc(x.address)}</bdi></span>`
+            : ""
         }`;
       },
     })),

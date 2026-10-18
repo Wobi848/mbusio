@@ -101,10 +101,9 @@ async function api(path, options = {}) {
 onToken = () => updateExportLinks();
 
 function updateExportLinks() {
-  $("meters-export").href = `api/meters/csv?lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
-  const extra = `&lang=${lang}` + (token ? `&token=${encodeURIComponent(token)}` : "");
-  $("export-csv").href = "api/export?format=csv" + extra;
-  $("export-json").href = "api/export?format=json" + extra;
+  $("meters-export").href = apiHref("meters/csv");
+  $("export-csv").href = apiHref("export?format=csv");
+  $("export-json").href = apiHref("export?format=json");
 }
 
 function toast(msg, isError = false) {

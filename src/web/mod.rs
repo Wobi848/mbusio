@@ -385,6 +385,11 @@ pub fn router(state: AppState) -> Router {
         .route("/api/projects/{id}/plan", put(project_plan))
         .route("/api/projects/{id}/thin", put(project_thin))
         .route("/api/mqtt", get(mqtt_get).put(mqtt_put))
+        .route(
+            "/api/projects/{id}/outputs/{key}/readdress",
+            post(output_readdress),
+        )
+        .route("/api/projects/{id}/outputs/{key}/list", get(output_list))
         .route("/api/meters/import-list", post(meters_import_list))
         .route("/api/meters/names", post(meters_names))
         .route("/api/meters/csv", get(meters_csv))

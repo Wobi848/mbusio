@@ -14,7 +14,11 @@
 #dp-table tr.tr-meter td { background: var(--sunken); padding: 8px 10px; }
 #dp-table tr.selected td { background: var(--accent-soft); }
 #dp-table input[type=checkbox] { width: 16px; height: 16px; }
-#dp-table td.out-cell { min-width: 90px; }
+#dp-table td.out-cell { min-width: 90px; max-width: 300px; }
+/* langes Topic von links kürzen: das Ende (Zähler, Grösse) bleibt sichtbar, volles im Tooltip */
+.out-addr { direction: rtl; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.out-tools { margin-top: 10px; flex-wrap: wrap; }
+.out-preview { margin-top: 10px; }
 #dp-form h3 { margin: 0 0 8px; font-size: 14px; }
 .tr-pick { margin-top: 10px; padding: 10px 12px; background: var(--surface); border-radius: 10px; }
 

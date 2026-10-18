@@ -410,6 +410,24 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 - Getestet gegen einen echten Broker: retained, Nachlieferung in Reihenfolge nach Broker-Ausfall,
   Last Will bei `kill -9`, Uhrzeit per MQTT, Passwort nirgends sichtbar.
 
+**Ergänzung (18.10.2026): Topic-Muster und Liste für den Integrator**
+- **Topic-Muster** in den MQTT-Einstellungen, z.B. `{projekt}/{gateway}-{linie}/{zaehler}/{wert}`
+  (der bisherige feste Aufbau). Platzhalter: `{projekt}`, `{gateway}`, `{linie}`, `{zaehler}` (Name,
+  sonst ID), `{id}` (ID vom Typenschild), `{pa}`, `{ort}`, `{medium}` (sprachunabhängig, z.B.
+  `heat-outlet`), `{wert}` (Grösse, z.B. `energy-t1`), `{nr}` (Nummer des Datenpunkts). Jeder Teil
+  wird für Topics lesbar gemacht (Kleinbuchstaben, Umlaute ausgeschrieben); leere Teile fallen weg.
+- Neue Datenpunkte bekommen ihr Topic nach dem Muster. **„Alle Topics nach Muster setzen …“**
+  rechnet alle Topics des Projekts neu, zeigt zuerst die Änderungen (Vorschau → Übernehmen wie bei
+  den Importen) und sendet danach den aktuellen Wert unter dem neuen Topic. Doppelte Topics werden
+  mit der Nummer des Datenpunkts eindeutig gemacht. Von Hand geänderte Topics bleiben möglich.
+- **Liste für den Integrator** je Ausgang, bei MQTT im Kasten des Ausgangs: CSV (Excel) und JSON.
+  Je Datenpunkt das volle Topic mit Basis, Nr., Name, Einheit, Faktor, Weitergabe, Zähler, ID, PA,
+  Ort, Medium, Linie. Das JSON enthält dazu Broker-unabhängige Angaben: Basis-Topic, Status-Topic
+  mit Last Will (online/offline), QoS 1, retained und den Aufbau der Nutzlast. Allgemein für alle
+  Ausgänge gebaut (Modbus bekommt später dieselbe Liste mit Registern).
+- In der Tabelle der Datenpunkte wird das Topic von links gekürzt (sichtbar bleibt das Ende, z.B.
+  `…/whg-1/energy`), das volle Topic steht im Tooltip.
+
 ### Phase 4: Modbus TCP (Server)
 - mbusio stellt die Datenpunkte als **Eingangsregister** bereit (nur lesen).
 - Je Datenpunkt fester Registerblock: Wert (float32 oder int32 mit Skalierung), Zeit seit letzter

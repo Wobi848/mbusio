@@ -158,7 +158,7 @@ function renderTree() {
   $("project-select").innerHTML = tree.projects
     .map((p) => `<option value="${p.id}" ${p.id === a.project.id ? "selected" : ""}>${esc(p.name)}</option>`)
     .join("");
-  $("project-export").href = `api/projects/${a.project.id}/export` + (token ? `?token=${encodeURIComponent(token)}` : "");
+  $("project-export").href = apiHref(`projects/${a.project.id}/export`);
   const node = activeProjectNode();
   // Pfeile zum Verschieben; ganz oben/unten ausgegraut
   const moveBtns = (kind, id, k, n) =>

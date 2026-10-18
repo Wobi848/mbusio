@@ -9,6 +9,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Neu
 
+- **MQTT-Topic-Muster:** Aufbau der Topics in den MQTT-Einstellungen festlegen; „Alle Topics nach
+  Muster setzen …“ mit Vorschau statt jedes einzeln anzupassen.
+- **Topic-Liste für den Integrator** als CSV und JSON (volles Topic, Name, Einheit, Zähler, ID,
+  PA, Ort; im JSON Status-Topic, QoS, retained, Aufbau der Nachricht).
 - **Windows:** die .exe hat das mbusio-Icon (Explorer, Taskleiste).
 - **Alle auslesen** sagt am Ende, wie viele Zähler antworten und wie viele nicht.
 - **Sekundärscan eingrenzen und weitersuchen:** „ID beginnt mit …“ sucht nur IDs mit diesem
@@ -46,6 +50,7 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Geändert
 
+- Datenpunkt-Tabelle: lange Topics von links gekürzt (Ende sichtbar, volles im Tooltip), passt auf Full HD.
 - **Oberfläche v2:** Kopfzeile für das Projekt, Linien-Leiste mit Verbindung und Plan, Laschen
   Scan · Zähler · Weitergabe; Zähler-Baustein mit Medium-Symbol überall; Zählerliste mit Suche,
   Filtern und Bearbeiten in der Zeile; Scan in zwei Schritten mit Auffälligkeiten direkt an der

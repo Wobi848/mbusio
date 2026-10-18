@@ -403,3 +403,72 @@ fn outputs_in_csv_round_trip() {
         }
     );
 }
+
+#[test]
+fn topic_pattern_renders_and_drops_empty_parts() {
+    use crate::mqtt::{render_topic, DEFAULT_TOPIC};
+    let v = |k: &'static str, s: &str| (k, s.to_string());
+    let vars = [
+        v("projekt", "Standard"),
+        v("gateway", "Gateway 1"),
+        v("linie", "Linie 1"),
+        v("zaehler", "Whg 1 Wärme"),
+        v("ort", ""),
+        v("wert", "energy-t1"),
+    ];
+    assert_eq!(
+        render_topic(DEFAULT_TOPIC, &vars),
+        "standard/gateway-1-linie-1/whg-1-waerme/energy-t1"
+    );
+    assert_eq!(
+        render_topic("{ort}/{zaehler}-{ort}/{wert}", &vars),
+        "whg-1-waerme/energy-t1"
+    );
+}
+
+#[test]
+fn topics_follow_pattern_with_preview_and_list_for_integrator() {
+    let (mut db, _line, mid, _r) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &["mqtt".to_string()], Lang::De)
+        .unwrap();
+    let before = db.dp_by_meter(mid).unwrap()[0].outputs["mqtt"]
+        .address
+        .clone();
+    assert_eq!(
+        before.as_deref(),
+        Some("standard/gateway-1-linie-1/whg-1/energy")
+    );
+    // anderes Muster: Vorschau ändert nichts, Übernehmen setzt das neue Topic
+    let mut c = db.mqtt_config();
+    c.topic = "{linie}/{pa}/{wert}".into();
+    db.set_mqtt_config(&c).unwrap();
+    let p = db.dp_readdress(1, "mqtt", false).unwrap();
+    assert!(!p.applied && p.changed.len() == 1, "{:?}", p.changed);
+    assert_eq!(
+        db.dp_by_meter(mid).unwrap()[0].outputs["mqtt"].address,
+        before
+    );
+    assert!(db.dp_readdress(1, "mqtt", true).unwrap().applied);
+    assert_eq!(
+        db.dp_by_meter(mid).unwrap()[0].outputs["mqtt"]
+            .address
+            .as_deref(),
+        Some("linie-1/1/energy")
+    );
+    // nochmals: nichts mehr zu ändern
+    assert!(db
+        .dp_readdress(1, "mqtt", false)
+        .unwrap()
+        .changed
+        .is_empty());
+    // ungültige Muster
+    c.topic = "{linie}/{zaehler}".into();
+    assert!(db.set_mqtt_config(&c).is_err(), "ohne {{wert}} oder {{nr}}");
+    c.topic = "{linie}/{foo}/{wert}".into();
+    assert!(db.set_mqtt_config(&c).is_err(), "unbekannter Platzhalter");
+    // Liste für den Integrator: volles Topic mit Basis
+    let list = db.output_list(1, "mqtt", Lang::De).unwrap();
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0]["address"], "mbusio/linie-1/1/energy");
+    assert_eq!(list[0]["meter"], "Whg 1");
+}
