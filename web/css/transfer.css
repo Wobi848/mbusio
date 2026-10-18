@@ -1,0 +1,29 @@
+/* Reiter Weitergabe: Ausgänge (MQTT), Datenpunkte, Vorlagen */
+
+/* ------------------------------------------------------------ Ausgänge */
+
+.out-list { display: grid; gap: 10px; }
+.out-row { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.out-form { margin-top: 12px; }
+#mqtt-example { word-break: break-all; }
+
+/* ------------------------------------------------------------ Datenpunkte */
+
+#tr-scope { width: auto; }
+#dp-table tr.tr-meter td { background: var(--sunken); padding: 8px 10px; }
+#dp-table tr.selected td { background: var(--accent-soft); }
+#dp-table input[type=checkbox] { width: 16px; height: 16px; }
+#dp-table td.out-cell { min-width: 90px; }
+#dp-form h3 { margin: 0 0 8px; font-size: 14px; }
+.tr-pick { margin-top: 10px; padding: 10px 12px; background: var(--surface); border-radius: 10px; }
+
+.dp-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: var(--accent-soft); font-size: 13px; }
+.dp-bulk select { width: auto; }
+.dp-templates { margin: 0 0 10px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.dp-tpl { display: inline-flex; align-items: center; gap: 4px; }
+
+/* Werte zum Auswählen */
+.dp-pick { display: grid; gap: 2px; margin: 8px 0 12px; }
+.dp-pick-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.dp-pick-row:hover { background: var(--sunken); }
+.dp-pick-row input { width: 16px; height: 16px; flex: none; }

@@ -1,0 +1,118 @@
+/* Reiter Scan: Verbindung, Baudraten, Trefferliste, Auffälligkeiten, Alle beheben */
+
+/* ------------------------------------------------------------ Verbindung */
+
+.conn-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+/* kompakt, sobald verbunden */
+.conn-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; }
+.conn-summary #conn-summary-text { font-weight: 600; }
+.dot-ok { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); flex: none; }
+#sec-conn.compact .conn-grid, #sec-conn.compact .card-head, #sec-conn.compact #conn-line { display: none; }
+#sec-conn.compact { padding-top: 14px; padding-bottom: 14px; }
+
+/* ------------------------------------------------------------ Baudraten */
+
+.baud-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.baud-pick-label { font-size: 13px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips label {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  cursor: pointer;
+}
+.chips input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.chips span {
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font: 500 13px/1.3 var(--mono);
+  color: var(--muted);
+  background: var(--surface);
+  transition: background-color .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease);
+}
+.chips label:hover span { border-color: var(--accent); color: var(--text); }
+.chips input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 650; }
+.chips input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chips span.found::after { content: " ●"; color: var(--ok); }
+.chips input:checked + span.found::after { color: var(--accent-ink); }
+/* Prüfen: laufende Baudrate pulsiert, ohne Antwort ausgegraut */
+.chips span.checking { border-color: var(--accent); color: var(--text); animation: chip-pulse 1s var(--ease) infinite; }
+.chips span.none { opacity: .45; text-decoration: line-through; }
+@keyframes chip-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50% { box-shadow: 0 0 0 5px var(--accent-soft); }
+}
+.baud-check-hint { margin: 4px 0 14px; }
+#scan-estimate { color: var(--text); font-weight: 540; }
+#bus-bauds { border: 1px solid var(--line-strong) !important; }
+#bus-bauds:disabled { opacity: 1; }
+
+/* ------------------------------------------------------------ Trefferliste */
+
+.hits-opt { align-self: flex-start; }
+.hits-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+.remember-mode { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+
+/* Status-Chips und Knöpfe umbrechen statt die Tabelle zu verbreitern */
+#hits td:nth-last-child(2) { white-space: normal; }
+#hits td:nth-last-child(2) .chip { margin: 2px 4px 2px 0; }
+#hits td:last-child .actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
+#hits td:last-child { white-space: normal; min-width: 150px; }
+
+/* Auffälligkeiten */
+.hits-warn {
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+}
+.hits-warn b { font-weight: 650; }
+.hits-warn ul { margin: 4px 0 0; padding-left: 18px; }
+.hits-warn .hint { color: inherit; margin-top: 6px; }
+.hits-warn button { margin-top: 8px; }
+
+/* "Warum?": Ursache und Tipp unter der Zeile */
+#hits tr.why-row td { white-space: normal; padding-top: 0; }
+.why { background: var(--sunken); border-radius: 8px; padding: 10px 12px; font-size: 13px; line-height: 1.5; }
+.why p { margin: 0 0 4px; }
+.why p:last-child { margin-bottom: 0; }
+.why-label { color: var(--muted); font-weight: 600; }
+.why-raw code { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+.why .analyze-link { font-weight: 600; margin-left: 8px; }
+
+/* Alle beheben: Plan zum Abhaken */
+.fix-plan { margin: 10px 0; padding: 14px; border: 1px solid var(--accent); border-radius: 10px; background: var(--surface); }
+.fix-plan h3 { margin: 0 0 4px; font-size: 15px; }
+.fix-plan ul { list-style: none; margin: 10px 0; padding: 0; }
+.fix-plan li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.fix-plan li label { display: flex; flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 13px; flex: 1 1 auto; min-width: 0; }
+.fix-plan li input[type="checkbox"] { width: 16px; height: 16px; flex: none; margin: 0; accent-color: var(--accent); }
+.fix-plan ul.manual li { color: var(--muted); }
+.fix-plan .row { margin: 8px 0 0; }
+.plan-st { flex: none; font-weight: 600; white-space: normal; text-align: right; font-size: 14px; }
+.plan-st.ok { color: var(--ok); }
+.plan-st.err { color: var(--err); font-weight: 500; }
+
+@media (max-width: 900px) {
+  .conn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .conn-actions { grid-column: 1 / -1; }
+}
+
+@media (max-width: 560px) {
+  .chips span { padding: 9px 12px; }
+}
+
+@media (max-width: 520px) {
+  .conn-grid { grid-template-columns: minmax(0, 1fr); }
+  .conn-actions button { width: 100%; }
+}

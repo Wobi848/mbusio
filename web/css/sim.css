@@ -1,0 +1,13 @@
+/* Reiter Simulator: Auswahl, Zähler-Tabelle zum Bearbeiten */
+
+.sim-pick { align-items: end; flex-wrap: wrap; }
+.sim-pick .grow { flex: 1; min-width: 220px; }
+.sim-table input, .sim-table select { width: 100%; min-width: 0; padding: 4px 6px; font-size: 13px; }
+.sim-table .sim-pa { width: 56px; }
+.sim-table .sim-id { width: 96px; }
+.sim-table .sim-man { width: 56px; text-transform: uppercase; }
+.sim-table td { padding: 4px 6px; }
+.sim-actions { align-items: center; margin-top: 10px; }
+.sim-many { display: inline-flex; gap: 6px; align-items: center; }
+.sim-many input { width: 56px; }
+.sim-many select { width: auto; }

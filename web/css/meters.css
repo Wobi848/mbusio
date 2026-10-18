@@ -1,0 +1,109 @@
+/* Reiter Zähler: Zählerliste, Zählerformular, Schnellerfassung, Liste importieren, Verlauf, Export */
+
+/* ------------------------------------------------------------ Zählerliste */
+
+#meters-table td.wrap { white-space: normal; min-width: 120px; }
+#meters-table td:first-child { min-width: 140px; }
+/* Name, Unterzeile, Wert (auch in der Datenpunkt-Tabelle) */
+#meters-table .name, #dp-table .name { font-weight: 600; }
+#meters-table .sub, #dp-table .sub { color: var(--muted); font-size: 12px; display: block; }
+#meters-table .val, #dp-table .val { font-family: var(--mono); font-weight: 600; }
+#meters-table .err {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--err);
+  font-size: 12px;
+  font-weight: 560;
+  white-space: normal;
+}
+#meters-file { word-break: break-all; font-size: 12px; }
+#meters-job { font-family: var(--mono); font-size: 12.5px; }
+.file-button { position: relative; }
+
+.meter-form {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--sunken);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: fadeIn .25s var(--ease) both;
+}
+
+/* Schnellerfassung direkt in der Tabelle */
+#meters-table input.quick { display: block; width: 100%; min-width: 0; padding: 4px 6px; font-size: 13px; }
+#meters-table.quick-mode td:nth-child(1) { min-width: 200px; }
+#meters-table.quick-mode td:nth-child(2) { min-width: 220px; }
+.quick-loc { display: flex; gap: 4px; align-items: center; }
+.quick-loc input.quick { flex: 1; }
+#meters-table input.quick.sub-input { margin-top: 4px; font-size: 12px; color: var(--muted); }
+#meters-table input.quick.saved { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-soft); }
+#quick-toggle.on { background: var(--accent); color: var(--accent-ink); }
+
+/* Liste importieren, Namen erzeugen */
+#list-paste { width: 100%; font-size: 12px; margin: 6px 0 10px; }
+.list-source { align-items: center; gap: 10px; }
+.list-h { font-size: 14px; margin: 10px 0 6px; }
+.list-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 10px; }
+.list-preview td { font-size: 12px; }
+.names-row { align-items: end; flex-wrap: wrap; }
+.names-row .grow { flex: 1; min-width: 220px; }
+
+/* Werte, Zeiten, Plan nicht umbrechen; Name und Ort dürfen */
+#meters-table .val,
+#meters-table td:nth-child(n + 3) .sub { white-space: nowrap; }
+
+/* ------------------------------------------------------------ Verlauf eines Zählers */
+
+.history-sum { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 13px; color: var(--muted); margin: 4px 0 10px; }
+.history-sum b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.history table td { font-variant-numeric: tabular-nums; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: 240px; overflow: visible; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .series { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .dot { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
+.chart .end-label { fill: var(--text); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart .cross { stroke: var(--muted); stroke-width: 1; }
+.chart .hit { fill: transparent; cursor: crosshair; }
+.chart .hit:focus { outline: none; }
+.chart .hit:focus-visible { outline: 2px solid var(--accent); }
+.chart-tip {
+  position: absolute; pointer-events: none; padding: 6px 9px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--shadow);
+  font-size: 12px; white-space: nowrap; transform: translate(-50%, -100%); margin-top: -10px;
+}
+.chart-tip b { display: block; font-size: 13px; font-variant-numeric: tabular-nums; }
+.chart-tip span { color: var(--muted); }
+.chart-tip .key { display: inline-block; width: 12px; height: 2px; background: var(--series); vertical-align: middle; margin-right: 6px; }
+
+/* ------------------------------------------------------------ Export */
+
+.count { margin: 0; font-size: 13px; color: var(--muted); }
+.count b { display: block; font-family: var(--mono); font-size: 32px; font-weight: 650; letter-spacing: -.02em; color: var(--text); line-height: 1.2; }
+
+@media (max-width: 900px) {
+  .list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  #meters-read-all { width: 100%; }
+
+  /* Zählerliste als Karten */
+  #meters-table thead { display: none; }
+  #meters-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  #meters-table tr:hover { background: transparent; }
+  #meters-table td { border: 0; padding: 0; white-space: normal; text-align: left; min-width: 0; }
+  #meters-table td:empty { display: none; }
+  #meters-table td:last-child { grid-column: 1 / -1; margin-top: 6px; }
+  #meters-table .actions { justify-content: flex-start; }
+}
