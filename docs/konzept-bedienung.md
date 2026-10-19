@@ -326,7 +326,7 @@ bestehendes Projekt verschmutzen.
 ### 12.2 Was es heute schon gibt
 
 - **Ein Standardprojekt existiert bereits:** beim ersten Start legt mbusio „Standard“ mit
-  Gateway 1 und Linie 1 an (`Db::ensure_active_line`). Wer nichts einrichtet, scannt dort.
+  Gateway 1 und Linie 1 an (`Db::ensure_active`). Wer nichts einrichtet, scannt dort.
 - **Der Modus ist schon abgeleitet (§9):** ein Projekt ohne Plan, Datenpunkte und Ausgang ist
   ein Service-Projekt. Reiter Weitergabe ohne Nummer, kein Zustand der Anlage, Nächster Schritt
   endet beim Bericht. Genau das ist ein Schnellscan, nur ohne Bericht.
