@@ -55,11 +55,12 @@ async function savePlan(path, plan) {
 function linePlanHtml(l) {
   const p = l.plan_info;
   if (!p || !p.meters) return "";
+  const sw = `<label class="op-mini${l.operation ? " on" : ""}"><input type="checkbox" class="switch" data-ln-op="${l.id}"${l.operation ? " checked" : ""}>${esc(t("op_chip"))}</label>`;
   const parts = [`<b>${esc(p.effective !== "off" ? planText(p.effective) : t("plan_meters_own", p.meters))}</b>`];
   const svc = l.service;
   if (l.held) parts.push(ui.chip("muted", t("plan_held"), t("plan_held_title")));
   else if (svc && !svc.connected && svc.error) parts.push(ui.chip("warn", t("plan_offline"), svc.error));
-  if (p.next && !l.held) parts.push(esc(t("plan_next", slotText(p.next))));
+  if (p.next && !l.held && l.operation) parts.push(esc(t("plan_next", slotText(p.next))));
   const r = p.result;
   if (r && r.time && !r.offline) {
     if (r.line_down) parts.push(ui.chip("warn", t("plan_line_down"), r.error || ""));
@@ -68,7 +69,7 @@ function linePlanHtml(l) {
   if (p.disturbed) parts.push(ui.chip("warn", t("plan_disturbed", p.disturbed)));
   if (p.paused) parts.push(ui.chip("muted", t("plan_paused", p.paused), t("meter_paused_title")));
   if (p.load_warn) parts.push(ui.chip("warn", t("plan_load", Math.round(p.load * 100)), t("plan_load_title")));
-  return `<div class="ln-plan">${ICON_CLOCK}${parts.join(" · ")}</div>`;
+  return `<div class="ln-plan">${sw}${ICON_CLOCK}${parts.join(" · ")}</div>`;
 }
 
 let tree = null;
@@ -127,13 +128,11 @@ $("op-all-items").addEventListener("click", (ev) => {
   if (id && id !== tree.active.line.id) guarded(b, () => activateLine(id));
 });
 
-/// Dauerbetrieb der geöffneten Linie ein/aus; ein ohne Plan: erst das Plan-Formular
-async function setOperation(on) {
-  const l = tree.active.line;
-  if (!on && !confirm(t("op_confirm_off", l.name))) return;
-  await api(`lines/${l.id}/operation`, { method: "PUT", body: { on } });
-  await loadTree();
-  toast(t(on ? "op_switched_on" : "op_switched_off", l.name));
+/// Nächster Schritt „Dauerbetrieb einschalten“: wie ein Klick auf den Schalter der Linien-Leiste
+function setOperation() {
+  const sw = document.querySelector("[data-op-toggle]");
+  sw.checked = true;
+  return toggleOperation(tree.active.line.id, sw);
 }
 
 /// Mindestens ein Ausgang eingeschaltet (heute nur MQTT)
@@ -239,7 +238,7 @@ function renderTree() {
           const active = l.id === a.line.id;
           return `<div class="ln${active ? " active" : ""}">
           <span>${active ? `<span class="badge-active">${esc(t("ln_active"))}</span>` : `<button class="small ghost" data-ln-use="${l.id}">${esc(t("ln_use"))}</button>`}</span>
-          <span class="ln-name">${esc(l.name)}${l.operation ? " " + ui.chip("ok", t("op_chip")) : ""}</span>
+          <span class="ln-name">${esc(l.name)}</span>
           <span class="ln-conn">${
             l.connection
               ? `${esc(portText(l.connection))} · ${l.baud} Bd`
@@ -330,23 +329,78 @@ function renderLineBar() {
   $("lb-change").hidden = connEditing || connected || jobRunning || !a.line.connection;
   $("sec-conn").hidden = !connEditing;
   const p = line.plan_info;
-  const planned = p && p.effective !== "off";
-  $("lb-plan").innerHTML = planned
-    ? `${esc(t("plan"))} <b>${esc(planText(p.effective))}</b>${line.operation && p.next ? ` · ${esc(t("plan_next", slotText(p.next)))}` : ""}`
-    : "";
-  // Dauerbetrieb: ein = liest nach Plan und gibt weiter; aus = Plan ist nur eingestellt
-  $("lb-op").innerHTML = line.operation
-    ? `${ui.chip("ok", t("op_chip"))} <button type="button" class="small quiet" data-lb-op="off">${esc(t("op_off"))}</button>`
-    : planned && a.line.connection
-      ? `<button type="button" class="small tonal" data-lb-op="on">${esc(t("op_on"))}</button>`
-      : "";
+  renderOpBlock(line);
   renderOpAll();
 }
 
+/// Block „Dauerbetrieb“ in der Linien-Leiste: grosser Schalter, Zustand, Plan darunter
+/// (Konzept Bedienung §13). Ein Schalter für Zustand und Bedienung, nie zwei Knöpfe.
+function renderOpBlock(line) {
+  const p = line.plan_info;
+  const on = !!line.operation;
+  const planned = !!p?.meters;
+  const fg = on && !host.background;
+  const box = $("lb-op");
+  box.className = "op-block" + (on ? " on" : "") + (fg ? " fg" : "");
+  const plan = planned ? (p.effective !== "off" ? planText(p.effective) : t("plan_meters_own", p.meters)) : "";
+  const sub = on
+    ? `${esc(plan)}${p.next ? ` · ${esc(t("plan_next", slotText(p.next)))}` : ""}`
+    : planned
+      ? esc(t("op_plan_waiting", plan))
+      : `<button type="button" class="link" data-op-plan>${esc(t("guide_plan_btn"))}</button>`;
+  const state = on
+    ? `<span class="op-state"><span class="lb-dot on" aria-hidden="true"></span>${esc(t("op_running"))}</span>`
+    : `<span class="op-state">${esc(t("op_off_state"))}</span>`;
+  box.innerHTML = `
+    <label class="op-head"><input type="checkbox" class="switch big" data-op-toggle${on ? " checked" : ""}><b>${esc(t("op_chip"))}</b></label>
+    ${state}${fg ? " " + ui.chip("warn", t("op_fg_short"), t("ps_fg")) : ""}
+    <span class="op-sub">${sub}${planned ? ui.iconBtn(ICON_EDIT, t("op_plan_edit"), { "op-plan": "" }) : ""}</span>`;
+}
+
+/// Plan der Linie im Projektbaum bearbeiten (Formular der Linie, beim Plan)
+function openLinePlan(id) {
+  showTab("project");
+  $("tree").querySelector(`[data-ln-edit="${id}"]`)?.click();
+  const sel = $("tree-form").querySelector("[name=plan_kind]");
+  if (sel) {
+    reveal(sel, "center");
+    sel.focus({ preventScroll: true });
+  }
+}
+
 $("lb-op").addEventListener("click", (ev) => {
-  const b = ev.target.closest("[data-lb-op]");
-  if (b) guarded(b, () => setOperation(b.dataset.lbOp === "on"));
+  if (ev.target.closest("[data-op-plan]")) openLinePlan(tree.active.line.id);
 });
+$("tree").addEventListener("change", (ev) => {
+  const sw = ev.target.closest("[data-ln-op]");
+  if (sw) toggleOperation(Number(sw.dataset.lnOp), sw);
+});
+$("lb-op").addEventListener("change", (ev) => {
+  const sw = ev.target.closest("[data-op-toggle]");
+  if (sw) toggleOperation(tree.active.line.id, sw);
+});
+
+/// Schalter Dauerbetrieb (Linien-Leiste oder Projektbaum). Fehlt Anschluss oder Plan, führt er
+/// dorthin statt zu melden; Ausschalten fragt nach. Der Schalter zeigt danach den echten Zustand.
+async function toggleOperation(id, sw) {
+  const l = tree.projects.flatMap((p) => p.gateways.flatMap((g) => g.lines)).find((x) => x.id === id);
+  const on = sw.checked;
+  sw.checked = !on;
+  if (on && !l.connection) return id === tree.active.line.id ? openConnForm() : toast(t("op_need_conn"), true);
+  if (on && !l.plan_info?.meters) return openLinePlan(id);
+  if (!on && !confirm(t("op_confirm_off", l.name))) return;
+  sw.disabled = true;
+  try {
+    await api(`lines/${id}/operation`, { method: "PUT", body: { on } });
+    await loadTree();
+    toast(t(on ? "op_switched_on" : "op_switched_off", l.name));
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    sw.disabled = false;
+  }
+}
+
 
 /// Verbindungsformular unter der Linien-Leiste öffnen bzw. schliessen
 function openConnForm(open = true) {

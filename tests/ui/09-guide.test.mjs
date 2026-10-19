@@ -73,13 +73,16 @@ export default {
     // Plan allein liest nicht: Linie einschalten (Konzept Bedienung §13)
     await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Dauerbetrieb einschalten");
     assert.ok(await page.isHidden("#op-all"), "noch nichts im Dauerbetrieb");
-    assert.ok(await page.isVisible("[data-lb-op=on]"));
+    // Block Dauerbetrieb: Schalter aus, Plan wartet
+    assert.ok(await page.isVisible("[data-op-toggle]:not(:checked)"));
+    assert.match(await page.textContent("#lb-op"), /aus · nur von Hand/);
     await page.click("[data-guide-go]");
     await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Werte zum Weitergeben wählen");
     assert.ok(await page.isVisible("#plant-state"));
     // Kopfzeile zeigt, was im Hintergrund läuft; Linien-Leiste und Baum das Kennzeichen
     assert.match(await page.textContent("#op-all-sum"), /Dauerbetrieb: 1 Linie/);
-    assert.ok(await page.isVisible("[data-lb-op=off]"));
+    assert.ok(await page.isVisible("#lb-op.on [data-op-toggle]:checked"));
+    assert.match(await page.textContent("#lb-op"), /läuft/);
     // Testserver läuft nicht als Dienst: Hinweis, dass es nur mit offenem mbusio läuft
     assert.match(await page.textContent("#plant-state"), /Läuft nur, solange mbusio geöffnet ist/);
     await page.click("[data-guide-go]");

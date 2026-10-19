@@ -39,6 +39,9 @@
   margin-top: -4px; font-size: 12px; color: var(--muted);
 }
 .ln .ln-plan svg { flex: none; }
+.op-mini { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin-right: 6px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.op-mini.on { color: var(--ok); }
+.op-mini input.switch:checked { background: var(--ok); }
 .ln .ln-plan b { color: var(--text); font-weight: 600; }
 /* Linie ohne Anschluss: Hinweis und Knopf „Anschluss festlegen“ */
 .ln-noconn { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--warn); font-weight: 560; }

@@ -449,9 +449,14 @@ Oberfläche geöffnet“ (Linien-Leiste); zwei Bedeutungen würden verwirren.
 
 ### 13.3 Wo man es sieht und schaltet
 
-- **Linien-Leiste:** neben Plan ein Schalter „Dauerbetrieb“ (ein/aus) für die geöffnete Linie.
-  Einschalten ohne Plan: das Plan-Formular geht auf („Wie oft auslesen?“), ohne Plan kein Ein.
-- **Projektbaum:** je Linie ein Kennzeichen „Dauerbetrieb“ (grün) bzw. nichts.
+- **Linien-Leiste:** rechts ein eigener Block „Dauerbetrieb“ mit **grossem Schalter** (Zustand und
+  Bedienung in einem), daneben „läuft“ bzw. „aus · nur von Hand“, darunter der Plan mit ✎ (öffnet
+  den Plan der Linie). Ein: grüne Fläche. Ein, aber nicht als Dienst: zusätzlich „nur solange
+  geöffnet“ (orange). Aus mit Plan: „Plan stündlich (wartet)“. Aus ohne Plan: Link „Plan
+  festlegen“; der Schalter führt dann zum Plan bzw. zum Anschluss statt eine Fehlermeldung zu
+  zeigen. Ausschalten fragt nach. Handy: Block über die ganze Breite.
+- **Projektbaum:** derselbe Schalter klein in der Plan-Zeile jeder Linie mit Plan, dort direkt
+  schaltbar (auch für Linien, die nicht geöffnet sind).
 - **Kopfzeile, überall sichtbar:** „Dauerbetrieb: 3 Linien in 2 Projekten“, aufklappbar mit Liste
   (Projekt › Gateway › Linie, nächster Termin, Zustand), jede Zeile öffnet die Linie. Steht nichts
   im Dauerbetrieb, steht dort nichts. So sieht der Techniker sofort, was sein Laptop im Hintergrund

@@ -53,7 +53,7 @@ function guideStep() {
       : { key: "ready", tab: "meters", go: () => $("project-report").click(), alt };
   }
   else if (!line.plan_info?.meters) step = { key: "plan", tab: "project", target: "project-edit", go: openPlanForm };
-  else if (!line.operation) step = { key: "op_on", tab: "project", mark: () => document.querySelector("[data-lb-op=on]"), go: () => setOperation(true) };
+  else if (!line.operation) step = { key: "op_on", tab: "project", mark: () => document.querySelector("#lb-op .op-head"), go: setOperation };
   else if (!dps) {
     const pick = storageGet("tab") === "transfer";
     step = { key: pick ? "pick" : "transfer", tab: "transfer", mark: pick ? () => document.querySelector("[data-tr-pick]") : null, go: () => pickFirst() };

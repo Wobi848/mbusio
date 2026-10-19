@@ -41,9 +41,17 @@ export default {
     assert.match(rows[0], /alle 15 min/);
     assert.match(rows[1], /\baus\b/);
     // Plan allein liest nicht: Linie in den Dauerbetrieb (Linien-Leiste)
-    await page.click("[data-lb-op=on]");
-    await page.waitForSelector("[data-lb-op=off]");
+    await page.click("[data-op-toggle]");
+    await page.waitForSelector("#lb-op.on [data-op-toggle]:checked");
     await page.waitForSelector("#op-all:not([hidden])");
+    // im Projektbaum derselbe Zustand, dort auch schaltbar (Ausschalten fragt nach)
+    await tab(page, "project");
+    assert.ok(await page.isChecked("[data-ln-op]"));
+    await page.click("[data-ln-op]");
+    await page.waitForSelector("#op-all[hidden]", { state: "attached" });
+    assert.ok(!(await page.isChecked("[data-op-toggle]")));
+    await page.click("[data-op-toggle]");
+    await page.waitForSelector("#lb-op.on");
     // ohne Zeitquelle: Hinweis unten, Uhrzeit übernehmen
     await page.waitForSelector("#busbar-time:not([hidden])", { timeout: 15000 });
     await page.click("#busbar-time");
