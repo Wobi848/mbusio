@@ -353,7 +353,7 @@ function renderOpBlock(line) {
     : `<span class="op-state">${esc(t("op_off_state"))}</span>`;
   box.innerHTML = `
     <label class="op-head"><input type="checkbox" class="switch big" data-op-toggle${on ? " checked" : ""}><b>${esc(t("op_chip"))}</b></label>
-    ${state}${fg ? " " + ui.chip("warn", t("op_fg_short"), t("ps_fg")) : ""}
+    ${state}${fg ? " " + ui.chip("warn", t("op_fg_short"), `${t("ps_fg")}. ${t(host.os === "windows" ? "ps_fg_win" : "ps_fg_linux")}`) : ""}
     <span class="op-sub">${sub}${planned ? ui.iconBtn(ICON_EDIT, t("op_plan_edit"), { "op-plan": "" }) : ""}</span>`;
 }
 

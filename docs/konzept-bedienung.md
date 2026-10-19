@@ -451,8 +451,8 @@ Oberfläche geöffnet“ (Linien-Leiste); zwei Bedeutungen würden verwirren.
 
 - **Linien-Leiste:** rechts ein eigener Block „Dauerbetrieb“ mit **grossem Schalter** (Zustand und
   Bedienung in einem), daneben „läuft“ bzw. „aus · nur von Hand“, darunter der Plan mit ✎ (öffnet
-  den Plan der Linie). Ein: grüne Fläche. Ein, aber nicht als Dienst: zusätzlich „nur solange
-  geöffnet“ (orange). Aus mit Plan: „Plan stündlich (wartet)“. Aus ohne Plan: Link „Plan
+  den Plan der Linie). Ein: grüne Fläche. Ein, aber nicht als Dienst: zusätzlich „nicht als Dienst –
+  stoppt beim Schliessen“ (orange, Tooltip mit Anleitung). Aus mit Plan: „Plan stündlich (wartet)“. Aus ohne Plan: Link „Plan
   festlegen“; der Schalter führt dann zum Plan bzw. zum Anschluss statt eine Fehlermeldung zu
   zeigen. Ausschalten fragt nach. Handy: Block über die ganze Breite.
 - **Projektbaum:** derselbe Schalter klein in der Plan-Zeile jeder Linie mit Plan, dort direkt
