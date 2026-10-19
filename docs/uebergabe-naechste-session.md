@@ -33,7 +33,8 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 2. ~~Schnellscan~~: umgesetzt 19.10. als Variante A schlank (Konzept Bedienung §12): „Leeren …“ je Projekt, Startprojekt „Schnellscan“.
 3. Echter Test mit dem MR003, sobald ein Zähler dran ist (der Nutzer hat evtl. im Geschäft ein Gerät).
 4. ~~Zwei Linien am selben Port~~: erledigt 19.10. (`line::Ports`, `link::port_key`).
-5. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
+5. Windows-Dienst: Konzept docs/konzept-hintergrund.md, Entscheidungen §9 offen.
+6. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
 
 ## Wo was steht
 - Konzepte: docs/konzept-bedienung.md (Bedienung, Design v2, Button-Ebenen §11.1, Farben §11.2), docs/konzept-scan.md, docs/konzept-dauerbetrieb.md (Roadmap, MQTT).
