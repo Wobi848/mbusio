@@ -29,7 +29,7 @@ function renderBusbar() {
     (run
       ? { text: t("plan_running", run.label, run.done, run.total), frac: run.total ? run.done / run.total : 0, idle: true }
       : {
-          text: connected && conn ? t("idle_ready", conn.port, conn.baud) : t("idle_off"),
+          text: connected && conn ? t("idle_ready", portText(conn.port), conn.baud) : t("idle_off"),
           idle: true,
           off: !connected,
         });

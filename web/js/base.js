@@ -27,6 +27,13 @@ let token = storageGet("token") || "";
 /// nach Eingabe eines neuen Zugriffsschlüssels (App: Download-Links nachführen)
 let onToken = () => {};
 
+/// Anschluss lesbar: fester Linux-Name /dev/serial/by-id/usb-Silicon_Labs_CP2102_…-if00-port0
+/// wird zu „Silicon Labs CP2102 …“; alles andere bleibt, wie es ist
+function portText(c) {
+  const m = /^\/dev\/serial\/by-id\/(?:usb-)?(.+?)(?:-if\d+)?(?:-port\d+)?$/.exec(c || "");
+  return m ? m[1].replace(/_/g, " ") : c || "";
+}
+
 function t(key, ...args) {
   const v = UI[lang][key] ?? UI.de[key] ?? key;
   return typeof v === "function" ? v(...args) : v;

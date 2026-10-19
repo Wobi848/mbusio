@@ -29,7 +29,7 @@ function guideStep() {
   let step = null;
   // Anschluss und Verbinden zeigt die Linien-Leiste mit ihrem Knopf (bar: nicht in der Leiste unten)
   if (!hasConn) step = { key: "conn_set", tab: "project", target: "lb-action", bar: true, go: () => openConnForm() };
-  else if (!connected) step = { key: "connect", tab: "scan", target: "lb-action", bar: true, arg: line.connection, go: () => $("connect").click() };
+  else if (!connected) step = { key: "connect", tab: "scan", target: "lb-action", bar: true, arg: portText(line.connection), go: () => $("connect").click() };
   else if (fix === "fix")
     step = {
       key: "fix",

@@ -157,7 +157,9 @@ pub fn port_key(port: &str) -> Option<String> {
         return None;
     }
     if p.starts_with('/') {
-        return Some(p.to_string());
+        // /dev/serial/by-id/… ist eine Verknüpfung auf /dev/ttyUSB0: dasselbe Gerät
+        let real = std::fs::canonicalize(p).map(|r| r.to_string_lossy().into_owned());
+        return Some(real.unwrap_or_else(|_| p.to_string()));
     }
     let p = p.to_ascii_lowercase();
     let p = p.strip_prefix(TCP_PREFIX).unwrap_or(&p);
@@ -177,12 +179,30 @@ pub fn open(port: &str, baud: u32) -> Result<Box<dyn Link>> {
     })
 }
 
+/// Fester Name eines USB-Wandlers unter Linux (`/dev/serial/by-id/…`): bleibt gleich, auch wenn
+/// Linux nach dem Wiedereinstecken `/dev/ttyUSB1` statt `/dev/ttyUSB0` vergibt. Sonst der Name selbst.
+fn stable_name(port: &str) -> String {
+    let real = std::fs::canonicalize(port).ok();
+    std::fs::read_dir("/dev/serial/by-id")
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| real.is_some() && std::fs::canonicalize(p).ok() == real)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| port.to_string())
+}
+
 /// Ein Anschluss zur Auswahl: Name zum Verbinden, dazu lesbar, was dahintersteckt
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PortInfo {
     pub port: String,
     /// z.B. „CP210x UART Bridge (Silicon Labs)“; leer, wenn nichts bekannt ist
     pub label: String,
+    /// Name, unter dem Linux das Gerät gerade führt (`/dev/ttyUSB0`), wenn `port` der feste
+    /// Name aus `/dev/serial/by-id` ist; nur zur Anzeige
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dev: Option<String>,
 }
 
 /// Anschlüsse zur Auswahl: USB-Wandler zuerst (mit Namen), dann andere serielle Anschlüsse,
@@ -201,15 +221,15 @@ pub fn list_ports() -> Vec<PortInfo> {
                     Some(m) if !name.contains(&m) => format!("{name} ({m})"),
                     _ => name,
                 };
-                usb.push(PortInfo {
-                    port: p.port_name,
-                    label,
-                });
+                let port = stable_name(&p.port_name);
+                let dev = (port != p.port_name).then_some(p.port_name);
+                usb.push(PortInfo { port, label, dev });
             }
             serialport::SerialPortType::Unknown if p.port_name.starts_with("/dev/ttyS") => {}
             _ => other.push(PortInfo {
                 port: p.port_name,
                 label: String::new(),
+                dev: None,
             }),
         }
     }
@@ -223,6 +243,7 @@ pub fn list_ports() -> Vec<PortInfo> {
         .map(|port| PortInfo {
             port,
             label: String::new(),
+            dev: None,
         });
     usb.into_iter().chain(other).chain(sims).collect()
 }
@@ -245,6 +266,19 @@ mod tests {
         );
         assert_eq!(k("SIMULATOR"), None);
         assert_eq!(k("SIMULATOR:ok10"), None);
+        // feste Verknüpfung (wie /dev/serial/by-id/…) = Gerät dahinter
+        let dir = std::env::temp_dir().join(format!("mbusio-port-key-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let dev = dir.join("ttyUSB0");
+        let by_id = dir.join("usb-Silicon_Labs_CP2102-if00-port0");
+        std::fs::write(&dev, b"").unwrap();
+        let _ = std::fs::remove_file(&by_id);
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&dev, &by_id).unwrap();
+            assert_eq!(k(by_id.to_str().unwrap()), k(dev.to_str().unwrap()));
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

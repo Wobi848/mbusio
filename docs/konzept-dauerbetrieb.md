@@ -513,6 +513,17 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
   Verbinden von Hand wie als Grund für „gestört“ bei geplanten Auslesungen (gleiche Stelle).
   Verglichen wird über `link::port_key` (`tcp://Host:Port` = `host:port`, `COM3` = `com3`);
   Simulationen sind ausgenommen.
+- **USB abziehen im Dauerbetrieb** (Prüfstand 19.10.2026: virtueller USB-Port mit Fake-Zähler,
+  Plan 15 min im Zeitraffer, MQTT an lokalen Broker): Linie meldet „nicht verbunden, Zähler bleiben
+  fällig“, nach dem Einstecken liest sie ohne Eingriff weiter und holt den Termin einmal nach.
+  Zwei Lücken geschlossen:
+  - Werte einer Linie, die beim letzten Termin nicht erreichbar war (oder deren Zähler alle nicht
+    antworteten), gehen sofort als `disturbed` an die Ausgänge, nicht erst nach drei Abständen als
+    `stale` (bei „täglich“ wären das 3 Tage gewesen).
+  - Linux vergibt nach dem Wiedereinstecken oft `/dev/ttyUSB1`, solange der alte Anschluss noch
+    offen ist. Die Port-Auswahl liefert für USB-Wandler darum den festen Namen aus
+    `/dev/serial/by-id/`; angezeigt wird er lesbar (`portText`), `port_key` löst ihn auf das Gerät
+    auf. Bestehende Linien mit `/dev/ttyUSB0` einmal neu wählen.
 - Danach Release v0.5.0 (bisher letztes Release: v0.4.0).
 
 **Ausserhalb der Phasen umgesetzt:** Simulator-Reiter mit Vorlagen (Praxis mit Fehlern, alles

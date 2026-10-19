@@ -8,7 +8,7 @@ async function loadPorts() {
   const ports = await api("ports");
   const sel = $("port");
   const prev = sel.value;
-  sel.innerHTML = ports.map((p) => `<option value="${esc(p.port)}">${esc(p.label ? `${p.port} · ${p.label}` : p.port)}</option>`).join("");
+  sel.innerHTML = ports.map((p) => `<option value="${esc(p.port)}">${esc(p.label ? `${p.dev || p.port} · ${p.label}` : p.port)}</option>`).join("");
   if (ports.some((p) => p.port === prev)) sel.value = prev;
 }
 

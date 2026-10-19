@@ -511,10 +511,15 @@ fn finish_run(st: &AppState, run: Run) -> anyhow::Result<()> {
         "line_down": line_down,
         "error": if run.ok < run.attempted || offline { run.last_error.clone() } else { None },
     });
-    st.db
-        .lock()
-        .unwrap()
-        .set_plan_result(run.line_id, &result)?;
+    {
+        let mut db = st.db.lock().unwrap();
+        db.set_plan_result(run.line_id, &result)?;
+        // Linie weg oder wieder da: Qualität gleich an die Ausgänge, nicht erst bei der nächsten Prüfung
+        if let Err(e) = db.outputs_refresh() {
+            drop(db);
+            note(st, format!("MQTT: {e:#}"));
+        }
+    }
     if offline {
         note(
             st,

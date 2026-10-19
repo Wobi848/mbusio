@@ -189,7 +189,7 @@ function renderTree() {
           <span class="ln-name">${esc(l.name)}</span>
           <span class="ln-conn">${
             l.connection
-              ? `${esc(l.connection)} · ${l.baud} Bd`
+              ? `${esc(portText(l.connection))} · ${l.baud} Bd`
               : `<span class="ln-noconn">${esc(t("ln_no_conn"))}</span>${active ? ` <button class="small tonal" data-guide-conn>${esc(t("ln_set_conn"))}</button>` : ""}`
           }</span>
           <span class="ln-info">${esc(t("ln_info", l.meters, l.last_read))}${
@@ -245,7 +245,7 @@ function renderLineBar() {
             .map(
               (l) =>
                 `<button type="button" data-lb-use="${l.id}" class="small quiet${l.id === a.line.id ? " on" : ""}">${esc(l.name)}<span class="mono">${esc(
-                  l.connection || t("ln_no_conn")
+                  portText(l.connection) || t("ln_no_conn")
                 )}</span></button>`
             )
             .join("")
@@ -258,10 +258,10 @@ function renderLineBar() {
     state = `${dot("busy")}<b>${esc(t("lb_busy"))}</b>`;
     action = { text: t("cancel"), cls: "small quiet", go: cancelJob };
   } else if (connected) {
-    state = `${dot("on")}<b>${esc(t("lb_connected"))}</b>${mono(`${conn.port} · ${conn.baud} Bd`)}`;
+    state = `${dot("on")}<b>${esc(t("lb_connected"))}</b>${mono(`${portText(conn.port)} · ${conn.baud} Bd`)}`;
     action = { text: t("conn_change"), cls: "small quiet", go: openConnForm };
   } else if (a.line.connection) {
-    state = `${dot("off")}<b>${esc(t("lb_disconnected"))}</b>${mono(`${a.line.connection} · ${a.line.baud} Bd`)}`;
+    state = `${dot("off")}<b>${esc(t("lb_disconnected"))}</b>${mono(`${portText(a.line.connection)} · ${a.line.baud} Bd`)}`;
     action = { text: t("connect"), cls: "small", go: () => $("connect").click() };
   } else {
     state = `${dot("warn")}<b class="warn">${esc(t("ln_no_conn"))}</b>`;

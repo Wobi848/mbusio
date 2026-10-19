@@ -282,11 +282,14 @@ CREATE TABLE IF NOT EXISTS exchanges (
 );
 ";
 
-/// Qualität eines Datenpunkts: "none" (noch kein Wert), "good", "stale", "disturbed", "invalid"
+/// Qualität eines Datenpunkts: "none" (noch kein Wert), "good", "stale", "disturbed", "invalid".
+/// `line_down`: beim letzten Termin war die Linie nicht erreichbar (Wandler weg, Gateway aus) oder
+/// kein Zähler hat geantwortet; dann gilt der Wert sofort als gestört, nicht erst nach 3 Terminen.
 pub fn quality(
     dp: &Datapoint,
     meter: &Meter,
     plan: Plan,
+    line_down: bool,
     now: chrono::NaiveDateTime,
 ) -> &'static str {
     let Some(time) = dp.last_time.as_deref().and_then(plan::parse_time) else {
@@ -298,7 +301,7 @@ pub fn quality(
     let disturbed = if plan == Plan::Off {
         meter.last_error.is_some()
     } else {
-        meter.plan_fails >= DISTURBED_AFTER
+        line_down || meter.plan_fails >= DISTURBED_AFTER
     };
     if disturbed {
         return "disturbed";
@@ -657,25 +660,31 @@ impl Db {
         project_id: Option<i64>,
     ) -> Result<Vec<(String, Meter, Vec<Value>)>> {
         let now = crate::clock::now();
-        let lines: Vec<(i64, String, Option<String>, String)> = self
+        // Linie: id, Name, Plan, Plan des Projekts, beim letzten Termin nicht erreichbar
+        type LineRow = (i64, String, Option<String>, String, bool);
+        let lines: Vec<LineRow> = self
             .conn
             .prepare(
-                "SELECT lines.id, gateways.name || ' › ' || lines.name, lines.plan, projects.plan
+                "SELECT lines.id, gateways.name || ' › ' || lines.name, lines.plan, projects.plan,
+                   COALESCE(json_extract(lines.plan_result, '$.offline'), 0)
+                     OR COALESCE(json_extract(lines.plan_result, '$.line_down'), 0)
                  FROM lines JOIN gateways ON gateways.id = lines.gateway_id JOIN projects ON projects.id = gateways.project_id
                  WHERE (?1 IS NULL OR lines.id = ?1) AND (?2 IS NULL OR projects.id = ?2)
                  ORDER BY gateways.position, gateways.id, lines.position, lines.id",
             )?
-            .query_map(params![line_id, project_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+            .query_map(params![line_id, project_id], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            })?
             .collect::<rusqlite::Result<_>>()?;
         let mut out = Vec::new();
-        for (lid, label, line_plan, project_plan) in lines {
+        for (lid, label, line_plan, project_plan, line_down) in lines {
             for m in self.meters(lid)? {
                 let (p, _) =
                     plan::effective(m.plan.as_deref(), line_plan.as_deref(), &project_plan);
                 let mut dps = Vec::new();
                 for d in self.dp_by_meter(m.id)? {
                     let mut v = serde_json::to_value(&d)?;
-                    v["quality"] = json!(quality(&d, &m, p, now));
+                    v["quality"] = json!(quality(&d, &m, p, line_down, now));
                     v["label"] = json!(key_label(&d.key, i18n::current()));
                     v["line_id"] = json!(lid);
                     v["line"] = json!(label);

@@ -113,7 +113,10 @@ fn select_values_and_follow_readings() {
         db.notes
     );
     let m = db.meter(mid).unwrap();
-    assert_eq!(quality(dp, &m, Plan::Off, crate::clock::now()), "invalid");
+    assert_eq!(
+        quality(dp, &m, Plan::Off, false, crate::clock::now()),
+        "invalid"
+    );
     // abwählen löscht, Nummer wird nicht wieder vergeben
     assert_eq!(db.dp_select(mid, &[], &[], Lang::De).unwrap(), (0, 1));
     db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
@@ -494,4 +497,27 @@ fn clear_project_keeps_lines_and_removes_meters_readings_and_last_scan() {
     assert!(db.changes(project).unwrap().is_empty());
     // Projekt und Linie bleiben
     assert_eq!(db.active().unwrap().line.id, line);
+}
+
+#[test]
+fn line_offline_at_a_term_marks_values_disturbed_at_once() {
+    let (mut db, line, mid, _) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    let project = db.active().unwrap().project.id;
+    db.set_project_plan(project, "daily 00:05").unwrap();
+    let q = |db: &Db| db.dp_list(Some(line), None).unwrap()[0]["quality"].clone();
+    assert_eq!(q(&db), "good");
+    // Wandler abgezogen: sofort gestört, nicht erst nach 3 Tagen
+    db.set_plan_result(line, &json!({ "offline": true, "ok": 0, "total": 0 }))
+        .unwrap();
+    assert_eq!(q(&db), "disturbed");
+    // wieder da
+    db.set_plan_result(line, &json!({ "offline": false, "ok": 1, "total": 1 }))
+        .unwrap();
+    assert_eq!(q(&db), "good");
+    // kein Zähler hat geantwortet (Leitung unterbrochen): ebenso
+    db.set_plan_result(line, &json!({ "line_down": true, "ok": 0, "total": 2 }))
+        .unwrap();
+    assert_eq!(q(&db), "disturbed");
 }

@@ -20,6 +20,11 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Einsatz mit demselben Projekt, ohne Reste der vorigen Anlage.
 - **Neue Installation startet mit dem Projekt „Schnellscan“** statt „Standard“: verbinden und
   scannen, ohne zuerst ein Projekt anzulegen.
+- **USB-Wandler weg im Dauerbetrieb:** die Werte der Linie gehen beim ersten verpassten Termin als
+  „gestört“ (`disturbed`) an MQTT, nicht erst nach drei Abständen als „veraltet“.
+- **Fester Name für USB-Wandler unter Linux:** die Port-Auswahl speichert `/dev/serial/by-id/…`
+  statt `/dev/ttyUSB0`; so findet mbusio den Wandler auch, wenn Linux ihm nach dem
+  Wiedereinstecken eine andere Nummer gibt. Bestehende Linien: Port einmal neu wählen.
 - **Ein Anschluss, eine Linie:** benutzt schon eine Linie (auch eine Plan-Linie im Hintergrund)
   einen Port oder ein Gateway, wird eine zweite abgelehnt mit „… wird schon von Linie „…“ im
   Projekt „…“ benutzt“, statt „Device or resource busy“ oder, bei Gateways im Netzwerk, zwei
