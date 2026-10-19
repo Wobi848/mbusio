@@ -13,8 +13,8 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Plan-Vorgabe „Aus“, 24-h-Zeit, batteriebetriebene Zähler nicht zu oft auslesen.
 
 ## Tests
-- `cargo test` → 100 passed, 1 ignored.
-- UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 11 Tests, alle grün.
+- `cargo test` → 101 passed, 1 ignored.
+- UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 12 Tests, alle grün.
 - Server lokal: `cargo run -- --no-browser` (Port 8080; der Debug-Build liest web/ direkt von der Platte).
 - Commits enden mit `Co-Authored-By: Claude …`; nach jedem fertigen Schritt committen und pushen.
 
@@ -29,11 +29,11 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Port 1 am externen USB-Hub des Nutzers ist kaputt (kein Softwareproblem).
 
 ## Offen (in dieser Reihenfolge)
-1. **„Das Zeugs, das ich gesehen habe, müssen wir noch fixen“**: Der Nutzer hat den ganzen Ablauf mit dem Simulator bis MQTT getestet, aber noch nicht gesagt, welche Punkte er meint. **Zuerst nachfragen.**
-   - Bekannter Kandidat: Die Busleiste (web/js/busbar.js) zeigt „Linie in Ordnung“, obwohl gemerkte Zähler nicht antworten. Sie sollte z. B. „N Zähler antworten nicht“ zeigen.
-2. **Standardprojekt „Schnellscan“**: ein Default-Projekt, in dem man nur scannt (Linie debuggen, ohne Anlage/Weitergabe einzurichten). Konzept vorgeschlagen, die Antwort des Nutzers zum Umfang fehlt noch. Erst klären, dann in docs/konzept-bedienung.md beschreiben, dann bauen.
+1. ~~Busleiste „Linie in Ordnung“ trotz gestörter Zähler~~: erledigt 19.10. (Nächster Schritt „N Zähler antworten nicht“). Weitere Punkte aus dem Simulator-Test hat der Nutzer noch nicht genannt; bei Gelegenheit nachfragen.
+2. ~~Schnellscan~~: umgesetzt 19.10. als Variante A schlank (Konzept Bedienung §12): „Leeren …“ je Projekt, Startprojekt „Schnellscan“.
 3. Echter Test mit dem MR003, sobald ein Zähler dran ist (der Nutzer hat evtl. im Geschäft ein Gerät).
-4. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
+4. Zwei Linien am selben Port: vor dem Pi-Test klären (konzept-dauerbetrieb.md §11), nur notiert.
+5. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
 
 ## Wo was steht
 - Konzepte: docs/konzept-bedienung.md (Bedienung, Design v2, Button-Ebenen §11.1, Farben §11.2), docs/konzept-scan.md, docs/konzept-dauerbetrieb.md (Roadmap, MQTT).

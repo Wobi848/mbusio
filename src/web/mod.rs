@@ -113,6 +113,15 @@ impl Shared {
             .ok_or_else(not_connected)
     }
 
+    /// Linien-Dienst arbeitet gerade oder hat Aufträge in der Warteschlange
+    fn line_busy(&self, line_id: i64) -> bool {
+        let svc = self.lines.lock().unwrap().get(&line_id).cloned();
+        svc.is_some_and(|s| {
+            let st = s.status();
+            st.busy || st.queued > 0
+        })
+    }
+
     /// Verbindung der aktiven Linie, falls offen
     fn conn_info(&self) -> Option<ConnInfo> {
         self.service().ok()?.status().connection
@@ -365,6 +374,7 @@ pub fn router(state: AppState) -> Router {
             put(project_update).delete(project_delete),
         )
         .route("/api/projects/{id}/export", get(project_export))
+        .route("/api/projects/{id}/clear", post(project_clear))
         .route(
             "/api/projects/{id}/changes",
             axum::routing::delete(changes_clear),

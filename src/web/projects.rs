@@ -222,6 +222,36 @@ pub(super) async fn project_delete(
     Ok(Json(json!({ "ok": true })))
 }
 
+/// Projekt leeren (Zähler, Auslesungen, letzter Scan); nicht, solange eine seiner Linien arbeitet
+pub(super) async fn project_clear(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
+    ensure_idle(&st)?;
+    let lines = st
+        .db
+        .lock()
+        .unwrap()
+        .lines_of_project(id)
+        .map_err(bad_request)?;
+    if lines.iter().any(|l| st.line_busy(l.id)) {
+        return Err(ApiError(
+            StatusCode::CONFLICT,
+            tr(
+                "Eine Linie des Projekts liest gerade aus. Warten, bis sie fertig ist, dann leeren.",
+                "A line of this project is reading. Wait until it is done, then clear.",
+            ),
+        ));
+    }
+    let n = st
+        .db
+        .lock()
+        .unwrap()
+        .clear_project(id)
+        .map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "removed": n })))
+}
+
 pub(super) async fn gateway_create(
     State(st): State<AppState>,
     Path(project): Path<i64>,

@@ -468,7 +468,7 @@ impl Db {
             Some(id) => id,
             None => {
                 let p = self.create_project(Project {
-                    name: tr("Standard", "Default"),
+                    name: tr("Schnellscan", "Quick scan"),
                     ..Default::default()
                 })?;
                 self.lines_of_project(p.id)?[0].id

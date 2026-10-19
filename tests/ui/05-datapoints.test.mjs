@@ -63,7 +63,7 @@ export default {
     // MQTT bei einem Datenpunkt: Topic nach dem bisherigen Muster
     await page.click("[data-out-settings=mqtt]");
     await page.locator("[data-dp-out=mqtt]").first().check();
-    await page.waitForFunction(() => document.querySelector("#dp-table .out-addr")?.title === "mbusio/standard/gateway-1-haus-a/z1/energy");
+    await page.waitForFunction(() => document.querySelector("#dp-table .out-addr")?.title === "mbusio/schnellscan/gateway-1-haus-a/z1/energy");
     // anderes Muster speichern, dann alle Topics danach setzen (Vorschau → Übernehmen)
     await page.click("[data-out-settings=mqtt]");
     await page.fill("[data-out-form=mqtt] [name=topic]", "{linie}/{nr}/{wert}");

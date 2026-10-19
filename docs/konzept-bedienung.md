@@ -314,7 +314,24 @@ ID steht ein Streifen nach der Gruppe statt einer Klammer über die Zeilen.
   nicht“). Wechsel „Merken über SA/PA“ ändert, was mitkommt, und damit die Farbe.
 - Rot ist sonst nur für Gefährliches (Löschen).
 
-## 12. Schnellscan: eigenes Projekt nötig? (Vorschlag, 19.10.2026, zur Entscheidung)
+## 12. Schnellscan: eigenes Projekt nötig? (umgesetzt: A, schlank, 19.10.2026)
+
+**Entscheidung:** kein eigenes Projekt, kein Kennzeichen, kein automatisches Leeren. Begründung und
+verworfene Varianten unten (12.1–12.4). Umgesetzt:
+
+- **„Leeren …“ für jedes Projekt** (Projekt-Werkzeuge, quiet, danger, mit Rückfrage „N Zähler,
+  ihre Auslesungen und der letzte Scan in allen Linien von <Projekt>“). Gelöscht: Zähler mit
+  Datenpunkten (Cascade), Auslesungen und Datenpunkt-Verlauf (`clear_readings`, denn Auslesungen
+  hängen an der Linie, beim Zähler nur `SET NULL`), Änderungsprotokoll (`clear_changes`, sonst
+  stehen im Bericht Änderungen der vorigen Anlage) und der letzte Scan je Linie (`last_scan`,
+  `issues`, `scans`: Trefferliste, Auffälligkeiten, Vergleich). Bleiben: Projekt, Gateways, Linien,
+  Anschluss, Baudrate, Plan, Ausgänge. `Db::clear_project` nutzt die bestehenden Löschfunktionen
+  in einer Transaktion; `POST /api/projects/{id}/clear` lehnt ab, solange ein Scan läuft oder
+  eine Linie des Projekts ausliest oder Aufträge wartend hat.
+- **Startprojekt einer neuen Datenbank heisst „Schnellscan“** (EN „Quick scan“); bestehende
+  Datenbanken bleiben unverändert.
+- Nicht gebaut: „Als Projekt speichern …“ (geht über Neues Projekt / Umbenennen).
+- Zwei Linien am selben Port: als offener Punkt in konzept-dauerbetrieb.md, Abschnitt 11.
 
 ### 12.1 Wofür
 

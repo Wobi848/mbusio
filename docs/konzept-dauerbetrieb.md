@@ -504,6 +504,11 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
   bzw. Gateway neu starten (4), kleine SD-Karte (11). Hilfsmittel: `--time-scale 48`.
 - ~~MQTT mit einem echten Broker prüfen~~ – erledigt am 19.10.2026 (vom Benutzer mit einem echten
   Broker getestet).
+- **Zwei Linien am selben Port sind nicht abgefangen** (notiert 19.10.2026, nicht gebaut): jede
+  Linie hat ihren eigenen Linien-Dienst. Benutzen eine geplante Linie und z.B. ein Schnellscan
+  denselben Anschluss, öffnen zwei Dienste denselben Port; was dann passiert (Fehler beim Öffnen
+  oder vermischte Telegramme), ist ungeprüft. Vor dem Pi-Test klären, ob eine Sperre oder ein
+  Hinweis nötig ist.
 - Danach Release v0.5.0 (bisher letztes Release: v0.4.0).
 
 **Ausserhalb der Phasen umgesetzt:** Simulator-Reiter mit Vorlagen (Praxis mit Fehlern, alles

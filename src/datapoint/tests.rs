@@ -274,7 +274,7 @@ fn mqtt_queue_follows_send_mode_and_quality() {
     db.mqtt_enabled = true;
     db.dp_bulk(&[id], "out:mqtt:on").unwrap();
     let topic = db.dp(id).unwrap().outputs["mqtt"].address.clone().unwrap();
-    assert_eq!(topic, "standard/gateway-1-linie-1/whg-1/energy");
+    assert_eq!(topic, "schnellscan/gateway-1-linie-1/whg-1/energy");
     // eingeschaltet: aktueller Wert einmal, dann nicht mehr
     assert_eq!(db.outputs_refresh().unwrap(), 1);
     assert_eq!(db.outputs_refresh().unwrap(), 0);
@@ -384,7 +384,7 @@ fn outputs_in_csv_round_trip() {
     );
     let row = csv.lines().nth(1).unwrap().to_string();
     assert!(
-        row.contains(";1;standard/gateway-1-linie-1/whg-1/energy"),
+        row.contains(";1;schnellscan/gateway-1-linie-1/whg-1/energy"),
         "{row}"
     );
     // Topic in Excel geändert, MQTT aus
@@ -436,7 +436,7 @@ fn topics_follow_pattern_with_preview_and_list_for_integrator() {
         .clone();
     assert_eq!(
         before.as_deref(),
-        Some("standard/gateway-1-linie-1/whg-1/energy")
+        Some("schnellscan/gateway-1-linie-1/whg-1/energy")
     );
     // anderes Muster: Vorschau ändert nichts, Übernehmen setzt das neue Topic
     let mut c = db.mqtt_config();
@@ -471,4 +471,27 @@ fn topics_follow_pattern_with_preview_and_list_for_integrator() {
     assert_eq!(list.len(), 1);
     assert_eq!(list[0]["address"], "mbusio/linie-1/1/energy");
     assert_eq!(list[0]["meter"], "Whg 1");
+}
+
+#[test]
+fn clear_project_keeps_lines_and_removes_meters_readings_and_last_scan() {
+    let (mut db, line, mid, _) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    let scan = json!({ "kind": "primary", "scope": "0-250 [2400]", "complete": true, "hits": [{ "primary_address": 1 }] });
+    db.set_last_scan(line, &scan, true).unwrap();
+    db.add_change(line, "PA 1 → 2").unwrap();
+    let project = db.active().unwrap().project.id;
+    assert_eq!(db.clear_project(project).unwrap(), 1);
+    assert!(db.meters(line).unwrap().is_empty());
+    assert!(db.dp_by_meter(mid).unwrap().is_empty());
+    assert!(db.readings(line, 10).unwrap().is_empty());
+    assert!(db.last_scan(line).unwrap().is_none());
+    assert!(db
+        .previous_scan(line, "primary", "0-250 [2400]")
+        .unwrap()
+        .is_none());
+    assert!(db.changes(project).unwrap().is_empty());
+    // Projekt und Linie bleiben
+    assert_eq!(db.active().unwrap().line.id, line);
 }

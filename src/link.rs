@@ -178,15 +178,23 @@ pub fn list_ports() -> Vec<PortInfo> {
     for p in serialport::available_ports().unwrap_or_default() {
         match p.port_type {
             serialport::SerialPortType::UsbPort(u) => {
-                let name = u.product.unwrap_or_else(|| format!("USB {:04x}:{:04x}", u.vid, u.pid));
+                let name = u
+                    .product
+                    .unwrap_or_else(|| format!("USB {:04x}:{:04x}", u.vid, u.pid));
                 let label = match u.manufacturer {
                     Some(m) if !name.contains(&m) => format!("{name} ({m})"),
                     _ => name,
                 };
-                usb.push(PortInfo { port: p.port_name, label });
+                usb.push(PortInfo {
+                    port: p.port_name,
+                    label,
+                });
             }
             serialport::SerialPortType::Unknown if p.port_name.starts_with("/dev/ttyS") => {}
-            _ => other.push(PortInfo { port: p.port_name, label: String::new() }),
+            _ => other.push(PortInfo {
+                port: p.port_name,
+                label: String::new(),
+            }),
         }
     }
     let sims = std::iter::once(SIMULATOR_PORT.to_string())
@@ -196,7 +204,10 @@ pub fn list_ports() -> Vec<PortInfo> {
                 .filter(|s| s.key != "praxis")
                 .map(|s| format!("{SIMULATOR_PORT}:{}", s.key)),
         )
-        .map(|port| PortInfo { port, label: String::new() });
+        .map(|port| PortInfo {
+            port,
+            label: String::new(),
+        });
     usb.into_iter().chain(other).chain(sims).collect()
 }
 

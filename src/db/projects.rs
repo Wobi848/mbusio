@@ -341,13 +341,33 @@ impl Db {
         Ok(())
     }
 
-    pub(super) fn lines_of_project(&self, project_id: i64) -> Result<Vec<Line>> {
+    pub fn lines_of_project(&self, project_id: i64) -> Result<Vec<Line>> {
         let mut st = self.conn.prepare(
             "SELECT lines.* FROM lines JOIN gateways ON gateways.id = lines.gateway_id
              WHERE gateways.project_id = ?1 ORDER BY gateways.position, gateways.id, lines.position, lines.id",
         )?;
         let rows = st.query_map([project_id], line_of)?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
+    }
+
+    /// Projekt leeren für einen neuen Einsatz: Zähler (mit Datenpunkten), Auslesungen, Änderungen
+    /// und den letzten Scan aller Linien löschen. Projekt, Linien, Anschluss, Plan und Ausgänge
+    /// bleiben. Liefert die Anzahl gelöschter Zähler.
+    pub fn clear_project(&mut self, project_id: i64) -> Result<usize> {
+        self.project(project_id)?;
+        self.tx(|db| {
+            let mut n = 0;
+            for line in db.lines_of_project(project_id)? {
+                db.clear_readings(line.id)?;
+                n += db.clear_meters(line.id)?;
+                db.conn.execute(
+                    "UPDATE lines SET last_scan = NULL, issues = NULL, scans = NULL WHERE id = ?1",
+                    [line.id],
+                )?;
+            }
+            db.clear_changes(project_id)?;
+            Ok(n)
+        })
     }
 
     pub fn active_line(&self) -> Result<Line> {

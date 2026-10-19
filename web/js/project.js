@@ -494,6 +494,17 @@ $("project-delete").onclick = () => {
   });
 };
 
+/// Projekt für einen neuen Einsatz leeren (Konzept Bedienung §12): Linien und Einstellungen bleiben
+$("project-clear").onclick = () => {
+  const p = activeProjectNode();
+  const n = p.gateways.flatMap((g) => g.lines).reduce((sum, l) => sum + (l.meters || 0), 0);
+  if (!confirm(t("confirm_project_clear", n, p.name))) return;
+  guarded($("project-clear"), async () => {
+    await api(`projects/${p.id}/clear`, { method: "POST" });
+    reloadWith(t("project_cleared", p.name));
+  });
+};
+
 $("project-import").onchange = (ev) => {
   const file = ev.target.files[0];
   ev.target.value = "";

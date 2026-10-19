@@ -15,6 +15,11 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   PA, Ort; im JSON Status-Topic, QoS, retained, Aufbau der Nachricht).
 - **Windows:** die .exe hat das mbusio-Icon (Explorer, Taskleiste).
 - **Alle auslesen** sagt am Ende, wie viele Zähler antworten und wie viele nicht.
+- **Projekt leeren:** „Leeren …“ in den Projekt-Werkzeugen löscht Zähler, Auslesungen, Änderungen
+  und den letzten Scan aller Linien; Linien, Anschluss, Plan und Ausgänge bleiben. Für den nächsten
+  Einsatz mit demselben Projekt, ohne Reste der vorigen Anlage.
+- **Neue Installation startet mit dem Projekt „Schnellscan“** statt „Standard“: verbinden und
+  scannen, ohne zuerst ein Projekt anzulegen.
 - **Nächster Schritt** meldet „N Zähler antworten nicht“ statt „Linie in Ordnung“, solange gemerkte
   Zähler gestört sind; der Knopf öffnet die Zählerliste mit dem Filter „Gestört“.
 - **Sekundärscan eingrenzen und weitersuchen:** „ID beginnt mit …“ sucht nur IDs mit diesem

@@ -129,6 +129,10 @@ const UI = {
     project_new: "+ Neues Projekt",
     project_new_prompt: "Name des neuen Projekts (z.B. Objekt oder Adresse):",
     project_edit: "Projekt bearbeiten",
+    project_clear: "Leeren …",
+    confirm_project_clear: (n, p) =>
+      `${n} Zähler, ihre Auslesungen und der letzte Scan in allen Linien von „${p}“ werden gelöscht.\n\nProjekt, Linien, Anschluss, Plan und Ausgänge bleiben. Das lässt sich nicht rückgängig machen.`,
+    project_cleared: (p) => `„${p}“ ist leer`,
     project_delete: "Projekt löschen",
     confirm_project_delete: (n) => `Projekt „${n}“ mit allen Gateways, Linien, Zählern und Auslesungen löschen?\n\nDas lässt sich nicht rückgängig machen. Tipp: vorher „Exportieren“.`,
     project_imported: (n) => `Projekt „${n}“ importiert`,
@@ -841,6 +845,10 @@ const UI = {
     project_new: "+ New project",
     project_new_prompt: "Name of the new project (e.g. building or address):",
     project_edit: "Edit project",
+    project_clear: "Clear …",
+    confirm_project_clear: (n, p) =>
+      `${n} meters, their readings and the last scan in all lines of “${p}” will be deleted.\n\nProject, lines, connection, plan and outputs stay. This cannot be undone.`,
+    project_cleared: (p) => `“${p}” is empty`,
     project_delete: "Delete project",
     confirm_project_delete: (n) => `Delete project “${n}” with all gateways, lines, meters and readings?\n\nThis cannot be undone. Tip: “Export” first.`,
     project_imported: (n) => `Project “${n}” imported`,
