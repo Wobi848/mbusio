@@ -44,7 +44,14 @@ function guideStep() {
   else if (!meters.length)
     step = { key: lastJob ? "scan_none" : "scan", tab: "scan", target: scanBtn, go: () => goClick("scan", scanBtn) };
   else if (!read) step = { key: "read", tab: "meters", target: "meters-read-all", arg: meters.length, go: () => goClick("meters", "meters-read-all") };
-  else if (!op) step = { key: "ready", tab: "meters", go: () => $("project-report").click(), alt: { key: "op", go: startOperation } };
+  else if (!op) {
+    // „in Ordnung“ nur, wenn alle gemerkten Zähler antworten (gleicher Filter wie „Gestört“)
+    const bad = meters.filter(METER_FILTERS.err).length;
+    const alt = { key: "op", go: startOperation };
+    step = bad
+      ? { key: "faulty", tab: "meters", arg: bad, go: showFaulty, alt }
+      : { key: "ready", tab: "meters", go: () => $("project-report").click(), alt };
+  }
   else if (!line.plan_info?.meters) step = { key: "plan", tab: "project", target: "project-edit", go: openPlanForm };
   else if (!dps) {
     const pick = storageGet("tab") === "transfer";
@@ -90,6 +97,14 @@ function openFixPlan() {
   const b = document.querySelector("[data-fix-all]");
   reveal(b, "center");
   b?.click();
+}
+
+/// Zählerliste mit Filter „Gestört“
+function showFaulty() {
+  meterFilter = "err";
+  showTab("meters");
+  renderMeters();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 /// Service fertig, Dauerbetrieb gewünscht: weiter mit Plan, Werten, Ausgang
@@ -162,7 +177,7 @@ function renderGuide() {
   const more = t(open ? "guide_less" : "guide_more");
   box.innerHTML = `
     <span class="guide-count" title="${esc(ready ? t("guide_finished") : t("guide_next", n, tabs.length))}">${ready ? ICON_CHECK : `${n}/${tabs.length}`}</span>
-    <span class="guide-title">${esc(t("guide_" + s.key))}</span>
+    <span class="guide-title">${esc(t("guide_" + s.key, s.arg))}</span>
     ${s.alt ? `<button type="button" class="small tonal" data-guide-alt>${esc(t("guide_" + s.alt.key + "_btn"))}</button>` : ""}
     <button type="button" class="small guide-go" data-guide-go>${esc(t("guide_" + s.key + "_btn"))}${ICON_NEXT}</button>
     <button type="button" class="icon-btn guide-toggle" data-guide-toggle aria-expanded="${open}" title="${esc(more)}" aria-label="${esc(more)}">${ICON_UP}</button>

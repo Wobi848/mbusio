@@ -49,6 +49,17 @@ export default {
     assert.ok(!(await page.$eval(".ltab[data-tab-go=transfer]", (b) => b.classList.contains("next"))), "Weitergabe kein Schritt im Service");
     assert.ok(await page.isHidden("#plant-state"));
     assert.equal(await page.getAttribute("#guide .guide-count", "title"), "Fertig");
+    // ein gemerkter Zähler antwortet nicht: nicht „in Ordnung“, Knopf zeigt den Filter „Gestört“
+    const dead = await api("meters", "POST", { address: "200" });
+    await api(`meters/${dead.id}/read`, "POST").catch(() => {});
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "1 Zähler antwortet nicht");
+    await page.click("[data-guide-go]");
+    await page.waitForFunction(() => document.querySelector("[data-filter=err]")?.classList.contains("active"));
+    assert.equal(await page.locator("#meters-table tbody tr[data-row]").count(), 1);
+    await api(`meters/${dead.id}`, "DELETE");
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Linie in Ordnung");
     const [rep] = await Promise.all([ctx.waitForEvent("page"), page.click("[data-guide-go]")]);
     await rep.waitForSelector("#table tbody tr");
     await rep.close();

@@ -15,6 +15,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   PA, Ort; im JSON Status-Topic, QoS, retained, Aufbau der Nachricht).
 - **Windows:** die .exe hat das mbusio-Icon (Explorer, Taskleiste).
 - **Alle auslesen** sagt am Ende, wie viele Zähler antworten und wie viele nicht.
+- **Nächster Schritt** meldet „N Zähler antworten nicht“ statt „Linie in Ordnung“, solange gemerkte
+  Zähler gestört sind; der Knopf öffnet die Zählerliste mit dem Filter „Gestört“.
 - **Sekundärscan eingrenzen und weitersuchen:** „ID beginnt mit …“ sucht nur IDs mit diesem
   Anfang; nach einem Abbruch macht „Weitersuchen“ dort weiter, die bisherigen Treffer bleiben.
 - **Änderungen seit dem letzten Scan:** nach jedem vollständigen Scan Vergleich mit dem letzten
