@@ -313,3 +313,80 @@ ID steht ein Streifen nach der Gruppe statt einer Klammer über die Zeilen.
 - Gilt für Zeile, Streifen und Status-Chip in der Trefferliste und für die Zählerliste („antwortet
   nicht“). Wechsel „Merken über SA/PA“ ändert, was mitkommt, und damit die Farbe.
 - Rot ist sonst nur für Gefährliches (Löschen).
+
+## 12. Schnellscan: eigenes Projekt nötig? (Vorschlag, 19.10.2026, zur Entscheidung)
+
+### 12.1 Wofür
+
+Ein Techniker steckt den Laptop an eine fremde Linie und will nur wissen, **was da los ist**:
+verbinden, scannen, Auffälligkeiten ansehen, vielleicht einen Zähler auslesen. Er will dafür kein
+Projekt anlegen, keine Anlage beschreiben, nichts weitergeben, und das Ergebnis soll kein
+bestehendes Projekt verschmutzen.
+
+### 12.2 Was es heute schon gibt
+
+- **Ein Standardprojekt existiert bereits:** beim ersten Start legt mbusio „Standard“ mit
+  Gateway 1 und Linie 1 an (`Db::ensure_active_line`). Wer nichts einrichtet, scannt dort.
+- **Der Modus ist schon abgeleitet (§9):** ein Projekt ohne Plan, Datenpunkte und Ausgang ist
+  ein Service-Projekt. Reiter Weitergabe ohne Nummer, kein Zustand der Anlage, Nächster Schritt
+  endet beim Bericht. Genau das ist ein Schnellscan, nur ohne Bericht.
+- **Scannen merkt nichts von selbst:** Treffer kommen erst mit „Merken“ in die Zählerliste.
+- **Bedienung von Hand geht vor (§9.4):** auch neben einem laufenden Plan.
+
+Ein Schnellscan geht also heute schon. Was fehlt, ist kleiner als ein eigenes Projekt:
+
+| Lücke | Folge heute |
+| --- | --- |
+| Name „Standard“ sagt nicht, wofür es da ist | man legt doch ein Projekt an, oder scannt im Kundenprojekt |
+| Reste der letzten Linie bleiben | gemerkte Zähler von gestern; „Änderungen seit dem letzten Scan“ vergleicht mit einer **anderen** Anlage und meldet alles als neu/fehlt |
+| Nächster Schritt drängt zu „Merken“ und „Auslesen“ | beim reinen Debuggen störend (× blendet ihn aus, aber jedes Mal) |
+| Gefundenes in ein richtiges Projekt bringen | geht nur über Projekt umbenennen oder Zählerliste exportieren/importieren |
+
+### 12.3 Varianten
+
+**A: Kein neues Konzept, das Standardprojekt heisst „Schnellscan“ und lässt sich leeren**
+
+- Neuinstallation: das Startprojekt heisst „Schnellscan“ statt „Standard“. Bestehende Datenbanken
+  bleiben, wie sie sind.
+- Im Projekt-Menü ein Knopf **„Leeren“** (quiet, mit Rückfrage): löscht Zähler, Auslesungen und
+  den gemerkten letzten Scan aller Linien des Projekts, behält Anschluss und Baudrate. Damit
+  startet jeder Einsatz sauber, auch in jedem anderen Projekt.
+- **„Als Projekt speichern …“** fragt nach einem Namen, benennt das Projekt um und legt ein neues,
+  leeres „Schnellscan“ an. Kein Kopieren, kein Verschieben von Zählern.
+- Nächster Schritt: unverändert (Service-Weg). Kein Sonderfall.
+
+Aufwand: ein Server-Aufruf „Projekt leeren“ (es gibt schon `DELETE /api/meters` je Linie), ein
+Knopf, ein Name, ein Test. Keine neue Spalte, kein neuer Zustand.
+
+**B: Eigenes Schnellscan-Projekt mit Kennzeichen**
+
+- Spalte `projects.scratch`; genau ein solches Projekt, immer vorhanden, nicht löschbar.
+- Dort: nur Reiter Scan, Zähler und Werkzeuge; kein Plan, keine Weitergabe; Nächster Schritt
+  endet nach dem Scan; beim Wechsel auf eine andere Linie automatisch geleert.
+
+Aufwand: neue Spalte und Migration, Sonderfälle in Reitern, Plan-Formular, Weitergabe, Guide,
+Projekt löschen, Export/Import, dazu je Sonderfall ein Test.
+
+### 12.4 Warum B nicht nötig ist
+
+- B ist der **Modus-Schalter**, den §9.2 bewusst verworfen hat: jede Stelle müsste fragen „bin
+  ich im Schnellscan?“. Was B ausblendet (Plan, Weitergabe, Zustand), blendet §9 im
+  Service-Projekt schon aus, weil nichts eingerichtet ist.
+- Der einzige echte Unterschied ist **„sauber anfangen“**. Das braucht jedes Projekt ab und zu
+  (Zählertausch, zweiter Einsatz), also gehört es als „Leeren“ zu allen Projekten und nicht als
+  Eigenschaft eines besonderen Projekts.
+- Automatisch leeren (B) kann Arbeit wegwerfen; ein Knopf mit Rückfrage nicht.
+
+### 12.5 Vorschlag
+
+**Variante A.** Reihenfolge: (1) „Leeren“ für jedes Projekt, (2) Startprojekt heisst
+„Schnellscan“, (3) „Als Projekt speichern …“. Jeder Schritt einzeln nutzbar; nach (1) entscheiden,
+ob (2) und (3) überhaupt noch fehlen.
+
+### 12.6 Offen für die Entscheidung
+
+1. Soll „Leeren“ auch die Auslesungen (Verlauf) löschen, oder nur Zähler und letzten Scan?
+2. Bestehende Datenbanken: „Standard“ umbenennen, wenn es leer ist, oder so lassen?
+3. Am Raspberry Pi im Dauerbetrieb: Schnellscan auf einer Linie, die denselben Port wie eine
+   geplante Linie benutzt, ist nicht abgefangen (zwei Linien, ein Port). Gehört eher zu
+   konzept-dauerbetrieb.md; nur prüfen, ob es vor v0.5.0 nötig ist.
