@@ -407,3 +407,81 @@ ob (2) und (3) überhaupt noch fehlen.
 3. Am Raspberry Pi im Dauerbetrieb: Schnellscan auf einer Linie, die denselben Port wie eine
    geplante Linie benutzt, ist nicht abgefangen (zwei Linien, ein Port). Gehört eher zu
    konzept-dauerbetrieb.md; nur prüfen, ob es vor v0.5.0 nötig ist.
+
+## 13. Dauerbetrieb je Linie einschalten (Vorschlag, 19.10.2026, zur Entscheidung)
+
+### 13.1 Problem
+
+Heute liest der Zeitplan **jede Linie aller Projekte**, auf der ein Plan nicht „Aus“ ist, und gibt
+gewählte Werte weiter, sobald MQTT an ist (§9: abgeleitet, kein Schalter). Für ein Gateway mit
+einer Anlage passt das. Für den Laptop des Servicetechnikers nicht:
+
+- Nach 100 Einsätzen sind viele Projekte da, manche mit Plan oder Datenpunkten vom Testen. Der
+  Laptop liest im Hintergrund weiter, versucht Ports, die längst nicht mehr dran sind (Meldungen
+  „nicht verbunden“), und Simulator-Linien liefern munter Werte.
+- Ist MQTT an, gehen Werte aus alten Projekten an den Broker, auch beim blossen Auslesen von Hand.
+- Ein Plan im **Projekt** gilt für alle Linien darin; wer ihn zum Testen setzt, schaltet damit
+  ungewollt alle Linien ein.
+- Nirgends sieht man auf einen Blick, was auf diesem Gerät gerade im Hintergrund läuft.
+
+### 13.2 Vorschlag: Schalter „Dauerbetrieb“ je Linie
+
+**Eine Linie liest nur automatisch und gibt nur weiter, wenn ihr Dauerbetrieb eingeschaltet ist.**
+Standard: aus. Plan, Datenpunkte und Ausgänge bleiben Einstellungen; sie wirken erst, wenn die
+Linie eingeschaltet ist.
+
+| | Dauerbetrieb aus (Standard) | Dauerbetrieb ein |
+| --- | --- | --- |
+| Geplantes Auslesen | nein, auch wenn ein Plan eingestellt ist | ja, nach Plan |
+| Weitergabe (MQTT) | nein, auch nicht beim Auslesen von Hand | ja, gewählte Werte |
+| Hintergrund-Verbindung | nein (nur solange man die Linie von Hand benutzt) | ja, Dienst hält sie |
+| Qualität an den Broker | nein | ja (`disturbed`, `stale`) |
+
+Wort: „**Dauerbetrieb**“, nicht „aktiv“. „Aktiv“ heisst heute schon „diese Linie ist in der
+Oberfläche geöffnet“ (Linien-Leiste); zwei Bedeutungen würden verwirren.
+
+### 13.3 Wo man es sieht und schaltet
+
+- **Linien-Leiste:** neben Plan ein Schalter „Dauerbetrieb“ (ein/aus) für die geöffnete Linie.
+  Einschalten ohne Plan: das Plan-Formular geht auf („Wie oft auslesen?“), ohne Plan kein Ein.
+- **Projektbaum:** je Linie ein Kennzeichen „Dauerbetrieb“ (grün) bzw. nichts.
+- **Kopfzeile, überall sichtbar:** „Dauerbetrieb: 3 Linien in 2 Projekten“, aufklappbar mit Liste
+  (Projekt › Gateway › Linie, nächster Termin, Zustand), jede Zeile öffnet die Linie. Steht nichts
+  im Dauerbetrieb, steht dort nichts. So sieht der Techniker sofort, was sein Laptop im Hintergrund
+  tut, und der Integrator, was das Gateway tut.
+- **Nächster Schritt:** „Dauerbetrieb einrichten“ führt wie heute durch Plan → Werte → Ausgang und
+  endet mit **„Dauerbetrieb einschalten“** für die Linie.
+- **Hinweis „Läuft nur, solange mbusio geöffnet ist“** (Konzept Hintergrund) erscheint, sobald
+  irgendeine Linie im Dauerbetrieb ist und mbusio nicht als Dienst läuft.
+
+### 13.4 Was sich an §9 ändert
+
+`inOperation()` wird einfacher: ein Projekt ist im Dauerbetrieb, wenn **eine seiner Linien
+eingeschaltet** ist (statt „Plan, Datenpunkt oder Ausgang eingerichtet“). Reiter Weitergabe mit
+Nummer, Zustand der Anlage usw. richten sich danach. Der Merker „Dauerbetrieb einrichten gedrückt“
+im Browser bleibt für den Weg dorthin.
+
+### 13.5 Umsetzung (klein)
+
+- Datenbank: Spalte `lines.operation` (0/1, Standard 0), im Projekt-Export mit.
+- Zeitplan (`Db::planned`) nimmt nur eingeschaltete Linien; ausgeschaltete Linien setzen keine
+  Termine und halten keine Verbindung (`stop_unused_services` wie heute).
+- Weitergabe (`dispatch`, `outputs_refresh`) nur für Datenpunkte eingeschalteter Linien.
+- API `PUT /api/lines/{id}/operation {on}`; lehnt „ein“ ohne wirksamen Plan ab.
+- Oberfläche: Schalter, Kennzeichen, Liste in der Kopfzeile, Guide-Schritt, Texte DE/EN.
+- Tests: Rust (nicht eingeschaltet → kein Termin, keine Weitergabe; ein → wie heute), UI (Schalter,
+  Kopfzeile, Guide bis „einschalten“).
+
+### 13.6 Bestehende Daten
+
+v0.5.0 ist noch nicht veröffentlicht. Vorschlag: Bei der Migration werden Linien eingeschaltet,
+auf denen heute ein Plan wirkt **und** mbusio als Dienst läuft (Pi, Windows-Dienst), damit ein
+laufendes Gateway nach dem Update weiterliest. Im Fenster (Laptop) bleibt alles aus.
+
+### 13.7 Zur Entscheidung
+
+1. Schalter je **Linie** (Vorschlag) oder je Projekt? Je Linie passt zu „jede Linie ihr eigener
+   Bus“ und erlaubt, eine Linie zum Debuggen herauszunehmen.
+2. Weitergabe auch nur bei eingeschalteten Linien (Vorschlag: ja, sonst sendet Auslesen von Hand
+   in alten Projekten an den Broker)?
+3. Migration wie 13.6, oder einfach alles aus?
