@@ -11,6 +11,7 @@ mod meterlist;
 mod mqtt;
 mod plan;
 mod scheduler;
+mod service;
 mod sim;
 mod storage;
 mod web;
@@ -58,6 +59,15 @@ struct Args {
     /// Uhrzeit im Browser übernommen wird)
     #[arg(long)]
     untrusted_clock: bool,
+    /// Als Windows-Dienst einrichten oder aktualisieren (als Administrator; mit --lan, --token)
+    #[arg(long)]
+    install_service: bool,
+    /// Windows-Dienst entfernen (Programm und Daten bleiben)
+    #[arg(long)]
+    uninstall_service: bool,
+    /// vom Windows-Dienst-Manager gestartet
+    #[arg(long, hide = true)]
+    service: bool,
     /// Zeitraffer für Dauertests: Uhr läuft so viel schneller (z.B. 96 = ein Tag in 15 min)
     #[arg(long, hide = true)]
     time_scale: Option<f64>,
@@ -235,13 +245,28 @@ fn wait_for_enter() {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    if args.service {
+        return service::dispatch();
+    }
+    if args.install_service || args.uninstall_service {
+        let r = if args.install_service {
+            service::install(&args)
+        } else {
+            service::uninstall(&args)
+        };
+        if let Err(e) = &r {
+            eprintln!("Fehler / error: {e:#}");
+        }
+        wait_for_enter();
+        std::process::exit(r.is_err() as i32);
+    }
     if args.list_ports || args.cmd.is_some() {
         return run_cli(&args);
     }
-    if let Err(e) = serve(&args).await {
+    let rt = tokio::runtime::Runtime::new()?;
+    if let Err(e) = rt.block_on(serve(&args, stop_signal())) {
         eprintln!("Fehler / error: {e:#}");
         wait_for_enter();
         std::process::exit(1);
@@ -266,7 +291,26 @@ fn run_cli(args: &Args) -> anyhow::Result<()> {
     }
 }
 
-async fn serve(args: &Args) -> anyhow::Result<()> {
+/// Ende im Fenster (Ctrl+C) oder unter systemd (SIGTERM)
+async fn stop_signal() {
+    #[cfg(unix)]
+    {
+        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("SIGTERM");
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = tokio::signal::ctrl_c().await;
+}
+
+/// Weboberfläche, Zeitplan und MQTT bis `stop` (Fenster, systemd oder Windows-Dienst)
+async fn serve(
+    args: &Args,
+    stop: impl std::future::Future<Output = ()> + Send + 'static,
+) -> anyhow::Result<()> {
     let data_dir = args.data_dir.clone().unwrap_or_else(db::default_dir);
     let database = db::Db::open(&data_dir)?;
     let active = database.active()?;
@@ -346,9 +390,7 @@ async fn serve(args: &Args) -> anyhow::Result<()> {
     }
 
     axum::serve(listener, web::router(state))
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-        })
+        .with_graceful_shutdown(stop)
         .await?;
     Ok(())
 }

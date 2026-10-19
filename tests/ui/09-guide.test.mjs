@@ -72,6 +72,8 @@ export default {
     await page.click("#tree-form [type=submit]");
     await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Werte zum Weitergeben wählen");
     assert.ok(await page.isVisible("#plant-state"));
+    // Testserver läuft nicht als Dienst: Hinweis, dass es nur mit offenem mbusio läuft
+    assert.match(await page.textContent("#plant-state"), /Läuft nur, solange mbusio geöffnet ist/);
     await page.click("[data-guide-go]");
     await page.waitForFunction(() => !document.querySelector("#sec-transfer").hidden);
     await page.click("[data-guide-go]");

@@ -23,6 +23,11 @@ serialport = { version = "4", default-features = false }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 webpki-roots = "1"
 
+# nur unter Windows: als Dienst laufen (Konzept Hintergrund), Energiesparmodus verhindern
+[target.'cfg(windows)'.dependencies]
+windows-service = "0.8"
+windows-sys = { version = "0.61", features = ["Win32_System_Power"] }
+
 [profile.release]
 lto = true
 strip = true

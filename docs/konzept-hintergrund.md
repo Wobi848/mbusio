@@ -1,6 +1,6 @@
 # Konzept: mbusio im Hintergrund (Windows-Dienst)
 
-Stand: 19.10.2026 · Status: **Vorschlag, zur Entscheidung** (Abschnitt 9)
+Stand: 19.10.2026 · Status: **umgesetzt** (Entscheidungen in Abschnitt 9, Prüfung auf Windows offen: Abschnitt 8)
 
 ## 1. Ausgangslage
 
@@ -74,8 +74,9 @@ CLI-Befehle (`mbusio scan --port COM3`) gegen einen Port, den der Dienst gerade 
 | **Kein Fenster für Fehler** | Start, Stopp und Fehler, die den Start verhindern (z.B. Datenbank nicht lesbar), zusätzlich in `C:\ProgramData\mbusio\mbusio.log` (klein, rollt bei 1 MB). Alles andere steht wie bisher im Protokoll der Oberfläche |
 | **Energiesparmodus** | Solange ein Plan aktiv ist, meldet mbusio Windows „System wird gebraucht“ (`SetThreadExecutionState`), damit der PC nicht einschläft. Bildschirm darf aus |
 | **USB-Energiesparen** | Windows schaltet USB-Anschlüsse gern ab („selektives Energiesparen“), dann ist der Wandler weg. Hinweis im README; mbusio kann das nicht selbst ändern |
-| **Herunterfahren** | Der Dienst bekommt „Stopp“ und beendet sich sauber (laufende Auslesung zu Ende, Datenbank zu). Ein harter Abbruch ist dank WAL ebenfalls sicher (Kriterium 3) |
-| **Konto** | Vorschlag `LocalService` (wenig Rechte, der Webserver ist im LAN erreichbar). Prüfen, ob es COM-Ports öffnen darf; sonst `LocalSystem` |
+| **Herunterfahren** | Der Dienst bekommt „Stopp“ bzw. unter systemd SIGTERM und beendet die Weboberfläche geordnet. Eine gerade laufende Auslesung kann abbrechen; die Datenbank bleibt dank WAL und einer Transaktion je Zähler heil, der Zähler wird nachgeholt (Kriterium 3) |
+| **Konto** | `LocalService` (wenig Rechte, der Webserver ist im LAN erreichbar). COM-Ports dürfen normale Benutzer öffnen, also auch dieses Konto; auf Windows prüfen. Schreibrechte auf den Datenordner setzt das Einrichten (`icacls`, über die SID, unabhängig von der Sprache) |
+| **Zugriffsschlüssel** | steht in der Befehlszeile des Dienstes; die können Benutzer des PCs lesen. Für einen Anlagen-PC in Ordnung, sonst ohne `--token` nur lokal betreiben |
 | **Firewall** | Mit `--lan` beim Einrichten eine Regel für Port 8080 anlegen (Adminrechte sind ja da), sonst ist die Oberfläche im LAN nicht erreichbar |
 
 ## 4. Hinweis in der Oberfläche
@@ -122,7 +123,32 @@ Bleibt wie heute (systemd-Unit aus dem README). Ein `--install-service` für Lin
   Update, entfernen, USB ab/an, Energiesparmodus). Das CI baut die .exe weiterhin mit.
 - UI-Test: Dauerbetrieb ohne `background` zeigt den Hinweis, Service-Projekt nicht.
 
-## 9. Zur Entscheidung
+## 9. Entschieden (19.10.2026)
+
+Alle Empfehlungen übernommen: Windows-Dienst (kein Autostart bei der Anmeldung), Konto
+`LocalService`, Doppelklick-Dateien `mbusio-dienst-einrichten.cmd` / `-entfernen.cmd` im Release
+(Ordner `windows/`, CRLF), kein Linux-`--install-service`, Pi-Test und Windows-Dienst parallel.
+
+**Umgesetzt:** `src/service.rs` (Erkennen `background`, Daten übernehmen, Log, Energiesparen,
+Windows-Teil `win`), `--install-service` / `--uninstall-service` / `--service` in `main.rs`, `serve`
+mit Stopp-Signal (Ctrl+C, SIGTERM, Dienst-Stopp), `background` und `os` in `/api/status`, Hinweis im
+Zustand der Anlage, README, Release-Paket. Unter Linux erkennt `background` den Start durch
+systemd am Elternprozess (PID 1).
+
+**Prüfen auf einem Windows-PC (Checkliste):**
+1. Fenster-Betrieb mit Plan: Zustand der Anlage zeigt „Läuft nur, solange mbusio geöffnet ist“.
+2. `mbusio-dienst-einrichten.cmd` doppelklicken, Adminrechte bestätigen, „j“ und Schlüssel: Browser
+   öffnet sich, Projekte von vorher sind da, Hinweis aus 1 ist weg.
+3. PC neu starten, nicht anmelden: von einem anderen Gerät `http://<IP>:8080` öffnen, Plan liest,
+   MQTT kommt an.
+4. Doppelklick auf die .exe: öffnet nur den Browser.
+5. COM-Port im Dienst: Verbinden und Auslesen klappt (sonst Konto auf `LocalSystem`, Abschnitt 3.4).
+6. USB-Wandler ab und wieder an: Linie offline, MQTT `disturbed`, danach weiter ohne Eingriff.
+7. Dienst im Task-Manager beenden: startet nach 10 s neu.
+8. Neue .exe mit der .cmd einrichten (Update): Daten bleiben.
+9. `mbusio-dienst-entfernen.cmd`: Dienst weg, `C:\ProgramData\mbusio` bleibt.
+
+## 9a. Ursprüngliche Fragen
 
 1. **Windows-Dienst wie in Abschnitt 3?** (Alternative ohne Adminrechte: Autostart bei der
    Anmeldung über den Autostart-Ordner. Läuft dann aber nur, solange jemand angemeldet ist, und

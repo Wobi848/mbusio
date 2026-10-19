@@ -20,6 +20,13 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Einsatz mit demselben Projekt, ohne Reste der vorigen Anlage.
 - **Neue Installation startet mit dem Projekt „Schnellscan“** statt „Standard“: verbinden und
   scannen, ohne zuerst ein Projekt anzulegen.
+- **Windows-Dienst:** `mbusio-dienst-einrichten.cmd` (oder `--install-service` als Administrator)
+  richtet mbusio als Dienst ein: läuft ohne Anmeldung und ohne Fenster, startet mit Windows und nach
+  einem Absturz neu, PC schläft nicht ein, solange ein Plan läuft. Daten in `C:\ProgramData\mbusio`
+  (bisherige Datenbank wird kopiert). `--uninstall-service` entfernt ihn.
+- **Hinweis im Dauerbetrieb:** läuft mbusio nur im Fenster (nicht als Dienst bzw. unter systemd),
+  zeigt der Zustand der Anlage „Läuft nur, solange mbusio geöffnet ist“ mit Anleitung.
+- **Sauber beenden unter systemd:** SIGTERM beendet mbusio geordnet wie Ctrl+C.
 - **USB-Wandler weg im Dauerbetrieb:** die Werte der Linie gehen beim ersten verpassten Termin als
   „gestört“ (`disturbed`) an MQTT, nicht erst nach drei Abständen als „veraltet“.
 - **Fester Name für USB-Wandler unter Linux:** die Port-Auswahl speichert `/dev/serial/by-id/…`

@@ -144,6 +144,8 @@ pub fn run(st: AppState) {
         if let Err(e) = tick(&st) {
             note(&st, format!("{}: {e:#}", tr("Zeitplan", "Schedule")));
         }
+        // solange ein Plan läuft, nicht einschlafen (Windows)
+        crate::service::keep_awake(st.planner.any_planned());
         // im Zeitraffer öfter prüfen, sonst würden Termine übersprungen
         std::thread::sleep(TICK.div_f64(clock::scale()).max(Duration::from_millis(500)));
     }

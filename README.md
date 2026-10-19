@@ -203,6 +203,29 @@ nur wieder den Browser.
   (FTDI) erkennt Windows von selbst; im Geräte-Manager muss ein COM-Port erscheinen.
 - Ohne `--lan` starten, sonst verlangt die Windows-Firewall eine Freigabe (Adminrechte).
 
+### Windows als Dienst
+
+Für den Dauerbetrieb (regelmässig auslesen und weitergeben) muss mbusio auch laufen, wenn niemand
+angemeldet ist. Im Fenster gestartet, steht es still, sobald das Fenster zu ist; der Zustand der
+Anlage zeigt das dann orange an.
+
+1. `mbusio-dienst-einrichten.cmd` aus dem Release neben die .exe legen und doppelklicken. Windows
+   fragt nach Adminrechten; danach wählen, ob die Oberfläche aus dem Netzwerk erreichbar sein soll
+   (dann mit Zugriffsschlüssel). Ohne die Datei, in einer Eingabeaufforderung als Administrator:
+   `mbusio-windows-x86_64.exe --install-service [--lan --token GEHEIM]`
+2. Danach läuft mbusio als Dienst „mbusio“: startet mit Windows, ohne Anmeldung und ohne Fenster,
+   nach einem Absturz neu. Ein Doppelklick auf die .exe öffnet nur noch den Browser.
+
+- **Programm** liegt dann in `C:\Program Files\mbusio`, **Daten** in `C:\ProgramData\mbusio`. Beim
+  ersten Einrichten wird die bisherige Datenbank dorthin kopiert (das Original bleibt).
+- **Aktualisieren:** die neue .exe genauso einrichten; Daten bleiben.
+- **Entfernen:** `mbusio-dienst-entfernen.cmd` bzw. `--uninstall-service`; Programm und Daten bleiben.
+- Startet der Dienst nicht: `C:\ProgramData\mbusio\mbusio.log`.
+- Der Dienst läuft als `LocalService` (wenig Rechte). Solange ein Plan läuft, schläft der PC nicht ein.
+- **USB-Energiesparen ausschalten**, sonst schaltet Windows den M-Bus-Wandler ab: Energieoptionen →
+  Erweiterte Einstellungen → USB-Einstellungen → „Selektives USB-Energiesparen“ deaktivieren, und im
+  Geräte-Manager beim USB-Wandler „Computer kann das Gerät ausschalten“ abhaken.
+
 ### Raspberry Pi als Dienst
 
 ```sh
@@ -411,4 +434,6 @@ mbusio --lan --token SECRET             # reachable from the LAN, protected by a
 
 You need an M-Bus level converter / master; a plain USB-serial adapter is not enough. No admin
 rights needed on Windows: the .exe runs from any folder. Put a folder `mbusio-data` next to it to
-keep all data there (portable, e.g. USB stick).
+keep all data there (portable, e.g. USB stick). For continuous operation run it as a Windows service:
+double-click `mbusio-dienst-einrichten.cmd` (or `--install-service` as administrator); it then
+starts with Windows without anyone logged in, data in `C:\ProgramData\mbusio`. On Linux use systemd.

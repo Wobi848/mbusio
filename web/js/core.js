@@ -56,6 +56,8 @@ let timeState = null;
 let planActive = false;
 let disk = null;
 let mqttStatus = null;
+/// läuft mbusio im Hintergrund (Windows-Dienst, systemd) und auf welchem System
+let host = { background: true, os: "" };
 /// zuletzt gespeicherte Auffälligkeiten (nur bei Änderung neu speichern)
 let savedIssues = null;
 

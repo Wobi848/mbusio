@@ -524,8 +524,8 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
     offen ist. Die Port-Auswahl liefert für USB-Wandler darum den festen Namen aus
     `/dev/serial/by-id/`; angezeigt wird er lesbar (`portText`), `port_key` löst ihn auf das Gerät
     auf. Bestehende Linien mit `/dev/ttyUSB0` einmal neu wählen.
-- **Windows im Hintergrund:** läuft heute nur mit offenem Fenster; Vorschlag Windows-Dienst in
-  [konzept-hintergrund.md](konzept-hintergrund.md), zur Entscheidung.
+- **Windows im Hintergrund:** als Windows-Dienst umgesetzt ([konzept-hintergrund.md](konzept-hintergrund.md));
+  Prüfung auf einem Windows-PC nach der Checkliste dort (Abschnitt 9) offen.
 - Danach Release v0.5.0 (bisher letztes Release: v0.4.0).
 
 **Ausserhalb der Phasen umgesetzt:** Simulator-Reiter mit Vorlagen (Praxis mit Fehlern, alles

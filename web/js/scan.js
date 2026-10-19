@@ -26,6 +26,7 @@ async function refreshStatus() {
   planActive = !!s.plan_active;
   disk = s.disk;
   mqttStatus = s.mqtt;
+  host = { background: !!s.background, os: s.os || "" };
   if (transfer.data && !$("sec-outputs").hidden) renderOutputState();
   renderPlantState();
   if (runsBefore && !planRuns.length) loadMeters().catch(() => {});

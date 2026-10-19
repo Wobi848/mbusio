@@ -97,6 +97,8 @@ const outputOn = () => !!mqttStatus && mqttStatus.state !== "off";
 
 /// Zustand der Anlage oben im Projekt: läuft alles? Nur im Dauerbetrieb.
 /// Jeder Teil führt zur Stelle, an der man es behebt.
+const README = "https://github.com/Wobi848/mbusio";
+
 function renderPlantState() {
   const box = $("plant-state");
   if (!tree) return;
@@ -107,6 +109,13 @@ function renderPlantState() {
   box.hidden = !inOperation();
   if (box.hidden) return;
   const parts = [];
+  // Dauerbetrieb, aber mbusio läuft nur im Fenster: steht still, sobald es zu ist
+  if (!host.background) {
+    const win = host.os === "windows";
+    parts.push(
+      `${ui.chip("warn", t("ps_fg"))} ${esc(t(win ? "ps_fg_win" : "ps_fg_linux"))} <a href="${README}#${win ? "windows-als-dienst" : "raspberry-pi-als-dienst"}" target="_blank" rel="noopener">${esc(t("ps_fg_how"))}</a>`
+    );
+  }
   if (lines.length) {
     const sum = (k) => lines.reduce((n, l) => n + (l.plan_info[k] || 0), 0);
     const next = lines.map((l) => l.plan_info.next).filter(Boolean).sort()[0];

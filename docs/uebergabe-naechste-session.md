@@ -33,7 +33,8 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 2. ~~Schnellscan~~: umgesetzt 19.10. als Variante A schlank (Konzept Bedienung §12): „Leeren …“ je Projekt, Startprojekt „Schnellscan“.
 3. Echter Test mit dem MR003, sobald ein Zähler dran ist (der Nutzer hat evtl. im Geschäft ein Gerät).
 4. ~~Zwei Linien am selben Port~~: erledigt 19.10. (`line::Ports`, `link::port_key`).
-5. Windows-Dienst: Konzept docs/konzept-hintergrund.md, Entscheidungen §9 offen.
+5. Windows-Dienst: umgesetzt (docs/konzept-hintergrund.md); Prüfung auf Windows-PC nach Checkliste §9 macht der Nutzer.
+   Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
 6. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
 
 ## Wo was steht
