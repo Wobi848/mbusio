@@ -4,7 +4,7 @@
 //! Alle anderen geben ihm Aufträge und warten auf das Ergebnis, statt „Bus belegt“ zu melden.
 //! Aufträge aus der Bedienung haben Vorrang vor geplanten Auslesungen.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
@@ -60,6 +60,50 @@ pub struct LineStatus {
     pub queued: usize,
 }
 
+/// Offene Anschlüsse aller Linien: ein Anschluss gehört immer nur einer Linie. Gilt für die
+/// Bedienung wie für den Ausleseplan, weil jeder Linien-Dienst hier belegt, bevor er öffnet.
+#[derive(Default)]
+pub struct Ports(Mutex<HashMap<String, (i64, String)>>);
+
+/// Belegter Anschluss; wird frei, sobald die Verbindung der Linie zu ist (Drop)
+struct Claim {
+    ports: Arc<Ports>,
+    key: Option<String>,
+}
+
+impl Ports {
+    /// Anschluss für die Linie belegen; besetzt: Fehler mit der Linie, die ihn hat
+    fn claim(self: &Arc<Self>, port: &str, line_id: i64, label: &str) -> Result<Claim> {
+        let key = link::port_key(port);
+        if let Some(k) = &key {
+            let mut held = self.0.lock().unwrap();
+            match held.get(k) {
+                Some((other, by)) if *other != line_id => {
+                    return Err(anyhow!(tr(
+                        &format!("{port} wird schon von Linie {by} benutzt"),
+                        &format!("{port} is already used by line {by}"),
+                    )))
+                }
+                _ => {
+                    held.insert(k.clone(), (line_id, label.to_string()));
+                }
+            }
+        }
+        Ok(Claim {
+            ports: self.clone(),
+            key,
+        })
+    }
+}
+
+impl Drop for Claim {
+    fn drop(&mut self) {
+        if let Some(k) = &self.key {
+            self.ports.0.lock().unwrap().remove(k);
+        }
+    }
+}
+
 /// Ein Auftrag bekommt den Master oder den Grund, warum keine Verbindung besteht.
 /// Rückgabe `false`: die Verbindung ist gestört und wird vor dem nächsten Auftrag neu aufgebaut.
 pub type Work = Box<dyn FnOnce(Result<&mut Master, String>) -> bool + Send>;
@@ -71,8 +115,12 @@ struct Queues {
 }
 
 struct Inner {
+    line_id: i64,
+    /// Name der Linie für die Meldung „wird schon von Linie … benutzt“
+    label: String,
     conf: LineConf,
     log: Arc<FrameLog>,
+    ports: Arc<Ports>,
     queues: Mutex<Queues>,
     wake: Condvar,
     stop: AtomicBool,
@@ -93,10 +141,19 @@ pub fn is_link_error(e: &anyhow::Error) -> bool {
 
 impl LineService {
     /// Startet den Dienst; verbunden wird beim ersten Auftrag.
-    pub fn start(line_id: i64, conf: LineConf, log: Arc<FrameLog>) -> Self {
+    pub fn start(
+        line_id: i64,
+        label: String,
+        conf: LineConf,
+        log: Arc<FrameLog>,
+        ports: Arc<Ports>,
+    ) -> Self {
         let inner = Arc::new(Inner {
+            line_id,
+            label,
             conf,
             log,
+            ports,
             queues: Mutex::default(),
             wake: Condvar::new(),
             stop: AtomicBool::new(false),
@@ -190,7 +247,12 @@ impl LineService {
     }
 }
 
-fn open(conf: &LineConf, log: &Arc<FrameLog>) -> Result<Master> {
+/// Anschluss belegen und öffnen; der Beleg gehört zur Verbindung und wird mit ihr frei
+fn open(inner: &Inner) -> Result<(Master, Claim)> {
+    let (conf, log) = (&inner.conf, &inner.log);
+    let claim = inner
+        .ports
+        .claim(&conf.connection, inner.line_id, &inner.label)?;
     let link = link::open(&conf.connection, conf.baud)?;
     let master = Master::new(link, conf.baud, conf.timeout_ms, log.clone());
     log.push(
@@ -203,11 +265,11 @@ fn open(conf: &LineConf, log: &Arc<FrameLog>) -> Result<Master> {
             master.timeout.as_millis()
         ),
     );
-    Ok(master)
+    Ok((master, claim))
 }
 
 fn run(inner: Arc<Inner>) {
-    let mut master: Option<Master> = None;
+    let mut master: Option<(Master, Claim)> = None;
     // nach einem gescheiterten Verbindungsversuch nicht sofort wieder (USB weg, Gateway aus)
     let mut retry_at: Option<Instant> = None;
     let mut backoff = Duration::from_secs(5);
@@ -245,8 +307,8 @@ fn run(inner: Arc<Inner>) {
         // Verbindung bei Bedarf aufbauen; die Wartezeit nach Fehlversuchen gilt nur für
         // geplante Auslesungen, die Bedienung versucht es immer sofort (USB wieder eingesteckt)
         if master.is_none() && (manual || retry_at.is_none_or(|t| Instant::now() >= t)) {
-            match open(&inner.conf, &inner.log) {
-                Ok(m) => {
+            match open(&inner) {
+                Ok((m, claim)) => {
                     let mut s = inner.status.lock().unwrap();
                     s.connected = true;
                     s.error = None;
@@ -256,7 +318,7 @@ fn run(inner: Arc<Inner>) {
                         timeout_ms: m.timeout.as_millis() as u64,
                         timeout_auto: inner.conf.timeout_ms == 0,
                     });
-                    master = Some(m);
+                    master = Some((m, claim));
                     retry_at = None;
                     backoff = Duration::from_secs(5);
                 }
@@ -273,7 +335,7 @@ fn run(inner: Arc<Inner>) {
         }
         inner.status.lock().unwrap().busy = true;
         let ok = match master.as_mut() {
-            Some(m) => work(Ok(m)),
+            Some((m, _)) => work(Ok(m)),
             None => {
                 let why = inner
                     .status
@@ -306,16 +368,49 @@ fn run(inner: Arc<Inner>) {
 mod tests {
     use super::*;
 
-    fn sim() -> LineService {
+    fn start(id: i64, connection: &str, ports: &Arc<Ports>) -> LineService {
         LineService::start(
-            1,
+            id,
+            format!("L{id}"),
             LineConf {
-                connection: "SIMULATOR".into(),
+                connection: connection.into(),
                 baud: 9600,
                 timeout_ms: 50,
             },
             Arc::new(FrameLog::default()),
+            ports.clone(),
         )
+    }
+
+    fn sim() -> LineService {
+        start(1, "SIMULATOR", &Arc::default())
+    }
+
+    #[test]
+    fn one_port_one_line_also_for_planned_reads() {
+        let gw = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = format!("tcp://{}", gw.local_addr().unwrap());
+        let ports = Arc::default();
+        let a = start(1, &addr, &ports);
+        a.connect().unwrap();
+        // zweite Linie, gleiche Adresse anders geschrieben: abgelehnt, mit Name der Linie
+        let b = start(2, &addr.to_uppercase(), &ports);
+        let e = b.connect().unwrap_err().to_string();
+        assert!(e.contains("L1"), "{e}");
+        // geplante Auslesung: dieselbe Meldung als Grund für „gestört“
+        let (tx, rx) = mpsc::channel();
+        b.submit_planned(Box::new(move |m| {
+            tx.send(m.err()).unwrap();
+            true
+        }));
+        assert!(rx.recv().unwrap().unwrap().contains("L1"));
+        assert!(b.status().error.unwrap().contains("L1"));
+        // Simulationen teilen nichts
+        start(3, "SIMULATOR", &ports).connect().unwrap();
+        start(4, "SIMULATOR", &ports).connect().unwrap();
+        // erste Linie getrennt: Anschluss wieder frei
+        assert!(a.stop_wait(Duration::from_secs(5)));
+        start(5, &addr, &ports).connect().unwrap();
     }
 
     #[test]
@@ -371,15 +466,7 @@ mod tests {
 
     #[test]
     fn unreachable_port_reports_error_and_retries_later() {
-        let s = LineService::start(
-            2,
-            LineConf {
-                connection: "/dev/does-not-exist".into(),
-                baud: 2400,
-                timeout_ms: 0,
-            },
-            Arc::new(FrameLog::default()),
-        );
+        let s = start(2, "/dev/does-not-exist", &Arc::default());
         assert!(s.connect().is_err());
         let st = s.status();
         assert!(!st.connected && st.error.is_some());

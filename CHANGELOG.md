@@ -20,6 +20,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Einsatz mit demselben Projekt, ohne Reste der vorigen Anlage.
 - **Neue Installation startet mit dem Projekt „Schnellscan“** statt „Standard“: verbinden und
   scannen, ohne zuerst ein Projekt anzulegen.
+- **Ein Anschluss, eine Linie:** benutzt schon eine Linie (auch eine Plan-Linie im Hintergrund)
+  einen Port oder ein Gateway, wird eine zweite abgelehnt mit „… wird schon von Linie „…“ im
+  Projekt „…“ benutzt“, statt „Device or resource busy“ oder, bei Gateways im Netzwerk, zwei
+  Verbindungen auf denselben Bus. Gilt auch als Grund für „gestört“ im Ausleseplan.
 - **Nächster Schritt** meldet „N Zähler antworten nicht“ statt „Linie in Ordnung“, solange gemerkte
   Zähler gestört sind; der Knopf öffnet die Zählerliste mit dem Filter „Gestört“.
 - **Sekundärscan eingrenzen und weitersuchen:** „ID beginnt mit …“ sucht nur IDs mit diesem

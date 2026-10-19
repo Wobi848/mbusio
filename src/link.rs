@@ -148,6 +148,22 @@ impl Link for TcpLink {
 
 pub const SIMULATOR_PORT: &str = "SIMULATOR";
 
+/// Anschluss zum Vergleich: gleicher Schlüssel = dasselbe Gerät. `tcp://Host:Port` = `host:port`,
+/// Windows `COM3` = `com3` = `\\.\COM3`; Pfade wie `/dev/ttyUSB0` bleiben, wie sie sind.
+/// `None` für Simulationen: jede Linie hat ihre eigene.
+pub fn port_key(port: &str) -> Option<String> {
+    let p = port.trim();
+    if p == SIMULATOR_PORT || p.starts_with("SIMULATOR:") {
+        return None;
+    }
+    if p.starts_with('/') {
+        return Some(p.to_string());
+    }
+    let p = p.to_ascii_lowercase();
+    let p = p.strip_prefix(TCP_PREFIX).unwrap_or(&p);
+    Some(p.strip_prefix(r"\\.\").unwrap_or(p).to_string())
+}
+
 /// `SIMULATOR`, `tcp://host:port` oder Name der seriellen Schnittstelle
 pub fn open(port: &str, baud: u32) -> Result<Box<dyn Link>> {
     Ok(if port == SIMULATOR_PORT {
@@ -215,6 +231,21 @@ pub fn list_ports() -> Vec<PortInfo> {
 mod tests {
     use super::*;
     use std::net::TcpListener;
+
+    #[test]
+    fn port_key_treats_spellings_of_one_port_alike() {
+        let k = |p: &str| port_key(p);
+        assert_eq!(k("tcp://GW.local:10001"), k("gw.local:10001"));
+        assert_eq!(k("COM3"), k("com3"));
+        assert_eq!(k(r"\\.\COM3"), k("COM3"));
+        assert_ne!(
+            k("/dev/ttyUSB0"),
+            k("/dev/ttyusb0"),
+            "Pfade unterscheiden Gross/klein"
+        );
+        assert_eq!(k("SIMULATOR"), None);
+        assert_eq!(k("SIMULATOR:ok10"), None);
+    }
 
     #[test]
     fn tcp_link_round_trip() {

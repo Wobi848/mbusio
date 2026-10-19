@@ -13,7 +13,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Plan-Vorgabe „Aus“, 24-h-Zeit, batteriebetriebene Zähler nicht zu oft auslesen.
 
 ## Tests
-- `cargo test` → 101 passed, 1 ignored.
+- `cargo test` → 103 passed, 1 ignored.
 - UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 12 Tests, alle grün.
 - Server lokal: `cargo run -- --no-browser` (Port 8080; der Debug-Build liest web/ direkt von der Platte).
 - Commits enden mit `Co-Authored-By: Claude …`; nach jedem fertigen Schritt committen und pushen.
@@ -32,7 +32,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 1. ~~Busleiste „Linie in Ordnung“ trotz gestörter Zähler~~: erledigt 19.10. (Nächster Schritt „N Zähler antworten nicht“). Weitere Punkte aus dem Simulator-Test hat der Nutzer noch nicht genannt; bei Gelegenheit nachfragen.
 2. ~~Schnellscan~~: umgesetzt 19.10. als Variante A schlank (Konzept Bedienung §12): „Leeren …“ je Projekt, Startprojekt „Schnellscan“.
 3. Echter Test mit dem MR003, sobald ein Zähler dran ist (der Nutzer hat evtl. im Geschäft ein Gerät).
-4. Zwei Linien am selben Port: vor dem Pi-Test klären (konzept-dauerbetrieb.md §11), nur notiert.
+4. ~~Zwei Linien am selben Port~~: erledigt 19.10. (`line::Ports`, `link::port_key`).
 5. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
 
 ## Wo was steht

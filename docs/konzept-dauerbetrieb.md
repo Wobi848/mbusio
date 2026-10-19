@@ -504,11 +504,15 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
   bzw. Gateway neu starten (4), kleine SD-Karte (11). Hilfsmittel: `--time-scale 48`.
 - ~~MQTT mit einem echten Broker prüfen~~ – erledigt am 19.10.2026 (vom Benutzer mit einem echten
   Broker getestet).
-- **Zwei Linien am selben Port sind nicht abgefangen** (notiert 19.10.2026, nicht gebaut): jede
-  Linie hat ihren eigenen Linien-Dienst. Benutzen eine geplante Linie und z.B. ein Schnellscan
-  denselben Anschluss, öffnen zwei Dienste denselben Port; was dann passiert (Fehler beim Öffnen
-  oder vermischte Telegramme), ist ungeprüft. Vor dem Pi-Test klären, ob eine Sperre oder ein
-  Hinweis nötig ist.
+- ~~Zwei Linien am selben Port~~ – erledigt am 19.10.2026: Serielle Ports waren schon exklusiv
+  (`serialport` öffnet mit TIOCEXCL und flock), nur die Meldung war „Device or resource busy“;
+  TCP-Gateways waren gar nicht geschützt. Jetzt belegt jeder Linien-Dienst seinen Anschluss vor dem
+  Öffnen in einer gemeinsamen Liste (`line::Ports`) und gibt ihn mit der Verbindung wieder frei.
+  Besetzt heisst: eine andere Linie hat gerade eine offene Verbindung, auch eine Plan-Linie im
+  Hintergrund. Meldung: „<Anschluss> wird schon von Linie „…“ im Projekt „…“ benutzt“, beim
+  Verbinden von Hand wie als Grund für „gestört“ bei geplanten Auslesungen (gleiche Stelle).
+  Verglichen wird über `link::port_key` (`tcp://Host:Port` = `host:port`, `COM3` = `com3`);
+  Simulationen sind ausgenommen.
 - Danach Release v0.5.0 (bisher letztes Release: v0.4.0).
 
 **Ausserhalb der Phasen umgesetzt:** Simulator-Reiter mit Vorlagen (Praxis mit Fehlern, alles

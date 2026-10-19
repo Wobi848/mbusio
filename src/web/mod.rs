@@ -18,7 +18,7 @@ use crate::clock;
 use crate::db::{Db, Gateway, Line, Meter, Project};
 use crate::export;
 use crate::i18n::{self, tr, Lang};
-use crate::line::{is_link_error, ConnInfo, LineConf, LineService};
+use crate::line::{is_link_error, ConnInfo, LineConf, LineService, Ports};
 use crate::link;
 use crate::mbus::decode::decode_rsp_ud;
 use crate::mbus::frame::{hex, Frame};
@@ -67,6 +67,8 @@ pub struct JobStatus {
 pub struct Shared {
     /// Linien-Dienste, je verbundener Linie einer; nur er spricht mit dem Bus dieser Linie
     lines: Mutex<HashMap<i64, LineService>>,
+    /// Offene Anschlüsse aller Linien (zwei Linien, ein Port: abgelehnt)
+    ports: Arc<Ports>,
     job: Mutex<JobStatus>,
     cancel: AtomicBool,
     pub(crate) log: Arc<FrameLog>,
@@ -88,6 +90,7 @@ impl Shared {
     pub fn with_planner(token: Option<String>, db: Db, planner: Planner) -> Self {
         Shared {
             lines: Mutex::default(),
+            ports: Arc::default(),
             job: Mutex::default(),
             cancel: AtomicBool::default(),
             log: Arc::default(),
@@ -137,7 +140,7 @@ impl Shared {
             return svc.connect();
         }
         self.stop_line_wait(line_id);
-        let svc = LineService::start(line_id, conf, self.log.clone());
+        let svc = self.start_service(line_id, conf);
         match svc.connect() {
             Ok(()) => {
                 self.lines.lock().unwrap().insert(line_id, svc);
@@ -148,6 +151,28 @@ impl Shared {
                 Err(e)
             }
         }
+    }
+
+    /// Linien-Dienst starten; belegt seinen Anschluss erst beim Verbinden (`Ports`)
+    fn start_service(&self, line_id: i64, conf: LineConf) -> LineService {
+        let label = {
+            let db = self.db.lock().unwrap();
+            db.line(line_id)
+                .and_then(|l| {
+                    Ok((
+                        l.name,
+                        db.project(db.gateway(l.gateway_id)?.project_id)?.name,
+                    ))
+                })
+                .map(|(l, p)| {
+                    tr(
+                        &format!("„{l}“ im Projekt „{p}“"),
+                        &format!("“{l}” in project “{p}”"),
+                    )
+                })
+                .unwrap_or_else(|_| line_id.to_string())
+        };
+        LineService::start(line_id, label, conf, self.log.clone(), self.ports.clone())
     }
 
     fn stop_line(&self, line_id: i64) {
@@ -191,7 +216,7 @@ impl Shared {
             Some(_) => self.stop_line_wait(line.id),
             None => {}
         }
-        let svc = LineService::start(line.id, conf, self.log.clone());
+        let svc = self.start_service(line.id, conf);
         self.lines.lock().unwrap().insert(line.id, svc.clone());
         Some(svc)
     }
