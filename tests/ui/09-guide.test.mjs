@@ -63,15 +63,23 @@ export default {
     const [rep] = await Promise.all([ctx.waitForEvent("page"), page.click("[data-guide-go]")]);
     await rep.waitForSelector("#table tbody tr");
     await rep.close();
-    // Dauerbetrieb einrichten: Plan, Werte, Ausgang
+    // Dauerbetrieb einrichten: Plan, Linie einschalten, Werte, Ausgang
     await page.click("[data-guide-alt]");
     await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Ausleseplan festlegen");
     assert.equal(await page.textContent("#guide .guide-count"), "1/4", "Dauerbetrieb: vier Schritte");
     await page.click("[data-guide-go]");
     await page.selectOption("#tree-form [name=plan_kind]", "daily");
     await page.click("#tree-form [type=submit]");
+    // Plan allein liest nicht: Linie einschalten (Konzept Bedienung §13)
+    await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Dauerbetrieb einschalten");
+    assert.ok(await page.isHidden("#op-all"), "noch nichts im Dauerbetrieb");
+    assert.ok(await page.isVisible("[data-lb-op=on]"));
+    await page.click("[data-guide-go]");
     await page.waitForFunction(() => document.querySelector("#guide .guide-title")?.textContent === "Werte zum Weitergeben wählen");
     assert.ok(await page.isVisible("#plant-state"));
+    // Kopfzeile zeigt, was im Hintergrund läuft; Linien-Leiste und Baum das Kennzeichen
+    assert.match(await page.textContent("#op-all-sum"), /Dauerbetrieb: 1 Linie/);
+    assert.ok(await page.isVisible("[data-lb-op=off]"));
     // Testserver läuft nicht als Dienst: Hinweis, dass es nur mit offenem mbusio läuft
     assert.match(await page.textContent("#plant-state"), /Läuft nur, solange mbusio geöffnet ist/);
     await page.click("[data-guide-go]");

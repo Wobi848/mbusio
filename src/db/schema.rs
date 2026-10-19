@@ -212,6 +212,26 @@ impl Db {
             )?;
             self.set_meta("addressing_pa", "1")?;
         }
+        if !has(&self.conn, "lines", "operation")? {
+            // Dauerbetrieb je Linie einschalten (Konzept Bedienung §13), Standard aus. Läuft mbusio
+            // schon als Dienst (Gateway), bleiben Linien mit wirksamem Plan eingeschaltet, damit
+            // es nach dem Update weiterliest; im Fenster (Laptop) bleibt alles aus.
+            self.conn.execute_batch(
+                "ALTER TABLE lines ADD COLUMN operation INTEGER NOT NULL DEFAULT 0",
+            )?;
+            if crate::service::background() {
+                for pl in self.planned()? {
+                    if !pl.line.connection.is_empty()
+                        && pl.meters.iter().any(|(_, p)| *p != crate::plan::Plan::Off)
+                    {
+                        self.conn.execute(
+                            "UPDATE lines SET operation = 1 WHERE id = ?1",
+                            [pl.line.id],
+                        )?;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 }

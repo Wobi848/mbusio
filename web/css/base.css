@@ -181,6 +181,14 @@ body:not(.show-help) .explain { display: none !important; }
 .line-menu [data-lb-manage] { margin-top: 4px; border-top: 1px solid var(--line) !important; border-radius: 0 0 8px 8px; }
 .line-menu .menu-items .mono { font-size: 11.5px; color: var(--muted); font-weight: 400; }
 .menu-group { padding: 6px 10px 2px; font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lb-op { display: inline-flex; align-items: center; gap: 8px; }
+.op-all summary { gap: 8px; }
+.op-all-n { display: none; font-weight: 700; }
+.op-all .menu-items { left: 0; right: auto; min-width: 320px; }
+.op-all .menu-items button { display: flex; justify-content: space-between; gap: 12px; }
+.op-all .menu-items button.on { color: var(--accent) !important; font-weight: 700; }
+.op-all .menu-items .mono { font-size: 11.5px; color: var(--muted); font-weight: 400; }
+.menu-group.warn { color: var(--warn); text-transform: none; letter-spacing: 0; font-size: 12px; }
 .lb-state { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
 .lb-state b { font-weight: 600; }
 .lb-state b.warn { color: var(--warn); }
@@ -733,6 +741,11 @@ body.has-busbar #toast { bottom: calc(var(--busbar-h, 48px) + 12px); }
   .busbar-text { flex-basis: calc(100% - 21px); white-space: normal; }
   .busbar-progress { flex: 1 1 auto; }
   .proj-pick .eyebrow { display: none; }
+  /* Handy: Dauerbetrieb nur als Punkt mit Anzahl, die Liste klappt wie gewohnt auf */
+  .op-all .op-all-text { display: none; }
+  .op-all .op-all-n { display: inline; }
+  .op-all .menu-items { position: fixed; top: 52px; left: 16px; right: 16px; min-width: 0; }
+  .op-all .menu-items button { flex-direction: column; align-items: flex-start; gap: 2px; white-space: normal; text-align: left; }
   .proj-pick { flex: 1 1 0; }
   .proj-pick select { width: 100%; max-width: none; min-width: 0; }
 }

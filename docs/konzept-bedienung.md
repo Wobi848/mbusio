@@ -408,7 +408,14 @@ ob (2) und (3) überhaupt noch fehlen.
    geplante Linie benutzt, ist nicht abgefangen (zwei Linien, ein Port). Gehört eher zu
    konzept-dauerbetrieb.md; nur prüfen, ob es vor v0.5.0 nötig ist.
 
-## 13. Dauerbetrieb je Linie einschalten (Vorschlag, 19.10.2026, zur Entscheidung)
+## 13. Dauerbetrieb je Linie einschalten (umgesetzt, 19.10.2026)
+
+**Entschieden:** alle Empfehlungen aus 13.7 (Schalter je Linie, Weitergabe nur aus eingeschalteten
+Linien, Migration wie 13.6). Abweichung von 13.5: `operation` wird im Projekt-Export zwar
+geschrieben, beim **Import aber nie übernommen**; eine übernommene Anlage liest erst, wenn man sie
+einschaltet (sonst würde ein Gateway-Export den Laptop einschalten). Nach dem Einschalten liest der
+Plan ab dem nächsten Termin, wie beim erstmaligen Setzen eines Plans. Auf dem Handy zeigt die
+Kopfzeile nur Punkt und Anzahl.
 
 ### 13.1 Problem
 
@@ -463,7 +470,7 @@ im Browser bleibt für den Weg dorthin.
 
 ### 13.5 Umsetzung (klein)
 
-- Datenbank: Spalte `lines.operation` (0/1, Standard 0), im Projekt-Export mit.
+- Datenbank: Spalte `lines.operation` (0/1, Standard 0); Import übernimmt sie nicht.
 - Zeitplan (`Db::planned`) nimmt nur eingeschaltete Linien; ausgeschaltete Linien setzen keine
   Termine und halten keine Verbindung (`stop_unused_services` wie heute).
 - Weitergabe (`dispatch`, `outputs_refresh`) nur für Datenpunkte eingeschalteter Linien.

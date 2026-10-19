@@ -11,6 +11,9 @@ export default {
     await api("meters", "POST", { address: "1", name: "Whg 1" });
     await api("meters/1/read", "POST");
     await api("meters/1/datapoints", "PUT", { keys: ["instantaneous|0|0|0|energy|kWh"] });
+    // weitergegeben wird nur aus Linien im Dauerbetrieb
+    await api("projects/1/plan", "PUT", { plan: "daily 00:05" });
+    await api("lines/1/operation", "PUT", { on: true });
   },
   async run({ page, api }) {
     const [host, port] = broker.split(":");

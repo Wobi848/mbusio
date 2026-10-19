@@ -34,6 +34,10 @@
     <span class="topbar-sep" aria-hidden="true"></span>
     <label class="proj-pick"><span class="eyebrow" data-i18n="project"></span><select id="project-select" data-i18n-title="project_switch"></select></label>
     <button id="project-new" class="icon-btn" type="button" data-i18n-title="project_new"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    <details id="op-all" class="menu op-all" hidden>
+      <summary id="op-all-sum" class="button small quiet"></summary>
+      <div id="op-all-items" class="menu-items"></div>
+    </details>
     <nav class="gnavs" aria-label="Navigation">
       <button class="gnav" data-tab-go="project"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-i18n="tab_project"></span></button>
       <span class="spacer"></span>
@@ -76,6 +80,7 @@
       <button id="lb-change" type="button" class="small quiet" data-i18n="conn_change" hidden></button>
       <span class="spacer"></span>
       <span id="lb-plan" class="lb-plan"></span>
+      <span id="lb-op" class="lb-op"></span>
     </div>
     <div id="sec-conn" class="conn-panel" hidden>
       <div class="conn-grid">

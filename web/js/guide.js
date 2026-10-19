@@ -2,8 +2,8 @@
 
 // Nächster Schritt: zeigt neuen wie erfahrenen Benutzern, was als Nächstes zu tun ist, mit genau
 // einem Knopf. Die Reiter des Ablaufs zeigen dazu den Fortschritt (✓ erledigt, Punkt = als Nächstes).
-// Service endet nach dem Auslesen beim Bericht; im Dauerbetrieb geht es weiter mit Plan, Werten und
-// Ausgang, und die Weitergabe wird Reiter 4 (Konzept Bedienung, Abschnitt 9).
+// Service endet nach dem Auslesen beim Bericht; im Dauerbetrieb geht es weiter mit Plan, Linie
+// einschalten, Werten und Ausgang, und die Weitergabe wird Reiter 4 (Konzept Bedienung §9, §13).
 
 const GUIDE_TABS = ["project", "scan", "meters", "transfer"];
 /// Reiter des Ablaufs: Weitergabe nur im Dauerbetrieb
@@ -53,6 +53,7 @@ function guideStep() {
       : { key: "ready", tab: "meters", go: () => $("project-report").click(), alt };
   }
   else if (!line.plan_info?.meters) step = { key: "plan", tab: "project", target: "project-edit", go: openPlanForm };
+  else if (!line.operation) step = { key: "op_on", tab: "project", mark: () => document.querySelector("[data-lb-op=on]"), go: () => setOperation(true) };
   else if (!dps) {
     const pick = storageGet("tab") === "transfer";
     step = { key: pick ? "pick" : "transfer", tab: "transfer", mark: pick ? () => document.querySelector("[data-tr-pick]") : null, go: () => pickFirst() };

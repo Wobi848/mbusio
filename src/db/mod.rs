@@ -121,6 +121,10 @@ pub struct Line {
     /// Eigener Ausleseplan; None = wie Projekt
     #[serde(default)]
     pub plan: Option<String>,
+    /// Dauerbetrieb eingeschaltet: nur dann liest der Plan und wird weitergegeben (§13).
+    /// Wird nie importiert: eine übernommene Anlage liest erst, wenn man sie einschaltet.
+    #[serde(default)]
+    pub operation: bool,
 }
 
 /// Nur für Projekt-Exporte ohne das Feld: die stammen aus der Zeit, als über SA gemerkt wurde.
@@ -341,6 +345,7 @@ fn line_of(r: &Row) -> rusqlite::Result<Line> {
         timeout_ms: r.get::<_, i64>("timeout_ms")? as u64,
         addressing: r.get("addressing")?,
         plan: r.get("plan")?,
+        operation: r.get("operation")?,
     })
 }
 
@@ -488,6 +493,41 @@ mod tests {
             address: address.into(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn update_keeps_gateway_lines_with_plan_in_operation() {
+        let setup = || {
+            let mut db = Db::memory().unwrap();
+            let line = db.active_line().unwrap();
+            db.update_line(
+                line.id,
+                Line {
+                    connection: "COM3".into(),
+                    ..line.clone()
+                },
+            )
+            .unwrap();
+            db.add_meter(line.id, meter("5")).unwrap();
+            db.set_project_plan(db.active().unwrap().project.id, "daily 00:05")
+                .unwrap();
+            // Datenbank von vor dem Schalter
+            db.conn
+                .execute_batch("ALTER TABLE lines DROP COLUMN operation")
+                .unwrap();
+            (db, line.id)
+        };
+        // Laptop (Fenster): alles aus
+        let (mut db, id) = setup();
+        db.migrate().unwrap();
+        assert!(!db.line(id).unwrap().operation);
+        // Gateway (Dienst): Linie mit wirksamem Plan liest weiter
+        let (mut db, id) = setup();
+        crate::service::set_background_for_tests(true);
+        let r = db.migrate();
+        crate::service::set_background_for_tests(false);
+        r.unwrap();
+        assert!(db.line(id).unwrap().operation);
     }
 
     #[test]

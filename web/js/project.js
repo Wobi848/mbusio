@@ -84,12 +84,56 @@ function activeProjectNode() {
   return tree.projects.find((p) => p.id === tree.active.project.id);
 }
 
-/// Projekt im Dauerbetrieb: Ausleseplan, Datenpunkt oder Ausgang eingerichtet; sonst Service
-/// (Konzept Bedienung, Abschnitt 9). Wird nie gespeichert, immer aus dem Zustand abgeleitet.
+/// Projekt im Dauerbetrieb: mindestens eine seiner Linien ist eingeschaltet; sonst Service
+/// (Konzept Bedienung §9 und §13)
 function inOperation() {
   if (!tree) return false;
-  const lines = activeProjectNode().gateways.flatMap((g) => g.lines);
-  return lines.some((l) => l.plan_info?.meters || l.datapoints?.count) || outputOn();
+  return activeProjectNode().gateways.some((g) => g.lines.some((l) => l.operation));
+}
+
+/// Alle Linien im Dauerbetrieb, über alle Projekte: was dieses Gerät im Hintergrund tut
+function operatingLines() {
+  return tree.projects.flatMap((p) => p.gateways.flatMap((g) => g.lines.filter((l) => l.operation).map((l) => ({ p, g, l }))));
+}
+
+/// Kopfzeile: „Dauerbetrieb: N Linien“, aufklappbar mit Liste; leer = nichts läuft im Hintergrund
+function renderOpAll() {
+  const ops = operatingLines();
+  const box = $("op-all");
+  box.hidden = !ops.length;
+  if (!ops.length) return;
+  const projects = new Set(ops.map((o) => o.p.id)).size;
+  const sum = $("op-all-sum");
+  sum.innerHTML = `<span class="lb-dot ${host.background ? "on" : "warn"}" aria-hidden="true"></span><span class="op-all-text">${esc(
+    t("op_all", ops.length, projects)
+  )}</span><span class="op-all-n" aria-hidden="true">${ops.length}</span>`;
+  sum.setAttribute("aria-label", t("op_all", ops.length, projects));
+  sum.title = host.background ? "" : t("ps_fg");
+  $("op-all-items").innerHTML =
+    (host.background ? "" : `<span class="menu-group warn">${esc(t("ps_fg"))}</span>`) +
+    ops
+      .map(
+        ({ p, g, l }) =>
+          `<button type="button" data-op-line="${l.id}"${l.id === tree.active.line.id ? ' class="on"' : ""}>${esc(`${p.name} › ${g.name} › ${l.name}`)}<span class="mono">${esc(
+            l.plan_info?.next ? t("plan_next", slotText(l.plan_info.next)) : planText(l.plan_info?.effective || "off")
+          )}</span></button>`
+      )
+      .join("");
+}
+
+$("op-all-items").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-op-line]");
+  const id = Number(b?.dataset.opLine);
+  if (id && id !== tree.active.line.id) guarded(b, () => activateLine(id));
+});
+
+/// Dauerbetrieb der geöffneten Linie ein/aus; ein ohne Plan: erst das Plan-Formular
+async function setOperation(on) {
+  const l = tree.active.line;
+  if (!on && !confirm(t("op_confirm_off", l.name))) return;
+  await api(`lines/${l.id}/operation`, { method: "PUT", body: { on } });
+  await loadTree();
+  toast(t(on ? "op_switched_on" : "op_switched_off", l.name));
 }
 
 /// Mindestens ein Ausgang eingeschaltet (heute nur MQTT)
@@ -104,7 +148,7 @@ function renderPlantState() {
   if (!tree) return;
   const lines = activeProjectNode()
     .gateways.flatMap((g) => g.lines)
-    .filter((l) => l.plan_info?.meters);
+    .filter((l) => l.operation && l.plan_info?.meters);
   const mqttOn = outputOn();
   box.hidden = !inOperation();
   if (box.hidden) return;
@@ -195,7 +239,7 @@ function renderTree() {
           const active = l.id === a.line.id;
           return `<div class="ln${active ? " active" : ""}">
           <span>${active ? `<span class="badge-active">${esc(t("ln_active"))}</span>` : `<button class="small ghost" data-ln-use="${l.id}">${esc(t("ln_use"))}</button>`}</span>
-          <span class="ln-name">${esc(l.name)}</span>
+          <span class="ln-name">${esc(l.name)}${l.operation ? " " + ui.chip("ok", t("op_chip")) : ""}</span>
           <span class="ln-conn">${
             l.connection
               ? `${esc(portText(l.connection))} · ${l.baud} Bd`
@@ -286,11 +330,23 @@ function renderLineBar() {
   $("lb-change").hidden = connEditing || connected || jobRunning || !a.line.connection;
   $("sec-conn").hidden = !connEditing;
   const p = line.plan_info;
-  $("lb-plan").innerHTML =
-    p && p.effective !== "off"
-      ? `${esc(t("plan"))} <b>${esc(planText(p.effective))}</b>${p.next ? ` · ${esc(t("plan_next", slotText(p.next)))}` : ""}`
+  const planned = p && p.effective !== "off";
+  $("lb-plan").innerHTML = planned
+    ? `${esc(t("plan"))} <b>${esc(planText(p.effective))}</b>${line.operation && p.next ? ` · ${esc(t("plan_next", slotText(p.next)))}` : ""}`
+    : "";
+  // Dauerbetrieb: ein = liest nach Plan und gibt weiter; aus = Plan ist nur eingestellt
+  $("lb-op").innerHTML = line.operation
+    ? `${ui.chip("ok", t("op_chip"))} <button type="button" class="small quiet" data-lb-op="off">${esc(t("op_off"))}</button>`
+    : planned && a.line.connection
+      ? `<button type="button" class="small tonal" data-lb-op="on">${esc(t("op_on"))}</button>`
       : "";
+  renderOpAll();
 }
+
+$("lb-op").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-lb-op]");
+  if (b) guarded(b, () => setOperation(b.dataset.lbOp === "on"));
+});
 
 /// Verbindungsformular unter der Linien-Leiste öffnen bzw. schliessen
 function openConnForm(open = true) {

@@ -264,6 +264,10 @@ pub fn tick(st: &AppState) -> anyhow::Result<()> {
     let lines = st.db.lock().unwrap().planned()?;
     let mut planned = HashSet::new();
     for pl in lines {
+        // nur Linien im Dauerbetrieb (Konzept Bedienung §13); Plan allein liest nicht
+        if !pl.line.operation {
+            continue;
+        }
         let mut due = Vec::new();
         let mut changes = Vec::new();
         for (m, p) in &pl.meters {
@@ -596,6 +600,7 @@ mod tests {
                 },
             )
             .unwrap();
+            db.operation_on(line.id);
             for a in addresses {
                 db.add_meter(
                     line.id,
@@ -909,6 +914,33 @@ mod tests {
         assert_eq!(r.readings("1"), 0);
         // wieder verbunden: der verpasste Termin wird nachgeholt
         r.st.planner.release(r.line);
+        r.tick();
+        assert_eq!(r.readings("1"), 1);
+    }
+
+    #[test]
+    fn plan_alone_does_not_read_without_operation() {
+        let r = Rig::new(&["1"]);
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_operation(r.line, false)
+            .unwrap();
+        r.st.db
+            .lock()
+            .unwrap()
+            .set_project_plan(1, "15min")
+            .unwrap();
+        r.tick();
+        r.set_time("2026-10-17 10:45");
+        r.tick();
+        assert_eq!(r.readings("1"), 0, "Plan ohne Dauerbetrieb liest nicht");
+        assert!(!r.st.planner.is_planned(r.line));
+        // eingeschaltet: ab dem nächsten Termin, wie beim erstmaligen Setzen eines Plans
+        r.st.db.lock().unwrap().set_operation(r.line, true).unwrap();
+        r.tick();
+        assert!(r.st.planner.is_planned(r.line));
+        r.set_time("2026-10-17 11:00");
         r.tick();
         assert_eq!(r.readings("1"), 1);
     }

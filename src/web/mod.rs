@@ -447,6 +447,7 @@ pub fn router(state: AppState) -> Router {
             post(datapoints_import),
         )
         .route("/api/lines/{id}/plan", put(line_plan))
+        .route("/api/lines/{id}/operation", put(line_operation))
         .route("/api/meters/{id}/plan", put(meter_plan))
         .route("/api/time", post(set_time))
         .layer(middleware::from_fn_with_state(state.clone(), auth))

@@ -35,6 +35,12 @@ pub fn background() -> bool {
     }
 }
 
+/// Tests: so tun, als liefe mbusio als Dienst
+#[cfg(test)]
+pub fn set_background_for_tests(on: bool) {
+    AS_SERVICE.store(on, Ordering::Relaxed);
+}
+
 /// Befehlszeile, mit der der Dienst mbusio startet
 pub fn service_args(
     data_dir: &Path,

@@ -133,6 +133,63 @@ impl Db {
             .unwrap_or(0))
     }
 
+    /// Dauerbetrieb einer Linie ein- oder ausschalten (Konzept Bedienung §13). Ein nur mit
+    /// Anschluss und wirksamem Plan für mindestens einen Zähler.
+    pub fn set_operation(&mut self, line_id: i64, on: bool) -> Result<()> {
+        let line = self.line(line_id)?;
+        if on {
+            if line.connection.is_empty() {
+                bail!(tr(
+                    "Zuerst den Anschluss der Linie festlegen",
+                    "Set the line's connection first"
+                ));
+            }
+            let project_plan: String = self.conn.query_row(
+                "SELECT projects.plan FROM projects JOIN gateways ON gateways.project_id = projects.id
+                 WHERE gateways.id = ?1",
+                [line.gateway_id],
+                |r| r.get(0),
+            )?;
+            let planned = self.meters(line_id)?.iter().any(|m| {
+                plan::effective(m.plan.as_deref(), line.plan.as_deref(), &project_plan).0
+                    != Plan::Off
+            });
+            if !planned {
+                bail!(tr(
+                    "Zuerst festlegen, wie oft ausgelesen wird (Ausleseplan)",
+                    "First set how often to read (read plan)"
+                ));
+            }
+        }
+        self.conn.execute(
+            "UPDATE lines SET operation = ?2 WHERE id = ?1",
+            params![line_id, on],
+        )?;
+        Ok(())
+    }
+
+    /// Tests: Dauerbetrieb ohne die Prüfungen von `set_operation` einschalten
+    #[cfg(test)]
+    pub(crate) fn operation_on(&mut self, line_id: i64) {
+        self.conn
+            .execute("UPDATE lines SET operation = 1 WHERE id = ?1", [line_id])
+            .unwrap();
+    }
+
+    /// Zähler auf einer Linie im Dauerbetrieb? Nur dann gehen seine Werte an die Ausgänge.
+    pub(crate) fn meter_in_operation(&self, meter_id: i64) -> Result<bool> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT lines.operation FROM meters JOIN lines ON lines.id = meters.line_id
+                 WHERE meters.id = ?1",
+                [meter_id],
+                |r| r.get(0),
+            )
+            .optional()?
+            .unwrap_or(false))
+    }
+
     /// Ergebnis des letzten Termins einer Linie: {"time", "ok", "total", "error"}
     pub fn set_plan_result(&mut self, line_id: i64, result: &Value) -> Result<()> {
         self.conn.execute(

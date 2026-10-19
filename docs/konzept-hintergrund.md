@@ -85,7 +85,7 @@ CLI-Befehle (`mbusio scan --port COM3`) gegen einen Port, den der Dienst gerade 
 - Windows: läuft als Dienst
 - Linux: läuft unter systemd (Umgebungsvariable `INVOCATION_ID`)
 
-Ist ein Projekt im Dauerbetrieb (`inOperation()`) und `background` falsch, zeigt der **Zustand der
+Ist eine Linie im Dauerbetrieb (Konzept Bedienung §13) und `background` falsch, zeigt der **Zustand der
 Anlage** orange: „Läuft nur, solange mbusio geöffnet ist. Für den Dauerbetrieb als Dienst
 einrichten“ mit Link auf die Anleitung im README. Im Service-Fall erscheint nichts.
 

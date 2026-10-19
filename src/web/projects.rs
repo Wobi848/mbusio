@@ -104,6 +104,26 @@ pub(super) async fn line_plan(
     ))
 }
 
+#[derive(Deserialize)]
+pub(super) struct OperationReq {
+    on: bool,
+}
+
+/// Dauerbetrieb der Linie ein/aus (Konzept Bedienung §13); der Zeitplan nimmt sie beim nächsten
+/// Durchgang (10 s) auf bzw. beendet ihre Hintergrund-Verbindung
+pub(super) async fn line_operation(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(r): Json<OperationReq>,
+) -> ApiResult<serde_json::Value> {
+    st.db
+        .lock()
+        .unwrap()
+        .set_operation(id, r.on)
+        .map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
+}
+
 pub(super) async fn meter_plan(
     State(st): State<AppState>,
     Path(id): Path<i64>,

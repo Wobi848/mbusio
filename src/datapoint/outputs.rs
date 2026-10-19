@@ -449,6 +449,10 @@ impl Db {
         }
         let mut n = 0;
         for v in self.dp_list(None, None)? {
+            // nur Linien im Dauerbetrieb melden ihre Qualität
+            if v["operation"] != true {
+                continue;
+            }
             let quality = v["quality"].as_str().unwrap_or("none").to_string();
             let Some(value) = v["last_value"].as_f64() else {
                 continue;

@@ -32,9 +32,11 @@ darunter ID · PA · Hersteller.
 Neue Benutzer führt die Leiste unten mit **„Nächster Schritt“** und genau einem Knopf: suchen →
 merken → auslesen → **Linie in Ordnung** (Bericht); Anschluss und Verbinden zeigt die
 Linien-Leiste. Wer danach regelmässig auslesen und weitergeben will, drückt **„Dauerbetrieb
-einrichten“**: Plan festlegen → Werte wählen → Ausgang (MQTT) einrichten. Einen Modus gibt es
-nicht: Sobald ein Plan, ein Datenpunkt oder ein Ausgang eingerichtet ist, gilt das Projekt als
-Dauerbetrieb und oben erscheint der Zustand der Anlage. Die Laschen zeigen den Fortschritt
+einrichten“**: Plan festlegen → **Dauerbetrieb der Linie einschalten** → Werte wählen →
+Ausgang (MQTT) einrichten. Automatisch ausgelesen und weitergegeben wird **nur, was eingeschaltet
+ist**: Ein Plan allein liest nicht, und Projekte vom Debuggen bleiben still. Was im Hintergrund
+läuft, steht oben in der Kopfzeile („Dauerbetrieb: 2 Linien“, aufklappbar); im Projekt erscheint
+dann der Zustand der Anlage. Die Laschen zeigen den Fortschritt
 (✓ erledigt, Anzahl Zähler bzw. Datenpunkte, Punkt = als Nächstes).
 
 Unten zeigt eine Statusleiste immer, was der Bus gerade macht und wie viele Auffälligkeiten offen
@@ -92,7 +94,8 @@ darunter Primäradresse, Baudrate und Reset; dazu einzelnen Zähler roh auslesen
 
 - **Ausleseplan** im Projekt, je Linie oder je Zähler: Aus, monatlich, täglich, stündlich, alle
   15 min. Linie und Zähler übernehmen den Plan von oben, solange sie keinen eigenen haben.
-  **Standard ist überall Aus**; geplant gelesen wird nur, was man bewusst einschaltet
+  **Standard ist überall Aus**; gelesen wird erst, wenn der **Dauerbetrieb der Linie** eingeschaltet
+  ist (Linien-Leiste)
 - Termine im Raster der Uhr; jede Linie hat ihre eigene Verbindung, Linien laufen gleichzeitig.
   Bedienung (Scan, Auslesen, Adresse ändern) hat immer Vorrang, kein „Bus belegt“
 - Verpasste Termine (mbusio aus, Linie getrennt) werden einmal nachgeholt, mit echtem Zeitstempel
@@ -410,6 +413,8 @@ installation; the UI runs in the browser, phones included.
 - Detects collisions, duplicate addresses and IDs, meters on another baud rate and meters without
   usable data; explains the cause and fixes what can be fixed, verified on the meter
 - Meter list per line, remembered by secondary or primary address (set per line)
+- Continuous operation is switched on per line: only lines switched on are read by plan and pass on
+  values, so old debugging projects stay quiet; the header lists what runs in the background
 - Read plan per project, line or meter (off, monthly, daily, hourly, every 15 min; off by default),
   each line on its own connection, manual work always first; missed terms caught up once, faulty
   and refusing meters marked; readings flagged “time unsure” without a confirmed clock

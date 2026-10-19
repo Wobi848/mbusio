@@ -31,7 +31,7 @@ fn plausibility() {
     assert_eq!(check(k, 100.0, None, 0x10), Some("status"));
 }
 
-use crate::db::Meter;
+use crate::db::{Line, Meter};
 use crate::mbus::master::{FrameLog, Master};
 use std::sync::Arc;
 
@@ -278,6 +278,9 @@ fn mqtt_queue_follows_send_mode_and_quality() {
     db.dp_bulk(&[id], "out:mqtt:on").unwrap();
     let topic = db.dp(id).unwrap().outputs["mqtt"].address.clone().unwrap();
     assert_eq!(topic, "schnellscan/gateway-1-linie-1/whg-1/energy");
+    // Linie nicht im Dauerbetrieb: nichts geht weiter (Konzept Bedienung §13)
+    assert_eq!(db.outputs_refresh().unwrap(), 0);
+    db.operation_on(line);
     // eingeschaltet: aktueller Wert einmal, dann nicht mehr
     assert_eq!(db.outputs_refresh().unwrap(), 1);
     assert_eq!(db.outputs_refresh().unwrap(), 0);
@@ -520,4 +523,49 @@ fn line_offline_at_a_term_marks_values_disturbed_at_once() {
     db.set_plan_result(line, &json!({ "line_down": true, "ok": 0, "total": 2 }))
         .unwrap();
     assert_eq!(q(&db), "disturbed");
+}
+
+#[test]
+fn operation_needs_connection_and_plan_and_gates_forwarding() {
+    let (mut db, line, mid, r) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    let id = db.dp_by_meter(mid).unwrap()[0].id;
+    db.mqtt_enabled = true;
+    db.dp_bulk(&[id], "out:mqtt:on").unwrap();
+    let queued = |db: &Db| db.mqtt_peek(1000).unwrap().len();
+    // ohne Anschluss und ohne Plan nicht einschaltbar
+    assert!(db.set_operation(line, true).is_err());
+    let l = db.line(line).unwrap();
+    db.update_line(
+        line,
+        Line {
+            connection: "SIMULATOR".into(),
+            ..l
+        },
+    )
+    .unwrap();
+    assert!(db.set_operation(line, true).is_err(), "Plan fehlt");
+    db.set_line_plan(line, Some("hourly")).unwrap();
+    // Auslesen von Hand ohne Dauerbetrieb: Wert nachgeführt, aber nicht weitergegeben
+    db.record(
+        line,
+        &Target::Primary(1),
+        Ok(&with_energy(&r, 123470.0)),
+        false,
+    )
+    .unwrap();
+    assert_eq!(db.dp(id).unwrap().last_value, Some(123470.0));
+    assert_eq!(queued(&db), 0);
+    db.set_operation(line, true).unwrap();
+    db.record(
+        line,
+        &Target::Primary(1),
+        Ok(&with_energy(&r, 123480.0)),
+        false,
+    )
+    .unwrap();
+    assert_eq!(queued(&db), 1);
+    db.set_operation(line, false).unwrap();
+    assert!(!db.line(line).unwrap().operation);
 }

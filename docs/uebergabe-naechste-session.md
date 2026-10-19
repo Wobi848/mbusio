@@ -13,7 +13,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Plan-Vorgabe „Aus“, 24-h-Zeit, batteriebetriebene Zähler nicht zu oft auslesen.
 
 ## Tests
-- `cargo test` → 104 passed, 1 ignored.
+- `cargo test` → 110 passed, 1 ignored.
 - UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 12 Tests, alle grün.
 - Server lokal: `cargo run -- --no-browser` (Port 8080; der Debug-Build liest web/ direkt von der Platte).
 - Commits enden mit `Co-Authored-By: Claude …`; nach jedem fertigen Schritt committen und pushen.
@@ -35,7 +35,8 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 4. ~~Zwei Linien am selben Port~~: erledigt 19.10. (`line::Ports`, `link::port_key`).
 5. Windows-Dienst: umgesetzt (docs/konzept-hintergrund.md); Prüfung auf Windows-PC nach Checkliste §9 macht der Nutzer.
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
-6. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
+6. Dauerbetrieb je Linie (Konzept Bedienung §13): umgesetzt. Auf dem Pi für den 7-Tage-Test die Linien einschalten.
+7. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
 
 ## Wo was steht
 - Konzepte: docs/konzept-bedienung.md (Bedienung, Design v2, Button-Ebenen §11.1, Farben §11.2), docs/konzept-scan.md, docs/konzept-dauerbetrieb.md (Roadmap, MQTT).

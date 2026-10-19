@@ -20,6 +20,11 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Einsatz mit demselben Projekt, ohne Reste der vorigen Anlage.
 - **Neue Installation startet mit dem Projekt „Schnellscan“** statt „Standard“: verbinden und
   scannen, ohne zuerst ein Projekt anzulegen.
+- **Dauerbetrieb je Linie einschalten:** automatisch ausgelesen und weitergegeben wird nur, wo
+  der Dauerbetrieb der Linie eingeschaltet ist (Linien-Leiste, „Nächster Schritt“). Ein Plan allein
+  liest nicht mehr, Auslesen von Hand in anderen Projekten sendet nichts an MQTT. Die Kopfzeile
+  zeigt „Dauerbetrieb: N Linien“ mit Liste über alle Projekte. Beim Update eines Gateways (läuft
+  als Dienst) bleiben Linien mit Plan eingeschaltet; im Fenster ist alles aus.
 - **Windows-Dienst:** `mbusio-dienst-einrichten.cmd` (oder `--install-service` als Administrator)
   richtet mbusio als Dienst ein: läuft ohne Anmeldung und ohne Fenster, startet mit Windows und nach
   einem Absturz neu, PC schläft nicht ein, solange ein Plan läuft. Daten in `C:\ProgramData\mbusio`

@@ -598,6 +598,8 @@ impl Db {
     ) -> Result<Vec<String>> {
         let status = r.header.as_ref().map_or(0, |h| h.status);
         let utc = r.utc.unwrap_or_else(crate::clock::utc_secs);
+        // weitergegeben wird nur aus Linien im Dauerbetrieb, nie beim Debuggen alter Projekte
+        let send = store && self.meter_in_operation(meter_id)?;
         let mut notes = Vec::new();
         for dp in self.dp_by_meter(meter_id)? {
             let Some(rec) = r.records.iter().find(|x| key_of(x) == dp.key) else {
@@ -637,7 +639,7 @@ impl Db {
             }
             // an die Ausgänge, wie beim Datenpunkt eingestellt (auch bei vollem Speicher;
             // nicht beim blossen Nachrechnen, z.B. nach geändertem Faktor)
-            if store {
+            if send {
                 let day = r.timestamp.get(..10).unwrap_or("");
                 let sample = Sample {
                     value,
@@ -661,23 +663,24 @@ impl Db {
     ) -> Result<Vec<(String, Meter, Vec<Value>)>> {
         let now = crate::clock::now();
         // Linie: id, Name, Plan, Plan des Projekts, beim letzten Termin nicht erreichbar
-        type LineRow = (i64, String, Option<String>, String, bool);
+        type LineRow = (i64, String, Option<String>, String, bool, bool);
         let lines: Vec<LineRow> = self
             .conn
             .prepare(
                 "SELECT lines.id, gateways.name || ' › ' || lines.name, lines.plan, projects.plan,
                    COALESCE(json_extract(lines.plan_result, '$.offline'), 0)
-                     OR COALESCE(json_extract(lines.plan_result, '$.line_down'), 0)
+                     OR COALESCE(json_extract(lines.plan_result, '$.line_down'), 0),
+                   lines.operation
                  FROM lines JOIN gateways ON gateways.id = lines.gateway_id JOIN projects ON projects.id = gateways.project_id
                  WHERE (?1 IS NULL OR lines.id = ?1) AND (?2 IS NULL OR projects.id = ?2)
                  ORDER BY gateways.position, gateways.id, lines.position, lines.id",
             )?
             .query_map(params![line_id, project_id], |r| {
-                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
             })?
             .collect::<rusqlite::Result<_>>()?;
         let mut out = Vec::new();
-        for (lid, label, line_plan, project_plan, line_down) in lines {
+        for (lid, label, line_plan, project_plan, line_down, operation) in lines {
             for m in self.meters(lid)? {
                 let (p, _) =
                     plan::effective(m.plan.as_deref(), line_plan.as_deref(), &project_plan);
@@ -687,6 +690,7 @@ impl Db {
                     v["quality"] = json!(quality(&d, &m, p, line_down, now));
                     v["label"] = json!(key_label(&d.key, i18n::current()));
                     v["line_id"] = json!(lid);
+                    v["operation"] = json!(operation);
                     v["line"] = json!(label);
                     v["meter"] = json!(meter_label(&m));
                     v["address"] = json!(m.address);
