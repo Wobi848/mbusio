@@ -252,7 +252,11 @@ async fn main() -> anyhow::Result<()> {
 fn run_cli(args: &Args) -> anyhow::Result<()> {
     if args.list_ports {
         for p in link::list_ports() {
-            println!("{p}");
+            if p.label.is_empty() {
+                println!("{}", p.port);
+            } else {
+                println!("{:<16} {}", p.port, p.label);
+            }
         }
         return Ok(());
     }

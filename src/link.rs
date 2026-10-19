@@ -161,19 +161,43 @@ pub fn open(port: &str, baud: u32) -> Result<Box<dyn Link>> {
     })
 }
 
-pub fn list_ports() -> Vec<String> {
-    let mut ports = vec![SIMULATOR_PORT.to_string()];
-    // weitere Simulationen (Vorlagen und eigene)
-    ports.extend(
-        crate::sim::all()
-            .into_iter()
-            .filter(|s| s.key != "praxis")
-            .map(|s| format!("{SIMULATOR_PORT}:{}", s.key)),
-    );
-    if let Ok(found) = serialport::available_ports() {
-        ports.extend(found.into_iter().map(|p| p.port_name));
+/// Ein Anschluss zur Auswahl: Name zum Verbinden, dazu lesbar, was dahintersteckt
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PortInfo {
+    pub port: String,
+    /// z.B. „CP210x UART Bridge (Silicon Labs)“; leer, wenn nichts bekannt ist
+    pub label: String,
+}
+
+/// Anschlüsse zur Auswahl: USB-Wandler zuerst (mit Namen), dann andere serielle Anschlüsse,
+/// zuletzt die Simulationen. Die festen `/dev/ttyS*` ohne erkanntes Gerät (Linux legt sie immer
+/// an, auch ohne Hardware) fehlen; eine echte RS-232 lässt sich von Hand eintragen.
+pub fn list_ports() -> Vec<PortInfo> {
+    let mut usb = Vec::new();
+    let mut other = Vec::new();
+    for p in serialport::available_ports().unwrap_or_default() {
+        match p.port_type {
+            serialport::SerialPortType::UsbPort(u) => {
+                let name = u.product.unwrap_or_else(|| format!("USB {:04x}:{:04x}", u.vid, u.pid));
+                let label = match u.manufacturer {
+                    Some(m) if !name.contains(&m) => format!("{name} ({m})"),
+                    _ => name,
+                };
+                usb.push(PortInfo { port: p.port_name, label });
+            }
+            serialport::SerialPortType::Unknown if p.port_name.starts_with("/dev/ttyS") => {}
+            _ => other.push(PortInfo { port: p.port_name, label: String::new() }),
+        }
     }
-    ports
+    let sims = std::iter::once(SIMULATOR_PORT.to_string())
+        .chain(
+            crate::sim::all()
+                .into_iter()
+                .filter(|s| s.key != "praxis")
+                .map(|s| format!("{SIMULATOR_PORT}:{}", s.key)),
+        )
+        .map(|port| PortInfo { port, label: String::new() });
+    usb.into_iter().chain(other).chain(sims).collect()
 }
 
 #[cfg(test)]

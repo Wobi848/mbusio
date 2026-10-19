@@ -2,7 +2,7 @@
 
 use super::*;
 
-pub(super) async fn ports() -> Json<Vec<String>> {
+pub(super) async fn ports() -> Json<Vec<link::PortInfo>> {
     Json(
         tokio::task::spawn_blocking(link::list_ports)
             .await
