@@ -27,8 +27,12 @@ fn plausibility() {
         ),
         None
     );
-    // Zähler meldet Fehler im Status
-    assert_eq!(check(k, 100.0, None, 0x10), Some("status"));
+    // Zähler meldet Fehler im Status: Messwerte ungültig, Zählerstände bleiben gültig
+    assert_eq!(
+        check("instantaneous|0|0|0|flow_temperature|°C", 22.4, None, 0x10),
+        Some("status")
+    );
+    assert_eq!(check(k, 100.0, None, 0x10), None);
 }
 
 use crate::db::{Line, Meter};
@@ -568,4 +572,37 @@ fn operation_needs_connection_and_plan_and_gates_forwarding() {
     assert_eq!(queued(&db), 1);
     db.set_operation(line, false).unwrap();
     assert!(!db.line(line).unwrap().operation);
+}
+
+#[test]
+fn error_value_from_meter_is_invalid_at_once() {
+    let (mut db, line, mid, r) = setup();
+    let power = r
+        .records
+        .iter()
+        .find(|x| x.function == "instantaneous" && x.quantity == "power")
+        .map(key_of)
+        .expect("Leistung im Simulator");
+    db.dp_select(mid, &[power.clone()], &[], Lang::De).unwrap();
+    db.record(line, &Target::Primary(1), Ok(&r), false).unwrap();
+    assert_eq!(db.dp_by_meter(mid).unwrap()[0].invalid, None);
+    // Zähler ohne Durchfluss: Leistung als Fehlerwert gemeldet (wie Itron auf dem Tisch)
+    let mut e = r.clone();
+    for x in e.records.iter_mut().filter(|x| key_of(x) == power) {
+        x.function = "error_value".into();
+        x.value = json!(99999900.0);
+    }
+    db.record(line, &Target::Primary(1), Ok(&e), false).unwrap();
+    let dp = &db.dp_by_meter(mid).unwrap()[0];
+    assert_eq!(dp.invalid.as_deref(), Some("error_value"));
+    assert_eq!(
+        quality(
+            dp,
+            &db.meter(mid).unwrap(),
+            Plan::Off,
+            false,
+            crate::clock::now()
+        ),
+        "invalid"
+    );
 }

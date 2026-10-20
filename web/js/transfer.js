@@ -208,7 +208,7 @@ function qualityChip(d) {
   const kind = { good: "ok", stale: "muted", disturbed: "warn", invalid: "warn", none: "muted" }[d.quality];
   const title =
     d.quality === "invalid"
-      ? t(d.invalid === "status" ? "q_status_title" : "q_decreased_title")
+      ? t({ status: "q_status_title", error_value: "q_error_value_title" }[d.invalid] || "q_decreased_title")
       : d.quality === "stale"
         ? t("q_stale_title")
         : d.quality === "disturbed"

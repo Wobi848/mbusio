@@ -316,8 +316,10 @@ pub fn quality(
 
 /// Prüft einen neuen Wert: None = plausibel, sonst Grund
 pub fn check(key: &str, value: f64, last_good: Option<f64>, status: u8) -> Option<&'static str> {
-    // Statusbyte: 0x08 dauerhafter, 0x10 vorübergehender Fehler des Zählers
-    if status & 0x18 != 0 {
+    // Statusbyte: 0x08 dauerhafter, 0x10 vorübergehender Fehler des Zählers. Gilt für Messwerte
+    // (Temperatur, Leistung, Durchfluss); Zählerstände führt der Zähler weiter, die bleiben gültig
+    // (z.B. Luft im Rohr: Durchfluss gestört, Energiestand stimmt).
+    if status & 0x18 != 0 && !is_counter(key) {
         return Some("status");
     }
     if is_counter(key) {
@@ -602,14 +604,29 @@ impl Db {
         let send = store && self.meter_in_operation(meter_id)?;
         let mut notes = Vec::new();
         for dp in self.dp_by_meter(meter_id)? {
-            let Some(rec) = r.records.iter().find(|x| key_of(x) == dp.key) else {
-                continue;
+            // meldet der Zähler den Wert als Fehlerwert (Funktion „error_value“), ist er sofort
+            // ungültig, statt still zu fehlen und erst nach drei Abständen zu veralten
+            let find = |k: &str| r.records.iter().find(|x| key_of(x) == k);
+            let err_key = dp
+                .key
+                .split_once('|')
+                .map(|(_, rest)| format!("error_value|{rest}"));
+            let (rec, meter_error) = match find(&dp.key) {
+                Some(x) => (x, false),
+                None => match err_key.as_deref().and_then(find) {
+                    Some(x) => (x, true),
+                    None => continue,
+                },
             };
             let Some(raw) = rec.value.as_f64() else {
                 continue;
             };
             let value = raw * dp.factor + dp.shift;
-            let invalid = check(&dp.key, value, dp.last_good, status);
+            let invalid = if meter_error {
+                Some("error_value")
+            } else {
+                check(&dp.key, value, dp.last_good, status)
+            };
             if invalid == Some("decreased") && dp.invalid.as_deref() != Some("decreased") {
                 notes.push(format!(
                     "{}: {} {} → {} – {}",

@@ -20,6 +20,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Einsatz mit demselben Projekt, ohne Reste der vorigen Anlage.
 - **Neue Installation startet mit dem Projekt „Schnellscan“** statt „Standard“: verbinden und
   scannen, ohne zuerst ein Projekt anzulegen.
+- **Fehler im Zählerstatus:** meldet der Zähler einen Fehler (Statusbyte), gelten nur Messwerte
+  (Temperatur, Leistung, Durchfluss) als ungültig; Zählerstände (Energie, Volumen) bleiben gültig.
+  Werte, die der Zähler selbst als Fehlerwert kennzeichnet, sind sofort ungültig statt nach drei
+  Abständen veraltet. Geprüft an einem Itron-Wärmezähler ohne Durchfluss.
 - **Dauerbetrieb je Linie einschalten:** automatisch ausgelesen und weitergegeben wird nur, wo
   der Dauerbetrieb der Linie eingeschaltet ist (Linien-Leiste, „Nächster Schritt“). Ein Plan allein
   liest nicht mehr, Auslesen von Hand in anderen Projekten sendet nichts an MQTT. Die Kopfzeile

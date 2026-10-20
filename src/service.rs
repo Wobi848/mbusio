@@ -28,7 +28,9 @@ pub fn background() -> bool {
     #[cfg(unix)]
     {
         let cgroup = std::fs::read_to_string("/proc/self/cgroup").unwrap_or_default();
-        let detached = ["TMUX", "STY"].iter().any(|k| std::env::var_os(k).is_some());
+        let detached = ["TMUX", "STY"]
+            .iter()
+            .any(|k| std::env::var_os(k).is_some());
         unix_background(std::os::unix::process::parent_id(), &cgroup, detached)
     }
     #[cfg(not(unix))]
@@ -41,7 +43,11 @@ pub fn background() -> bool {
 /// cgroup endet auf `.service`; ein Terminal läuft in einer `.scope`) oder in tmux/screen.
 /// `INVOCATION_ID` taugt nicht: das erbt auch jede Shell im Terminal.
 fn unix_background(ppid: u32, cgroup: &str, tmux_or_screen: bool) -> bool {
-    let unit = cgroup.lines().last().and_then(|l| l.rsplit('/').next()).unwrap_or("");
+    let unit = cgroup
+        .lines()
+        .last()
+        .and_then(|l| l.rsplit('/').next())
+        .unwrap_or("");
     ppid == 1 || unit.ends_with(".service") || tmux_or_screen
 }
 
