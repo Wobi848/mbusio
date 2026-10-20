@@ -455,8 +455,9 @@ Oberfläche geöffnet“ (Linien-Leiste); zwei Bedeutungen würden verwirren.
   stoppt beim Schliessen“ (orange, Tooltip mit Anleitung). Aus mit Plan: „Plan stündlich (wartet)“. Aus ohne Plan: Link „Plan
   festlegen“; der Schalter führt dann zum Plan bzw. zum Anschluss statt eine Fehlermeldung zu
   zeigen. Ausschalten fragt nach. Handy: Block über die ganze Breite.
-- **Projektbaum:** derselbe Schalter klein in der Plan-Zeile jeder Linie mit Plan, dort direkt
-  schaltbar (auch für Linien, die nicht geöffnet sind).
+- **Projektbaum:** derselbe Schalter klein unter jeder Linie, dort direkt schaltbar (auch für
+  Linien, die nicht geöffnet sind). Ohne Plan blass mit „kein Ausleseplan“; der Schalter öffnet
+  dann den Plan der Linie.
 - **Kopfzeile, überall sichtbar:** „Dauerbetrieb: 3 Linien in 2 Projekten“, aufklappbar mit Liste
   (Projekt › Gateway › Linie, nächster Termin, Zustand), jede Zeile öffnet die Linie. Steht nichts
   im Dauerbetrieb, steht dort nichts. So sieht der Techniker sofort, was sein Laptop im Hintergrund

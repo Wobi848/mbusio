@@ -83,7 +83,9 @@ CLI-Befehle (`mbusio scan --port COM3`) gegen einen Port, den der Dienst gerade 
 
 `/api/status` meldet zusätzlich `background: true|false`:
 - Windows: läuft als Dienst
-- Linux: läuft unter systemd (Umgebungsvariable `INVOCATION_ID`)
+- Linux: Elternprozess ist init (PID 1), die cgroup endet auf `.service` (systemd-Dienst, auch
+  Benutzerdienst; ein Terminal läuft in einer `.scope`) oder mbusio läuft in tmux/screen
+  (`TMUX`/`STY`). `INVOCATION_ID` taugt nicht, das erbt auch jede Shell im Terminal.
 
 Ist eine Linie im Dauerbetrieb (Konzept Bedienung §13) und `background` falsch, zeigt der **Zustand der
 Anlage** orange: „Läuft nur, solange mbusio geöffnet ist. Für den Dauerbetrieb als Dienst
@@ -132,8 +134,8 @@ Alle Empfehlungen übernommen: Windows-Dienst (kein Autostart bei der Anmeldung)
 **Umgesetzt:** `src/service.rs` (Erkennen `background`, Daten übernehmen, Log, Energiesparen,
 Windows-Teil `win`), `--install-service` / `--uninstall-service` / `--service` in `main.rs`, `serve`
 mit Stopp-Signal (Ctrl+C, SIGTERM, Dienst-Stopp), `background` und `os` in `/api/status`, Hinweis im
-Zustand der Anlage, README, Release-Paket. Unter Linux erkennt `background` den Start durch
-systemd am Elternprozess (PID 1).
+Zustand der Anlage, README, Release-Paket. Unter Linux erkennt `background` systemd-Dienste
+(System und Benutzer) an der cgroup, dazu init und tmux/screen; am echten System geprüft.
 
 **Prüfen auf einem Windows-PC (Checkliste):**
 1. Fenster-Betrieb mit Plan: Zustand der Anlage zeigt „Läuft nur, solange mbusio geöffnet ist“.

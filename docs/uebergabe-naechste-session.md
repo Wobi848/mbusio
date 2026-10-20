@@ -13,7 +13,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Plan-Vorgabe „Aus“, 24-h-Zeit, batteriebetriebene Zähler nicht zu oft auslesen.
 
 ## Tests
-- `cargo test` → 110 passed, 1 ignored.
+- `cargo test` → 111 passed, 1 ignored.
 - UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 12 Tests, alle grün.
 - Server lokal: `cargo run -- --no-browser` (Port 8080; der Debug-Build liest web/ direkt von der Platte).
 - Commits enden mit `Co-Authored-By: Claude …`; nach jedem fertigen Schritt committen und pushen.

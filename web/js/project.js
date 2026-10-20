@@ -54,8 +54,9 @@ async function savePlan(path, plan) {
 /// Zeile unter der Linie: Plan, nächster Termin, letztes Ergebnis, Störungen
 function linePlanHtml(l) {
   const p = l.plan_info;
-  if (!p || !p.meters) return "";
   const sw = `<label class="op-mini${l.operation ? " on" : ""}"><input type="checkbox" class="switch" data-ln-op="${l.id}"${l.operation ? " checked" : ""}>${esc(t("op_chip"))}</label>`;
+  // ohne Plan: Schalter trotzdem da (führt zum Plan), damit man sieht, dass es ihn gibt
+  if (!p || !p.meters) return `<div class="ln-plan off">${sw}<span>${esc(t("op_no_plan"))}</span></div>`;
   const parts = [`<b>${esc(p.effective !== "off" ? planText(p.effective) : t("plan_meters_own", p.meters))}</b>`];
   const svc = l.service;
   if (l.held) parts.push(ui.chip("muted", t("plan_held"), t("plan_held_title")));

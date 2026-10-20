@@ -19,20 +19,30 @@ const LOG_MAX: u64 = 1024 * 1024;
 
 static AS_SERVICE: AtomicBool = AtomicBool::new(false);
 
-/// Läuft mbusio im Hintergrund, also weiter, wenn niemand angemeldet ist? Windows: als Dienst
-/// gestartet. Linux: von systemd (bzw. init) gestartet, der Elternprozess ist PID 1.
+/// Läuft mbusio im Hintergrund, also weiter, wenn das Fenster zu ist? Windows: als Dienst
+/// gestartet. Linux: siehe `unix_background`.
 pub fn background() -> bool {
     if AS_SERVICE.load(Ordering::Relaxed) {
         return true;
     }
     #[cfg(unix)]
     {
-        std::os::unix::process::parent_id() == 1
+        let cgroup = std::fs::read_to_string("/proc/self/cgroup").unwrap_or_default();
+        let detached = ["TMUX", "STY"].iter().any(|k| std::env::var_os(k).is_some());
+        unix_background(std::os::unix::process::parent_id(), &cgroup, detached)
     }
     #[cfg(not(unix))]
     {
         false
     }
+}
+
+/// Linux: von init gestartet (Elternprozess 1), als systemd-Dienst (System oder Benutzer: die
+/// cgroup endet auf `.service`; ein Terminal läuft in einer `.scope`) oder in tmux/screen.
+/// `INVOCATION_ID` taugt nicht: das erbt auch jede Shell im Terminal.
+fn unix_background(ppid: u32, cgroup: &str, tmux_or_screen: bool) -> bool {
+    let unit = cgroup.lines().last().and_then(|l| l.rsplit('/').next()).unwrap_or("");
+    ppid == 1 || unit.ends_with(".service") || tmux_or_screen
 }
 
 /// Tests: so tun, als liefe mbusio als Dienst
@@ -543,6 +553,20 @@ mod tests {
         for d in [old, empty, to] {
             std::fs::remove_dir_all(d).unwrap();
         }
+    }
+
+    #[test]
+    fn background_on_linux() {
+        let term = "0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-org.gnome.Terminal.slice/vte-spawn-1.scope";
+        let ssh = "0::/user.slice/user-1000.slice/session-3.scope";
+        let system = "0::/system.slice/mbusio.service";
+        let user = "0::/user.slice/user-1000.slice/user@1000.service/app.slice/mbusio.service";
+        assert!(!unix_background(4242, term, false), "Terminal");
+        assert!(!unix_background(4242, ssh, false), "SSH");
+        assert!(unix_background(4242, system, false), "systemd-Dienst");
+        assert!(unix_background(4242, user, false), "systemd-Benutzerdienst");
+        assert!(unix_background(4242, ssh, true), "tmux/screen");
+        assert!(unix_background(1, "", false), "von init");
     }
 
     #[test]
