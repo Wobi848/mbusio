@@ -1,4 +1,4 @@
-# Übergabe an die nächste Session (Stand 2026-10-19)
+# Übergabe an die nächste Session (Stand 2026-10-20)
 
 Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, letzter Commit `38380b7`.
 Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
@@ -23,20 +23,25 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Davor: Buttons (tonal/quiet), orange/rote Problemzeilen, MQTT-Topic-Muster + Liste für den Integrator. MQTT hat der Nutzer mit einem echten Broker getestet: Daten kommen bis MQTT an.
 
 ## Hardware
-- Der M-Bus-Master **Relay MR003 USB** (CP210x, 10c4:ea60) erscheint als `/dev/ttyUSB0` und funktioniert.
-- `mbusio bus-bauds --port /dev/ttyUSB0` sendet auf allen Baudraten, aber **es ist kein Zähler angeschlossen**, daher keine Antworten.
-- Nächster echter Test: Zähler anklemmen, in der Oberfläche den Port wählen, Primärscan starten.
+- **Relay MR003 USB** (CP210x) als `/dev/serial/by-id/usb-Silicon_Labs_Relay_M-Bus_Micro-Master_USB_7890-if00-port0`
+  (fester Name, in der Linie „Test 1 › Linie 1“ eingetragen).
+- Zähler: **Itron Wärme-/Kältezähler, ID 20395066, PA 3, 2400 Bd**. Auf dem Tisch ohne Wasser: Status 0x10,
+  Leistung/Durchfluss als Fehlerwert, Uhr im Zähler ca. 1 h vor. In der Zählerliste als „WMZ Itron“,
+  Dauerbetrieb an, Plan alle 15 min, Datenpunkte ohne MQTT.
+- 20.10.: Dauerbetrieb und USB abziehen am echten Gerät bestanden (Kriterium 4, konzept-dauerbetrieb.md §5.1).
+- MQTT beim Nutzer: Broker 192.168.178.66:1883. Nicht ungefragt Werte dorthin senden.
 - Port 1 am externen USB-Hub des Nutzers ist kaputt (kein Softwareproblem).
 
 ## Offen (in dieser Reihenfolge)
-1. ~~Busleiste „Linie in Ordnung“ trotz gestörter Zähler~~: erledigt 19.10. (Nächster Schritt „N Zähler antworten nicht“). Weitere Punkte aus dem Simulator-Test hat der Nutzer noch nicht genannt; bei Gelegenheit nachfragen.
-2. ~~Schnellscan~~: umgesetzt 19.10. als Variante A schlank (Konzept Bedienung §12): „Leeren …“ je Projekt, Startprojekt „Schnellscan“.
-3. Echter Test mit dem MR003, sobald ein Zähler dran ist (der Nutzer hat evtl. im Geschäft ein Gerät).
-4. ~~Zwei Linien am selben Port~~: erledigt 19.10. (`line::Ports`, `link::port_key`).
-5. Windows-Dienst: umgesetzt (docs/konzept-hintergrund.md); Prüfung auf Windows-PC nach Checkliste §9 macht der Nutzer.
+1. Windows-Dienst auf einem Windows-PC prüfen (Checkliste docs/konzept-hintergrund.md §9; wichtig: COM-Port unter LocalService).
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
-6. Dauerbetrieb je Linie (Konzept Bedienung §13): umgesetzt. Auf dem Pi für den 7-Tage-Test die Linien einschalten.
-7. 7-Tage-Test auf dem Raspberry Pi, danach erst Release v0.5.0 (CHANGELOG.md pflegen).
+2. 7-Tage-Test auf dem Raspberry Pi (Linien dort mit dem Schalter „Dauerbetrieb“ einschalten), danach erst Release v0.5.0.
+3. Optional: USB wieder einstecken, bevor mbusio den Ausfall merkt (Linux vergibt dann ttyUSB1; fester Name sollte es abfangen).
+4. Weitere Punkte aus dem Simulator-Test hat der Nutzer nie genannt; bei Gelegenheit nachfragen.
+
+Erledigt 19./20.10.: Busleiste „N Zähler antworten nicht“, Projekt leeren + Startprojekt „Schnellscan“ (§12), ein Port eine Linie,
+USB weg sofort `disturbed`, fester USB-Name, Windows-Dienst, Dauerbetrieb-Schalter je Linie (§13) als Block mit grossem
+Schalter, Hintergrund-Erkennung über cgroup, Fehler-Bit im Zählerstatus nur für Messwerte.
 
 ## Wo was steht
 - Konzepte: docs/konzept-bedienung.md (Bedienung, Design v2, Button-Ebenen §11.1, Farben §11.2), docs/konzept-scan.md, docs/konzept-dauerbetrieb.md (Roadmap, MQTT).
