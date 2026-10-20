@@ -20,6 +20,7 @@ pub trait Link: Send {
 
 pub struct SerialLink {
     port: Box<dyn SerialPort>,
+    name: String,
 }
 
 impl SerialLink {
@@ -33,40 +34,66 @@ impl SerialLink {
             .timeout(Duration::from_millis(100))
             .open()
             .with_context(|| {
+                // fehlt der Anschluss ganz, ist meist der USB-Wandler abgezogen
+                let gone = !std::path::Path::new(name).exists() && name.starts_with('/');
                 format!(
-                    "{} {name}",
-                    tr("Port konnte nicht geöffnet werden:", "Could not open port")
+                    "{} {name}{}",
+                    tr("Port konnte nicht geöffnet werden:", "Could not open port"),
+                    if gone {
+                        tr(
+                            " (nicht vorhanden – USB-Wandler abgezogen?)",
+                            " (not present – USB converter unplugged?)",
+                        )
+                    } else {
+                        String::new()
+                    }
                 )
             })?;
-        Ok(Self { port })
+        Ok(Self {
+            port,
+            name: name.to_string(),
+        })
+    }
+
+    /// Fehler des Anschlusses verständlich machen (statt nur „I/O error“); bleibt ein io::Error,
+    /// damit die Linie ihn als gestörte Verbindung erkennt und neu aufbaut
+    fn fail(&self, e: impl std::fmt::Display) -> io::Error {
+        io::Error::other(format!(
+            "{}: {} ({e})",
+            self.name,
+            tr(
+                "Wandler nicht erreichbar, USB abgezogen?",
+                "converter not reachable, USB unplugged?"
+            )
+        ))
     }
 }
 
 impl Link for SerialLink {
     fn send(&mut self, data: &[u8]) -> io::Result<()> {
-        self.port.write_all(data)?;
-        self.port.flush()
+        let r = self.port.write_all(data).and_then(|_| self.port.flush());
+        r.map_err(|e| self.fail(e))
     }
 
     fn recv(&mut self, buf: &mut [u8], timeout: Duration) -> io::Result<usize> {
-        self.port
-            .set_timeout(timeout.max(Duration::from_millis(1)))
-            .map_err(io::Error::other)?;
+        if let Err(e) = self.port.set_timeout(timeout.max(Duration::from_millis(1))) {
+            return Err(self.fail(e));
+        }
         match self.port.read(buf) {
             Ok(n) => Ok(n),
             Err(e) if e.kind() == io::ErrorKind::TimedOut => Ok(0),
-            Err(e) => Err(e),
+            Err(e) => Err(self.fail(e)),
         }
     }
 
     fn clear(&mut self) -> io::Result<()> {
-        self.port
-            .clear(ClearBuffer::Input)
-            .map_err(io::Error::other)
+        let r = self.port.clear(ClearBuffer::Input);
+        r.map_err(|e| self.fail(e))
     }
 
     fn set_baud(&mut self, baud: u32) -> io::Result<()> {
-        self.port.set_baud_rate(baud).map_err(io::Error::other)
+        let r = self.port.set_baud_rate(baud);
+        r.map_err(|e| self.fail(e))
     }
 }
 

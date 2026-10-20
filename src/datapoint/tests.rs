@@ -606,3 +606,45 @@ fn error_value_from_meter_is_invalid_at_once() {
         "invalid"
     );
 }
+
+#[test]
+fn meter_clock_offset_is_noted_from_five_minutes() {
+    let (mut db, line, mid, r) = setup();
+    let at = |r: &MeterReading, clock: &str| {
+        let mut r = r.clone();
+        r.timestamp = "2026-10-20 19:55:38".into();
+        r.time_unsure = false;
+        let mut d = r.records[0].clone();
+        d.quantity = "date_time".into();
+        d.function = "instantaneous".into();
+        d.storage = 0;
+        d.value_text = clock.into();
+        r.records.retain(|x| x.quantity != "date_time");
+        r.records.push(d);
+        r
+    };
+    let off = |db: &Db| db.meter(mid).unwrap().clock_off;
+    // Itron auf dem Tisch: Uhr gut eine Stunde vor (20:59 gegen 19:55:38)
+    db.record(
+        line,
+        &Target::Primary(1),
+        Ok(&at(&r, "2026-10-20 20:59")),
+        false,
+    )
+    .unwrap();
+    assert_eq!(off(&db), Some(63));
+    // innerhalb von 5 min: kein Hinweis
+    db.record(
+        line,
+        &Target::Primary(1),
+        Ok(&at(&r, "2026-10-20 19:58")),
+        false,
+    )
+    .unwrap();
+    assert_eq!(off(&db), None);
+    // eigene Uhr unsicher: nichts behaupten
+    let mut u = at(&r, "2026-10-20 18:00");
+    u.time_unsure = true;
+    db.record(line, &Target::Primary(1), Ok(&u), false).unwrap();
+    assert_eq!(off(&db), None);
+}

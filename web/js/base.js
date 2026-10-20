@@ -34,6 +34,12 @@ function portText(c) {
   return m ? m[1].replace(/_/g, " ") : c || "";
 }
 
+/// Minuten lesbar: 63 → „1 h 3 min“, 12 → „12 min“
+function durText(min) {
+  const h = Math.floor(min / 60);
+  return h ? `${h} h${min % 60 ? ` ${min % 60} min` : ""}` : `${min} min`;
+}
+
 function t(key, ...args) {
   const v = UI[lang][key] ?? UI.de[key] ?? key;
   return typeof v === "function" ? v(...args) : v;

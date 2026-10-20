@@ -212,6 +212,11 @@ impl Db {
             )?;
             self.set_meta("addressing_pa", "1")?;
         }
+        if !has(&self.conn, "meters", "clock_off")? {
+            // Abweichung der Zähleruhr in Minuten (ab 5 min), bei der letzten Auslesung
+            self.conn
+                .execute_batch("ALTER TABLE meters ADD COLUMN clock_off INTEGER")?;
+        }
         if !has(&self.conn, "lines", "operation")? {
             // Dauerbetrieb je Linie einschalten (Konzept Bedienung §13), Standard aus. Läuft mbusio
             // schon als Dienst (Gateway), bleiben Linien mit wirksamem Plan eingeschaltet, damit

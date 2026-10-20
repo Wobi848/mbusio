@@ -20,6 +20,13 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Einsatz mit demselben Projekt, ohne Reste der vorigen Anlage.
 - **Neue Installation startet mit dem Projekt „Schnellscan“** statt „Standard“: verbinden und
   scannen, ohne zuerst ein Projekt anzulegen.
+- **Kälteenergie getrennt:** Wärme-/Kältezähler liefern Wärme- und Kälteenergie mit gleicher
+  Grösse; die Kälteenergie (VIFE „nur negative Beiträge“) heisst jetzt „Kälteenergie“ und lässt
+  sich als eigener Datenpunkt wählen. Bisher war sie nicht wählbar (gefunden an einem Itron).
+- **Uhr im Zähler:** weicht sie 5 min oder mehr ab, zeigt die Zählerliste „Uhr +1 h 3 min“ mit
+  Erklärung (Stichtagswerte richten sich nach der Zähleruhr).
+- **USB-Wandler abgezogen:** die Linie steht nach höchstens 10 s auf „getrennt“, nicht erst beim
+  nächsten Termin; Meldungen sagen „nicht vorhanden – USB-Wandler abgezogen?“ statt „I/O error“.
 - **Fehler im Zählerstatus:** meldet der Zähler einen Fehler (Statusbyte), gelten nur Messwerte
   (Temperatur, Leistung, Durchfluss) als ungültig; Zählerstände (Energie, Volumen) bleiben gültig.
   Werte, die der Zähler selbst als Fehlerwert kennzeichnet, sind sofort ungültig statt nach drei

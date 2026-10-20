@@ -172,7 +172,7 @@ impl Db {
                        meter_id = COALESCE(?4, meter_id), manufacturer = COALESCE(?5, manufacturer),
                        medium = COALESCE(?6, medium), last_value = COALESCE(?7, last_value),
                        last_quantity = COALESCE(?8, last_quantity),
-                       secondary_address = COALESCE(?9, secondary_address)
+                       secondary_address = COALESCE(?9, secondary_address), clock_off = ?10
                      WHERE id = ?1",
                     params![
                         m.id,
@@ -183,7 +183,8 @@ impl Db {
                         h.map(|h| h.medium.clone()),
                         main.map(|x| format!("{} {}", x.value_text, x.unit).trim().to_string()),
                         main.map(|x| x.quantity.clone()),
-                        h.map(|h| h.secondary_address.clone())
+                        h.map(|h| h.secondary_address.clone()),
+                        clock_offset(r)
                     ],
                 )?;
                 // Datenpunkte nachführen (auch wenn der Speicher voll ist, dann ohne Verlauf)

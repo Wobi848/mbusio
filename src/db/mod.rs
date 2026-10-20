@@ -193,7 +193,28 @@ pub struct Meter {
     /// gemessene Dauer einer Auslesung (gleitender Mittelwert), für die Buslast
     #[serde(default, skip_deserializing)]
     pub plan_ms: Option<f64>,
+    /// Uhr im Zähler weicht so viele Minuten ab (ab 5 min, bei der letzten Auslesung)
+    #[serde(default, skip_deserializing)]
+    pub clock_off: Option<i64>,
 }
+
+/// Abweichung der Uhr im Zähler von der eigenen Uhr in Minuten, ab `CLOCK_OFF_MIN`. Nur wenn die
+/// eigene Uhr bestätigt ist; Stichtagswerte und Monatswerte hängen an der Zähleruhr.
+pub(crate) fn clock_offset(r: &MeterReading) -> Option<i64> {
+    if r.time_unsure {
+        return None;
+    }
+    let ours = chrono::NaiveDateTime::parse_from_str(&r.timestamp, "%Y-%m-%d %H:%M:%S").ok()?;
+    let rec = r
+        .records
+        .iter()
+        .find(|x| x.quantity == "date_time" && x.storage == 0 && x.function == "instantaneous")?;
+    let theirs = chrono::NaiveDateTime::parse_from_str(&rec.value_text, "%Y-%m-%d %H:%M").ok()?;
+    let off = (theirs - ours).num_seconds() as f64 / 60.0;
+    (off.abs() >= CLOCK_OFF_MIN as f64).then_some(off.round() as i64)
+}
+
+const CLOCK_OFF_MIN: i64 = 5;
 
 /// Ab so vielen verpassten Terminen nacheinander gilt ein Zähler als gestört
 pub const DISTURBED_AFTER: i64 = 3;
@@ -373,6 +394,7 @@ fn meter_of(r: &Row) -> rusqlite::Result<Meter> {
         plan_pause: r.get("plan_pause")?,
         plan_fails: r.get("plan_fails")?,
         plan_ms: r.get("plan_ms")?,
+        clock_off: r.get("clock_off")?,
     })
 }
 

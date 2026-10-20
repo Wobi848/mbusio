@@ -348,7 +348,7 @@ pub fn decode_records(data: &[u8]) -> Result<(Vec<Record>, bool), String> {
             storage,
             tariff,
             subunit,
-            quantity: vi.quantity.into(),
+            quantity: qualified(vi.quantity, &vi.notes),
             notes: vi.notes,
             unit: vi.unit,
             value,
@@ -359,6 +359,19 @@ pub fn decode_records(data: &[u8]) -> Result<(Vec<Record>, bool), String> {
         });
     }
     Ok((records, more_follow))
+}
+
+/// Grösse mit Zusatz, der einen eigenen Wert ergibt: „nur negative Beiträge“ (VIFE 0x3C) ist bei
+/// Wärme-/Kältezählern die Kälteenergie neben der Wärmeenergie. Ohne eigene Bezeichnung hätten
+/// beide denselben Schlüssel, und die Kälteenergie liesse sich nicht wählen.
+fn qualified(quantity: &str, notes: &[String]) -> String {
+    if !notes.iter().any(|n| n == "note_only_negative") {
+        return quantity.into();
+    }
+    match quantity {
+        "energy" => "energy_cooling".into(),
+        q => format!("{q}_negative"),
+    }
 }
 
 fn vif_info(vif: u8, vifes: &[u8]) -> VifInfo {
@@ -520,6 +533,49 @@ fn interpret(coding: u8, lvar: Option<u8>, raw: &[u8], vi: &VifInfo) -> (Value, 
 mod tests {
     use super::*;
     use crate::mbus::frame::{parse, Frame, Parse};
+
+    fn long(hex: &str) -> Telegram {
+        let bytes: Vec<u8> = hex
+            .split_whitespace()
+            .map(|b| u8::from_str_radix(b, 16).unwrap())
+            .collect();
+        let Parse::Complete(Frame::Long { ci, data, .. }, _) = parse(&bytes) else {
+            panic!("Frame ungültig");
+        };
+        decode_rsp_ud(ci, &data).unwrap()
+    }
+
+    /// Echter Itron-Wärme-/Kältezähler (20.10.2026, auf dem Tisch ohne Wasser): Wärme- und
+    /// Kälteenergie getrennt, Status „vorübergehender Fehler“, Leistung und Durchfluss als Fehlerwert
+    #[test]
+    fn itron_heat_cooling_meter() {
+        let t = long(
+            "68 64 64 68 08 03 72 66 50 39 20 92 26 18 0D 90 10 00 00 0C 78 66 50 39 20 04 06 00 00 00 00 \
+             0C 14 00 00 00 00 3B 2D 99 99 99 3B 3B 99 99 99 0A 5A 24 02 0A 5E 22 02 0B 61 17 00 00 \
+             04 6D 3B 14 54 3A 02 27 F1 08 09 FD 0E 07 09 FD 0F 12 8C C0 00 14 18 00 00 00 \
+             8C 80 40 14 00 00 00 00 04 86 3C 00 00 00 00 0F 20 00 52 16",
+        );
+        let h = t.header.unwrap();
+        assert_eq!(
+            (h.id.as_str(), h.manufacturer.as_str(), h.status),
+            ("20395066", "ITR", 0x10)
+        );
+        let q: Vec<(&str, &str)> = t
+            .records
+            .iter()
+            .map(|r| (r.function.as_str(), r.quantity.as_str()))
+            .collect();
+        assert!(q.contains(&("instantaneous", "energy")));
+        assert!(q.contains(&("instantaneous", "energy_cooling")), "{q:?}");
+        assert!(q.contains(&("error_value", "power")));
+        assert!(q.contains(&("error_value", "volume_flow")));
+        let vorlauf = t
+            .records
+            .iter()
+            .find(|r| r.quantity == "flow_temperature")
+            .unwrap();
+        assert_eq!(vorlauf.value_text, "22.4");
+    }
 
     /// Beispiel aus der M-Bus-Dokumentation (m-bus.com, Kapitel 6.8)
     #[test]

@@ -86,7 +86,9 @@ function renderMeters() {
         ${locCell}
         <td class="wrap">${m.last_value ? `<span class="val">${esc(m.last_value)}</span>` : ""}${sub(
           [m.last_value ? label(m.last_quantity) : "", m.last_read].filter(Boolean).join(" · ")
-        )}${m.last_error ? `<span class="err">${ICON_ALERT}${esc(m.last_error)}</span>` : ""}</td>
+        )}${m.last_error ? `<span class="err">${ICON_ALERT}${esc(m.last_error)}</span>` : ""}${
+          m.clock_off != null ? " " + ui.chip("warn", t("meter_clock", m.clock_off), t("meter_clock_title", m.clock_off)) : ""
+        }</td>
         ${withPlan ? meterPlanCell(m) : ""}
         <td><div class="actions">
           <button class="small quiet needs-conn" data-meter-read="${m.id}">${t("read")}</button>

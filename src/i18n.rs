@@ -61,6 +61,7 @@ pub fn tr(de: &str, en: &str) -> String {
 const LABELS: &[(&str, &str, &str)] = &[
     // Grössen
     ("energy", "Energie", "Energy"),
+    ("energy_cooling", "Kälteenergie", "Cooling energy"),
     ("volume", "Volumen", "Volume"),
     ("mass", "Masse", "Mass"),
     ("on_time", "Einschaltdauer", "On time"),
@@ -202,11 +203,24 @@ pub fn label(key: &str, lang: Lang) -> String {
         Some((b, a)) => (b, Some(a)),
         None => (key, None),
     };
-    let text = LABELS
+    let found = LABELS
         .iter()
         .find(|(k, _, _)| *k == base)
-        .map(|(_, de, en)| if lang == Lang::En { *en } else { *de })
-        .unwrap_or(base);
+        .map(|(_, de, en)| if lang == Lang::En { *en } else { *de });
+    // Grösse mit „nur negative Beiträge“ (decode::qualified), z.B. volume_negative
+    let text = match (found, base.strip_suffix("_negative")) {
+        (Some(t), _) => t.to_string(),
+        (None, Some(q)) => format!(
+            "{} ({})",
+            label(q, lang),
+            if lang == Lang::En {
+                "negative only"
+            } else {
+                "nur negativ"
+            }
+        ),
+        (None, None) => base.to_string(),
+    };
     match arg {
         Some(a) => format!("{text} {a}"),
         None => text.to_string(),

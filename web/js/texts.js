@@ -44,6 +44,9 @@ const UI = {
     op_chip: "Dauerbetrieb",
     op_running: "läuft",
     op_no_plan: "kein Ausleseplan",
+    meter_clock: (n) => `Uhr ${n > 0 ? "+" : "−"}${durText(Math.abs(n))}`,
+    meter_clock_title: (n) =>
+      `Die Uhr im Zähler geht ${durText(Math.abs(n))} ${n > 0 ? "vor" : "nach"}. Stichtags- und Monatswerte des Zählers richten sich nach seiner Uhr; mbusio stempelt die Auslesung mit der eigenen.`,
     op_off_state: "aus · nur von Hand",
     op_fg_short: "nicht als Dienst – stoppt beim Schliessen",
     op_plan_waiting: (p) => `Plan ${p} (wartet)`,
@@ -780,6 +783,9 @@ const UI = {
     op_chip: "Continuous operation",
     op_running: "running",
     op_no_plan: "no read plan",
+    meter_clock: (n) => `clock ${n > 0 ? "+" : "−"}${durText(Math.abs(n))}`,
+    meter_clock_title: (n) =>
+      `The meter's clock is ${durText(Math.abs(n))} ${n > 0 ? "fast" : "slow"}. The meter's due-date and monthly values follow its clock; mbusio stamps the reading with its own.`,
     op_off_state: "off · manual only",
     op_fg_short: "not a service – stops when closed",
     op_plan_waiting: (p) => `plan ${p} (waiting)`,

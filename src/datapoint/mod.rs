@@ -32,7 +32,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 
 /// Zählerstände: dürfen nicht sinken, werden beim Zählertausch fortgeführt
-const COUNTERS: [&str; 4] = ["energy", "volume", "mass", "hca_units"];
+const COUNTERS: [&str; 5] = ["energy", "energy_cooling", "volume", "mass", "hca_units"];
 
 /// Weitergabe (wirkt ab den Ausgängen MQTT/Modbus)
 pub const SEND_MODES: [&str; 3] = ["every", "change", "daily"];

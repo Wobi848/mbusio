@@ -13,7 +13,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Plan-Vorgabe „Aus“, 24-h-Zeit, batteriebetriebene Zähler nicht zu oft auslesen.
 
 ## Tests
-- `cargo test` → 112 passed, 1 ignored.
+- `cargo test` → 115 passed, 1 ignored.
 - UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 12 Tests, alle grün.
 - Server lokal: `cargo run -- --no-browser` (Port 8080; der Debug-Build liest web/ direkt von der Platte).
 - Commits enden mit `Co-Authored-By: Claude …`; nach jedem fertigen Schritt committen und pushen.
@@ -41,7 +41,8 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 Erledigt 19./20.10.: Busleiste „N Zähler antworten nicht“, Projekt leeren + Startprojekt „Schnellscan“ (§12), ein Port eine Linie,
 USB weg sofort `disturbed`, fester USB-Name, Windows-Dienst, Dauerbetrieb-Schalter je Linie (§13) als Block mit grossem
-Schalter, Hintergrund-Erkennung über cgroup, Fehler-Bit im Zählerstatus nur für Messwerte.
+Schalter, Hintergrund-Erkennung über cgroup, Fehler-Bit im Zählerstatus nur für Messwerte, Kälteenergie eigener Schlüssel (`energy_cooling`),
+Abweichung der Zähleruhr (`meters.clock_off`), USB-Ausfall nach 10 s erkannt (`line::device_gone`).
 
 ## Wo was steht
 - Konzepte: docs/konzept-bedienung.md (Bedienung, Design v2, Button-Ebenen §11.1, Farben §11.2), docs/konzept-scan.md, docs/konzept-dauerbetrieb.md (Roadmap, MQTT).

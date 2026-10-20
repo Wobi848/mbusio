@@ -268,6 +268,14 @@ fn open(inner: &Inner) -> Result<(Master, Claim)> {
     Ok((master, claim))
 }
 
+const DEVICE_CHECK: Duration = Duration::from_secs(10);
+
+/// Serieller Anschluss als Pfad (Linux, macOS), der verschwunden ist: USB-Wandler abgezogen.
+/// Windows-COM-Ports und Gateways lassen sich so nicht prüfen, die merken es beim nächsten Auftrag.
+fn device_gone(connection: &str) -> bool {
+    connection.starts_with('/') && !std::path::Path::new(connection).exists()
+}
+
 fn run(inner: Arc<Inner>) {
     let mut master: Option<(Master, Claim)> = None;
     // nach einem gescheiterten Verbindungsversuch nicht sofort wieder (USB weg, Gateway aus)
@@ -301,7 +309,27 @@ fn run(inner: Arc<Inner>) {
                 if let Some(w) = q.planned.pop_front() {
                     break (w, false);
                 }
-                q = inner.wake.wait(q).unwrap();
+                // im Leerlauf alle 10 s prüfen, ob ein USB-Wandler noch da ist: so steht die
+                // Linie gleich auf „getrennt“, nicht erst beim nächsten Termin (vielleicht morgen)
+                q = inner.wake.wait_timeout(q, DEVICE_CHECK).unwrap().0;
+                if master.is_some() && device_gone(&inner.conf.connection) {
+                    master = None;
+                    let msg = tr(
+                        &format!(
+                            "{}: nicht vorhanden – USB-Wandler abgezogen?",
+                            inner.conf.connection
+                        ),
+                        &format!(
+                            "{}: not present – USB converter unplugged?",
+                            inner.conf.connection
+                        ),
+                    );
+                    inner.log.push("INFO", msg.clone());
+                    let mut s = inner.status.lock().unwrap();
+                    s.connected = false;
+                    s.connection = None;
+                    s.error = Some(msg);
+                }
             }
         };
         // Verbindung bei Bedarf aufbauen; die Wartezeit nach Fehlversuchen gilt nur für
@@ -384,6 +412,20 @@ mod tests {
 
     fn sim() -> LineService {
         start(1, "SIMULATOR", &Arc::default())
+    }
+
+    #[test]
+    fn missing_device_path_means_unplugged() {
+        assert!(device_gone("/dev/ttyUSB-does-not-exist"));
+        assert!(!device_gone("/dev/null"));
+        assert!(!device_gone("COM3"), "Windows: nicht prüfbar");
+        assert!(!device_gone("tcp://10.0.0.1:10001"));
+        assert!(!device_gone("SIMULATOR"));
+        // Meldung beim Öffnen sagt, was wahrscheinlich los ist
+        let e = link::open("/dev/ttyUSB-does-not-exist", 2400)
+            .err()
+            .unwrap();
+        assert!(format!("{e:#}").contains("abgezogen"), "{e:#}");
     }
 
     #[test]

@@ -42,6 +42,7 @@ pub fn background() -> bool {
 /// Linux: von init gestartet (Elternprozess 1), als systemd-Dienst (System oder Benutzer: die
 /// cgroup endet auf `.service`; ein Terminal läuft in einer `.scope`) oder in tmux/screen.
 /// `INVOCATION_ID` taugt nicht: das erbt auch jede Shell im Terminal.
+#[cfg_attr(not(unix), allow(dead_code))]
 fn unix_background(ppid: u32, cgroup: &str, tmux_or_screen: bool) -> bool {
     let unit = cgroup
         .lines()
