@@ -29,8 +29,8 @@ document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => setLa
 
 // Design: auto (wie System), hell oder dunkel; das Setzen beim Laden steht in index.html
 function setTheme(theme) {
-  if (theme === "auto") delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = theme;
+  themeChoice = theme;
+  applyTheme();
   storageSet("theme", theme);
   document.querySelectorAll("[data-theme-set]").forEach((b) => b.classList.toggle("active", b.dataset.themeSet === theme));
 }

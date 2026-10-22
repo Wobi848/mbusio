@@ -12,9 +12,6 @@
 .mid.m-power { --m: #a16207; --m-soft: #fdf4d6; }
 .mid.m-gas { --m: #6d28d9; --m-soft: #f0eaff; }
 :root[data-theme="dark"] .mid { background: color-mix(in srgb, var(--m) 18%, transparent); color: color-mix(in srgb, var(--m) 55%, #fff); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .mid { background: color-mix(in srgb, var(--m) 18%, transparent); color: color-mix(in srgb, var(--m) 55%, #fff); }
-}
 /* Störung: roter Punkt am Symbol */
 .mid.alert::after { content: ""; position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--err); border: 2px solid var(--surface); }
 

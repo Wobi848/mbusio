@@ -445,27 +445,12 @@ fn application(out: &mut Out, ci: u8, d: &[u8], _at: usize) {
             out.bad(
                 &d[..d.len().min(1)],
                 tr("Fehlercode", "Error code"),
-                format!("{code:02X}: {}", app_error(code)),
+                format!("{code:02X}: {}", super::decode::app_error(code)),
             );
         }
         0x50 if !d.is_empty() => out.add(d, tr("Subcode", "Subcode"), hex(d)),
         _ if !d.is_empty() => out.add(d, tr("Daten", "Data"), String::new()),
         _ => {}
-    }
-}
-
-fn app_error(code: u8) -> String {
-    match code {
-        0 => tr("nicht näher bezeichnet", "unspecified"),
-        1 => tr("CI-Feld nicht unterstützt", "unimplemented CI field"),
-        2 => tr("Puffer zu lang", "buffer too long"),
-        3 => tr("zu viele Datensätze", "too many records"),
-        4 => tr("Datensatz vorzeitig beendet", "premature end of record"),
-        5 => tr("mehr als 10 DIFE", "more than 10 DIFEs"),
-        6 => tr("mehr als 10 VIFE", "more than 10 VIFEs"),
-        8 => tr("Zähler beschäftigt", "application too busy"),
-        9 => tr("zu viele Auslesungen", "too many readouts"),
-        _ => tr("reserviert", "reserved"),
     }
 }
 

@@ -106,17 +106,7 @@ impl Db {
                 }
                 for entry in l["meters"].as_array().into_iter().flatten() {
                     let m: Meter = serde_json::from_value(entry["meter"].clone())?;
-                    tx.execute(
-                        "INSERT INTO meters (line_id, name, location, note, address, baud, meter_id, manufacturer,
-                           medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address, plan)
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
-                        params![
-                            lid, m.name, m.location, m.note, m.address, m.baud, m.meter_id, m.manufacturer,
-                            m.medium, m.primary_address, m.last_read, m.last_value, m.last_quantity, m.last_error,
-                            m.secondary_address, valid_plan(m.plan.as_deref())
-                        ],
-                    )?;
-                    let mid = tx.last_insert_rowid();
+                    let mid = super::meters::insert_meter(&tx, lid, &m)?;
                     for d in entry["datapoints"].as_array().into_iter().flatten() {
                         if let Some(d) = crate::datapoint::from_export(d) {
                             dps.push((mid, d));

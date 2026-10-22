@@ -225,21 +225,25 @@ pub(super) async fn project_update(
     ))
 }
 
+/// Projekt, Gateway oder Linie löschen; war die aktive Linie darunter, Bus trennen
+fn delete_node(
+    st: &AppState,
+    delete: impl FnOnce(&mut crate::db::Db) -> anyhow::Result<()>,
+) -> ApiResult<serde_json::Value> {
+    ensure_idle(st)?;
+    let before = st.line_id()?;
+    delete(&mut st.db.lock().unwrap()).map_err(bad_request)?;
+    if st.line_id()? != before {
+        disconnect_bus(st);
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+
 pub(super) async fn project_delete(
     State(st): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<serde_json::Value> {
-    ensure_idle(&st)?;
-    let before = st.line_id()?;
-    st.db
-        .lock()
-        .unwrap()
-        .delete_project(id)
-        .map_err(bad_request)?;
-    if st.line_id()? != before {
-        disconnect_bus(&st);
-    }
-    Ok(Json(json!({ "ok": true })))
+    delete_node(&st, |db| db.delete_project(id))
 }
 
 /// Projekt leeren (Zähler, Auslesungen, letzter Scan); nicht, solange eine seiner Linien arbeitet
@@ -304,17 +308,7 @@ pub(super) async fn gateway_delete(
     State(st): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<serde_json::Value> {
-    ensure_idle(&st)?;
-    let before = st.line_id()?;
-    st.db
-        .lock()
-        .unwrap()
-        .delete_gateway(id)
-        .map_err(bad_request)?;
-    if st.line_id()? != before {
-        disconnect_bus(&st);
-    }
-    Ok(Json(json!({ "ok": true })))
+    delete_node(&st, |db| db.delete_gateway(id))
 }
 
 pub(super) async fn line_create(
@@ -349,13 +343,7 @@ pub(super) async fn line_delete(
     State(st): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<serde_json::Value> {
-    ensure_idle(&st)?;
-    let before = st.line_id()?;
-    st.db.lock().unwrap().delete_line(id).map_err(bad_request)?;
-    if st.line_id()? != before {
-        disconnect_bus(&st);
-    }
-    Ok(Json(json!({ "ok": true })))
+    delete_node(&st, |db| db.delete_line(id))
 }
 
 #[derive(Deserialize)]

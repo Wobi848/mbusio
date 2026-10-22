@@ -169,10 +169,9 @@ fn fixed(d: &[u8]) -> Result<Telegram, String> {
     })
 }
 
-/// Fehlermeldung des Zählers (CI 70), EN 13757-3.
-fn application_error(d: &[u8]) -> String {
-    let code = d.first().copied().unwrap_or(0);
-    let text = match code {
+/// Text zum Anwendungsfehler des Zählers (EN 13757-3); auch für die Telegramm-Analyse
+pub(super) fn app_error(code: u8) -> String {
+    match code {
         0 => tr("nicht näher bezeichnet", "unspecified"),
         1 => tr("CI-Feld nicht unterstützt", "unimplemented CI field"),
         2 => tr(
@@ -186,7 +185,13 @@ fn application_error(d: &[u8]) -> String {
         8 => tr("Zähler beschäftigt", "application too busy"),
         9 => tr("zu viele Auslesungen", "too many readouts"),
         _ => tr("reserviert", "reserved"),
-    };
+    }
+}
+
+/// Fehlermeldung des Zählers (CI 70), EN 13757-3.
+fn application_error(d: &[u8]) -> String {
+    let code = d.first().copied().unwrap_or(0);
+    let text = app_error(code);
     format!(
         "{} {code:02X}: {text}",
         tr(

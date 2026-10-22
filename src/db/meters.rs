@@ -42,37 +42,10 @@ impl Db {
         check_baud(m.baud)
     }
 
-    pub(super) fn insert_meter(&mut self, line_id: i64, m: &Meter) -> Result<i64> {
-        self.conn.execute(
-            "INSERT INTO meters (line_id, name, location, note, address, baud, meter_id, manufacturer,
-               medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address, plan)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
-            params![
-                line_id,
-                m.name,
-                m.location,
-                m.note,
-                m.address,
-                m.baud,
-                m.meter_id,
-                m.manufacturer,
-                m.medium,
-                m.primary_address,
-                m.last_read,
-                m.last_value,
-                m.last_quantity,
-                m.last_error,
-                m.secondary_address,
-                valid_plan(m.plan.as_deref())
-            ],
-        )?;
-        Ok(self.conn.last_insert_rowid())
-    }
-
     pub fn add_meter(&mut self, line_id: i64, mut m: Meter) -> Result<Meter> {
         m.address = m.address.trim().to_ascii_uppercase();
         self.check_meter(line_id, &m, 0)?;
-        let id = self.insert_meter(line_id, &m)?;
+        let id = insert_meter(&self.conn, line_id, &m)?;
         self.meter(id)
     }
 
@@ -115,7 +88,7 @@ impl Db {
             if self.check_meter(line_id, &m, 0).is_err() {
                 continue;
             }
-            self.insert_meter(line_id, &m)?;
+            insert_meter(&self.conn, line_id, &m)?;
             n += 1;
         }
         Ok(n)
@@ -203,4 +176,33 @@ impl Db {
         }
         Ok(())
     }
+}
+
+/// Zähler einfügen; auch für den Projekt-Import (gleiche Spalten an einer Stelle)
+pub(super) fn insert_meter(conn: &rusqlite::Connection, line_id: i64, m: &Meter) -> Result<i64> {
+    conn.execute(
+        "INSERT INTO meters (line_id, name, location, note, address, baud, meter_id, manufacturer,
+           medium, primary_address, last_read, last_value, last_quantity, last_error, secondary_address, plan, clock_off)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+        params![
+            line_id,
+            m.name,
+            m.location,
+            m.note,
+            m.address,
+            m.baud,
+            m.meter_id,
+            m.manufacturer,
+            m.medium,
+            m.primary_address,
+            m.last_read,
+            m.last_value,
+            m.last_quantity,
+            m.last_error,
+            m.secondary_address,
+            valid_plan(m.plan.as_deref()),
+            m.clock_off
+        ],
+    )?;
+    Ok(conn.last_insert_rowid())
 }
