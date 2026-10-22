@@ -80,102 +80,25 @@ impl Db {
             .into_iter()
             .filter_map(|v| Some((v["no"].as_i64()?, serde_json::from_value(v).ok()?)))
             .collect();
+        let meters = self.meters_with_line_label(project_id)?;
         let mut cs = ChangeSet::default();
         let mut updates: Vec<(i64, Datapoint)> = Vec::new();
         let mut creates: Vec<(Meter, Datapoint)> = Vec::new();
         for (n, c) in rows.iter().enumerate() {
             let row = n + 1;
-            let col = |i: usize| c.get(i).cloned().unwrap_or_default();
-            if n == 0 && parse_num(&col(0)).is_none() && !col(0).is_empty() {
+            let first = c.first().map(String::as_str).unwrap_or("");
+            let no = parse_num(first).map(|x| x as i64);
+            if n == 0 && no.is_none() && !first.is_empty() {
                 continue; // Kopfzeile
             }
-            if c.len() < FIXED {
-                cs.row_error(
-                    row,
-                    tr(
-                        "zu wenige Spalten (10 erwartet)",
-                        "too few columns (10 expected)",
-                    ),
-                );
-                continue;
-            }
-            let Some(factor) = parse_num(&col(7)).filter(|f| f.is_finite() && *f != 0.0) else {
-                cs.row_error(
-                    row,
-                    format!("{} „{}“", tr("Faktor ungültig", "invalid factor"), col(7)),
-                );
-                continue;
-            };
-            let send = col(8).to_lowercase();
-            if !SEND_MODES.contains(&send.as_str()) {
-                cs.row_error(
-                    row,
-                    format!(
-                        "{} „{}“ ({})",
-                        tr("Weitergabe ungültig", "invalid send mode"),
-                        col(8),
-                        SEND_MODES.join("/")
-                    ),
-                );
-                continue;
-            }
-            let Some(active) = parse_bool(&col(9)) else {
-                cs.row_error(
-                    row,
-                    format!(
-                        "{} „{}“",
-                        tr("Aktiv ungültig (1/0)", "invalid active (1/0)"),
-                        col(9)
-                    ),
-                );
-                continue;
-            };
-            let no = parse_num(&col(0)).map(|x| x as i64);
             let old = no.and_then(|no| existing.get(&no));
-            // Ausgänge: je zwei Spalten; fehlen sie, bleibt es wie bisher
-            let mut outputs = old.map(|d| d.outputs.clone()).unwrap_or_default();
-            let mut bad = None;
-            for (k, key) in OUTPUTS.iter().enumerate() {
-                let i = FIXED + 2 * k;
-                if c.len() <= i {
+            let wanted = match parse_row(c, old) {
+                Ok(d) => d,
+                Err(e) => {
+                    cs.row_error(row, e);
                     continue;
                 }
-                let Some(on) = parse_bool(&col(i)) else {
-                    bad = Some(format!("{} „{}“", output_label(key), col(i)));
-                    break;
-                };
-                let address = Some(col(i + 1)).filter(|a| !a.is_empty());
-                if let Some(a) = &address {
-                    if let Err(e) = outputs::check_address(key, a) {
-                        bad = Some(format!("{e:#}"));
-                        break;
-                    }
-                }
-                let o = outputs.entry(key.to_string()).or_default();
-                o.enabled = on;
-                // leere Adresse in der Datei: vorhandene behalten
-                if address.is_some() {
-                    o.address = address;
-                }
-            }
-            if let Some(e) = bad {
-                cs.row_error(row, e);
-                continue;
-            }
-            let wanted = Datapoint {
-                key: col(4),
-                name: col(5),
-                unit: col(6),
-                factor,
-                send,
-                active,
-                outputs,
-                ..Default::default()
             };
-            if wanted.name.is_empty() {
-                cs.row_error(row, tr("Name fehlt", "name missing"));
-                continue;
-            }
             match (no, old) {
                 (Some(no), None) => cs.row_error(
                     row,
@@ -186,72 +109,19 @@ impl Db {
                     ),
                 ),
                 (Some(no), Some(old)) => {
-                    let item = format!("{no} · {}", old.name);
-                    let flag = |b: bool| (b as u8).to_string();
-                    let mut changed = cs.change(&item, tr("Name", "Name"), &old.name, &wanted.name);
-                    changed |= cs.change(&item, tr("Einheit", "Unit"), &old.unit, &wanted.unit);
-                    changed |= cs.change(
-                        &item,
-                        tr("Faktor", "Factor"),
-                        &old.factor.to_string(),
-                        &wanted.factor.to_string(),
-                    );
-                    changed |= cs.change(&item, tr("Weitergabe", "Send"), &old.send, &wanted.send);
-                    changed |= cs.change(
-                        &item,
-                        tr("Aktiv", "Active"),
-                        &flag(old.active),
-                        &flag(wanted.active),
-                    );
-                    for key in OUTPUTS {
-                        let (a, b) = (
-                            old.outputs.get(key).cloned().unwrap_or_default(),
-                            wanted.outputs.get(key).cloned().unwrap_or_default(),
-                        );
-                        changed |=
-                            cs.change(&item, output_label(key), &flag(a.enabled), &flag(b.enabled));
-                        changed |= cs.change(
-                            &item,
-                            address_label(key),
-                            a.address.as_deref().unwrap_or(""),
-                            b.address.as_deref().unwrap_or(""),
-                        );
-                    }
-                    if changed {
+                    if compare(&mut cs, &format!("{no} · {}", old.name), old, &wanted) {
                         updates.push((old.id, wanted));
                     } else {
                         cs.unchanged += 1;
                     }
                 }
-                (None, _) => {
-                    // neu: Zähler über Linie und Adresse finden
-                    let line = col(1);
-                    let address = col(3).to_ascii_uppercase();
-                    let meter = self
-                        .meters_with_line_label(project_id)?
-                        .into_iter()
-                        .find(|(l, m)| *l == line && m.address == address)
-                        .map(|(_, m)| m);
-                    let Some(meter) = meter else {
-                        cs.row_error(
-                            row,
-                            format!(
-                                "{} „{line}“ / „{address}“",
-                                tr("Zähler nicht gefunden", "meter not found")
-                            ),
-                        );
-                        continue;
-                    };
-                    if parts(&wanted.key).is_none() {
-                        cs.row_error(
-                            row,
-                            format!("{} „{}“", tr("Kennung ungültig", "invalid key"), wanted.key),
-                        );
-                        continue;
+                (None, _) => match meter_for_new(c, &meters, &wanted) {
+                    Ok(meter) => {
+                        cs.add(meter_label(meter), wanted.name.clone());
+                        creates.push((meter.clone(), wanted));
                     }
-                    cs.add(meter_label(&meter), wanted.name.clone());
-                    creates.push((meter, wanted));
-                }
+                    Err(e) => cs.row_error(row, e),
+                },
             }
         }
         cs.finish(apply, || {
@@ -268,4 +138,130 @@ impl Db {
             })
         })
     }
+}
+
+/// Eine Zeile prüfen und als gewünschten Datenpunkt liefern; Ausgänge ohne Spalten bleiben wie bisher
+fn parse_row(c: &[String], old: Option<&Datapoint>) -> std::result::Result<Datapoint, String> {
+    let col = |i: usize| c.get(i).cloned().unwrap_or_default();
+    if c.len() < FIXED {
+        return Err(tr(
+            "zu wenige Spalten (10 erwartet)",
+            "too few columns (10 expected)",
+        ));
+    }
+    let factor = parse_num(&col(7))
+        .filter(|f| f.is_finite() && *f != 0.0)
+        .ok_or_else(|| format!("{} „{}“", tr("Faktor ungültig", "invalid factor"), col(7)))?;
+    let send = col(8).to_lowercase();
+    if !SEND_MODES.contains(&send.as_str()) {
+        return Err(format!(
+            "{} „{}“ ({})",
+            tr("Weitergabe ungültig", "invalid send mode"),
+            col(8),
+            SEND_MODES.join("/")
+        ));
+    }
+    let active = parse_bool(&col(9)).ok_or_else(|| {
+        format!(
+            "{} „{}“",
+            tr("Aktiv ungültig (1/0)", "invalid active (1/0)"),
+            col(9)
+        )
+    })?;
+    // Ausgänge: je zwei Spalten
+    let mut outputs = old.map(|d| d.outputs.clone()).unwrap_or_default();
+    for (k, key) in OUTPUTS.iter().enumerate() {
+        let i = FIXED + 2 * k;
+        if c.len() <= i {
+            continue;
+        }
+        let on =
+            parse_bool(&col(i)).ok_or_else(|| format!("{} „{}“", output_label(key), col(i)))?;
+        let address = Some(col(i + 1)).filter(|a| !a.is_empty());
+        if let Some(a) = &address {
+            outputs::check_address(key, a).map_err(|e| format!("{e:#}"))?;
+        }
+        let o = outputs.entry(key.to_string()).or_default();
+        o.enabled = on;
+        // leere Adresse in der Datei: vorhandene behalten
+        if address.is_some() {
+            o.address = address;
+        }
+    }
+    let name = col(5);
+    if name.is_empty() {
+        return Err(tr("Name fehlt", "name missing"));
+    }
+    Ok(Datapoint {
+        key: col(4),
+        name,
+        unit: col(6),
+        factor,
+        send,
+        active,
+        outputs,
+        ..Default::default()
+    })
+}
+
+/// Unterschiede eines vorhandenen Datenpunkts in die Vorschau; true, wenn sich etwas ändert
+fn compare(cs: &mut ChangeSet, item: &str, old: &Datapoint, wanted: &Datapoint) -> bool {
+    let flag = |b: bool| (b as u8).to_string();
+    let mut changed = cs.change(item, tr("Name", "Name"), &old.name, &wanted.name);
+    changed |= cs.change(item, tr("Einheit", "Unit"), &old.unit, &wanted.unit);
+    changed |= cs.change(
+        item,
+        tr("Faktor", "Factor"),
+        &old.factor.to_string(),
+        &wanted.factor.to_string(),
+    );
+    changed |= cs.change(item, tr("Weitergabe", "Send"), &old.send, &wanted.send);
+    changed |= cs.change(
+        item,
+        tr("Aktiv", "Active"),
+        &flag(old.active),
+        &flag(wanted.active),
+    );
+    for key in OUTPUTS {
+        let (a, b) = (
+            old.outputs.get(key).cloned().unwrap_or_default(),
+            wanted.outputs.get(key).cloned().unwrap_or_default(),
+        );
+        changed |= cs.change(item, output_label(key), &flag(a.enabled), &flag(b.enabled));
+        changed |= cs.change(
+            item,
+            address_label(key),
+            a.address.as_deref().unwrap_or(""),
+            b.address.as_deref().unwrap_or(""),
+        );
+    }
+    changed
+}
+
+/// Neuer Datenpunkt: Zähler über Linie und Adresse finden, Kennung prüfen
+fn meter_for_new<'a>(
+    c: &[String],
+    meters: &'a [(String, Meter)],
+    wanted: &Datapoint,
+) -> std::result::Result<&'a Meter, String> {
+    let line = c.get(1).map(String::as_str).unwrap_or("");
+    let address = c.get(3).map(|a| a.to_ascii_uppercase()).unwrap_or_default();
+    let meter = meters
+        .iter()
+        .find(|(l, m)| l == line && m.address == address)
+        .map(|(_, m)| m)
+        .ok_or_else(|| {
+            format!(
+                "{} „{line}“ / „{address}“",
+                tr("Zähler nicht gefunden", "meter not found")
+            )
+        })?;
+    if parts(&wanted.key).is_none() {
+        return Err(format!(
+            "{} „{}“",
+            tr("Kennung ungültig", "invalid key"),
+            wanted.key
+        ));
+    }
+    Ok(meter)
 }
