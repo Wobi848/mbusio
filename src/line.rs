@@ -5,7 +5,7 @@
 //! Aufträge aus der Bedienung haben Vorrang vor geplanten Auslesungen.
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
@@ -63,35 +63,41 @@ pub struct LineStatus {
 /// Offene Anschlüsse aller Linien: ein Anschluss gehört immer nur einer Linie. Gilt für die
 /// Bedienung wie für den Ausleseplan, weil jeder Linien-Dienst hier belegt, bevor er öffnet.
 #[derive(Default)]
-pub struct Ports(Mutex<HashMap<String, (i64, String)>>);
+pub struct Ports(Mutex<HashMap<String, (i64, String, u64)>>);
 
 /// Belegter Anschluss; wird frei, sobald die Verbindung der Linie zu ist (Drop)
 struct Claim {
     ports: Arc<Ports>,
     key: Option<String>,
+    /// Nummer des Belegs: eine alte Verbindung, die spät schliesst, gibt den Beleg einer neuen
+    /// Verbindung derselben Linie nicht frei
+    id: u64,
 }
 
 impl Ports {
     /// Anschluss für die Linie belegen; besetzt: Fehler mit der Linie, die ihn hat
     fn claim(self: &Arc<Self>, port: &str, line_id: i64, label: &str) -> Result<Claim> {
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        let id = NEXT.fetch_add(1, Ordering::Relaxed);
         let key = link::port_key(port);
         if let Some(k) = &key {
             let mut held = self.0.lock().unwrap();
             match held.get(k) {
-                Some((other, by)) if *other != line_id => {
+                Some((other, by, _)) if *other != line_id => {
                     return Err(anyhow!(tr(
                         &format!("{port} wird schon von Linie {by} benutzt"),
                         &format!("{port} is already used by line {by}"),
                     )))
                 }
                 _ => {
-                    held.insert(k.clone(), (line_id, label.to_string()));
+                    held.insert(k.clone(), (line_id, label.to_string(), id));
                 }
             }
         }
         Ok(Claim {
             ports: self.clone(),
             key,
+            id,
         })
     }
 }
@@ -99,7 +105,10 @@ impl Ports {
 impl Drop for Claim {
     fn drop(&mut self) {
         if let Some(k) = &self.key {
-            self.ports.0.lock().unwrap().remove(k);
+            let mut held = self.ports.0.lock().unwrap();
+            if held.get(k).is_some_and(|h| h.2 == self.id) {
+                held.remove(k);
+            }
         }
     }
 }
@@ -453,6 +462,17 @@ mod tests {
         // erste Linie getrennt: Anschluss wieder frei
         assert!(a.stop_wait(Duration::from_secs(5)));
         start(5, &addr, &ports).connect().unwrap();
+    }
+
+    #[test]
+    fn late_close_keeps_newer_claim_of_same_line() {
+        let ports: Arc<Ports> = Arc::default();
+        let old = ports.claim("tcp://10.0.0.9:10001", 1, "L1").unwrap();
+        // neu verbunden, während die alte Verbindung noch nicht zu ist
+        let _new = ports.claim("tcp://10.0.0.9:10001", 1, "L1").unwrap();
+        drop(old);
+        let e = ports.claim("10.0.0.9:10001", 2, "L2").err().unwrap();
+        assert!(e.to_string().contains("L1"), "{e}");
     }
 
     #[test]

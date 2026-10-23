@@ -583,7 +583,7 @@ fn error_value_from_meter_is_invalid_at_once() {
         .find(|x| x.function == "instantaneous" && x.quantity == "power")
         .map(key_of)
         .expect("Leistung im Simulator");
-    db.dp_select(mid, &[power.clone()], &[], Lang::De).unwrap();
+    db.dp_select(mid, std::slice::from_ref(&power), &[], Lang::De).unwrap();
     db.record(line, &Target::Primary(1), Ok(&r), false).unwrap();
     assert_eq!(db.dp_by_meter(mid).unwrap()[0].invalid, None);
     // Zähler ohne Durchfluss: Leistung als Fehlerwert gemeldet (wie Itron auf dem Tisch)
