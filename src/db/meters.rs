@@ -67,6 +67,36 @@ impl Db {
         self.meter(id)
     }
 
+    /// Zählerliste nach einer Änderung am Zähler nachführen (Primäradresse gesetzt, Baudrate
+    /// umgestellt), damit jede Oberfläche gleich arbeitet: über die PA gemerkt → neue Adresse;
+    /// eigene Baudrate → die neue, oder keine, wenn sie der Baudrate der Linie entspricht.
+    /// Liefert false, wenn der Zähler nicht in der Liste steht.
+    pub fn follow_meter_change(
+        &mut self,
+        line_id: i64,
+        target: &Target,
+        new_pa: Option<u8>,
+        new_baud: Option<u32>,
+    ) -> Result<bool> {
+        let Some(mut m) = self.find_meter(line_id, target)? else {
+            return Ok(false);
+        };
+        if let Some(pa) = new_pa {
+            if matches!(Target::parse(&m.address), Ok(Target::Primary(_))) {
+                m.address = pa.to_string();
+            }
+            self.conn.execute(
+                "UPDATE meters SET primary_address = ?2 WHERE id = ?1",
+                params![m.id, pa],
+            )?;
+        }
+        if let Some(b) = new_baud {
+            m.baud = (b != self.line(line_id)?.baud).then_some(b);
+        }
+        self.update_meter(m.id, m)?;
+        Ok(true)
+    }
+
     pub fn remove_meter(&mut self, id: i64) -> Result<()> {
         self.meter(id)?;
         self.conn

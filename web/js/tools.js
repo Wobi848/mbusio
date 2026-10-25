@@ -244,12 +244,8 @@ async function doSetAddress(address, newAddr, fromBaud) {
     hit.primary_address = newAddr;
     renderJob(lastJob);
   }
-  // steht der Zähler mit seiner Primäradresse in der Liste, die neue eintragen
-  const m = listedMeter(String(address));
-  if (m && /^\d+$/.test(m.address)) {
-    await api("meters/" + m.id, { method: "PUT", body: { ...m, address: String(newAddr) } });
-    await loadMeters();
-  }
+  // die Zählerliste führt der Server nach (neue PA bzw. Baudrate), hier nur neu laden
+  await loadMeters();
 }
 
 /// Baudrate umstellen und überall nachführen; true, wenn die Zählerliste angepasst wurde
@@ -260,12 +256,9 @@ async function doSwitchBaud(address, baud, fromBaud) {
     hit.baud = baud;
     renderJob(lastJob);
   }
-  const m = listedMeter(address);
-  if (!m) return false;
-  // eigene Baudrate nur speichern, wenn sie vom Bus abweicht
-  await api("meters/" + m.id, { method: "PUT", body: { ...m, baud: baud === connBaud ? null : baud } });
+  const listed = !!listedMeter(address);
   await loadMeters();
-  return true;
+  return listed;
 }
 
 

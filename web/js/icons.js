@@ -53,7 +53,8 @@ function mediumIcon(medium, small = false) {
 /// Zähler der Liste für den Zähler-Baustein: ID (über PA gemerkt: die ID aus der Auslesung), PA,
 /// Hersteller, eigene Baudrate
 function meterBlock(m) {
-  const viaPa = /^\d+$/.test(m.address);
+  // über die PA gemerkt: 1–3 Ziffern (eine ID hat 8 Zeichen, auch wenn es nur Ziffern sind)
+  const viaPa = /^\d{1,3}$/.test(m.address);
   return {
     name: m.name,
     ident: viaPa ? m.meter_id : m.meter_id || m.address,

@@ -84,8 +84,8 @@ Bezeichnungen zu Schlüsseln (`energy`, `medium_water`, `checksum` …): `GET /a
 | | |
 | --- | --- |
 | `POST /api/read` | `{address, baud?}` → `MeterReading` (in der Liste: wird beim Zähler gespeichert). |
-| `POST /api/set-address` | Primäradresse ändern: `{address, new_address, from_baud?}` → `{ok, new_address}`; wird geprüft (Ziel frei, nur ein Zähler) und protokolliert. |
-| `POST /api/switch-baud` | `{address, baud, from_baud?}` → `{ok, baud}`. |
+| `POST /api/set-address` | Primäradresse ändern: `{address, new_address, from_baud?}` → `{ok, new_address}`; wird geprüft (Ziel frei, nur ein Zähler) und protokolliert. Steht der Zähler in der Liste, führt mbusio sie nach (über die PA gemerkt: neue Adresse; sonst PA nachgetragen). |
+| `POST /api/switch-baud` | `{address, baud, from_baud?}` → `{ok, baud}`. Zählerliste wird nachgeführt (eigene Baudrate nur, wenn sie von der Linie abweicht). |
 | `POST /api/detect-baud` | `{address}` → `{bauds}` (auf welchen er antwortet). |
 | `POST /api/reset` | Application Reset: `{address, subcode?, from_baud?}` → `{ok}`. |
 | `POST /api/raw` | Rohe Bytes senden: `{hex: "10 40 01 41 16"}` → `{kind, hex, decoded?}`. |

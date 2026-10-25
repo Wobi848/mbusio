@@ -291,6 +291,44 @@ mod tests {
     }
 
     #[test]
+    fn meter_list_follows_address_and_baud_changes() {
+        let mut db = Db::memory().unwrap();
+        let line = db.active_line().unwrap().id;
+        let by_pa = db.add_meter(line, meter("5")).unwrap();
+        let by_sa = db.add_meter(line, meter("12345678")).unwrap();
+        // über die PA gemerkt: neue Adresse
+        assert!(db
+            .follow_meter_change(line, &Target::Primary(5), Some(17), None)
+            .unwrap());
+        let m = db.meter(by_pa.id).unwrap();
+        assert_eq!((m.address.as_str(), m.primary_address), ("17", Some(17)));
+        // über die ID gemerkt: Adresse bleibt, PA wird nachgetragen
+        db.follow_meter_change(
+            line,
+            &Target::Secondary("12345678FFFFFFFF".into()),
+            Some(9),
+            None,
+        )
+        .unwrap();
+        let m = db.meter(by_sa.id).unwrap();
+        assert_eq!(
+            (m.address.as_str(), m.primary_address),
+            ("12345678", Some(9))
+        );
+        // Baudrate: abweichend gemerkt, gleich wie die Linie wieder ohne eigene
+        db.follow_meter_change(line, &Target::Primary(17), None, Some(9600))
+            .unwrap();
+        assert_eq!(db.meter(by_pa.id).unwrap().baud, Some(9600));
+        db.follow_meter_change(line, &Target::Primary(17), None, Some(2400))
+            .unwrap();
+        assert_eq!(db.meter(by_pa.id).unwrap().baud, None);
+        // nicht in der Liste: nichts zu tun
+        assert!(!db
+            .follow_meter_change(line, &Target::Primary(99), Some(1), None)
+            .unwrap());
+    }
+
+    #[test]
     fn starts_with_default_project_and_active_line() {
         let db = Db::memory().unwrap();
         let a = db.active().unwrap();

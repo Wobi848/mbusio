@@ -131,6 +131,22 @@ pub(super) fn update_hits(
     found
 }
 
+/// Zählerliste nachführen; klappt das nicht (z.B. PA schon von einem anderen Eintrag belegt), steht
+/// es im Protokoll, die Änderung am Zähler selbst ist trotzdem gemacht
+fn follow_list(st: &AppState, line: i64, target: &Target, pa: Option<u8>, baud: Option<u32>) {
+    if let Err(e) = st
+        .db
+        .lock()
+        .unwrap()
+        .follow_meter_change(line, target, pa, baud)
+    {
+        st.log.push(
+            "INFO",
+            format!("{}: {e:#}", tr("Zählerliste", "Meter list")),
+        );
+    }
+}
+
 pub(super) async fn set_address(
     State(st): State<AppState>,
     Json(req): Json<SetAddressReq>,
@@ -145,6 +161,7 @@ pub(super) async fn set_address(
     .await?;
     let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Pa(new))
         .unwrap_or_else(|| (target.label(), "?".into()));
+    follow_list(&st, line, &target, Some(new), None);
     let text = format!(
         "{name}: {} {old} → {new}",
         tr("Primäradresse", "primary address")
@@ -176,6 +193,7 @@ pub(super) async fn switch_baud(
     .await?;
     let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Baud(baud))
         .unwrap_or_else(|| (target.label(), "?".into()));
+    follow_list(&st, line, &target, None, Some(baud));
     let text = format!("{name}: {} {old} → {baud} Bd", tr("Baudrate", "baud rate"));
     let _ = st.db.lock().unwrap().add_change(line, &text);
     Ok(Json(json!({ "ok": true, "baud": baud })))
