@@ -414,7 +414,8 @@ Aufbau:
 - `src/mqtt/`: MQTT-Ausgang: Dienst (mod), Einstellungen und Topics (config), Einstellungen und
   Warteschlange in der Datenbank (store);
   eigener kleiner Client für MQTT 3.1.1 mit TLS über rustls (client)
-- `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
+- `src/plan.rs`, `src/scheduler/`: Ausleseplan und Zeitplan (mod: was fällig ist; reading: geplant lesen
+  und Durchgang abschliessen; upkeep: Speicher, Ausdünnen, Uhrzeit); `src/clock.rs`: Uhrzeit und ob sie
   bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
 - `src/web/`: HTTP-API: mod (Router, Zugriffsschlüssel, Dateien), state (gemeinsamer Zustand,
   Linien-Dienste), api (Fehler, Downloads, Arbeit am Bus), dann nach Bereichen (bus: Verbindung und
