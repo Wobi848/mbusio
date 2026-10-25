@@ -360,4 +360,3 @@ Namen und langer Fehlermeldung.
 - Test `tests/ui/15-neu-scan`.
 
 **Nächster Schritt:** 4 (Weitergabe), dann Simulator.
-und der Simulator.
