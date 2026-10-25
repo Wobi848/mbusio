@@ -408,6 +408,7 @@ Aufbau:
   Node-RED), outputs (Ausgänge allgemein mit Schnittstelle `Output`, je Ausgang ein Modul: mqtt,
   home_assistant, modbus), templates (Vorlagen), exchange (Zählertausch), csv (Export/Import),
   project_file (aus einem Projekt-Export übernehmen)
+- `src/main.rs`: Start, Webserver und Dienste; `src/cli.rs`: Befehle der Kommandozeile (JSON)
 - `src/changeset.rs`: Änderungssatz für „Vorschau → Übernehmen“ (Importe, Vorlagen)
 - `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export
 - `src/modbus/`: Modbus-TCP-Server: Einstellungen und Dienst (mod), Registerbild (image),
