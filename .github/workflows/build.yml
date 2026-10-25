@@ -55,6 +55,9 @@ jobs:
 
   build:
     needs: test
+    # nur für ein Release (Tag v…) oder von Hand (Actions → Build → Run workflow): spart Minuten,
+    # private Repos haben im Gratis-Plan 2000 Minuten im Monat
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
