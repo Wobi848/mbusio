@@ -4,7 +4,7 @@ Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, le
 Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 ## Harte Regeln des Nutzers
-- **Phase 4 (Modbus) NICHT machen.**
+- Modbus TCP am 25.10. freigegeben (docs/konzept-modbus.md). Alles bleibt privat: nichts auf npm.
 - **Kein Release v0.5.0**, bevor der 7-Tage-Test auf dem Raspberry Pi gelaufen ist (Strom weg, USB ab, kleine SD-Karte).
 - KISS: wenig Code, wiederverwendbare Bausteine (web/js/ui.js, base.js), nichts doppelt, kein Spaghetti.
 - Grössere Änderungen: erst Konzept (docs/konzept-*.md), dann bauen.
