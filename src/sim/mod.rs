@@ -42,7 +42,7 @@ pub use self::store::*;
 use std::collections::VecDeque;
 use std::io;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};

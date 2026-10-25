@@ -262,13 +262,27 @@ fn now_type_f() -> [u8; 4] {
     [t.minute() as u8, t.hour() as u8, g[0], g[1]]
 }
 
+/// Ab hier laufen die Zählerstände (1.10.2026, Sekunden seit 1970)
+const COUNTER_ORIGIN: f64 = 1_790_812_800.0;
+
+/// Sekunden seit 1970 nach der Systemuhr (nicht der Uhr von mbusio: die kann ein Leitsystem
+/// verstellen, und rückwärts würde ein Zählerstand sinken)
+fn system_secs() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0.0, |d| d.as_secs_f64())
+}
+
 pub struct Simulator {
     slaves: Vec<Slave>,
     baud: u32,
     inbuf: Vec<u8>,
     rx: VecDeque<u8>,
     byte_time: Duration,
-    start: Instant,
+    /// Zählerstände = Anfangswert + Zeit seit `origin`. Fest, damit sie auch über einen Neustart
+    /// von mbusio weiter steigen wie bei echten Zählern (sonst „Zählerstand gesunken“); in Tests
+    /// ab dem Start, damit die Anfangswerte fest sind.
+    origin: f64,
 }
 
 impl Simulator {
@@ -312,8 +326,19 @@ impl Simulator {
             inbuf: Vec::new(),
             rx: VecDeque::new(),
             byte_time: Duration::from_secs_f64(11.0 / baud.max(300) as f64),
-            start: Instant::now(),
+            origin: if cfg!(test) {
+                system_secs()
+            } else {
+                COUNTER_ORIGIN
+            },
         }
+    }
+
+    /// Tests: Zählerstände ab `origin` laufen lassen wie im Programm (statt ab dem Start)
+    #[cfg(test)]
+    pub fn with_counter_origin(mut self) -> Self {
+        self.origin = COUNTER_ORIGIN;
+        self
     }
 
     fn targets(&self, address: u8) -> Vec<usize> {
@@ -328,7 +353,8 @@ impl Simulator {
     }
 
     fn handle(&mut self, f: Frame) -> Vec<u8> {
-        let elapsed = self.start.elapsed().as_secs_f64();
+        // vor dem Ursprung (Uhr noch nicht gestellt, z.B. Pi ohne Netz): Anfangswerte
+        let elapsed = (system_secs() - self.origin).max(0.0);
         let mut replies: Vec<Vec<u8>> = Vec::new();
         match f {
             Frame::Short { control, address } if control == frame::C_SND_NKE => {

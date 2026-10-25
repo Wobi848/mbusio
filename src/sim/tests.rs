@@ -611,3 +611,27 @@ fn secondary_scan_resumes_where_it_stopped() {
     both.sort();
     assert_eq!(both, all, "zusammen alle, keiner doppelt");
 }
+
+#[test]
+fn counters_keep_rising_after_a_restart() {
+    // Energie des Wärmezählers an Adresse 1, gelesen von einem frischen Simulator (= Neustart)
+    let energy = || {
+        let mut m = Master::new(
+            Box::new(Simulator::new(9600).with_counter_origin()),
+            9600,
+            50,
+            Arc::new(FrameLog::default()),
+        );
+        let r = m.read_meter(&Target::Primary(1)).unwrap();
+        r.records
+            .iter()
+            .find(|x| x.quantity == "energy" && x.storage == 0)
+            .and_then(|x| x.value.as_f64())
+            .unwrap()
+    };
+    let before = energy();
+    // ab einem festen Datum: deutlich über dem Anfangswert, und nach dem „Neustart“ nicht kleiner
+    assert!(before > 123_456.0, "{before}");
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    assert!(energy() >= before);
+}

@@ -129,6 +129,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- **Simulator:** Nach einem Neustart von mbusio begannen die simulierten Zählerstände wieder beim
+  Anfangswert; mbusio meldete dann „Zählerstand gesunken“ (ungültig), auch an MQTT, Home
+  Assistant und Node-RED. Die Zählerstände laufen jetzt ab dem 1.10.2026 nach der Systemuhr und
+  steigen über einen Neustart weiter; sie sind dadurch grösser als bisher.
 - Nach „Verbinden“ zeigte die Linie im Reiter Projekt weiter „Anschluss noch nicht festgelegt“.
 - Die Statusleiste zeigte bei einem laufenden Ausleseplan „Behebe …“ statt „Plan … liest“.
 - „klein“ gestaltete Links und Datei-Knöpfe waren grösser als die übrigen kleinen Knöpfe.

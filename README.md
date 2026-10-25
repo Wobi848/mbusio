@@ -328,6 +328,10 @@ Doppelte Adressen oder IDs werden beim Bearbeiten angezeigt (manchmal sind sie j
 (`SIMULATOR:<name>`); verschiedene Linien können verschiedene Anlagen simulieren. Änderungen
 gelten nach dem Speichern sofort.
 
+Die simulierten Zählerstände (Energie, Volumen, Wasser, Strom) steigen mit der Zeit seit dem
+1.10.2026 nach der Systemuhr, also auch über einen Neustart von mbusio hinweg, wie bei echten
+Zählern.
+
 Belegung von `SIMULATOR` (Praxis mit Fehlern):
 
 | Adresse | Zähler | Besonderheit |
