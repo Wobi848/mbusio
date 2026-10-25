@@ -12,7 +12,7 @@ export default {
     await api("meters", "POST", { address: "1", name: "Whg 1" });
     await api("lines/1/plan", "PUT", { plan: "daily 00:05" });
   },
-  async run({ page, base }) {
+  async run({ page, base, api }) {
     let dialogs = 0;
     page.on("dialog", () => dialogs++);
     await page.goto(base + "/neu/#/zaehler");
@@ -78,5 +78,21 @@ export default {
       };
     });
     assert.deepEqual(same, { kept: true, replaced: true, order: "2,1,4" });
+
+    // Nie seitlich scrollen, auch mit langen Namen und langer Fehlermeldung (abgesteckter Wandler)
+    const id = (await api("gateways/1/lines", "POST", {
+      name: "Heizzentrale Untergeschoss Nord",
+      connection: "/dev/serial/by-id/usb-Silicon_Labs_Relay_M-Bus_Micro-Master_USB_7890-if00-port0",
+      baud: 2400,
+    })).id;
+    await api(`lines/${id}/activate`, "POST").catch(() => {});
+    for (const area of ["zaehler", "scan"])
+      for (const width of [360, 390, 800, 1000, 1100, 1250, 1400, 1600]) {
+        await page.setViewportSize({ width, height: 800 });
+        await page.goto(`${base}/neu/#/${area}`);
+        await page.waitForFunction(() => document.querySelector("#line b")?.textContent.startsWith("Heizzentrale"));
+        const wide = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+        assert.ok(wide <= 0, `${area} bei ${width} px: ${wide} px zu breit`);
+      }
   },
 };

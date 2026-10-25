@@ -97,6 +97,30 @@ Jede Schwachstelle wird zu einer prüfbaren Vorgabe (Abnahme mit den Messskripte
   Ansicht mit „← zurück“ (Escape/Zurück-Taste des Browsers).
 - Grosse Treffflächen (mindestens 40 px) für Finger.
 
+### 3.4 Der Ablauf, ohne Erklärung
+
+Die Oberfläche zeigt den nächsten Schritt durch ihren Zustand, nicht durch Text: genau ein
+Hauptknopf (gefüllt) an der Stelle, an der man ohnehin hinschaut; was erledigt ist, steht als
+Zustand da. Der Knopf „Nächster Schritt“ in der Statusleiste macht dasselbe für die, die nicht
+suchen wollen, und führt an die Stelle.
+
+| Stand | Was man sieht (der Hauptknopf ist fett) |
+| --- | --- |
+| **Neu, kein Anschluss** | Kopfzeile: „● Anschluss noch nicht festgelegt **[Anschluss festlegen]**“. Bereich Scan offen (Start ohne Adresse: keine Zähler → Scan, sonst Zähler). |
+| **Anschluss, getrennt** | Kopfzeile: „○ Getrennt **[Verbinden]**“; Statusleiste: Grund (z.B. „USB-Wandler abgezogen?“). |
+| **Verbunden, noch nie gesucht** | Scan: Suchzeile mit **[Primärscan starten]**; die Liste darunter leer mit „Noch nicht gesucht“. |
+| **Scan läuft** | Zeilen erscheinen einzeln, Fortschritt in der Suchzeile und Statusleiste, **[Abbrechen]**. |
+| **Treffer mit Auffälligkeiten** | Zeile rot/orange mit Wort („Kollision“, „andere Baudrate“); oben **[N beheben]**; Details rechts: Ursache, Empfehlung, Knopf. |
+| **Treffer in Ordnung, nicht gemerkt** | Zeile „neu“; oben **[N neue merken]**. Schon gemerkte: „✓ in Liste“, kein Knopf. |
+| **Gemerkt, nicht ausgelesen** | Zähler: Zeilen „noch nicht ausgelesen“; oben **[Alle N auslesen]**. |
+| **Ausgelesen** | Werte mit Zeit; Probleme als Wort („antwortet nicht“). Fertig für den Service: **[Bericht]** (Anlage). |
+| **Dauerbetrieb einrichten** | Kopfzeile: Schalter Dauerbetrieb, ohne Plan gesperrt mit „kein Ausleseplan“ und Weg zum Plan; mit Plan **einschalten**. |
+| **Werte weitergeben** | Zähler-Details: Kästchen „als Datenpunkt“; Weitergabe: Ausgang mit Schalter und Zustand („MQTT · läuft“). |
+| **Läuft** | Kopfzeile: „● N im Dauerbetrieb“ (grün; orange bei Störung oder ohne Dienst). |
+
+Prüfstein für jeden Bereich: Ein Techniker, der mbusio zum ersten Mal sieht, kommt ohne Hilfetext
+vom leeren Projekt bis zum Bericht, nur indem er dem einen Hauptknopf folgt.
+
 ## 4. Selbsterklärend: Regeln für jedes Element
 
 - **Zustand am Element:** Wort plus Farbe direkt am Ding, z.B. „✓ in Liste“, „antwortet nicht“,
@@ -268,4 +292,9 @@ die andere KI arbeitet am Server, Server-Punkte 1 und 2 aus Abschnitt 7 gleich m
 - **Noch in der bisherigen Oberfläche:** Verlauf, Zählertausch, Liste importieren, Namen nach Muster,
   CSV-Export. Kommen als Ergänzung zu Schritt 1, bevor umgeschaltet wird.
 
-**Nächster Schritt:** 2 (Scan).
+**Nachgebessert:** Die Seite scrollt bei keiner Breite seitlich (Kopfzeile kürzt lange Texte, der
+Grund einer Trennung steht in der Statusleiste, Laschen brechen am Handy um, Listenspalten mit
+Mindestbreite für Name, Kennung und Wert); der Gerüst-Test prüft das bei 360–1600 px mit langen
+Namen und langer Fehlermeldung.
+
+**Nächster Schritt:** 2 (Scan), mit dem Start im passenden Bereich (3.4).

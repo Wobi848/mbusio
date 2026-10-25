@@ -85,17 +85,15 @@ function renderConnection() {
   const line = s.active.line;
   const btn = $("conn-action");
   if (s.connected) {
+    $("conn-state").title = "";
     html($("conn-state"), `<span class="dot on"></span><b>${esc(t("lb_connected"))}</b> <span class="mono">${esc(portText(s.connection.port))} · ${s.connection.baud}</span>`);
     text(btn, t("n_change"));
     btn.title = t("conn_change");
     btn.className = "quiet";
   } else if (line.connection) {
-    const why = s.line?.error;
-    html(
-      $("conn-state"),
-      `<span class="dot off"></span><b>${esc(t("lb_disconnected"))}</b> <span class="mono">${esc(portText(line.connection))}</span>` +
-        (why ? ` <span class="sub warn" title="${esc(why)}">${esc(why.length > 60 ? why.slice(0, 60) + "…" : why)}</span>` : "")
-    );
+    // der Grund (z.B. „USB-Wandler abgezogen?“) steht ganz in der Statusleiste, hier nur der Zustand
+    html($("conn-state"), `<span class="dot off"></span><b>${esc(t("lb_disconnected"))}</b> <span class="mono">${esc(portText(line.connection))}</span>`);
+    $("conn-state").title = s.line?.error || "";
     text(btn, t("connect"));
     btn.title = "";
     btn.className = "";
@@ -317,7 +315,7 @@ function renderStatus() {
         ? `<span class="dot busy"></span>${esc(t("plan_running", run.label, run.done, run.total))}`
         : s.connected
           ? `<span class="dot on"></span>${esc(t("idle_ready", portText(s.connection.port), s.connection.baud))}`
-          : `<span class="dot off"></span>${esc(t("idle_off"))}`
+          : `<span class="dot off"></span>${esc(t("idle_off"))}${s.line?.error ? ` <span class="warn cut" title="${esc(s.line.error)}">· ${esc(s.line.error)}</span>` : ""}`
   );
   const issues = activeLine()?.issues;
   html($("issues"), issues ? `<span class="chip ${issues.count ? "warn" : "ok"}">${esc(issues.count ? t("issues", issues.count) : t("issues_none"))}</span>` : "");

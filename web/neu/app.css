@@ -13,6 +13,7 @@ body {
   margin: 0;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr); /* nichts darf die Seite breiter machen als das Fenster */
   font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -118,7 +119,8 @@ input.switch:disabled { cursor: default; opacity: .5; }
 
 /* eine Zeile; lange Texte kürzen sich mit … statt umzubrechen */
 .top { min-height: 44px; flex-wrap: nowrap; }
-.top > * { flex: none; }
+.top > * { flex: 0 1 auto; min-width: 0; }
+.top > .brand, .top > .menu-host { flex: none; }
 .top > .grow { flex: 1; }
 .brand { display: inline-flex; align-items: center; gap: 6px; font-weight: 750; letter-spacing: -.01em; }
 .path { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
@@ -132,7 +134,13 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .op.on { background: var(--ok-soft); }
 .op.on #op-text { color: var(--ok); }
 .top > .op, .top > .conn { flex: 0 1 auto; min-width: 0; }
-#op-text, #conn-state { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+#op-text, #conn-state, .path, .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+#conn-state > *, #line > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#line { max-width: 260px; }
+/* Chips (Auffälligkeiten, Ausgänge) haben Vorrang; eine lange Meldung am Bus kürzt sich */
+.status { overflow: hidden; white-space: nowrap; }
+.status #bus { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+.status #issues, .status #outputs, .status #next { flex: none; }
 
 .tabs { min-height: 34px; gap: 2px; background: var(--sunken); }
 .tabs a {
@@ -243,7 +251,10 @@ button.danger-text:hover { background: var(--err-soft); }
 .selbar select { height: 28px; }
 
 /* Bereich Zähler: Spalten der Liste */
-.pane .row:not(.vrow) { grid-template-columns: 18px minmax(160px, 2fr) minmax(120px, 1fr) minmax(80px, 1fr) minmax(140px, 1.4fr) 130px; }
+/* Name, Kennung und Wert behalten ihre Breite, der Ort wird zuerst schmaler */
+.pane .row:not(.vrow) { grid-template-columns: 18px minmax(120px, 2fr) minmax(125px, 1fr) minmax(0, 1fr) minmax(130px, 1.4fr) minmax(0, 130px); }
+.pane .row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rows { overflow-x: hidden; }
 .mid.s { width: 20px; height: 20px; border-radius: 5px; }
 .soon { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 16px 12px; color: var(--muted); }
 .soon b { color: var(--text); }
@@ -267,7 +278,8 @@ button.danger-text:hover { background: var(--err-soft); }
   .path .menu-host { flex: 1; min-width: 0; }
   #line { width: 100%; }
   .conn .mono { max-width: 150px; }
-  .tabs { overflow-x: auto; scrollbar-width: none; }
+  .tabs { flex-wrap: wrap; }
+  .tabs a { height: 32px; padding: 0 10px; }
   button, select, input, .field { height: 36px; } /* Finger */
   /* Liste über die ganze Breite, Details als eigene Ansicht mit „←“ */
   .split { grid-template-columns: minmax(0, 1fr); }
