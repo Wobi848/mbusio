@@ -307,7 +307,7 @@ async function mountArea(area, pane) {
 AREAS.forEach((a, i) =>
   bind(String(i + 1), () => (location.hash = `#/${a}`), t("n_key_area", t(AREA_TAB[a])))
 );
-bind("/", () => document.querySelector("#work [data-search]")?.focus(), t("n_key_search"));
+bind("/", () => document.querySelector("#work .pane:not([hidden]) [data-search]")?.focus(), t("n_key_search"));
 bind("?", showKeys, t("n_key_help"));
 
 // ------------------------------------------------------------ Statusleiste

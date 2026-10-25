@@ -154,3 +154,51 @@ export function toast(message, { error = false, undo = null } = {}) {
     };
   toastTimer = setTimeout(() => (el.hidden = true), error ? 10000 : undo ? 8000 : 4000);
 }
+
+// ------------------------------------------------------------ Vorschau → Übernehmen
+
+/// Änderungssatz vom Server (Import, Namen, Adressen nach Muster): was neu ist, was sich ändert,
+/// Hinweise, Fehler
+export function changeSet(cs) {
+  const items = (list, cls) => (list.length ? `<ul class="cs-${cls}">${list.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "");
+  const rows = [
+    ...cs.added.map((a) => `<div class="vrow"><span><span class="chip ok">${esc(t("cs_new"))}</span> <span class="mono">${esc(a.item)}</span></span><span>${esc(a.detail)}</span><span></span></div>`),
+    ...cs.changed.map((c) => `<div class="vrow"><span>${esc(c.field)} <span class="mono">${esc(c.item)}</span></span><span>${esc(c.old || "–")} → <b>${esc(c.new || "–")}</b></span><span></span></div>`),
+  ];
+  return `<p>${esc(t("cs_summary", cs.added.length, cs.changed.length, cs.unchanged))}</p>
+    ${items(cs.errors, "err")}${cs.errors.length ? `<p class="sub">${esc(t("cs_errors_note"))}</p>` : ""}${items(cs.warnings, "warn")}
+    ${!rows.length && !cs.errors.length ? `<p class="sub">${esc(t("cs_nothing"))}</p>` : ""}
+    ${rows.length ? `<div class="vals">${rows.join("")}</div>` : ""}`;
+}
+
+/// Erst prüfen und zeigen, dann übernehmen, in einem Kasten (z.B. im Detailbereich).
+/// `run(apply)` liefert den Änderungssatz; nach dem Übernehmen `done(cs)`.
+export async function previewApply(box, { title, run, done }) {
+  const show = (cs) => {
+    const can = cs.added.length + cs.changed.length > 0 && !cs.errors.length;
+    box.innerHTML = `<header class="dhead"><b>${esc(title)}</b></header>${changeSet(cs)}
+      <div class="actions">${can ? `<button type="button" data-cs-apply>${esc(t("cs_apply"))}</button>` : ""}<button type="button" class="quiet" data-cs-close>${esc(t("cs_discard"))}</button></div>`;
+    box._html = null;
+    const release = onEscape(() => close());
+    const close = () => {
+      release();
+      box.innerHTML = "";
+      done?.(null);
+    };
+    box.querySelector("[data-cs-close]").onclick = close;
+    box.querySelector("[data-cs-apply]")?.addEventListener("click", async (ev) => {
+      ev.currentTarget.disabled = true;
+      try {
+        const r = await run(true);
+        release();
+        if (!r.applied) return show(r);
+        box.innerHTML = "";
+        done?.(r);
+      } catch (e) {
+        toast(e.message, { error: true });
+        ev.currentTarget.disabled = false;
+      }
+    });
+  };
+  show(await run(false));
+}

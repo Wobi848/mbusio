@@ -190,42 +190,6 @@ const ui = {
   },
 };
 
-/// Tabelle aus CSV oder aus Excel kopiert (Tabulator); Trennzeichen wird erkannt
-function parseTable(text) {
-  text = text.replace(/^\uFEFF/, "");
-  const first = text.split(/\r?\n/)[0] || "";
-  const delim = ["\t", ";", ","].map((d) => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
-  const rows = [];
-  let row = [];
-  let cur = "";
-  let quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quoted) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else quoted = false;
-      } else cur += c;
-    } else if (c === '"' && cur === "") quoted = true;
-    else if (c === delim) {
-      row.push(cur);
-      cur = "";
-    } else if (c === "\n" || c === "\r") {
-      if (c === "\r" && text[i + 1] === "\n") i++;
-      row.push(cur);
-      rows.push(row);
-      row = [];
-      cur = "";
-    } else cur += c;
-  }
-  if (cur || row.length) {
-    row.push(cur);
-    rows.push(row);
-  }
-  return rows.map((r) => r.map((x) => x.trim())).filter((r) => r.some(Boolean));
-}
 
 /// Uhrzeit immer 24 h als HH:MM; Kurzformen: "5" → 05:00, "530" → 05:30, "17:5" → 17:05.
 /// null, wenn es keine gültige Uhrzeit ist.

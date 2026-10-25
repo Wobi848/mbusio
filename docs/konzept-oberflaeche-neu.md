@@ -359,4 +359,18 @@ Namen und langer Fehlermeldung.
   Liste“ bei Merken über PA nur, wenn dort nicht ein anderer Zähler (andere ID) steht.
 - Test `tests/ui/15-neu-scan`.
 
-**Nächster Schritt:** 4 (Weitergabe), dann Simulator.
+**Schritt 4 (Weitergabe), umgesetzt:**
+- Oben die Ausgänge (MQTT, Modbus) je in einer Zeile: Schalter, Zustand als Wort (läuft = grün,
+  gestört = rot mit Grund, verbindet, aus), Einstellungen im Detailbereich (die ganze gespeicherte
+  Einstellung wird zurückgeschickt), Adressen nach Muster mit Vorschau, Liste für den Integrator
+  (CSV, JSON). Einschalten ohne Broker öffnet die Einstellungen und schaltet nach dem Speichern ein;
+  Ausschalten mit Rückfrage am Ort.
+- Datenpunkte als dichte Liste (Nr, Name, Wert, Qualität als Wort, Ausgänge, Sendeart), Suche,
+  Linie/Projekt, Filter „Probleme“; Details: Name, Faktor, Verschiebung, Senden, aktiv, je Ausgang
+  ein/aus und Adresse, speichern beim Verlassen, Escape setzt zurück.
+- Mehrfachauswahl mit Leiste: ein/aus, Senden, je Ausgang ein/aus, löschen (Rückfrage).
+- Vorlagen im Menü (löschen mit Rückfrage), CSV-Export und -Import mit Vorschau.
+- Gemeinsam: `parseTable` in `js/base.js`; `changeSet`/`previewApply` in `view.js`.
+- Test `tests/ui/20-neu-weitergabe`.
+
+**Nächster Schritt:** Simulator, dann der Rest der Zähler (Verlauf, Tausch, Import, Namen, CSV).
