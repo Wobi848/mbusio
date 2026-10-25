@@ -117,6 +117,7 @@ darunter Primäradresse, Baudrate und Reset; dazu einzelnen Zähler roh auslesen
   [docs/konzept-dauerbetrieb.md](docs/konzept-dauerbetrieb.md); Ausgänge allgemein:
   [docs/konzept-ausgaenge.md](docs/konzept-ausgaenge.md)
 - Node-RED-Nodes (Auswahl Projekt › … › Datenpunkt, ohne Broker): Ordner [node-red/](node-red/)
+- HTTP-API (alles, was die Oberfläche kann, auch für eigene Programme): [docs/api.md](docs/api.md)
 
 ### Weitergabe: Datenpunkte und Ausgänge
 
