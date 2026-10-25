@@ -86,7 +86,15 @@ OUTPUT_UI.mqtt = {
     await api("mqtt", {
       method: "PUT",
       body: {
-        config: { ...v, port: v.port || (v.tls ? 8883 : 1883), base: v.base || "mbusio", ha_prefix: v.ha_prefix || "homeassistant", password: "" },
+        // ausgeblendete Felder (CA ohne TLS, Präfix ohne Home Assistant) behalten ihren Wert
+        config: {
+          ...mqttConfig,
+          ...v,
+          port: v.port || (v.tls ? 8883 : 1883),
+          base: v.base || "mbusio",
+          ha_prefix: v.ha_prefix || mqttConfig?.ha_prefix || "homeassistant",
+          password: "",
+        },
         // leer = gespeichertes behalten; Benutzer gelöscht = Passwort auch
         password: v.password ? v.password : v.username ? null : "",
       },

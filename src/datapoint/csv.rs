@@ -126,15 +126,19 @@ impl Db {
         }
         cs.finish(apply, || {
             self.tx(|db| {
+                let mut ids = Vec::new();
                 for (id, d) in &updates {
-                    db.dp_update(*id, d)?;
+                    db.dp_write(*id, d)?;
+                    ids.push(*id);
                 }
                 for (m, d) in &creates {
                     if let Some(id) = db.dp_create(m, &d.key, lang)? {
-                        db.dp_update(id, d)?;
+                        db.dp_write(id, d)?;
+                        ids.push(id);
                     }
                 }
-                Ok(())
+                // erst am Ende: Adressen dürfen zwischendurch doppelt sein (Tausch zweier Zeilen)
+                db.check_unique_addresses(&ids)
             })
         })
     }

@@ -839,3 +839,65 @@ fn live_values_follow_operation_send_mode_and_quality() {
         })
         .is_err());
 }
+
+#[test]
+fn duplicate_addresses_are_refused_but_csv_may_swap() {
+    const VOLUME: &str = "instantaneous|0|0|0|volume|m³";
+    let (mut db, _line, mid, _r) = setup();
+    db.dp_select(
+        mid,
+        &[ENERGY.to_string(), VOLUME.to_string()],
+        &[],
+        Lang::De,
+    )
+    .unwrap();
+    let dps = db.dp_by_meter(mid).unwrap();
+    let (a, b) = (dps[0].id, dps[1].id);
+    db.dp_bulk(&[a, b], "out:mqtt:on").unwrap();
+    db.dp_bulk(&[a, b], "out:modbus:on").unwrap();
+    let topic = |db: &Db, id| db.dp(id).unwrap().outputs["mqtt"].address.clone().unwrap();
+    let (ta, tb) = (topic(&db, a), topic(&db, b));
+    assert_ne!(ta, tb);
+    // Bearbeiten: Topic des anderen abgelehnt, nichts geändert
+    let mut d = db.dp(b).unwrap();
+    d.outputs.get_mut("mqtt").unwrap().address = Some(ta.clone());
+    d.name = "neu".into();
+    let e = db.dp_update(b, &d).unwrap_err().to_string();
+    assert!(e.contains("hat schon Datenpunkt 1"), "{e}");
+    assert_eq!(topic(&db, b), tb);
+    assert_ne!(db.dp(b).unwrap().name, "neu", "auch der Name nicht");
+    // Modbus: Register im Projekt doppelt abgelehnt
+    let mut d = db.dp(b).unwrap();
+    d.outputs.get_mut("modbus").unwrap().address = Some("0".into());
+    assert!(db.dp_update(b, &d).is_err());
+    // CSV: zwei Topics tauschen geht (erst am Ende eindeutig)
+    let csv = db.dp_csv(1, Lang::De).unwrap();
+    let head = csv.lines().next().unwrap().to_string();
+    let rows: Vec<Vec<String>> = csv.lines().skip(1).map(fields).collect();
+    let swap = |rows: &[Vec<String>], x: &str, y: &str| {
+        let mut out = format!("{head}\n");
+        for r in rows {
+            let mut r = r.clone();
+            r[11] = if r[11] == ta { x.into() } else { y.into() };
+            out += &(r.join(";") + "\n");
+        }
+        out
+    };
+    let p = db
+        .dp_import(1, &table(&swap(&rows, &tb, &ta)), true, Lang::De)
+        .unwrap();
+    assert!(p.applied, "{:?}", p);
+    assert_eq!((topic(&db, a), topic(&db, b)), (tb.clone(), ta.clone()));
+    // CSV: beide dasselbe Topic → Fehler, nichts übernommen
+    let rows: Vec<Vec<String>> = db
+        .dp_csv(1, Lang::De)
+        .unwrap()
+        .lines()
+        .skip(1)
+        .map(fields)
+        .collect();
+    assert!(db
+        .dp_import(1, &table(&swap(&rows, &ta, &ta)), true, Lang::De)
+        .is_err());
+    assert_eq!((topic(&db, a), topic(&db, b)), (tb, ta));
+}

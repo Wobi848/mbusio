@@ -135,6 +135,12 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- **MQTT-Einstellungen:** Wer TLS ausschaltete und speicherte, verlor das eigene CA-Zertifikat und
+  „Zertifikat nicht prüfen“; wer Home Assistant ausschaltete, das eigene Präfix. Ausgeblendete
+  Felder behalten jetzt ihren Wert.
+- **Doppelte Adressen:** Ein Topic oder Modbus-Register, das schon ein anderer Datenpunkt hat, wird
+  beim Bearbeiten und beim CSV-Import abgelehnt (bei Modbus hätte sonst ein Wert den anderen
+  überschrieben). Zwei Adressen per CSV tauschen geht weiterhin.
 - **Simulator:** Nach einem Neustart von mbusio begannen die simulierten Zählerstände wieder beim
   Anfangswert; mbusio meldete dann „Zählerstand gesunken“ (ungültig), auch an MQTT, Home
   Assistant und Node-RED. Die Zählerstände laufen jetzt ab dem 1.10.2026 nach der Systemuhr und

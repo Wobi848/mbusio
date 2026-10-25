@@ -503,7 +503,19 @@ impl Db {
     }
 
     /// Name, Einheit, Faktor, Weitergabe, aktiv und Ausgänge ändern
+    /// Datenpunkt ändern (Name, Einheit, Faktor, Weitergabe, Ausgänge); eine schon vergebene
+    /// Adresse wird abgelehnt und nichts geändert
     pub fn dp_update(&mut self, id: i64, d: &Datapoint) -> Result<Datapoint> {
+        self.tx(|db| {
+            let d = db.dp_write(id, d)?;
+            db.check_unique_addresses(&[id])?;
+            Ok(d)
+        })
+    }
+
+    /// Wie `dp_update`, aber ohne Prüfung auf doppelte Adressen: für Änderungen an mehreren
+    /// Datenpunkten, die erst am Ende eindeutig sein müssen (Tausch beim CSV-Import)
+    pub(super) fn dp_write(&mut self, id: i64, d: &Datapoint) -> Result<Datapoint> {
         if d.name.trim().is_empty() {
             bail!(tr("Name fehlt", "Name missing"));
         }

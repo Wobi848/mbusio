@@ -173,25 +173,64 @@ impl Db {
         )?)
     }
 
-    /// Vorschlag für die Adresse eines Datenpunkts an einem Ausgang, eindeutig gemacht (über alle
-    /// Projekte oder nur im Projekt, siehe `Output::global_addresses`)
-    fn default_address(&self, key: &str, dp_id: i64) -> Result<String> {
-        let address = self.pattern_address(key, dp_id)?;
+    /// Anderer Datenpunkt mit derselben Adresse an diesem Ausgang, über alle Projekte oder nur im
+    /// Projekt (siehe `Output::global_addresses`); `enabled`: nur eingeschaltete zählen
+    fn address_owner(
+        &self,
+        key: &str,
+        address: &str,
+        dp_id: i64,
+        enabled: bool,
+    ) -> Result<Option<i64>> {
         // None = alle Projekte
         let project = if output(key)?.global_addresses() {
             None
         } else {
             Some(self.dp_project(dp_id)?)
         };
-        let taken: bool = self.conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM dp_outputs JOIN datapoints ON datapoints.id = dp_outputs.dp
-               JOIN meters ON meters.id = datapoints.meter_id JOIN lines ON lines.id = meters.line_id
-               JOIN gateways ON gateways.id = lines.gateway_id
-             WHERE dp_outputs.output = ?1 AND dp_outputs.address = ?2 AND dp_outputs.dp != ?3
-               AND (?4 IS NULL OR gateways.project_id = ?4))",
-            params![key, address, dp_id, project],
-            |r| r.get(0),
-        )?;
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT dp_outputs.dp FROM dp_outputs JOIN datapoints ON datapoints.id = dp_outputs.dp
+                   JOIN meters ON meters.id = datapoints.meter_id JOIN lines ON lines.id = meters.line_id
+                   JOIN gateways ON gateways.id = lines.gateway_id
+                 WHERE dp_outputs.output = ?1 AND dp_outputs.address = ?2 AND dp_outputs.dp != ?3
+                   AND (?4 IS NULL OR gateways.project_id = ?4) AND (?5 = 0 OR dp_outputs.enabled = 1)
+                 LIMIT 1",
+                params![key, address, dp_id, project, enabled],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Eingeschaltete Ausgänge dieser Datenpunkte: keine Adresse doppelt (sonst würde bei Modbus
+    /// ein Wert den anderen überschreiben, bei MQTT zwei Werte dasselbe Topic teilen)
+    pub(super) fn check_unique_addresses(&self, dp_ids: &[i64]) -> Result<()> {
+        for &id in dp_ids {
+            let d = self.dp(id)?;
+            for (key, o) in d.outputs.iter().filter(|(_, o)| o.enabled) {
+                let Some(a) = o.address.as_deref() else {
+                    continue;
+                };
+                if let Some(other) = self.address_owner(key, a, id, true)? {
+                    let other = self.dp(other)?;
+                    anyhow::bail!(
+                        "{} „{a}“ {} {} · {}",
+                        output(key)?.address_label(),
+                        tr("hat schon Datenpunkt", "already used by datapoint"),
+                        other.no,
+                        other.name
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Vorschlag für die Adresse eines Datenpunkts an einem Ausgang, eindeutig gemacht
+    fn default_address(&self, key: &str, dp_id: i64) -> Result<String> {
+        let address = self.pattern_address(key, dp_id)?;
+        let taken = self.address_owner(key, &address, dp_id, false)?.is_some();
         Ok(if taken {
             format!("{address}-{}", self.dp(dp_id)?.no)
         } else {
