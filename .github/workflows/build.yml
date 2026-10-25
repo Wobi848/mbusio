@@ -49,7 +49,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: npm ci
+      # ohne package-lock.json (wie im ganzen Repo, siehe .gitignore)
+      - run: npm install --no-audit --no-fund
       - run: npm test
 
   build:
