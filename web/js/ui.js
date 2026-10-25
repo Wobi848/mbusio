@@ -135,6 +135,15 @@ const ui = {
   //           html (bei type html: fertiger Baustein)
 
   /// Ein Eingabefeld ohne Beschriftung (im Formular und in bearbeitbaren Tabellen)
+  /// Datei als JSON lesen; nicht lesbar: Fehler mit der Meldung `bad` (z.B. für guarded)
+  async readJson(file, bad) {
+    try {
+      return JSON.parse(await file.text());
+    } catch {
+      throw new Error(bad);
+    }
+  },
+
   input(f, v) {
     const data = Object.entries(f.data || {})
       .map(([k, x]) => ` data-${k}="${esc(x)}"`)

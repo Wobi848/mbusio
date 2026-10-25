@@ -284,12 +284,7 @@ $("meters-import").onchange = (ev) => {
     return;
   }
   guarded($("meter-add"), async () => {
-    let data;
-    try {
-      data = JSON.parse(await file.text());
-    } catch {
-      throw new Error(t("import_bad"));
-    }
+    const data = await ui.readJson(file, t("import_bad"));
     const list = Array.isArray(data) ? data : data?.meters;
     if (!Array.isArray(list)) throw new Error(t("import_bad"));
     const r = await api("meters/import", { method: "POST", body: { meters: list } });

@@ -396,12 +396,7 @@ $("project-import").onchange = (ev) => {
   ev.target.value = "";
   if (!file) return;
   guarded($("project-new"), async () => {
-    let data;
-    try {
-      data = JSON.parse(await file.text());
-    } catch {
-      throw new Error(t("import_bad"));
-    }
+    const data = await ui.readJson(file, t("project_import_bad"));
     const r = await api("projects/import", { method: "POST", body: data });
     tree = await api("projects");
     const p = tree.projects.find((x) => x.id === r.project);
