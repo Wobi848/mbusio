@@ -30,12 +30,14 @@
 //! in der Oberfläche angelegte (Anschluss `SIMULATOR:<name>`).
 
 mod bus;
+mod meter;
 mod scenarios;
 mod store;
 #[cfg(test)]
 mod tests;
 
 pub use self::bus::*;
+use self::meter::*;
 pub use self::scenarios::*;
 pub use self::store::*;
 
