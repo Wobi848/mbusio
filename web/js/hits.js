@@ -2,48 +2,13 @@
 
 // Trefferliste des Scans: Zeilen, Adresse zum Merken, Filter, Sortieren, Vergleich mit dem letzten Scan
 
-/// Adresse zum Ansprechen eines Treffers: volle Sekundäradresse, ausser sie ist mehrdeutig
-/// (gleiche ID und gleicher Hersteller), dann die Primäradresse
-function hitAddress(h) {
-  const same = (lastJob?.hits || []).filter((x) => x.secondary_address && x.secondary_address === h.secondary_address);
-  if (h.secondary_address && (same.length < 2 || h.primary_address == null)) return h.secondary_address;
-  return String(h.primary_address);
-}
+const hitAddress = (h) => scanLogic.address(h, scanCtx());
 
 /// Wie die aktive Linie Zähler merkt: "secondary" (SA) oder "primary" (PA)
 const addressing = () => tree?.active.line.addressing || "primary";
 
-/// Adresse zum Merken nach der Einstellung der Linie; null + Grund, wenn sie nicht eindeutig ist
-function rememberAddress(h) {
-  const hits = lastJob?.hits || [];
-  if (addressing() === "primary") {
-    const pa = h.primary_address;
-    if (pa == null) return { reason: t("skip_pa_unknown") };
-    if (pa === 0) return { reason: t("skip_pa_zero") };
-    if (hits.filter((x) => x.status === "ok" && x.baud === h.baud && x.primary_address === pa).length > 1)
-      return { reason: t("skip_pa_dup", pa) };
-    return { address: String(pa) };
-  }
-  // Platzhalter (F) z.B. bei alten Zählern ohne Herstellerkennung: geht, solange eindeutig
-  const sa = h.secondary_address;
-  if (!sa || /^F{8}/.test(sa)) return { reason: t("skip_sa_unknown") };
-  if (hits.filter((x) => x.secondary_address === sa).length > 1) return { reason: t("skip_sa_dup") };
-  return { address: sa };
-}
-
-/// Eintrag für die Zählerliste aus einem Treffer
-function meterFromHit(h) {
-  return {
-    address: rememberAddress(h).address,
-    secondary_address: h.secondary_address || null,
-    primary_address: h.primary_address,
-    // eigene Baudrate nur merken, wenn sie vom Bus abweicht
-    baud: h.baud && h.baud !== connBaud ? h.baud : null,
-    meter_id: h.id,
-    manufacturer: h.manufacturer || null,
-    medium: h.medium,
-  };
-}
+const rememberAddress = (h) => scanLogic.rememberAddress(h, scanCtx());
+const meterFromHit = (h) => scanLogic.meterFromHit(h, scanCtx());
 
 $("hits-block").addEventListener("click", (ev) => {
   if (ev.target.closest("[data-start-secondary]")) {
@@ -83,9 +48,7 @@ function renderHitsHead(job, unique, attention, issues) {
   $("remember-all").innerHTML = `${esc(t("remember_n", take))} ${ICON_NEXT}`;
 }
 
-/// Treffer, die „Übernehmen“ in die Zählerliste nimmt: lesbar und über die gewählte Adresse
-/// (SA oder PA) eindeutig ansprechbar
-const rememberable = (hits) => hits.filter((h) => h.status === "ok" && rememberAddress(h).address);
+const rememberable = (hits) => scanLogic.rememberable(hits, scanCtx());
 
 function renderRememberMode() {
   document.querySelectorAll(".remember-mode [data-mode]").forEach((b) => b.classList.toggle("active", b.dataset.mode === addressing()));
@@ -151,32 +114,7 @@ function hitMeter(h) {
 
 // ------------------------------------------------------------ Vergleich mit dem letzten Scan
 
-/// Gleicher Zähler: ID und Hersteller; ohne ID (Kollision, keine Daten) über Baudrate und PA
-const hitIdentity = (h) => (h.id ? `${h.id}:${h.manufacturer}` : `pa:${h.baud}:${h.primary_address}`);
-
-/// Unterschiede zum letzten vollständigen Scan gleicher Art und gleichen Bereichs (job.previous):
-/// rows: Index → { kind: "new" | "changed", text }, missing: Treffer, die diesmal fehlen
-function scanChanges(job) {
-  const prev = job.previous;
-  if (job.running || !prev) return null;
-  const pool = new Map();
-  for (const h of prev.hits) pool.set(hitIdentity(h), [...(pool.get(hitIdentity(h)) || []), h]);
-  const rows = new Map();
-  job.hits.forEach((h, i) => {
-    const old = pool.get(hitIdentity(h))?.shift();
-    if (!old) return rows.set(i, { kind: "new", text: t("chg_new") });
-    const diff = [
-      old.primary_address !== h.primary_address ? `PA ${old.primary_address ?? "–"} → ${h.primary_address ?? "–"}` : "",
-      old.baud !== h.baud ? `${old.baud} → ${h.baud} Bd` : "",
-      old.status !== h.status ? `${t("st_" + old.status)} → ${t("st_" + h.status)}` : "",
-    ].filter(Boolean);
-    if (diff.length) rows.set(i, { kind: "changed", text: t("chg_changed", diff.join(", ")) });
-  });
-  // eine frühere Kollision oder „keine Daten“ auf einer PA, die jetzt antwortet, fehlt nicht: sie ist aufgelöst
-  const nowPa = new Set(job.hits.map((h) => `${h.baud}:${h.primary_address}`));
-  const missing = [...pool.values()].flat().filter((h) => h.status === "ok" || !nowPa.has(`${h.baud}:${h.primary_address}`));
-  return { rows, missing, time: prev.time };
-}
+const scanChanges = (job) => scanLogic.changes(job);
 
 function renderChanges(chg) {
   const el = $("hits-changes");

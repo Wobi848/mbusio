@@ -3,28 +3,10 @@
 // Auffälligkeiten der Trefferliste: Streifen mit Ursache und Abhilfe unter der Zeile, Liste der
 // Auffälligkeiten (Leiste unten, Projekt, Bericht), „Alle beheben“
 
-/// Ursache eines Treffers in einfachen Worten: [was ist los, was tun]
-function explainReason(reason) {
-  const [key, arg] = (reason || "").split(":");
-  switch (key) {
-    case "wrong_address":
-      return t("why_wrong_address", arg);
-    case "app_error":
-      return t("why_app_error", arg, t("app_errors")[arg] || "?");
-    case "collision":
-    case "checksum":
-    case "stop":
-    case "garbled":
-    case "truncated":
-    case "no_reply":
-    case "unexpected":
-    case "decode":
-    case "same_id":
-      return t("why_" + key);
-    default:
-      return t("why_unknown");
-  }
-}
+/// Kontext für scanLogic (js/scanlogic.js): Treffer des letzten Scans, Bus-Baudrate, Merken über PA/SA
+const scanCtx = () => ({ hits: lastJob?.hits || [], busBaud: connBaud, mode: addressing() });
+
+const explainReason = (reason) => scanLogic.explain(reason);
 
 /// Streifen unter einer Zeile: was ist los (fett), was tun, Knöpfe, die helfen
 function issueStrip(cols, what, tip, buttons = "", fault = false) {
@@ -68,49 +50,11 @@ function groupStrips(hits, a, order, cols) {
   return out;
 }
 
-/// Auffälligkeiten: doppelte Primäradressen (je Baudrate), doppelte IDs, fremde Baudraten
-function analyzeHits(hits) {
-  const group = (key) => {
-    const m = new Map();
-    hits.forEach((h, i) => {
-      const k = key(h);
-      if (k !== null) m.set(k, [...(m.get(k) || []), i]);
-    });
-    return new Map([...m].filter(([, list]) => list.length > 1));
-  };
-  // Kollisionen aus dem Primärscan sind schon eine Zeile für sich, die zählen nicht doppelt
-  const dupPa = group((h) => (h.primary_address == null || h.status === "collision" ? null : `${h.baud}:${h.primary_address}`));
-  const dupId = group((h) => (h.id && /^[0-9]{8}$/.test(h.id) ? h.id : null));
-  const rowDupPa = new Set([...dupPa.values()].flat());
-  // gleiche ID ist nur ein Problem, wenn auch der Hersteller gleich ist (IDs sind je Hersteller eindeutig)
-  const dupIdSame = new Map(
-    [...dupId].filter(([, list]) => new Set(list.map((i) => hits[i].manufacturer)).size < list.length)
-  );
-  const rowDupId = new Set([...dupId.values()].flat());
-  const rowDupIdSame = new Set([...dupIdSame.values()].flat());
-  const otherBaud = hits.filter((h) => h.baud && h.baud !== connBaud).length;
-  return { dupPa, dupId, dupIdSame, rowDupPa, rowDupId, rowDupIdSame, otherBaud };
-}
+const analyzeHits = (hits) => scanLogic.analyze({ ...scanCtx(), hits });
 
 /// Auffälligkeiten als Liste: Zähler unten in der Leiste, bei der Linie gemerkt (Projekt, Bericht)
 function noteIssues(hits, a) {
-  const items = [];
-  for (const [k, list] of a.dupPa) {
-    const [baud, pa] = k.split(":");
-    items.push(t("warn_dup_pa", pa, baud, list.map((i) => hits[i].id || "?")));
-  }
-  for (const [id, list] of a.dupIdSame) items.push(t("warn_dup_id", id, list.length));
-  const collisions = hits.filter((h) => h.status === "collision");
-  for (const h of collisions) {
-    if (h.primary_address != null) items.push(t("warn_collision_pa", h.primary_address, h.baud));
-    else if (h.id) items.push(t("warn_collision_id", h.id));
-  }
-  // Zähler ohne Daten einzeln, mit Ursache (auch für den Bericht verständlich)
-  for (const h of hits.filter((x) => x.status === "no_data")) {
-    const name = h.id || `PA ${h.primary_address}`;
-    items.push(`${name}: ${explainReason(h.reason)[0]}`);
-  }
-  if (a.otherBaud) items.push(t("warn_other_baud", a.otherBaud, connBaud));
+  const items = scanLogic.issues({ ...scanCtx(), hits }, a);
   issueCount = items.length;
   // erst wenn der Scan durch ist: bei der Linie merken (Projekt-Karte, Bericht)
   if (!lastJob?.running) saveIssues(items);
@@ -122,39 +66,7 @@ function noteIssues(hits, a) {
 let plan = null;
 let planRunning = false;
 
-/// Was sich automatisch beheben lässt (Schritte) und was von Hand (Texte)
-function planSteps(hits, a) {
-  const steps = [];
-  const manual = [];
-  const name = (h) => h.id || h.secondary_address || `PA ${h.primary_address}`;
-  // eindeutig ansprechbar nur über die volle Sekundäradresse, sofern sie nicht mehrfach vorkommt
-  const target = (h) =>
-    h.secondary_address && hits.filter((x) => x.secondary_address === h.secondary_address).length === 1
-      ? h.secondary_address
-      : null;
-  for (const h of hits) {
-    if (h.status === "ok" && h.baud && h.baud !== connBaud && target(h)) {
-      steps.push({ kind: "baud", target: target(h), name: name(h), from: h.baud, to: connBaud });
-    }
-  }
-  for (const [k, list] of a.dupPa) {
-    const pa = Number(k.split(":")[1]);
-    const members = list.map((i) => hits[i]).sort((x, y) => String(x.id).localeCompare(String(y.id)));
-    // PA 0 ist der Werkszustand: alle umziehen; sonst darf der erste bleiben
-    for (const h of pa === 0 ? members : members.slice(1)) {
-      if (!target(h)) continue;
-      steps.push({ kind: "pa", target: target(h), name: name(h), from: pa, to: null, fromBaud: h.baud !== connBaud ? h.baud : null });
-    }
-  }
-  for (const h of hits) {
-    if (h.status === "collision" && h.primary_address != null) manual.push(t("plan_manual_collision", h.primary_address, h.baud));
-    // Sekundärscan: gleiche ID, über die ID allein nicht trennbar
-    if (h.status === "collision" && h.primary_address == null && h.id) manual.push(t("plan_manual_id_collision", h.id));
-    if (h.status === "no_data") manual.push(t("plan_manual_nodata", name(h)));
-  }
-  for (const id of a.dupIdSame.keys()) manual.push(t("plan_manual_sameid", id));
-  return { steps, manual };
-}
+const planSteps = (hits, a) => scanLogic.planSteps({ ...scanCtx(), hits }, a);
 
 async function openPlan() {
   const hits = lastJob.hits;
