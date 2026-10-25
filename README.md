@@ -428,7 +428,7 @@ Aufbau:
 - `web/js/`: Oberfläche, normale Skripte ohne Build-Schritt, Reihenfolge in `index.html`:
   `base.js` (Speicher, Sprache, API; auch für den Bericht), `core.js`, `ui.js` (gemeinsame Bausteine:
   Chip, Symbol-Knopf, Tabelle, Eingabefeld, Formular, Aufklapp-Bereich, Vorschau → Übernehmen,
-  CSV zerlegen), dann je Bereich eine Datei (busbar, scan, fix, tools, meters, chart, meterlist,
+  CSV zerlegen), dann je Bereich eine Datei (busbar, connection, scan, hits, fix, tools, meters, chart, meterlist,
   transfer, je Ausgang `out-<name>.js` (out-mqtt, out-modbus), sim, project, guide); `main.js` startet alles
 - `web/css/`: `base.css` (Farben, Elemente, Bausteine: Kopfzeile, Linien-Leiste, Laschen, Zähler-Baustein,
   Tabellen-Leiste, Statusleiste), dann je Reiter eine Datei
