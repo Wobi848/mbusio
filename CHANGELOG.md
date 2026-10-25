@@ -135,6 +135,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- **Projekt-Import:** Bei einer unlesbaren Datei hiess es „Datei enthält keine Zählerliste“; jetzt
+  „Datei ist keine Projektdatei von mbusio“.
 - **MQTT-Einstellungen:** Wer TLS ausschaltete und speicherte, verlor das eigene CA-Zertifikat und
   „Zertifikat nicht prüfen“; wer Home Assistant ausschaltete, das eigene Präfix. Ausgeblendete
   Felder behalten jetzt ihren Wert.

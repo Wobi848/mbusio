@@ -15,7 +15,7 @@ use serde::Serialize;
 
 use crate::i18n::{self, tr};
 use crate::link;
-use crate::mbus::master::{FrameLog, Master};
+use crate::mbus::master::{FrameLog, Master, MeterReading, Target};
 
 /// Anschluss einer Linie
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,6 +141,13 @@ struct Inner {
 #[derive(Clone)]
 pub struct LineService {
     inner: Arc<Inner>,
+}
+
+/// Liest einen Zähler der Liste, mit seiner eigenen Baudrate falls angegeben.
+pub fn read_listed(m: &mut Master, meter: &crate::db::Meter) -> Result<(Target, MeterReading)> {
+    let target = Target::parse(&meter.address)?;
+    let r = m.at_baud(meter.baud, |m| m.read_meter(&target))?;
+    Ok((target, r))
 }
 
 /// Ist der Fehler eine gestörte Verbindung (und kein Problem eines einzelnen Zählers)?

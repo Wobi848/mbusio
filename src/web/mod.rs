@@ -181,13 +181,6 @@ async fn check_token(st: AppState, req: Request, next: Next) -> Response {
     next.run(req).await
 }
 
-/// Liest einen Zähler der Liste, mit seiner eigenen Baudrate falls angegeben.
-pub(crate) fn read_listed(m: &mut Master, meter: &Meter) -> anyhow::Result<(Target, MeterReading)> {
-    let target = Target::parse(&meter.address)?;
-    let r = m.at_baud(meter.baud, |m| m.read_meter(&target))?;
-    Ok((target, r))
-}
-
 async fn static_file(uri: Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
     let path = if path.is_empty() { "index.html" } else { path };
