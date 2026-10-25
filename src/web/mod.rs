@@ -33,10 +33,15 @@ mod meters;
 mod nodered;
 mod outputs;
 mod projects;
+mod scan;
 mod simulator;
+mod tools;
 
-pub use self::bus::parse_hex;
-use self::{bus::*, datapoints::*, meters::*, nodered::*, outputs::*, projects::*, simulator::*};
+pub use self::tools::parse_hex;
+use self::{
+    bus::*, datapoints::*, meters::*, nodered::*, outputs::*, projects::*, scan::*, simulator::*,
+    tools::*,
+};
 
 #[derive(RustEmbed)]
 #[folder = "web/"]
