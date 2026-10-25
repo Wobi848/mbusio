@@ -373,4 +373,19 @@ Namen und langer Fehlermeldung.
 - Gemeinsam: `parseTable` in `js/base.js`; `changeSet`/`previewApply` in `view.js`.
 - Test `tests/ui/20-neu-weitergabe`.
 
-**Nächster Schritt:** Simulator, dann der Rest der Zähler (Verlauf, Tausch, Import, Namen, CSV).
+**Simulator, umgesetzt:**
+- Oben die Simulation (Auswahl, „Vorlage“, „von der aktiven Linie benutzt“), „Für aktive Linie
+  verwenden“, Kopieren und Neu mit Namensfeld im Menü (statt prompt), Löschen mit Rückfrage am
+  Ort (gesperrt, solange die aktive Linie sie benutzt).
+- Links die Zähler (PA, ID, Hersteller, Medium mit Symbol, Baudrate, Verhalten als Chip), rechts
+  der gewählte Zähler zum Bearbeiten; Vorlagen nur zum Ansehen.
+- Änderungen sammeln sich: „Ungespeicherte Änderungen · Verwerfen · **Speichern**“ (dann der eine
+  Hauptknopf); nie still mit Escape verwerfen. Hinweise (doppelte PA/ID, PA 0) als ein Chip.
+- Server: Zähler mit fester Struktur (`heat_old`) dürfen ohne Hersteller gespeichert werden;
+  vorher liess sich keine Kopie der Vorlage „Praxis“ speichern. Test: jede Vorlage besteht die
+  Prüfung.
+- Test `tests/ui/21-neu-simulator`.
+
+**Nächster Schritt:** der Rest der Zähler (Verlauf, Tausch, Import, Namen, CSV), dann Feinschliff
+(Nächster Schritt in der Statusleiste, Tastenübersicht, Durchgang über alle Bereiche) und
+Umschalten.

@@ -124,8 +124,11 @@ impl SimMeter {
                 tr("ID muss 8 Ziffern haben", "ID must have 8 digits")
             );
         }
-        if self.manufacturer.len() != 3
-            || !self.manufacturer.chars().all(|c| c.is_ascii_uppercase())
+        // Zähler mit fester Datenstruktur (heat_old) schicken keinen Hersteller
+        let fixed_without = self.medium == "heat_old" && self.manufacturer.is_empty();
+        if !fixed_without
+            && (self.manufacturer.len() != 3
+                || !self.manufacturer.chars().all(|c| c.is_ascii_uppercase()))
         {
             bail!(
                 "{who}: {}",

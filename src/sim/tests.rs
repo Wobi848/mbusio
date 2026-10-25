@@ -635,3 +635,13 @@ fn counters_keep_rising_after_a_restart() {
     std::thread::sleep(std::time::Duration::from_millis(1100));
     assert!(energy() >= before);
 }
+
+#[test]
+fn every_builtin_meter_passes_the_check() {
+    // eine Kopie einer Vorlage muss sich speichern lassen (Zähler mit fester Struktur ohne Hersteller)
+    for s in super::scenarios::builtins() {
+        for m in &s.meters {
+            m.check().unwrap_or_else(|e| panic!("{}: {e:#}", s.name));
+        }
+    }
+}

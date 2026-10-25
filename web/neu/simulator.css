@@ -1,0 +1,22 @@
+/* Bereich Simulator: Leisten und Spalten der Zähler (Gerüst: app.css) */
+
+.pane[data-area=simulator] { grid-template-rows: auto auto 1fr; }
+[data-area=simulator] .toolbar { flex-wrap: wrap; row-gap: 6px; }
+[data-area=simulator] .sub-bar { background: var(--sunken); min-height: 40px; }
+[data-area=simulator] [data-sim] { max-width: 320px; font-weight: 600; }
+[data-area=simulator] [data-n] { width: 64px; }
+[data-area=simulator] .sub-bar .chip { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+[data-area=simulator] .row:not(.vrow) { grid-template-columns: 50px 110px 90px minmax(130px, 1.4fr) 90px minmax(0, 1.6fr); }
+[data-area=simulator] .row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-area=simulator] .rows { overflow-x: hidden; }
+
+@media (max-width: 999px) {
+  [data-area=simulator] .row:not(.vrow) { grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: "pa medium fault" "pa ident baud"; padding: 6px 12px; row-gap: 2px; }
+  [data-area=simulator] .row > :nth-child(1) { grid-area: pa; }
+  [data-area=simulator] .row > :nth-child(2) { grid-area: ident; }
+  [data-area=simulator] .row > :nth-child(3) { display: none; }
+  [data-area=simulator] .row > :nth-child(4) { grid-area: medium; }
+  [data-area=simulator] .row > :nth-child(5) { grid-area: baud; justify-self: end; }
+  [data-area=simulator] .row > :nth-child(6) { grid-area: fault; justify-self: end; }
+}

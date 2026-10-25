@@ -141,6 +141,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- **Simulator:** eine Kopie der Vorlage „Praxis“ liess sich nicht speichern („Hersteller: 3
+  Grossbuchstaben“), weil der Zähler mit fester Datenstruktur keinen Hersteller hat.
 - **Node-RED bekam neue Namen nicht mit:** Umbenennen oder Löschen von Projekt, Linie oder Zähler
   meldete sich nicht bei Node-RED (erst beim nächsten Plan-Durchgang). Jetzt meldet jede
   erfolgreiche Änderung über die API den neuen Stand.
