@@ -13,7 +13,7 @@ export default {
   async run({ page, base, api }) {
     let dialogs = 0;
     page.on("dialog", () => dialogs++);
-    await page.goto(base + "/neu/#/simulator");
+    await page.goto(base + "/#/simulator");
     await page.waitForSelector(`${sec} [data-list] [role=option]`);
     // Vorlage: nur ansehen
     assert.match(await page.textContent(`${sec} [data-chips]`), /Vorlage/);

@@ -1,6 +1,6 @@
 # Konzept: neue Oberfläche (Werkzeug statt Webseite)
 
-Stand: 25.10.2026 · Status: **in Arbeit** – Schritte 0 (Gerüst), 1 (Zähler), 3 (Anlage) und 5 (Werkzeuge) umgesetzt, Entscheidungen in Abschnitt 10
+Stand: 25.10.2026 · Status: **umgesetzt**, neue Oberfläche ist die Startseite; Entscheidungen in Abschnitt 10
 
 Grundlage: Leitbild [konzept-bedienung.md §14](konzept-bedienung.md) und das Audit vom 25.10.2026
 (Abschnitt 2). Die Server-Schnittstelle steht in [api.md](api.md); die neue Oberfläche benutzt
@@ -406,4 +406,11 @@ Namen und langer Fehlermeldung.
 - Durchgang über alle Bereiche (Desktop, Handy, dunkel): kein seitliches Scrollen, keine Fehler im
   Browser; Anlage: Spalte „Zustand“ mit Mindestbreite.
 
-**Nächster Schritt:** Umschalten (neue Oberfläche unter `/`, alte eine Version unter `/alt/`).
+**Umgeschaltet (25.10.2026):** die neue Oberfläche ist `web/index.html` unter `/`; die bisherige ist
+`web/alt.html` (gleicher Ordner, damit ihre Pfade und Sprungmarken bleiben), `/neu/` leitet auf `/`
+weiter. Die Tests der bisherigen Oberfläche öffnen `alt.html`.
+
+**Noch offen:** die bisherige Oberfläche mit ihren Dateien (web/js: core, ui, scan, hits, fix,
+meters, …; web/css ausser tokens, meter, plot) und Tests (01–12, 16, 17) entfernen, wenn die neue
+eine Version lang im Einsatz war; dann fallen auch die doppelten Felderlisten (MQTT, Modbus) weg.
+Zugriffsschlüssel: `base.js` fragt bei 401 noch mit einem Browser-Fenster.

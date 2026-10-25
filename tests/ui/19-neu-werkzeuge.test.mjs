@@ -17,7 +17,7 @@ export default {
       dialogs++;
       d.dismiss();
     });
-    await page.goto(base + "/neu/#/werkzeuge");
+    await page.goto(base + "/#/werkzeuge");
     await page.waitForSelector(`${area} [data-read]`);
 
     // ohne Ziel gesperrt, mit Grund

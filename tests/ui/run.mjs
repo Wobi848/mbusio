@@ -93,7 +93,8 @@ for (const t of tests.filter((t) => t.name.includes(filter) || t.file.includes(f
   try {
     await page.addInitScript(() => localStorage.setItem("lang", "de"));
     if (t.setup) await t.setup(server.api);
-    await page.goto(server.base + "/");
+    // bisherige Oberfläche (alt.html); die Tests der neuen öffnen „/“ selbst
+    await page.goto(server.base + "/alt.html");
     await page.waitForFunction(() => document.querySelector("#h-project")?.textContent);
     await t.run({ page, api: server.api, base: server.base, ctx });
     if (errors.length) throw new Error("JavaScript-Fehler: " + errors.join(" | "));

@@ -8,42 +8,26 @@ Installation; die Oberfläche läuft im Browser, auch auf dem Handy.
 
 ## So arbeitet man damit
 
-Die Oberfläche hat drei Ebenen; jeder Ablauf hat genau eine Stelle
-(siehe [docs/konzept-bedienung.md](docs/konzept-bedienung.md)):
+Die Oberfläche ist ein Werkzeug: eine Kopfzeile, Bereiche als Laschen, darunter Liste links und
+Details rechts. Was ein Element ist und in welchem Zustand, steht am Element selbst; der nächste
+Schritt ist immer genau ein Knopf (siehe [docs/konzept-oberflaeche-neu.md](docs/konzept-oberflaeche-neu.md)).
 
-- **Kopfzeile = Projekt:** Projekt wählen oder anlegen, **Anlage** (Gateways und Linien, Bericht,
-  Export/Import, Zustand der Anlage), rechts **Werkzeuge**, **Simulator** und ⚙ (Erklärungen,
-  Design, Sprache).
-- **Linien-Leiste = Linie:** welche Linie (Name und Gateway), Verbindung mit genau einem Knopf für
-  den nächsten Schritt (Anschluss festlegen, Verbinden, Anschluss ändern, Abbrechen), Ausleseplan.
-  Das Verbindungsformular klappt darunter auf.
-- **Laschen der Linie:**
-  1. **Scan** – Suche einstellen (Primär mit Adressbereich oder Sekundär mit „ID beginnt mit …“,
-     Baudraten; abgebrochenen Sekundärscan weitersuchen), dann das Ergebnis:
-     jede Auffälligkeit steht als Streifen direkt unter ihrer Zeile, mit Erklärung und dem Knopf,
-     der hilft; „N beheben …“ und „N Zähler übernehmen“; Vergleich mit dem letzten Scan.
-  2. **Zähler** – Zählerliste mit Suche und Filtern (gestört, ohne Namen), benennen, Liste
-     importieren, alle auslesen, Verlauf, Plan je Zähler; Bearbeiten klappt in der Zeile auf.
-  3. **Weitergabe** – was (Datenpunkte je Zähler) wohin (Ausgänge: MQTT, später Modbus) und wie oft.
+- **Kopfzeile:** Projekt › Linie, Anschluss mit genau der passenden Aktion (Anschluss festlegen,
+  Verbinden, Ändern), Schalter **Dauerbetrieb** der Linie mit Plan, „N im Dauerbetrieb“ über alle
+  Projekte, ⚙ (Sprache, Design, Tastenkürzel).
+- **Bereiche** (Tasten 1–6): **Scan** (Suchzeile, Treffer mit Zustand als Wort, beheben, neue
+  merken), **Zähler** (Liste, Bearbeiten in den Feldern, Mehrfachauswahl, auslesen, Verlauf,
+  Tausch, Liste importieren, Namen nach Muster), **Weitergabe** (Ausgänge MQTT und Modbus mit
+  Schalter, Datenpunkte), **Anlage** (Gateways und Linien, Zustand der Anlage, Bericht,
+  Export/Import), **Werkzeuge** (ein Ziel für Auslesen, Adresse, Baudrate, Reset, Telegramme),
+  **Simulator**.
+- **Statusleiste:** was der Bus macht, Auffälligkeiten, Ausgänge und rechts der **nächste Schritt**.
+- **Tastatur:** ↑↓ in Listen, Leertaste wählt aus, Ctrl+A alle, Enter, Escape, `/` sucht, `R`
+  liest aus, `S` scannt, `?` zeigt alle Tasten. Keine Browser-Fenster für Rückfragen: sie stehen am
+  Knopf.
 
-Jeder Zähler erscheint überall gleich: Symbol und Farbe des Mediums, Name (oder „ohne Namen“),
-darunter ID · PA · Hersteller.
-
-Neue Benutzer führt die Leiste unten mit **„Nächster Schritt“** und genau einem Knopf: suchen →
-merken → auslesen → **Linie in Ordnung** (Bericht); Anschluss und Verbinden zeigt die
-Linien-Leiste. Wer danach regelmässig auslesen und weitergeben will, drückt **„Dauerbetrieb
-einrichten“**: Plan festlegen → **Dauerbetrieb der Linie einschalten** → Werte wählen →
-Ausgang (MQTT) einrichten. Automatisch ausgelesen und weitergegeben wird **nur, was eingeschaltet
-ist**: Ein Plan allein liest nicht, und Projekte vom Debuggen bleiben still. Was im Hintergrund
-läuft, steht oben in der Kopfzeile („Dauerbetrieb: 2 Linien“, aufklappbar); im Projekt erscheint
-dann der Zustand der Anlage. Die Laschen zeigen den Fortschritt
-(✓ erledigt, Anzahl Zähler bzw. Datenpunkte, Punkt = als Nächstes).
-
-Unten zeigt eine Statusleiste immer, was der Bus gerade macht und wie viele Auffälligkeiten offen
-sind. Unter ⚙ blendet **„Erklärungen anzeigen“** Hilfetexte ein. Am Ende entsteht ein **Bericht**
-(PDF) fürs Projekt. **Werkzeuge:** zuerst das Ziel (Zähler aus Liste oder Scan, oder eine Adresse),
-darunter Primäradresse, Baudrate und Reset; dazu einzelnen Zähler roh auslesen, Telegramm-Log und
--Analyse.
+Die bisherige Oberfläche ist noch unter `http://<gerät>:8080/alt.html` erreichbar und fällt in einer
+der nächsten Versionen weg.
 
 ## Funktionen
 

@@ -14,7 +14,7 @@ export default {
   async run({ page, base, api }) {
     let dialogs = 0;
     page.on("dialog", () => dialogs++);
-    await page.goto(base + "/neu/#/zaehler");
+    await page.goto(base + "/#/zaehler");
     await page.waitForFunction(() => document.querySelectorAll("[data-list] [role=option]").length === 4);
 
     // Zustand am Element: gelesen mit Wert, sonst „noch nicht ausgelesen“; ohne Namen sichtbar

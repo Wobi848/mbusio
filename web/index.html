@@ -8,476 +8,75 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="css/tokens.css">
-<link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/meter.css">
-<link rel="stylesheet" href="css/scan.css">
-<link rel="stylesheet" href="css/tools.css">
-<link rel="stylesheet" href="css/meters.css">
 <link rel="stylesheet" href="css/plot.css">
-<link rel="stylesheet" href="css/project.css">
-<link rel="stylesheet" href="css/transfer.css">
-<link rel="stylesheet" href="css/sim.css">
-<link rel="stylesheet" href="css/guide.css">
+<link rel="stylesheet" href="neu/app.css">
 <script src="js/theme.js"></script>
 </head>
 <body>
-<header class="topbar">
-  <div class="topbar-inner">
-    <a class="brand" href="#top">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 8h18M3 16h18"/><circle cx="8" cy="8" r="2.2" fill="var(--surface)"/><circle cx="16" cy="16" r="2.2" fill="var(--surface)"/></svg>
-      <span>mbusio</span>
-    </a>
-    <span class="topbar-sep" aria-hidden="true"></span>
-    <label class="proj-pick"><span class="eyebrow" data-i18n="project"></span><select id="project-select" data-i18n-title="project_switch"></select></label>
-    <button id="project-new" class="icon-btn" type="button" data-i18n-title="project_new"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-    <details id="op-all" class="menu op-all" hidden>
-      <summary id="op-all-sum" class="button small quiet"></summary>
-      <div id="op-all-items" class="menu-items"></div>
-    </details>
-    <nav class="gnavs" aria-label="Navigation">
-      <button class="gnav" data-tab-go="project"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-i18n="tab_project"></span></button>
-      <span class="spacer"></span>
-      <button class="gnav" data-tab-go="tools"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z"/></svg><span data-i18n="tab_tools"></span></button>
-      <button class="gnav" data-tab-go="sim"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg><span data-i18n="tab_sim"></span></button>
-    </nav>
-    <details class="menu settings">
-      <summary class="icon-btn boxed" data-i18n-title="settings"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></summary>
-      <div class="menu-items settings-items">
-        <label class="settings-row"><span data-i18n="help_toggle"></span><input id="help-toggle" type="checkbox" class="switch"></label>
-        <div class="settings-row"><span data-i18n="theme"></span>
-          <div class="seg theme-switch" role="group" aria-label="Theme">
-            <button data-theme-set="auto" data-i18n="theme_auto_short"></button>
-            <button data-theme-set="light" data-i18n="theme_light_short"></button>
-            <button data-theme-set="dark" data-i18n="theme_dark_short"></button>
-          </div>
-        </div>
-        <div class="settings-row"><span data-i18n="language"></span>
-          <div class="seg lang-switch" role="group" aria-label="Language">
-            <button data-lang="de">DE</button>
-            <button data-lang="en">EN</button>
-          </div>
-        </div>
-        <p id="settings-version" class="settings-foot"></p>
-      </div>
-    </details>
+
+<header class="bar top" aria-label="mbusio">
+  <span class="brand" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h18M3 16h18"/><circle cx="8" cy="8" r="2.2" fill="var(--surface)"/><circle cx="16" cy="16" r="2.2" fill="var(--surface)"/></svg>
+    mbusio
+  </span>
+  <div class="path">
+    <select id="project" data-title="project"></select>
+    <span class="sep" aria-hidden="true">›</span>
+    <div class="menu-host">
+      <button id="line" type="button" class="field" aria-haspopup="menu" aria-expanded="false" data-title="line"></button>
+      <div id="line-menu" class="menu" role="menu" hidden></div>
+    </div>
+  </div>
+  <div class="conn menu-host">
+    <span id="conn-state" class="state"></span>
+    <button id="conn-action" type="button"></button>
+    <div id="conn-form" class="menu form" hidden></div>
+  </div>
+  <label id="op" class="op"><input id="op-switch" type="checkbox" class="switch"><b data-t="op_chip"></b><span id="op-text" class="sub"></span></label>
+  <span class="grow"></span>
+  <div class="menu-host">
+    <button id="op-all" type="button" class="quiet" aria-haspopup="menu" aria-expanded="false" hidden></button>
+    <div id="op-all-menu" class="menu end" role="menu" hidden></div>
+  </div>
+  <div class="menu-host">
+    <button id="settings" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" data-title="settings">⚙</button>
+    <div id="settings-menu" class="menu end form" hidden>
+      <label class="row"><span data-t="language"></span><select id="lang"><option value="de">Deutsch</option><option value="en">English</option></select></label>
+      <label class="row"><span data-t="theme"></span><select id="theme"><option value="auto" data-t="theme_auto_short"></option><option value="light" data-t="theme_light_short"></option><option value="dark" data-t="theme_dark_short"></option></select></label>
+      <button id="keys-help" type="button" class="quiet" data-t="n_keys"></button>
+      <a href="alt.html" class="quiet" data-t="n_old_ui"></a>
+    </div>
   </div>
 </header>
 
-<section class="linebar" aria-labelledby="lb-label">
-  <div class="linebar-inner">
-    <div class="linebar-row">
-      <span id="lb-label" class="eyebrow" data-i18n="line"></span>
-      <details class="menu line-menu">
-        <summary class="button small ghost line-pick"><span class="line-pick-text"><b id="lb-line"></b><span id="lb-gateway"></span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
-        <div id="lb-lines" class="menu-items"></div>
-      </details>
-      <span id="lb-state" class="lb-state"></span>
-      <button id="lb-action" type="button" class="small"></button>
-      <button id="lb-change" type="button" class="small quiet" data-i18n="conn_change" hidden></button>
-      <span class="spacer"></span>
-      <div id="lb-op" class="op-block"></div>
-    </div>
-    <div id="sec-conn" class="conn-panel" hidden>
-      <div class="conn-grid">
-        <label><span data-i18n="port"></span>
-          <span class="with-btn">
-            <select id="port"></select>
-            <button id="refresh-ports" class="icon-btn boxed" type="button" data-i18n-title="reload_ports">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
-            </button>
-          </span>
-        </label>
-        <label><span data-i18n="port_manual"></span> <input id="port-manual" class="mono" placeholder="/dev/ttyUSB0, COM3, tcp://192.168.1.50:10001 …"></label>
-        <label><span data-i18n="baud"></span>
-          <select id="baud">
-            <option>300</option><option>600</option><option>1200</option>
-            <option selected>2400</option><option>4800</option><option>9600</option>
-            <option>19200</option><option>38400</option>
-          </select>
-        </label>
-        <label><span data-i18n="timeout"></span> <input id="timeout" class="mono" type="number" min="0" value="0" data-i18n-title="timeout_hint"></label>
-        <div class="conn-actions">
-          <button id="connect" data-i18n="connect"></button>
-          <button id="disconnect" class="ghost" disabled hidden data-i18n="disconnect"></button>
-          <button id="conn-close" type="button" class="quiet" data-i18n="history_close"></button>
-        </div>
-      </div>
-      <p class="hint explain" data-i18n="connection_hint"></p>
-      <p id="conn-line" class="hint result"></p>
-    </div>
-    <nav class="ltabs" aria-label="Linie" role="tablist">
-      <button class="ltab" role="tab" data-tab-go="scan"><span class="ltab-ok" hidden></span><span data-i18n="tab_scan"></span><span class="ltab-n" hidden></span></button>
-      <button class="ltab" role="tab" data-tab-go="meters"><span class="ltab-ok" hidden></span><span data-i18n="tab_meters"></span><span class="ltab-n" hidden></span></button>
-      <button class="ltab" role="tab" data-tab-go="transfer"><span class="ltab-ok" hidden></span><span data-i18n="tab_transfer"></span><span class="ltab-n" hidden></span></button>
-    </nav>
-  </div>
-</section>
+<nav class="bar tabs" aria-label="Bereiche">
+  <a href="#/scan" data-area="scan"><span data-t="tab_scan"></span></a>
+  <a href="#/zaehler" data-area="zaehler"><span data-t="tab_meters"></span> <span class="n" id="n-meters"></span></a>
+  <a href="#/weitergabe" data-area="weitergabe"><span data-t="tab_transfer"></span> <span class="n" id="n-dp"></span></a>
+  <a href="#/anlage" data-area="anlage"><span data-t="tab_project"></span></a>
+  <a href="#/werkzeuge" data-area="werkzeuge"><span data-t="tab_tools"></span></a>
+  <a href="#/simulator" data-area="simulator" id="tab-sim"><span data-t="tab_sim"></span></a>
+</nav>
 
-<main id="top">
-  <section class="card" id="sec-project" data-tab="project" aria-labelledby="h-project">
-    <div class="card-head">
-      <div class="head-text">
-        <span class="eyebrow" data-i18n="project"></span>
-        <h2 id="h-project"></h2>
-        <p id="project-sub" class="hint"></p>
-      </div>
-    </div>
-    <div id="plant-state" class="plant-state" hidden></div>
-    <div class="row tight project-tools">
-      <button id="project-edit" class="small quiet" data-i18n="project_edit"></button>
-      <a id="project-export" class="button small quiet" data-i18n="export"></a>
-      <label class="button small quiet file-button"><span data-i18n="import"></span><input id="project-import" type="file" accept=".json,application/json" hidden></label>
-      <a id="project-report" class="button small quiet" href="report.html" target="_blank" rel="noopener" data-i18n="report"></a>
-      <button id="project-clear" class="small quiet danger push" data-i18n="project_clear"></button>
-      <button id="project-delete" class="small quiet danger" data-i18n="project_delete"></button>
-    </div>
-    <div id="tree" class="tree"></div>
-    <form id="tree-form" class="tree-form" hidden></form>
-  </section>
+<main id="work" class="work"></main>
 
-  <section class="card" id="sec-scan" data-tab="scan" aria-labelledby="h-scan">
-    <!-- 1 Suche einstellen -->
-    <div class="step-head"><span class="step-no">1</span><h2 id="h-scan" data-i18n="scan_set"></h2><span id="scan-for" class="hint"></span></div>
-    <div class="scan-set">
-      <div class="scan-field"><span class="scan-label" data-i18n="scan_kind"></span>
-        <div id="scan-kind" class="seg" role="group">
-          <button type="button" data-kind="primary" data-i18n="scan_kind_pa"></button>
-          <button type="button" data-kind="secondary" data-i18n="scan_kind_sa"></button>
-        </div>
-      </div>
-      <div class="scan-field"><span class="scan-label" data-i18n="scan_bauds"></span>
-        <div class="baud-pick">
-          <div id="scan-bauds" class="chips"></div>
-          <button id="bauds-all" class="small quiet" data-i18n="bauds_all"></button>
-          <button id="bus-bauds" class="small tonal needs-conn" data-i18n="bus_bauds"></button>
-        </div>
-      </div>
-      <div class="scan-range" data-for="primary">
-        <label><span data-i18n="from"></span> <input id="scan-from" class="mono" type="number" min="0" max="250" value="0"></label>
-        <label><span data-i18n="to"></span> <input id="scan-to" class="mono" type="number" min="0" max="250" value="250"></label>
-        <label><span data-i18n="retries"></span> <input id="scan-retries" class="mono" type="number" min="0" max="5" value="1"></label>
-      </div>
-      <label class="scan-prefix" data-for="secondary"><span data-i18n="scan_prefix"></span>
-        <input id="scan-prefix" class="mono" inputmode="numeric" maxlength="7" autocomplete="off" data-i18n-ph="scan_prefix_ph" data-i18n-title="scan_prefix_title"></label>
-      <span class="spacer"></span>
-      <button id="scan-resume" class="tonal needs-conn" hidden></button>
-      <button id="scan-primary" class="needs-conn" data-for="primary" data-i18n="scan_primary_start"></button>
-      <button id="scan-secondary" class="needs-conn" data-for="secondary" data-i18n="scan_secondary_start"></button>
-    </div>
-    <p id="bauds-empty" class="hint warn" data-i18n="pick_baud" hidden></p>
-    <p id="bus-bauds-result" class="hint result"></p>
-    <p id="scan-estimate" class="hint" data-for="primary"></p>
-    <p class="hint explain" data-for="primary" data-i18n="scan_primary_hint"></p>
-    <p class="hint explain" data-for="secondary" data-i18n="scan_secondary_hint"></p>
-    <p class="hint baud-check-hint explain" data-i18n="scan_bauds_hint"></p>
-    <div id="job" hidden>
-      <div class="job-line">
-        <span id="job-msg"></span>
-        <button id="scan-cancel" class="small quiet" hidden data-i18n="cancel"></button>
-      </div>
-      <div id="job-progress" class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar-fill"></div></div>
-    </div>
+<footer class="bar status" aria-live="polite">
+  <span id="bus" class="state"></span>
+  <span id="issues"></span>
+  <span id="outputs"></span>
+  <span class="grow"></span>
+  <button id="next" type="button" class="tonal" hidden></button>
+</footer>
 
-    <!-- 2 Ergebnis -->
-    <div id="hits-block" class="hits-block" hidden>
-      <div class="step-head"><span class="step-no">2</span><h2 data-i18n="scan_result"></h2><span id="hits-meta" class="hint"></span>
-        <span class="spacer"></span><div id="hits-filter" class="seg" role="group"></div></div>
-      <div id="hits-action" class="hits-action" hidden>
-        <span id="hits-action-text"></span><span class="spacer"></span>
-        <button id="hits-fix" type="button" class="small tonal needs-conn" data-fix-all hidden></button>
-        <button id="remember-all" type="button" class="small"></button>
-      </div>
-      <div id="fix-plan" class="fix-plan" hidden></div>
-      <p id="hits-changes" class="hits-changes" hidden></p>
-      <div class="hits-opt hits-tools">
-        <label class="inline"><input id="sa-raw" type="checkbox" class="switch"> <span data-i18n="sa_raw"></span></label>
-        <span class="remember-mode"><span class="hint" data-i18n="remember_via"></span>
-          <span class="seg" role="group"><button data-mode="secondary" data-i18n-title="mode_sa_title">SA</button><button data-mode="primary" data-i18n-title="mode_pa_title">PA</button></span>
-        </span>
-      </div>
-      <div class="table-wrap">
-        <table id="hits" hidden>
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+<div id="toast" class="toast" role="status" hidden></div>
 
-  <section class="card" id="sec-meters" data-tab="meters" aria-labelledby="h-meters">
-    <div class="card-head">
-      <div class="head-text">
-        <h2 id="h-meters" data-i18n="meters"></h2>
-        <p id="meters-sub" class="hint"></p>
-        <p class="hint explain" data-i18n="meters_hint"></p>
-        <p id="meters-file" class="hint mono explain"></p>
-      </div>
-      <div class="head-actions">
-        <details class="menu">
-          <summary class="button small quiet"><span data-i18n="list_menu"></span></summary>
-          <div class="menu-items">
-            <button id="list-open" type="button" class="small quiet" data-i18n="list_import"></button>
-            <a id="meters-export" class="button small quiet" href="api/meters/csv" data-i18n="export" data-i18n-title="list_export_title"></a>
-            <button id="meters-clear" type="button" class="small quiet danger" data-i18n="meters_clear" hidden></button>
-          </div>
-        </details>
-        <a id="meters-report" class="button small quiet" href="report.html" target="_blank" rel="noopener" data-i18n="report" data-i18n-title="report_title"></a>
-      </div>
-    </div>
-    <div id="meters-job" class="hint" hidden></div>
-    <div id="list-panel" class="history" hidden>
-      <div class="history-head"><h3 data-i18n="list_title"></h3><span class="spacer"></span>
-        <button type="button" class="small quiet" id="list-close" data-i18n="history_close"></button></div>
-      <p class="hint" data-i18n="list_hint"></p>
-      <div class="row list-source">
-        <label class="button small ghost file-button"><span data-i18n="list_file"></span><input id="meters-import" type="file" accept=".csv,.txt,.tsv,.json,text/csv,application/json" hidden></label>
-        <span class="hint" data-i18n="list_or_paste"></span>
-      </div>
-      <textarea id="list-paste" class="mono" rows="4" data-i18n-ph="list_paste_ph"></textarea>
-      <div id="list-map"></div>
-      <div id="list-result"></div>
-    </div>
-    <div id="names-panel" hidden></div>
-    <!-- Bearbeiten: das Formular wandert in die Zeile des Zählers (renderMeters) -->
-    <form id="meter-form" class="meter-form" hidden>
-      <div id="mf-fields"></div>
-      <div class="row">
-        <button type="submit" data-i18n="save"></button>
-        <button type="button" id="mf-cancel" class="quiet" data-i18n="cancel"></button>
-        <span class="spacer"></span>
-        <button type="button" id="mf-exchange" class="quiet needs-conn" data-i18n="exchange_btn" data-i18n-title="exchange_title"></button>
-      </div>
-    </form>
-    <p id="meters-empty" class="empty" data-i18n="meters_empty"></p>
-    <datalist id="loc-list"></datalist>
-    <div class="table-bar">
-      <label class="table-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="meters-search" type="search" data-i18n-ph="meters_search" data-i18n-title="meters_search" autocomplete="off"></label>
-      <div id="meters-filter" class="seg" role="group" data-i18n-title="meters_filter"></div>
-      <span class="spacer"></span>
-      <button id="quick-toggle" class="small tonal" data-i18n="quick_edit" data-i18n-title="quick_edit_title"></button>
-      <button id="meter-add" class="small tonal" data-i18n="meter_add"></button>
-      <button id="meters-read-all" class="small needs-conn"></button>
-    </div>
-    <div class="table-wrap">
-      <table id="meters-table" hidden>
-        <thead><tr>
-          <th data-i18n="col_meter"></th><th data-i18n="meter_location"></th><th data-i18n="last_value"></th>
-          <th id="th-plan" data-i18n="col_plan" hidden></th><th></th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div id="history" class="history" hidden></div>
-  </section>
-
-  <section class="card" id="sec-outputs" data-tab="transfer" aria-labelledby="h-outputs">
-    <div class="card-head">
-      <div class="head-text">
-        <h2 id="h-outputs" data-i18n="out_title"></h2>
-        <p class="hint explain" data-i18n="out_hint"></p>
-      </div>
-    </div>
-    <div id="tr-outputs" class="out-list"></div>
-  </section>
-
-  <section class="card" id="sec-transfer" data-tab="transfer" aria-labelledby="h-dp">
-    <div class="card-head">
-      <div class="head-text">
-        <h2 id="h-dp" data-i18n="dp_title"></h2>
-        <p class="hint explain" data-i18n="dp_hint"></p>
-      </div>
-      <div class="head-actions">
-        <select id="tr-scope" aria-label="scope">
-          <option value="line" data-i18n="tr_scope_line"></option>
-          <option value="project" data-i18n="tr_scope_project"></option>
-        </select>
-        <label class="button small quiet file-button"><span data-i18n="dp_csv_import"></span><input id="tr-import" type="file" accept=".csv,text/csv" hidden></label>
-        <a id="tr-export" class="button small quiet" data-i18n="dp_csv_export"></a>
-      </div>
-    </div>
-    <div id="dp-templates" class="dp-templates" hidden></div>
-    <div id="tr-preview" hidden></div>
-    <div id="dp-bulk" class="dp-bulk" hidden>
-      <span id="dp-bulk-n"></span>
-      <button type="button" class="small quiet" data-dp-bulk="on" data-i18n="dp_on"></button>
-      <button type="button" class="small quiet" data-dp-bulk="off" data-i18n="dp_off"></button>
-      <select id="dp-bulk-out" aria-label="output"></select>
-      <select id="dp-bulk-send" aria-label="send"></select>
-      <button type="button" class="small quiet danger" data-dp-bulk="delete" data-i18n="dp_delete"></button>
-    </div>
-    <div id="tr-table"></div>
-    <div id="tr-edit" hidden></div>
-  </section>
-
-  <section class="card" id="sec-read" data-tab="tools" aria-labelledby="h-read">
-    <div class="card-head align-end">
-      <h2 id="h-read" data-i18n="read_meter"></h2>
-      <div class="head-actions grow">
-        <label class="addr"><span data-i18n="address"></span> <input id="read-addr" class="mono" data-i18n-ph="address_ph"></label>
-        <button id="read" class="needs-conn" data-i18n="read"></button>
-      </div>
-    </div>
-    <div id="reading"></div>
-  </section>
-
-  <section class="card" id="sec-config" data-tab="tools" aria-labelledby="h-config">
-    <div class="card-head">
-      <div class="head-text">
-        <h2 id="h-config" data-i18n="configure"></h2>
-        <p class="hint explain" data-i18n="set_hint"></p>
-      </div>
-    </div>
-    <!-- Ziel zuerst, dann was man ändert -->
-    <div class="target">
-      <span class="target-label" data-i18n="target"></span>
-      <div id="target-meter" class="target-meter"></div>
-      <label class="target-addr"><span class="sr-only" data-i18n="address"></span><input id="set-old" class="mono" data-i18n-ph="address_ph" data-i18n-title="address"></label>
-      <details class="menu target-menu">
-        <summary class="button small ghost" data-i18n="target_pick"></summary>
-        <div id="target-list" class="menu-items"></div>
-      </details>
-    </div>
-    <p id="config-baud-note" class="hint warn" hidden></p>
-    <div class="tiles three under-target">
-      <div class="tile" id="tile-pa">
-        <h3 data-i18n="set_primary"></h3>
-        <p id="cur-pa" class="hint"></p>
-        <div class="tile-row">
-          <label><span data-i18n="new_primary"></span> <input id="set-new" class="mono" type="number" min="0" max="250"></label>
-          <button id="set-addr" class="tonal needs-conn" data-needs-value="set-old" data-i18n="set"></button>
-        </div>
-      </div>
-      <div class="tile" id="tile-baud">
-        <h3 data-i18n="baud_title"></h3>
-        <p id="cur-baud" class="hint"></p>
-        <div class="tile-row">
-          <label><span data-i18n="new_baud"></span>
-            <select id="new-baud">
-              <option>300</option><option>600</option><option>1200</option><option selected>2400</option>
-              <option>4800</option><option>9600</option><option>19200</option><option>38400</option>
-            </select>
-          </label>
-          <button id="switch-baud" class="tonal needs-conn" data-needs-value="set-old" data-i18n="switch"></button>
-        </div>
-        <div class="row tight">
-          <button id="detect-baud" class="small tonal needs-conn" data-needs-value="set-old" data-i18n="detect_baud"></button>
-          <span id="detect-result" class="hint result"></span>
-        </div>
-        <p class="hint explain" data-i18n="baud_hint"></p>
-      </div>
-      <div class="tile">
-        <h3 data-i18n="reset_title"></h3>
-        <p class="hint" data-i18n="reset_short"></p>
-        <p class="hint explain" data-i18n="reset_hint"></p>
-        <div class="tile-end start">
-          <button id="app-reset" class="ghost danger needs-conn" data-needs-value="set-old" data-i18n="reset"></button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-    <section class="card" id="sec-export" data-tab="meters" aria-labelledby="h-export">
-      <h2 id="h-export" class="h-small" data-i18n="readings_export"></h2>
-      <p id="readings-count" class="count"></p>
-      <div class="row">
-        <a id="export-csv" class="button small ghost" href="api/export?format=csv">CSV</a>
-        <a id="export-json" class="button small ghost" href="api/export?format=json">JSON</a>
-        <button id="clear-readings" class="small quiet danger push" data-i18n="readings_delete_all"></button>
-      </div>
-    </section>
-
-    <section class="card" id="sec-log" data-tab="tools">
-      <details id="log-box">
-        <summary>
-          <h2 class="h-small" data-i18n="telegram_log"></h2>
-          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-        </summary>
-        <div class="row">
-          <label class="inline"><input id="log-follow" type="checkbox" class="switch" checked> <span data-i18n="follow"></span></label>
-          <button id="clear-log" class="small quiet push" data-i18n="clear_log"></button>
-        </div>
-        <pre id="log" class="mono"></pre>
-        <h3 data-i18n="raw_title"></h3>
-        <p class="hint explain" data-i18n="raw_hint"></p>
-        <div class="row">
-          <label class="grow"><span data-i18n="raw_bytes"></span> <input id="raw-hex" class="mono" placeholder="10 40 01 41 16"></label>
-          <button id="analyze" class="ghost" data-i18n="analyze"></button>
-          <button id="raw-send" class="ghost needs-conn" data-i18n="send"></button>
-        </div>
-        <pre id="raw-result" class="code mono" hidden></pre>
-        <div id="analysis" class="analysis" hidden></div>
-      </details>
-    </section>
-
-    <section class="card" id="sec-sim-link" data-tab="tools">
-      <div class="card-head">
-        <div class="head-text">
-          <h2 class="h-small" data-i18n="sim_title"></h2>
-          <p class="hint" data-i18n="sim_link_hint"></p>
-        </div>
-        <div class="head-actions"><button class="ghost" data-tab-go="sim" data-i18n="sim_open"></button></div>
-      </div>
-    </section>
-  <section class="card" id="sec-sim" data-tab="sim" aria-labelledby="h-sim">
-    <div class="card-head">
-      <div class="head-text">
-        <h2 id="h-sim" data-i18n="sim_title"></h2>
-        <p class="hint explain" data-i18n="sim_hint"></p>
-      </div>
-    </div>
-    <div class="row sim-pick">
-      <label class="grow"><span data-i18n="sim_choose"></span> <select id="sim-select"></select></label>
-      <button id="sim-use" data-i18n="sim_use"></button>
-      <button id="sim-copy" class="tonal" data-i18n="sim_copy"></button>
-      <button id="sim-new" class="quiet" data-i18n="sim_new"></button>
-      <button id="sim-delete" class="quiet danger" data-i18n="sim_delete"></button>
-    </div>
-    <p id="sim-line" class="hint"></p>
-    <div id="sim-editor"></div>
-  </section>
-</main>
-
-<div id="busbar" class="busbar" role="status" hidden>
-  <div id="guide-more" class="guide-more" hidden></div>
-  <div class="busbar-inner">
-    <span class="busbar-dot" aria-hidden="true"></span>
-    <span id="busbar-text" class="busbar-text"></span>
-    <div class="bar busbar-progress"><div class="bar-fill"></div></div>
-    <a id="busbar-link" class="busbar-link" href="#sec-scan" data-i18n="busbar_view"></a>
-    <button id="busbar-cancel" class="small quiet" data-i18n="cancel" hidden></button>
-    <a id="busbar-issues" class="busbar-issues" href="#hits-warn" hidden></a>
-    <button id="busbar-time" class="busbar-time" type="button" data-i18n="time_unsure" data-i18n-title="time_unsure_title" hidden></button>
-    <span id="busbar-disk" class="busbar-time" data-i18n-title="disk_title" hidden></span>
-    <a id="busbar-outputs" class="busbar-time" href="#sec-outputs" hidden></a>
-    <div id="guide" class="guide" aria-live="polite" hidden></div>
-  </div>
-</div>
-<div id="toast" role="status" hidden></div>
 <script src="js/texts.js"></script>
 <script src="js/base.js"></script>
-<script src="js/core.js"></script>
 <script src="js/icons.js"></script>
-<script src="js/ui.js"></script>
 <script src="js/scanlogic.js"></script>
-<script src="js/busbar.js"></script>
-<script src="js/connection.js"></script>
-<script src="js/scan.js"></script>
-<script src="js/hits.js"></script>
-<script src="js/fix.js"></script>
-<script src="js/tools.js"></script>
-<script src="js/meters.js"></script>
 <script src="js/plot.js"></script>
-<script src="js/chart.js"></script>
 <script src="js/listlogic.js"></script>
-<script src="js/meterlist.js"></script>
-<script src="js/transfer.js"></script>
-<script src="js/out-mqtt.js"></script>
-<script src="js/out-modbus.js"></script>
-<script src="js/sim.js"></script>
-<script src="js/plan.js"></script>
-<script src="js/project.js"></script>
-<script src="js/linebar.js"></script>
-<script src="js/guide.js"></script>
-<script src="js/main.js"></script>
+<script type="module" src="neu/app.js"></script>
 </body>
 </html>

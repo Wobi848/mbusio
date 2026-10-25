@@ -20,7 +20,7 @@ export default {
       dialogs++;
       d.dismiss();
     });
-    await page.goto(base + "/neu/#/anlage");
+    await page.goto(base + "/#/anlage");
     await page.waitForSelector("[data-area=anlage] [role=option]");
     // ohne Neuladen: diese Markierung bleibt bis zum Ende
     await page.evaluate(() => (window.__nochDa = true));

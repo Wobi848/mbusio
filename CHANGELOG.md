@@ -9,9 +9,12 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Neu
 
-- **Neue Oberfläche im Aufbau** unter `/neu/` (Konzept `docs/konzept-oberflaeche-neu.md`):
-  Werkzeug statt Webseite, zuerst Kopfzeile, Linienwechsel ohne Neuladen, Tastatur. Die bisherige
-  Oberfläche bleibt unter `/`, bis die neue alles kann.
+- **Neue Oberfläche** (Konzept `docs/konzept-oberflaeche-neu.md`): Werkzeug statt Webseite. Eine
+  Kopfzeile, Liste und Details nebeneinander (etwa doppelt bis fünfmal so viele Zeilen ohne
+  Scrollen), Zustand als Wort am Element, genau ein Hauptknopf und „Nächster Schritt“ in der
+  Statusleiste, Mehrfachauswahl, Tastatur, Rückfragen am Knopf statt Browser-Fenster, Wechsel von
+  Linie und Projekt ohne Neuladen, Zeilen werden während eines Scans nicht mehr ersetzt (keine
+  verlorenen Klicks). Die bisherige Oberfläche bleibt eine Version lang unter `/alt.html`.
 - **Schnelleres Neuladen:** die Dateien der Oberfläche kommen mit ETag; unverändert antwortet
   mbusio mit 304 (spürbar auf dem Raspberry Pi über WLAN).
 

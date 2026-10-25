@@ -325,7 +325,7 @@ async function mountArea(area, pane) {
     // Bereich noch nicht gebaut
   }
   if (mod?.mount) return mod.mount(pane);
-  pane.innerHTML = `<div class="soon"><b>${esc(t(AREA_TAB[area]))}</b><span>${esc(t("n_soon"))}</span><a href="./">${esc(t("n_old_ui"))} →</a></div>`;
+  pane.innerHTML = `<div class="soon"><b>${esc(t(AREA_TAB[area]))}</b><span>${esc(t("n_soon"))}</span><a href="alt.html">${esc(t("n_old_ui"))} →</a></div>`;
 }
 
 AREAS.forEach((a, i) =>

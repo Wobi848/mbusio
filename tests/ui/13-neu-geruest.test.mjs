@@ -15,7 +15,7 @@ export default {
   async run({ page, base, api }) {
     let dialogs = 0;
     page.on("dialog", () => dialogs++);
-    await page.goto(base + "/neu/#/zaehler");
+    await page.goto(base + "/#/zaehler");
     await page.waitForFunction(() => document.querySelector("#line b")?.textContent === "Haus A");
     assert.match(await page.textContent("#conn-state"), /Verbunden/);
     assert.equal(await page.getAttribute(".tabs [data-area=zaehler]", "aria-current"), "page");
@@ -98,7 +98,7 @@ export default {
     for (const area of ["zaehler", "scan"])
       for (const width of [360, 390, 800, 1000, 1100, 1250, 1400, 1600]) {
         await page.setViewportSize({ width, height: 800 });
-        await page.goto(`${base}/neu/#/${area}`);
+        await page.goto(`${base}/#/${area}`);
         await page.waitForFunction(() => document.querySelector("#line b")?.textContent.startsWith("Heizzentrale"));
         const wide = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
         assert.ok(wide <= 0, `${area} bei ${width} px: ${wide} px zu breit`);

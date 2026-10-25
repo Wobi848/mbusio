@@ -20,7 +20,7 @@ export default {
   async run({ page, base, api }) {
     let dialogs = 0;
     page.on("dialog", () => dialogs++);
-    await page.goto(base + "/neu/#/weitergabe");
+    await page.goto(base + "/#/weitergabe");
     await page.waitForFunction(() => document.querySelectorAll("section[data-area=weitergabe] [data-list] [role=option]").length === 3);
     assert.match(await rows(page).nth(0).textContent(), /gut/);
     assert.match(await page.textContent("section[data-area=weitergabe] [data-outputs]"), /MQTT\s*aus/);

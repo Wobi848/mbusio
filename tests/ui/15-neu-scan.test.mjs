@@ -19,7 +19,7 @@ export default {
     let dialogs = 0;
     page.on("dialog", () => dialogs++);
     // ohne Adresse und ohne Zähler beginnt die Oberfläche im Scan
-    await page.goto(base + "/neu/");
+    await page.goto(base + "/");
     await page.waitForFunction(() => location.hash === "#/scan");
     await page.waitForSelector("[data-to]");
     await page.fill("[data-to]", "20");
@@ -49,7 +49,7 @@ export default {
     // Beheben: Zähler mit anderer Baudrate auf die Bus-Baudrate umstellen
     await api("lines/1", "PUT", { name: "Haus A", connection: "SIMULATOR:bauds", baud: 2400 });
     await api("lines/1/activate", "POST");
-    await page.goto(base + "/neu/#/scan");
+    await page.goto(base + "/#/scan");
     await page.waitForSelector("[data-to]");
     await page.fill("[data-to]", "8");
     await page.press("[data-to]", "Tab");
