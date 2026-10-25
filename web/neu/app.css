@@ -250,11 +250,6 @@ button.danger-text:hover { background: var(--err-soft); }
 .selbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--accent-soft); border-top: 1px solid var(--line); }
 .selbar select { height: 28px; }
 
-/* Bereich Zähler: Spalten der Liste */
-/* Name, Kennung und Wert behalten ihre Breite, der Ort wird zuerst schmaler */
-.pane .row:not(.vrow) { grid-template-columns: 18px minmax(120px, 2fr) minmax(125px, 1fr) minmax(0, 1fr) minmax(130px, 1.4fr) minmax(0, 130px); }
-.pane .row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rows { overflow-x: hidden; }
 .mid.s { width: 20px; height: 20px; border-radius: 5px; }
 .soon { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 16px 12px; color: var(--muted); }
 .soon b { color: var(--text); }
@@ -287,13 +282,6 @@ button.danger-text:hover { background: var(--err-soft); }
   .detail.open { display: block; position: fixed; inset: 0; z-index: 30; }
   .detail .back { display: inline-flex; margin-bottom: 8px; }
   .row.head { display: none; }
-  .pane .row:not(.vrow) { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "box name state" "box ident value"; padding: 6px 12px; row-gap: 2px; }
-  .pane .row > :nth-child(1) { grid-area: box; }
-  .pane .row > :nth-child(2) { grid-area: name; }
-  .pane .row > :nth-child(3) { grid-area: ident; }
-  .pane .row > :nth-child(4) { display: none; }
-  .pane .row > :nth-child(5) { grid-area: value; justify-self: end; }
-  .pane .row > :nth-child(6) { grid-area: state; justify-self: end; }
   .toolbar { flex-wrap: wrap; }
   .toolbar input[type=search] { flex: 1 1 100%; width: auto; }
   .selbar { flex-wrap: wrap; }

@@ -74,7 +74,8 @@ async function startServer(port, args = []) {
 
 const browser = await chromium.launch();
 let failed = 0;
-let port = 18300;
+// eigener Bereich mit MBUSIO_TEST_PORT, wenn mehrere Testläufe gleichzeitig laufen (z.B. in Arbeitsbäumen)
+let port = Number(process.env.MBUSIO_TEST_PORT) || 18300;
 for (const t of tests.filter((t) => t.name.includes(filter) || t.file.includes(filter))) {
   if (t.skip?.()) {
     console.log(`– ${t.name} (übersprungen)`);

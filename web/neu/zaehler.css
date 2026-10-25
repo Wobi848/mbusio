@@ -1,0 +1,16 @@
+/* Bereich Zähler: Spalten der Liste (Gerüst für Liste und Details: app.css) */
+
+/* Name, Kennung und Wert behalten ihre Breite, der Ort wird zuerst schmaler */
+[data-area=zaehler] .row:not(.vrow) { grid-template-columns: 18px minmax(120px, 2fr) minmax(125px, 1fr) minmax(0, 1fr) minmax(130px, 1.4fr) minmax(0, 130px); }
+[data-area=zaehler] .row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-area=zaehler] .rows { overflow-x: hidden; }
+
+@media (max-width: 999px) {
+  [data-area=zaehler] .row:not(.vrow) { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "box name state" "box ident value"; padding: 6px 12px; row-gap: 2px; }
+  [data-area=zaehler] .row > :nth-child(1) { grid-area: box; }
+  [data-area=zaehler] .row > :nth-child(2) { grid-area: name; }
+  [data-area=zaehler] .row > :nth-child(3) { grid-area: ident; }
+  [data-area=zaehler] .row > :nth-child(4) { display: none; }
+  [data-area=zaehler] .row > :nth-child(5) { grid-area: value; justify-self: end; }
+  [data-area=zaehler] .row > :nth-child(6) { grid-area: state; justify-self: end; }
+}

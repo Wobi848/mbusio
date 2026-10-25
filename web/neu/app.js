@@ -5,13 +5,10 @@ import { state, set, watch, activeLine, operatingLines } from "./store.js";
 import { html, text, menu, closeMenu, ask, toast } from "./view.js";
 import { bind, keyList } from "./keys.js";
 import { loadStatus, loadTree, reload, useLine, report } from "./data.js";
-import * as meters from "./meters.js";
 
 const $ = (id) => document.getElementById(id);
 const AREAS = ["scan", "zaehler", "weitergabe", "anlage", "werkzeuge", "simulator"];
 const AREA_TAB = { scan: "tab_scan", zaehler: "tab_meters", weitergabe: "tab_transfer", anlage: "tab_project", werkzeuge: "tab_tools", simulator: "tab_sim" };
-/// Bereiche, die es in der neuen Oberfläche schon gibt; die anderen führen in die bisherige
-const BUILT = { zaehler: meters };
 const STATUS_EVERY = 5000;
 const TREE_EVERY = 15000;
 
@@ -279,20 +276,32 @@ function renderTabs() {
 }
 
 /// Arbeitsfläche: jeder Bereich hat eine eigene Fläche, die beim Wechsel bleibt (Scroll, Auswahl,
-/// Filter). Bereiche, die noch nicht gebaut sind (Konzept §8), führen in die bisherige Oberfläche.
+/// Filter). Ein Bereich ist die Datei neu/<bereich>.js mit `mount(fläche)`; fehlt sie noch
+/// (Konzept §8), führt die Fläche in die bisherige Oberfläche. So braucht ein neuer Bereich keine
+/// Änderung an app.js.
 const panes = {};
 function renderWork() {
   for (const a of AREAS) {
     if (!panes[a] && a === state.area) {
       panes[a] = document.createElement("section");
       panes[a].className = "pane";
+      panes[a].dataset.area = a;
       $("work").append(panes[a]);
-      if (BUILT[a]) BUILT[a].mount(panes[a]);
-      else
-        panes[a].innerHTML = `<div class="soon"><b>${esc(t(AREA_TAB[a]))}</b><span>${esc(t("n_soon"))}</span><a href="./">${esc(t("n_old_ui"))} →</a></div>`;
+      mountArea(a, panes[a]);
     }
     if (panes[a]) panes[a].hidden = a !== state.area;
   }
+}
+
+async function mountArea(area, pane) {
+  let mod = null;
+  try {
+    mod = await import(`./${area}.js`);
+  } catch {
+    // Bereich noch nicht gebaut
+  }
+  if (mod?.mount) return mod.mount(pane);
+  pane.innerHTML = `<div class="soon"><b>${esc(t(AREA_TAB[area]))}</b><span>${esc(t("n_soon"))}</span><a href="./">${esc(t("n_old_ui"))} →</a></div>`;
 }
 
 AREAS.forEach((a, i) =>

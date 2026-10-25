@@ -2,7 +2,7 @@
 // Zustand als Wort am Element, Bearbeiten direkt in den Feldern, Mehrfachauswahl, Tastatur.
 
 import { state, watch, activeLine } from "./store.js";
-import { html, text, list, ask, toast } from "./view.js";
+import { html, text, list, ask, toast, styles } from "./view.js";
 import { bind, onEscape } from "./keys.js";
 import { loadMeters, loadTree, report } from "./data.js";
 
@@ -24,6 +24,7 @@ const PLANS = ["off", "daily 00:05", "hourly", "15min", "monthly 00:05"];
 const open = () => state.area === "zaehler";
 
 export function mount(pane) {
+  styles("zaehler");
   root = pane;
   root.innerHTML = `
     <div class="toolbar">

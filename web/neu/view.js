@@ -3,6 +3,23 @@
 
 import { onEscape } from "./keys.js";
 
+/// Texte eines Bereichs (Deutsch, Englisch) zu den gemeinsamen aus js/texts.js dazu; jeder Bereich
+/// hält seine Texte bei sich, damit Bereiche unabhängig gebaut werden können
+export function texts(de, en) {
+  Object.assign(UI.de, de);
+  Object.assign(UI.en, en);
+}
+
+/// Eigene Stile eines Bereichs (neu/<bereich>.css) einmal laden
+export function styles(area) {
+  if (document.querySelector(`link[data-area="${area}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = `neu/${area}.css`;
+  link.dataset.area = area;
+  document.head.append(link);
+}
+
 /// Inhalt nur schreiben, wenn er anders ist als beim letzten Mal
 export function html(el, markup) {
   if (el._html === markup) return;

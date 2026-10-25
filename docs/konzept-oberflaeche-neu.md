@@ -192,6 +192,30 @@ kommen aus `base.css` in eine eigene `web/css/tokens.css`, die beide Oberfläche
   unten „Plan geändert · Rückgängig“.
 - **Eingaben** (neues Projekt, Simulation kopieren) als Feld an Ort und Stelle statt `prompt`.
 
+### 5.6 Einen Bereich bauen (Vorgabe, damit Bereiche unabhängig entstehen können)
+
+- **Eine Datei je Bereich:** `web/neu/<bereich>.js` (`scan`, `zaehler`, `weitergabe`, `anlage`,
+  `werkzeuge`, `simulator`) mit `export function mount(pane)`. `app.js` lädt sie selbst, wenn es
+  die Datei gibt; an `app.js` ändert ein neuer Bereich nichts. Vorbild: `zaehler.js`.
+- **Eigene Stile** in `web/neu/<bereich>.css`, geladen mit `styles("<bereich>")` aus `view.js`,
+  alle Regeln beschränkt auf `[data-area=<bereich>]`. Allgemeines (Toolbar, Liste, Details,
+  Auswahlleiste, Felder, Chips, Knöpfe) steht in `app.css` und wird benutzt, nicht kopiert.
+- **Eigene Texte** am Anfang der Datei mit `texts({…de}, {…en})` aus `view.js`; Schlüssel mit
+  dem Präfix des Bereichs (z.B. `an_…` für Anlage). Vorhandene Texte aus `js/texts.js` benutzen,
+  wo sie passen.
+- **Daten** über `request()` (aus `js/base.js`), Laden in den Zustand über `data.js`
+  (`loadStatus`, `loadTree`, `loadMeters`, `reload`, `useLine`, `report`). Eigene Listen eines
+  Bereichs darf der Bereich selbst halten.
+- **Zeichnen** nur über `html()`, `text()`, `list()` aus `view.js` (nichts ganz neu schreiben,
+  was sich nicht geändert hat); Menüs mit `menu()`, Rückfragen mit `ask()`, Meldungen mit
+  `toast()` (auch mit `undo`). Kein `confirm`/`prompt`/`alert`.
+- **Tasten** mit `bind(taste, funktion, text, () => state.area === "<bereich>")`.
+- **Je Linie** Einstellungen des Bereichs (Filter, Auswahl, gewählte Zeile) wie in `zaehler.js`
+  in einer `Map` nach Linie halten.
+- **Test** `tests/ui/<nr>-neu-<bereich>.test.mjs` (Vorbild `14-neu-zaehler`), ohne
+  Browser-Dialoge; zusätzlich muss `13-neu-geruest` grün bleiben (nie seitlich scrollen).
+- Screenshots Desktop 1250 px, Handy 390 px, dunkel; nichts darf überlaufen.
+
 ## 6. Tastatur
 
 | Taste | Wirkung |
