@@ -35,8 +35,12 @@ jobs:
         with:
           node-version: 22
       - run: cargo build
-      - run: npm install --no-save playwright@1.62.1 && npx playwright install --with-deps chromium
+      - run: npm install --no-save playwright@1.62.1 aedes@0.51.3 && npx playwright install --with-deps chromium
+      # Test-Broker, damit auch der MQTT-Test (mit Home Assistant) läuft statt übersprungen zu werden
+      - run: node tests/ui/broker.mjs 1883 &
       - run: node tests/ui/run.mjs
+        env:
+          MBUSIO_TEST_BROKER: 127.0.0.1:1883
 
   # Node-RED-Nodes (node-red/), gegen ein nachgebautes mbusio
   node-red:
