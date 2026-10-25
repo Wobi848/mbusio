@@ -16,6 +16,8 @@ mod scheduler;
 mod service;
 mod sim;
 mod storage;
+#[cfg(test)]
+mod testutil;
 mod web;
 
 use std::path::PathBuf;

@@ -48,14 +48,7 @@ fn heat_reading() -> MeterReading {
     m.read_meter(&Target::Primary(1)).unwrap()
 }
 
-fn with_energy(r: &MeterReading, value: f64) -> MeterReading {
-    let mut r = r.clone();
-    for x in r.records.iter_mut().filter(|x| key_of(x) == ENERGY) {
-        x.value = json!(value);
-        x.value_text = value.to_string();
-    }
-    r
-}
+use crate::testutil::with_energy;
 
 /// MQTT als Ganzes ein- oder ausschalten (ohne laufenden Broker: Nachrichten bleiben in der Warteschlange)
 fn mqtt_on(db: &mut Db, on: bool) {

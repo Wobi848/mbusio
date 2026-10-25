@@ -3,8 +3,6 @@ use super::protocol::{answer, next_request, Next};
 use super::*;
 use serde_json::json;
 
-const ENERGY: &str = "instantaneous|0|0|0|energy|kWh";
-
 /// Anfrage Modbus TCP: Transaktion 7, Unit 1, Funktion, Start, Anzahl
 fn request(function: u8, start: u16, count: u16) -> Vec<u8> {
     let mut r = vec![0, 7, 0, 0, 0, 6, 1, function];
@@ -122,43 +120,11 @@ fn addresses_follow_the_number_and_are_unique_per_project() {
     assert_eq!(block_start(6001), None, "passt nicht mehr");
 }
 
-/// Datenbank mit einem ausgelesenen Wärmezähler (Simulator), Energie als Datenpunkt mit Modbus,
-/// Linie im Dauerbetrieb
+/// Wie `testutil::db_with_energy`, die Energie zusätzlich mit Modbus
 fn db_with_energy() -> Db {
-    use crate::mbus::master::{FrameLog, Master, Target};
-    let mut db = Db::memory().unwrap();
-    let line = db.active_line().unwrap();
-    db.update_line(
-        line.id,
-        crate::db::Line {
-            connection: "SIMULATOR".into(),
-            ..line.clone()
-        },
-    )
-    .unwrap();
-    let mid = db
-        .add_meter(
-            line.id,
-            crate::db::Meter {
-                address: "1".into(),
-                ..Default::default()
-            },
-        )
-        .unwrap()
-        .id;
-    db.set_line_plan(line.id, Some("hourly")).unwrap();
-    db.set_operation(line.id, true).unwrap();
-    let link = crate::link::open("SIMULATOR", 2400).unwrap();
-    let mut m = Master::new(link, 2400, 60, std::sync::Arc::new(FrameLog::default()));
-    let r = m.read_meter(&Target::Primary(1)).unwrap();
-    db.record(line.id, &Target::Primary(1), Ok(&r), false)
-        .unwrap();
-    db.dp_select(mid, &[ENERGY.to_string()], &[], crate::i18n::Lang::De)
-        .unwrap();
+    let (mut db, _, mid, _) = crate::testutil::db_with_energy();
     let id = db.dp_by_meter(mid).unwrap()[0].id;
     db.dp_bulk(&[id], "out:modbus:on").unwrap();
-    db.record(line.id, &Target::Primary(1), Ok(&r), false)
-        .unwrap();
     db
 }
 
