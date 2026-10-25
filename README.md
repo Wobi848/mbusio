@@ -411,7 +411,8 @@ Aufbau:
 - `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export
 - `src/modbus/`: Modbus-TCP-Server: Einstellungen und Dienst (mod), Registerbild (image),
   Anfragen und Antworten (protocol)
-- `src/mqtt/`: MQTT-Ausgang: Einstellungen, Warteschlange in der Datenbank, Dienst (mod);
+- `src/mqtt/`: MQTT-Ausgang: Dienst (mod), Einstellungen und Topics (config), Einstellungen und
+  Warteschlange in der Datenbank (store);
   eigener kleiner Client für MQTT 3.1.1 mit TLS über rustls (client)
 - `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
   bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
