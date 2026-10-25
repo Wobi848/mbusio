@@ -71,6 +71,7 @@ pub trait Output: Sync {
     fn deliver(&self, db: &mut Db, d: &Datapoint, address: &str, s: &Sample) -> Result<()>;
     fn full_address(&self, db: &Db, address: &str) -> String { … }  // MQTT: mit Basis-Topic
     fn list_info(&self, db: &Db) -> Option<Value> { None }       // Zusatz für die Integrator-Liste
+    fn sync(&self, db: &mut Db) -> Result<usize> { Ok(0) }       // eigene Zusatznachrichten (MQTT: Home Assistant)
 }
 
 /// Alle Ausgänge, in der Reihenfolge der Oberfläche
@@ -135,7 +136,8 @@ Ausgang mit leerer Adresse.
    `mqtt_enabled` entfernt, Integrator-Liste allgemein, `transfer.js` mit `OUTPUT_UI`.
    Geprüft 25.10.2026: 116 Rust-Tests, 12 UI-Tests (MQTT mit Test-Broker), clippy, fmt.
 2. **Ereignis-Kanal** (3.2) mit Test.
-3. **Home Assistant Discovery** (eigenes kurzes Konzept, siehe 6).
+3. ✓ **Home Assistant Discovery** nach [konzept-home-assistant.md](konzept-home-assistant.md)
+   (vor dem Ereignis-Kanal gemacht, weil es ihn nicht braucht).
 4. **Node-RED** nach [konzept-node-red.md](konzept-node-red.md).
 5. **Modbus TCP, BACnet/IP** erst nach Freigabe (Regel: Modbus vorerst nicht) und nach dem
    7-Tage-Test.

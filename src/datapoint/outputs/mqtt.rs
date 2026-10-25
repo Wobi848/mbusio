@@ -115,6 +115,10 @@ impl Output for Mqtt {
         }
     }
 
+    fn sync(&self, db: &mut Db) -> Result<usize> {
+        super::home_assistant::sync(db)
+    }
+
     fn list_info(&self, db: &Db) -> Option<Value> {
         let base = base(db);
         Some(json!({

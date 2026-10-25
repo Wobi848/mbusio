@@ -13,6 +13,7 @@ use crate::changeset::ChangeSet;
 
 use super::*;
 
+mod home_assistant;
 mod mqtt;
 
 /// Was ein Ausgang selbst können muss; alles Gemeinsame steht in diesem Modul
@@ -37,6 +38,11 @@ pub trait Output: Sync {
     /// Was ein Leitsystem zusätzlich zur Liste der Datenpunkte wissen muss (ohne Zugangsdaten)
     fn list_info(&self, _db: &Db) -> Option<Value> {
         None
+    }
+    /// Eigene Zusatznachrichten nachführen (MQTT: Konfiguration für Home Assistant); läuft bei
+    /// jedem Abgleich, solange der Ausgang an ist. Liefert die Anzahl Nachrichten.
+    fn sync(&self, _db: &mut Db) -> Result<usize> {
+        Ok(0)
     }
 }
 
@@ -76,6 +82,7 @@ pub struct Sample<'a> {
 
 /// Wo ein Datenpunkt liegt: für Adressen und die Liste des Ausgangs
 pub struct Place {
+    pub project_id: i64,
     pub project: String,
     pub gateway: String,
     pub line: String,
@@ -127,15 +134,16 @@ impl Db {
 
     /// Projekt, Gateway, Linie und Zähler eines Datenpunkts
     fn dp_place(&self, dp_id: i64) -> Result<Place> {
-        let (project, gateway, line, meter_id): (String, String, String, i64) = self.conn.query_row(
-            "SELECT projects.name, gateways.name, lines.name, meters.id FROM datapoints
+        let (project_id, project, gateway, line, meter_id): (i64, String, String, String, i64) = self.conn.query_row(
+            "SELECT projects.id, projects.name, gateways.name, lines.name, meters.id FROM datapoints
              JOIN meters ON meters.id = datapoints.meter_id JOIN lines ON lines.id = meters.line_id
              JOIN gateways ON gateways.id = lines.gateway_id JOIN projects ON projects.id = gateways.project_id
              WHERE datapoints.id = ?1",
             [dp_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
         )?;
         Ok(Place {
+            project_id,
             project,
             gateway,
             line,
@@ -385,13 +393,18 @@ impl Db {
         Ok(())
     }
 
-    /// Geänderte Qualität melden (Zähler antwortet nicht mehr, Wert veraltet) und gerade
-    /// eingeschaltete Datenpunkte zum ersten Mal senden. Liefert die Anzahl Nachrichten.
+    /// Geänderte Qualität melden (Zähler antwortet nicht mehr, Wert veraltet), gerade
+    /// eingeschaltete Datenpunkte zum ersten Mal senden und die Zusatznachrichten der Ausgänge
+    /// nachführen. Liefert die Anzahl Nachrichten.
     pub fn outputs_refresh(&mut self) -> Result<usize> {
-        if !OUTPUTS.iter().any(|o| o.is_on(self)) {
+        let on: Vec<&dyn Output> = OUTPUTS.iter().copied().filter(|o| o.is_on(self)).collect();
+        if on.is_empty() {
             return Ok(0);
         }
         let mut n = 0;
+        for o in on {
+            n += o.sync(self)?;
+        }
         for v in self.dp_list(None, None)? {
             // nur Linien im Dauerbetrieb melden ihre Qualität
             if v["operation"] != true {

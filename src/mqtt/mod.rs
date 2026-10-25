@@ -66,6 +66,12 @@ pub struct MqttConfig {
     /// Muster für die Topics der Datenpunkte (relativ zum Basis-Topic), siehe `render_topic`
     #[serde(default = "default_topic")]
     pub topic: String,
+    /// Home Assistant: Konfig-Nachrichten für MQTT Discovery senden
+    #[serde(default)]
+    pub ha: bool,
+    /// Präfix der Konfig-Topics für Home Assistant
+    #[serde(default = "default_ha_prefix")]
+    pub ha_prefix: String,
 }
 
 fn default_port() -> u16 {
@@ -81,6 +87,10 @@ pub const DEFAULT_TOPIC: &str = "{projekt}/{gateway}-{linie}/{zaehler}/{wert}";
 
 fn default_topic() -> String {
     DEFAULT_TOPIC.into()
+}
+
+fn default_ha_prefix() -> String {
+    "homeassistant".into()
 }
 
 /// Platzhalter im Topic-Muster
@@ -125,6 +135,8 @@ impl Default for MqttConfig {
             base: default_base(),
             time_sync: false,
             topic: default_topic(),
+            ha: false,
+            ha_prefix: default_ha_prefix(),
         }
     }
 }
@@ -160,6 +172,18 @@ impl MqttConfig {
                 "Invalid topic pattern (no + or #, must contain {wert} or {nr})"
             ));
         }
+        let prefix = self.ha_prefix.trim();
+        if self.ha
+            && (prefix.is_empty()
+                || prefix.contains(['+', '#'])
+                || prefix.starts_with('/')
+                || prefix.ends_with('/'))
+        {
+            bail!(tr(
+                "Präfix für Home Assistant ungültig (nicht leer, ohne + und #, ohne / am Anfang oder Ende)",
+                "Invalid Home Assistant prefix (not empty, no + or #, no / at start or end)"
+            ));
+        }
         if let Some(k) = unknown {
             bail!(
                 "{}: {{{k}}}",
@@ -172,7 +196,7 @@ impl MqttConfig {
         Ok(())
     }
 
-    fn client_id(&self) -> String {
+    pub fn client_id(&self) -> String {
         if !self.client_id.trim().is_empty() {
             return self.client_id.trim().to_string();
         }
@@ -227,12 +251,21 @@ pub fn check_topic(rel: &str) -> Result<()> {
 
 // ---------------------------------------------------------------- Datenbank
 
+/// `mqtt_queue.abs`: 1 = Topic vollständig (Home Assistant), 0 = relativ zum Basis-Topic.
+/// `mqtt_ha`: zuletzt gesendete Konfig-Nachrichten für Home Assistant (Topic → Nachricht).
+/// Keine SQL-Kommentare in `CREATE TABLE`: SQLite speichert sie mit, und `DROP COLUMN` in einer
+/// späteren Migration scheitert daran.
 pub const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS mqtt_queue (
     id INTEGER PRIMARY KEY,
     topic TEXT NOT NULL,
     payload TEXT NOT NULL,
-    created INTEGER NOT NULL
+    created INTEGER NOT NULL,
+    abs INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS mqtt_ha (
+    topic TEXT PRIMARY KEY,
+    payload TEXT NOT NULL
 );
 ";
 
@@ -253,18 +286,30 @@ impl Db {
 
     /// Nachricht für den Broker vormerken (Topic relativ zum Basis-Topic)
     pub(crate) fn mqtt_enqueue(&mut self, topic: &str, payload: &str) -> Result<()> {
+        self.mqtt_push(topic, payload, false)
+    }
+
+    /// Nachricht mit vollständigem Topic vormerken (nicht unter dem Basis-Topic, z.B. Home Assistant)
+    pub(crate) fn mqtt_enqueue_abs(&mut self, topic: &str, payload: &str) -> Result<()> {
+        self.mqtt_push(topic, payload, true)
+    }
+
+    fn mqtt_push(&mut self, topic: &str, payload: &str, abs: bool) -> Result<()> {
         self.conn.execute(
-            "INSERT INTO mqtt_queue (topic, payload, created) VALUES (?1, ?2, ?3)",
-            params![topic, payload, crate::clock::utc_secs()],
+            "INSERT INTO mqtt_queue (topic, payload, created, abs) VALUES (?1, ?2, ?3, ?4)",
+            params![topic, payload, crate::clock::utc_secs(), abs],
         )?;
         Ok(())
     }
 
-    pub(crate) fn mqtt_peek(&self, n: usize) -> Result<Vec<(i64, String, String)>> {
+    /// Die nächsten Nachrichten: (id, Topic, Nachricht, Topic vollständig)
+    pub(crate) fn mqtt_peek(&self, n: usize) -> Result<Vec<(i64, String, String, bool)>> {
         let mut st = self
             .conn
-            .prepare("SELECT id, topic, payload FROM mqtt_queue ORDER BY id LIMIT ?1")?;
-        let rows = st.query_map([n as i64], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+            .prepare("SELECT id, topic, payload, abs FROM mqtt_queue ORDER BY id LIMIT ?1")?;
+        let rows = st.query_map([n as i64], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
@@ -421,8 +466,9 @@ fn session(
         if batch.is_empty() {
             s.idle(Duration::from_millis(500))?;
         }
-        for (id, topic, payload) in batch {
-            s.publish(&cfg.topic(&topic), payload.as_bytes())?;
+        for (id, topic, payload, abs) in batch {
+            let topic = if abs { topic } else { cfg.topic(&topic) };
+            s.publish(&topic, payload.as_bytes())?;
             st.db.lock().unwrap().mqtt_done(id)?;
             set_status(st, |x| x.sent += 1);
         }

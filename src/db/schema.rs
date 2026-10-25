@@ -153,6 +153,12 @@ impl Db {
             )?;
         }
         self.conn.execute_batch(crate::datapoint::SCHEMA)?;
+        if has(&self.conn, "mqtt_queue", "id")? && !has(&self.conn, "mqtt_queue", "abs")? {
+            // Home Assistant: Topics ausserhalb des Basis-Topics
+            self.conn.execute_batch(
+                "ALTER TABLE mqtt_queue ADD COLUMN abs INTEGER NOT NULL DEFAULT 0",
+            )?;
+        }
         self.conn.execute_batch(crate::mqtt::SCHEMA)?;
         self.conn.execute_batch(crate::sim::SCHEMA)?;
         if !has(&self.conn, "dp_templates", "outputs")? {

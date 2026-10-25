@@ -157,6 +157,11 @@ Zählerliste („Weitergabe“) und aus einer Auslesung führt ein Link direkt z
   bei unsicherer Uhrzeit zusätzlich `"time_unsure": true`. Ändert sich nur die Qualität (Zähler
   antwortet nicht mehr, Wert veraltet), wird das ebenfalls gemeldet
 - `mbusio/status` = `online`, bei Absturz oder Stromausfall `offline` (Last Will)
+- **Home Assistant:** Häkchen „Home Assistant (MQTT Discovery)“ in den Einstellungen: alle
+  Datenpunkte mit MQTT-Häkchen erscheinen in Home Assistant von selbst, je Zähler ein Gerät, mit
+  Einheit und passendem Typ (Energie, Wasser, Gas, Temperatur …, fürs Energie-Dashboard).
+  Gestörte Werte zeigt Home Assistant als „nicht verfügbar“. Client-ID danach nicht mehr ändern
+  (siehe [docs/konzept-home-assistant.md](docs/konzept-home-assistant.md))
 - **Zwischenspeicher:** ist der Broker nicht erreichbar, sammelt mbusio die Nachrichten (bis 7 Tage,
   auch über einen Neustart) und liefert sie danach in richtiger Reihenfolge nach; gelöscht wird
   eine Nachricht erst, wenn der Broker sie bestätigt hat
@@ -427,6 +432,8 @@ installation; the UI runs in the browser, phones included.
 - MQTT output: one retained topic per datapoint with JSON (value, unit, UTC time, quality), QoS 1,
   status topic with last will, persistent queue with in-order redelivery, TLS, user/password,
   optional time from the control system
+- Home Assistant via MQTT discovery (one checkbox): datapoints appear by themselves, one device per
+  meter, with unit and type for the energy dashboard
 - History per meter as chart or table, CSV; project report as PDF with changes made and open issues
 - Serial port or network gateway (`tcp://host:port`), command line with JSON output
 - Everything stored in one SQLite file `mbusio.db`; German and English UI; simulator with templates and your own virtual installations

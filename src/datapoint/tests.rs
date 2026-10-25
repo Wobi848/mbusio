@@ -65,6 +65,14 @@ fn mqtt_on(db: &mut Db, on: bool) {
     db.set_mqtt_config(&c).unwrap();
 }
 
+/// Home Assistant ein- oder ausschalten (mit fester Client-ID für feste Topics)
+fn ha_on(db: &mut Db, on: bool) {
+    let mut c = db.mqtt_config();
+    c.ha = on;
+    c.client_id = "test".into();
+    db.set_mqtt_config(&c).unwrap();
+}
+
 fn setup() -> (Db, i64, i64, MeterReading) {
     let mut db = Db::memory().unwrap();
     let line = db.active_line().unwrap().id;
@@ -656,4 +664,74 @@ fn meter_clock_offset_is_noted_from_five_minutes() {
     u.time_unsure = true;
     db.record(line, &Target::Primary(1), Ok(&u), false).unwrap();
     assert_eq!(off(&db), None);
+}
+
+#[test]
+fn home_assistant_config_follows_datapoints() {
+    let (mut db, _line, mid, _r) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    let id = db.dp_by_meter(mid).unwrap()[0].id;
+    mqtt_on(&mut db, true);
+    ha_on(&mut db, true);
+    db.dp_bulk(&[id], "out:mqtt:on").unwrap();
+    let topic = "homeassistant/sensor/test/p1-dp1/config";
+    // Konfig-Nachrichten: vollständiges Topic, nicht unter dem Basis-Topic
+    let ha = |db: &Db| -> Vec<(String, String)> {
+        db.mqtt_peek(1000)
+            .unwrap()
+            .into_iter()
+            .filter(|q| q.3)
+            .map(|q| (q.1, q.2))
+            .collect()
+    };
+    db.outputs_refresh().unwrap();
+    let sent = ha(&db);
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].0, topic);
+    let c: Value = serde_json::from_str(&sent[0].1).unwrap();
+    assert_eq!(c["unique_id"], "test-p1-dp1");
+    assert_eq!(
+        c["name"], "Energie",
+        "ohne den Zähler, den Home Assistant davor setzt"
+    );
+    assert_eq!(
+        c["state_topic"],
+        "mbusio/schnellscan/gateway-1-linie-1/whg-1/energy"
+    );
+    assert_eq!(c["unit_of_measurement"], "kWh");
+    assert_eq!(c["device_class"], "energy");
+    assert_eq!(c["state_class"], "total_increasing");
+    assert_eq!(c["availability"][0]["topic"], "mbusio/status");
+    assert_eq!(c["device"]["identifiers"][0], format!("test-m{mid}"));
+    // unverändert: nichts Neues
+    db.outputs_refresh().unwrap();
+    assert_eq!(ha(&db).len(), 1);
+    // Name geändert: Konfig neu
+    let mut d = db.dp(id).unwrap();
+    d.name = "Wohnung 1 · Energie".into();
+    db.dp_update(id, &d).unwrap();
+    db.outputs_refresh().unwrap();
+    let sent = ha(&db);
+    assert_eq!(sent.len(), 2);
+    assert!(sent[1].1.contains("Wohnung 1"));
+    // MQTT-Häkchen weg: leere Nachricht, Home Assistant entfernt den Sensor
+    db.dp_bulk(&[id], "out:mqtt:off").unwrap();
+    db.outputs_refresh().unwrap();
+    let sent = ha(&db);
+    assert_eq!(sent.len(), 3);
+    assert_eq!(sent[2], (topic.to_string(), String::new()));
+    // wieder an, dann Home Assistant aus: ebenfalls entfernt
+    db.dp_bulk(&[id], "out:mqtt:on").unwrap();
+    db.outputs_refresh().unwrap();
+    ha_on(&mut db, false);
+    db.outputs_refresh().unwrap();
+    let sent = ha(&db);
+    assert_eq!(sent.len(), 5);
+    assert_eq!(sent[4], (topic.to_string(), String::new()));
+    // ungültiges Präfix wird abgelehnt
+    let mut c = db.mqtt_config();
+    c.ha = true;
+    c.ha_prefix = "/ha".into();
+    assert!(db.set_mqtt_config(&c).is_err());
 }

@@ -24,6 +24,8 @@ function mqttFields() {
     { name: "topic", label: t("mqtt_topic"), cls: "mono", wide: true, placeholder: "{projekt}/{gateway}-{linie}/{zaehler}/{wert}", hint: t("mqtt_topic_hint") },
     { name: "time_sync", label: t("mqtt_time", base + "/time"), type: "check", wide: true },
     { name: "ca", label: t("mqtt_ca"), type: "textarea", cls: "mono", placeholder: "-----BEGIN CERTIFICATE-----", wide: true },
+    { name: "ha", label: t("mqtt_ha"), type: "check", wide: true },
+    { name: "ha_prefix", label: t("mqtt_ha_prefix"), cls: "mono", placeholder: "homeassistant", hint: t("mqtt_ha_hint") },
   ];
 }
 
@@ -56,10 +58,11 @@ OUTPUT_UI.mqtt = {
       <div class="row"><button type="submit">${esc(t("save"))}</button></div>`;
   },
 
-  /// TLS-Felder nur mit TLS; Beispiel-Topic aktuell halten
+  /// TLS-Felder nur mit TLS, Präfix nur mit Home Assistant; Beispiel-Topic aktuell halten
   update(f) {
     const tls = f.querySelector("[name=tls]").checked;
     for (const n of ["insecure", "ca"]) f.querySelector(`[data-field="${n}"]`).hidden = !tls;
+    f.querySelector('[data-field="ha_prefix"]').hidden = !f.querySelector("[name=ha]").checked;
     const base = (f.querySelector("[name=base]").value.trim() || "mbusio").replace(/\/+$/, "");
     const sample = allDatapoints().find((d) => d.outputs.mqtt?.address)?.outputs.mqtt.address || "projekt/gateway-1-linie-1/whg-1/energy";
     $("mqtt-example").textContent = t("mqtt_example", `${base}/${sample}`);
@@ -79,7 +82,7 @@ OUTPUT_UI.mqtt = {
     await api("mqtt", {
       method: "PUT",
       body: {
-        config: { ...v, port: v.port || (v.tls ? 8883 : 1883), base: v.base || "mbusio", password: "" },
+        config: { ...v, port: v.port || (v.tls ? 8883 : 1883), base: v.base || "mbusio", ha_prefix: v.ha_prefix || "homeassistant", password: "" },
         // leer = gespeichertes behalten; Benutzer gelöscht = Passwort auch
         password: v.password ? v.password : v.username ? null : "",
       },

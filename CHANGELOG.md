@@ -9,6 +9,9 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Neu
 
+- **Home Assistant (MQTT Discovery):** neues Häkchen in den MQTT-Einstellungen. Datenpunkte mit
+  MQTT-Häkchen erscheinen in Home Assistant von selbst (je Zähler ein Gerät, Einheit, Typ für das
+  Energie-Dashboard); Häkchen weg entfernt den Sensor wieder. Vorgabe: aus.
 - **MQTT-Topic-Muster:** Aufbau der Topics in den MQTT-Einstellungen festlegen; „Alle Topics nach
   Muster setzen …“ mit Vorschau statt jedes einzeln anzupassen.
 - **Topic-Liste für den Integrator** als CSV und JSON (volles Topic, Name, Einheit, Zähler, ID,
