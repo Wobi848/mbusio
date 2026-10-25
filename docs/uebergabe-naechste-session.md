@@ -1,6 +1,6 @@
 # Übergabe an die nächste Session (Stand 2026-10-25)
 
-Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, letzter Commit `3fa0b90`.
+Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, letzter Commit `81da159`.
 Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 ## Harte Regeln des Nutzers
@@ -40,7 +40,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Port 1 am externen USB-Hub des Nutzers ist kaputt (kein Softwareproblem).
 
 ## Offen (in dieser Reihenfolge)
-0. Node-RED: `mbusio-status` (konzept-node-red.md 3.3); Entscheidung npm öffentlich ja/nein.
+0. Node-RED: Entscheidung npm öffentlich ja/nein (mbusio-status ist gebaut).
 1. Windows-Dienst auf einem Windows-PC prüfen (Checkliste docs/konzept-hintergrund.md §9; wichtig: COM-Port unter LocalService).
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
 2. 7-Tage-Test auf dem Raspberry Pi (Linien dort mit dem Schalter „Dauerbetrieb“ einschalten), danach erst Release v0.5.0.
