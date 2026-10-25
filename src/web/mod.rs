@@ -35,6 +35,7 @@ mod nodered;
 mod outputs;
 mod projects;
 mod scan;
+mod schedule;
 mod simulator;
 mod state;
 mod tools;
@@ -43,8 +44,8 @@ use self::api::*;
 pub use self::state::{AppState, JobStatus, Shared};
 pub use self::tools::parse_hex;
 use self::{
-    bus::*, datapoints::*, meters::*, nodered::*, outputs::*, projects::*, scan::*, simulator::*,
-    tools::*,
+    bus::*, datapoints::*, meters::*, nodered::*, outputs::*, projects::*, scan::*, schedule::*,
+    simulator::*, tools::*,
 };
 
 #[derive(RustEmbed)]

@@ -422,7 +422,8 @@ Aufbau:
   Windows-Dienst einrichten, entfernen, laufen (win, nur Windows)
 - `src/web/`: HTTP-API: mod (Router, Zugriffsschlüssel, Dateien), state (gemeinsamer Zustand,
   Linien-Dienste), api (Fehler, Downloads, Arbeit am Bus), dann nach Bereichen (bus: Verbindung und
-  Auftrag, scan, tools, meters, projects, datapoints, outputs, nodered, simulator); `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
+  Auftrag, scan, tools, meters, projects, schedule: Plan/Dauerbetrieb/Uhrzeit, datapoints, outputs,
+  nodered, simulator); `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
 - `src/i18n.rs`: Übersetzungen der Messgrössen, Sprache je Request; alle Texte der Oberfläche und
   des Berichts in `web/js/texts.js`
 - `web/js/`: Oberfläche, normale Skripte ohne Build-Schritt, Reihenfolge in `index.html`:
