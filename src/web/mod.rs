@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use axum::extract::{Path, Query, Request, State};
-use axum::http::{header, StatusCode, Uri};
+use axum::http::{header, HeaderMap, StatusCode, Uri};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
@@ -196,18 +196,81 @@ async fn check_token(st: AppState, req: Request, next: Next) -> Response {
     next.run(req).await
 }
 
-async fn static_file(uri: Uri) -> Response {
+/// Dateien der Oberfläche. Ein Verzeichnis liefert seine `index.html` (`/`, `/neu/`). Mit ETag aus
+/// dem Inhalt: der Browser fragt nur nach, unveränderte Dateien kommen als 304 (Pi über WLAN).
+async fn static_file(uri: Uri, headers: HeaderMap) -> Response {
     let path = uri.path().trim_start_matches('/');
-    let path = if path.is_empty() { "index.html" } else { path };
-    match Assets::get(path) {
-        Some(file) => {
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            (
-                [(header::CONTENT_TYPE, mime.as_ref().to_string())],
-                file.data.into_owned(),
-            )
-                .into_response()
+    let dir = path.trim_end_matches('/');
+    let index = if dir.is_empty() {
+        "index.html".to_string()
+    } else {
+        format!("{dir}/index.html")
+    };
+    let (path, file) = match Assets::get(path).filter(|_| !path.is_empty()) {
+        Some(f) => (path.to_string(), f),
+        None => match Assets::get(&index) {
+            Some(f) => (index, f),
+            None => return (StatusCode::NOT_FOUND, "Not found").into_response(),
+        },
+    };
+    let etag = format!(
+        "\"{}\"",
+        file.metadata.sha256_hash()[..8]
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>()
+    );
+    let cache = [
+        (header::ETAG, etag.clone()),
+        (header::CACHE_CONTROL, "no-cache".to_string()),
+    ];
+    if headers
+        .get(header::IF_NONE_MATCH)
+        .is_some_and(|v| v.as_bytes() == etag.as_bytes())
+    {
+        return (StatusCode::NOT_MODIFIED, cache).into_response();
+    }
+    let mime = mime_guess::from_path(&path).first_or_octet_stream();
+    (
+        cache,
+        [(header::CONTENT_TYPE, mime.as_ref().to_string())],
+        file.data.into_owned(),
+    )
+        .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn get(path: &str, etag: Option<&str>) -> Response {
+        let mut headers = HeaderMap::new();
+        if let Some(e) = etag {
+            headers.insert(header::IF_NONE_MATCH, e.parse().unwrap());
         }
-        None => (StatusCode::NOT_FOUND, "Not found").into_response(),
+        static_file(path.parse().unwrap(), headers).await
+    }
+
+    #[tokio::test]
+    async fn static_files_with_index_and_etag() {
+        for path in ["/", "/neu/", "/neu", "/js/base.js"] {
+            assert_eq!(get(path, None).await.status(), StatusCode::OK, "{path}");
+        }
+        assert_eq!(
+            get("/gibt-es-nicht.js", None).await.status(),
+            StatusCode::NOT_FOUND
+        );
+        // unverändert: 304 ohne Inhalt; anderes ETag: wieder 200
+        let r = get("/js/base.js", None).await;
+        let etag = r.headers()[header::ETAG].to_str().unwrap().to_string();
+        assert_eq!(r.headers()[header::CACHE_CONTROL], "no-cache");
+        assert_eq!(
+            get("/js/base.js", Some(&etag)).await.status(),
+            StatusCode::NOT_MODIFIED
+        );
+        assert_eq!(
+            get("/js/base.js", Some("\"alt\"")).await.status(),
+            StatusCode::OK
+        );
     }
 }

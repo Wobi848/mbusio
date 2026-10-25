@@ -57,6 +57,21 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 }
 
+/// Zeit vom Server ("2026-10-18 00:05:00", Ortszeit) als Date
+const parseTime = (s) => new Date(String(s).replace(" ", "T"));
+
+/// "2026-10-18 00:05:00" → "heute 00:05", "morgen 00:05" oder "20.10. 00:05"
+function slotText(s) {
+  if (!s) return "";
+  const d = parseTime(s);
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const days = Math.round((day(d) - day(new Date())) / 86400000);
+  const hm = s.slice(11, 16);
+  if (days === 0) return `${t("day_today")} ${hm}`;
+  if (days === 1) return `${t("day_tomorrow")} ${hm}`;
+  return `${d.getDate()}.${d.getMonth() + 1}. ${hm}`;
+}
+
 /// "daily 00:05" → "täglich 00:05"
 function planText(key) {
   if (!key) return "";

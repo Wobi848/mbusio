@@ -1,0 +1,214 @@
+/* Neue Oberfläche: Werkzeug über die ganze Fensterhöhe. Kopfzeile, Laschen und Statusleiste
+   stehen fest, nur die Arbeitsfläche scrollt. Dicht: 13 px Schrift, 28 px Bedienelemente.
+   Farben aus tokens.css; Knöpfe in Stufen wie Konzept Bedienung §11.1. */
+
+* { box-sizing: border-box; }
+
+/* hidden gilt immer, auch wenn eine Klasse display setzt */
+[hidden] { display: none !important; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; }
+.sub { color: var(--muted); font-size: 12px; font-weight: 400; }
+.warn { color: var(--warn); }
+.eyebrow { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 650; }
+.grow { flex: 1; }
+a { color: var(--accent); }
+
+/* ---------------------------------------------------------------- Bedienelemente */
+
+button, select, input, .field {
+  font: inherit;
+  height: 28px;
+  border-radius: 6px;
+  color: inherit;
+}
+
+button, a.quiet {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+}
+button.tonal { background: var(--accent-soft); color: var(--accent); }
+button.quiet, a.quiet { background: transparent; border-color: transparent; color: var(--accent); }
+button.quiet:hover, a.quiet:hover { background: var(--accent-soft); }
+button.danger { background: var(--err); border-color: var(--err); color: #fff; }
+button.icon { width: 28px; padding: 0; justify-content: center; background: transparent; border-color: transparent; color: var(--muted); font-size: 15px; }
+button.icon:hover { background: var(--sunken); color: var(--text); }
+button:disabled { opacity: .45; cursor: default; }
+
+select, input {
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+.field {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 400;
+}
+.field::after { content: "▾"; color: var(--muted); font-size: 11px; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+kbd {
+  font: 10.5px var(--mono);
+  padding: 0 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+/* Ein/Aus als Schalter, nie als zwei Knöpfe */
+input.switch {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex: none;
+  width: 34px; height: 20px; padding: 0;
+  border: 0; border-radius: 999px;
+  background: var(--line-strong);
+  cursor: pointer;
+}
+input.switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  transition: transform .15s var(--ease);
+}
+input.switch:checked { background: var(--ok); }
+input.switch:checked::after { transform: translateX(14px); }
+input.switch:disabled { cursor: default; opacity: .5; }
+
+/* Zustand: Punkt und Wort (nie nur Farbe) */
+.state { display: inline-flex; align-items: center; gap: 6px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); flex: none; }
+.dot.on { background: var(--ok); }
+.dot.off { background: var(--muted); }
+.dot.warn { background: var(--warn); }
+.dot.busy { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+.chip { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--sunken); color: var(--muted); }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.err { background: var(--err-soft); color: var(--err); }
+
+/* ---------------------------------------------------------------- Leisten */
+
+.bar { display: flex; align-items: center; gap: 10px; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+
+/* eine Zeile; lange Texte kürzen sich mit … statt umzubrechen */
+.top { min-height: 44px; flex-wrap: nowrap; }
+.top > * { flex: none; }
+.top > .grow { flex: 1; }
+.brand { display: inline-flex; align-items: center; gap: 6px; font-weight: 750; letter-spacing: -.01em; }
+.path { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.path select { max-width: 220px; font-weight: 600; }
+.path .sep { color: var(--muted); }
+#line { min-width: 140px; }
+#line b { font-weight: 600; }
+.conn { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.conn .mono { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.op { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px 3px 6px; border-radius: 999px; cursor: pointer; }
+.op.on { background: var(--ok-soft); }
+.op.on #op-text { color: var(--ok); }
+.top > .op, .top > .conn { flex: 0 1 auto; min-width: 0; }
+#op-text, #conn-state { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.tabs { min-height: 34px; gap: 2px; background: var(--sunken); }
+.tabs a {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 12px;
+  color: var(--muted); font-weight: 600; text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.tabs a:hover { color: var(--text); }
+.tabs a[aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); background: var(--surface); }
+.tabs .n:empty { display: none; }
+.tabs .n { font-size: 11px; padding: 0 5px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+
+.status { min-height: 30px; border-top: 1px solid var(--line); border-bottom: 0; font-size: 12px; color: var(--muted); }
+.status .state { color: var(--text); }
+
+/* ---------------------------------------------------------------- Menüs, Rückfrage, Meldung */
+
+.menu-host { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.menu {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 20;
+  min-width: 240px; max-height: 70vh; overflow: auto;
+  padding: 4px;
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow);
+}
+.menu.end { left: auto; right: 0; }
+.menu [role="menuitem"] {
+  display: flex; justify-content: space-between; gap: 16px; width: 100%;
+  background: transparent; border-color: transparent; color: var(--text); font-weight: 500;
+}
+.menu [role="menuitem"]:hover, .menu [role="menuitem"]:focus-visible { background: var(--accent-soft); outline: none; }
+.menu [aria-current="true"] { color: var(--accent); font-weight: 700; }
+.menu .group { padding: 6px 10px 2px; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.menu .group.warn { color: var(--warn); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.menu.form { display: grid; gap: 8px; padding: 10px; min-width: 320px; }
+.menu .row { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 8px; }
+.menu .row.end { display: flex; justify-content: flex-end; }
+
+.ask {
+  position: fixed; z-index: 40; display: flex; align-items: center; gap: 8px; max-width: 520px;
+  padding: 8px 10px; background: var(--surface); border: 1px solid var(--err); border-radius: 8px; box-shadow: var(--shadow);
+}
+
+.toast {
+  position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 50;
+  display: flex; align-items: center; gap: 10px; max-width: min(720px, calc(100vw - 32px));
+  padding: 8px 12px; border-radius: 8px; background: var(--text); color: var(--bg); box-shadow: var(--shadow);
+}
+.toast.error { background: var(--err); color: #fff; }
+.toast button.quiet { color: inherit; text-decoration: underline; }
+
+/* ---------------------------------------------------------------- Arbeitsfläche */
+
+.work { min-height: 0; overflow: auto; }
+.soon { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 16px 12px; color: var(--muted); }
+.soon b { color: var(--text); }
+
+/* Mittlere Breite: Gateway steht im Linien-Menü, der Port in der Statusleiste */
+@media (max-width: 1349px) {
+  #line .sub, #conn-state .mono { display: none; }
+}
+
+/* ---------------------------------------------------------------- Schmale Fenster und Handy */
+
+@media (max-width: 999px) {
+  /* Kopfzeile in festen Zeilen: mbusio · Dauerbetrieb · ⚙ / Projekt › Linie / Anschluss / Schalter */
+  .top { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 8px; padding: 6px 12px; }
+  .top > .grow { display: none; }
+  .brand { grid-column: 1; grid-row: 1; }
+  .top > .menu-host:nth-last-of-type(2) { grid-column: 2; grid-row: 1; }
+  .top > .menu-host:last-of-type { grid-column: 3; grid-row: 1; }
+  .path, .conn, .op { grid-column: 1 / -1; }
+  .path select { flex: 1; max-width: none; min-width: 0; }
+  .path .menu-host { flex: 1; min-width: 0; }
+  #line { width: 100%; }
+  .conn .mono { max-width: 150px; }
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  button, select, input, .field { height: 36px; } /* Finger */
+}

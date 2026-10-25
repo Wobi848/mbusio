@@ -4,18 +4,6 @@
 
 const PLAN_KINDS = ["off", "monthly", "daily", "hourly", "15min"];
 
-/// "2026-10-18 00:05:00" → "heute 00:05", "morgen 00:05" oder "20.10. 00:05"
-function slotText(s) {
-  if (!s) return "";
-  const d = parseTime(s);
-  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate());
-  const days = Math.round((day(d) - day(new Date())) / 86400000);
-  const hm = s.slice(11, 16);
-  if (days === 0) return `${t("day_today")} ${hm}`;
-  if (days === 1) return `${t("day_tomorrow")} ${hm}`;
-  return `${d.getDate()}.${d.getMonth() + 1}. ${hm}`;
-}
-
 /// Felder des Ausleseplans (Baustein Formular); `inherit` = Text für „wie übergeordnet“
 function planFields(value, inherit, hint) {
   const [kind, time] = value ? value.split(" ") : [inherit ? "" : "off", null];

@@ -9,6 +9,12 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Neu
 
+- **Neue Oberfläche im Aufbau** unter `/neu/` (Konzept `docs/konzept-oberflaeche-neu.md`):
+  Werkzeug statt Webseite, zuerst Kopfzeile, Linienwechsel ohne Neuladen, Tastatur. Die bisherige
+  Oberfläche bleibt unter `/`, bis die neue alles kann.
+- **Schnelleres Neuladen:** die Dateien der Oberfläche kommen mit ETag; unverändert antwortet
+  mbusio mit 304 (spürbar auf dem Raspberry Pi über WLAN).
+
 - **Modbus TCP:** mbusio ist Modbus-Server für Leitsystem, SPS oder Loxone. Je Datenpunkt das
   Häkchen Modbus; 10 Register ab (Nummer − 1) × 10 mit Wert (float64, float32, int32 × 100),
   Qualität und Alter; ab Register 60000 der Zustand; nur lesen; Registerliste für den Integrator.

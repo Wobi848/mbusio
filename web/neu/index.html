@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="de">
+<head>
+<!-- Alle Pfade relativ zur Wurzel: API (api/…), gemeinsame Dateien (js/, css/) und neu/ -->
+<base href="../">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>mbusio</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="neu/app.css">
+<script src="js/theme.js"></script>
+</head>
+<body>
+
+<header class="bar top" aria-label="mbusio">
+  <span class="brand" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h18M3 16h18"/><circle cx="8" cy="8" r="2.2" fill="var(--surface)"/><circle cx="16" cy="16" r="2.2" fill="var(--surface)"/></svg>
+    mbusio
+  </span>
+  <div class="path">
+    <select id="project" data-title="project"></select>
+    <span class="sep" aria-hidden="true">›</span>
+    <div class="menu-host">
+      <button id="line" type="button" class="field" aria-haspopup="menu" aria-expanded="false" data-title="line"></button>
+      <div id="line-menu" class="menu" role="menu" hidden></div>
+    </div>
+  </div>
+  <div class="conn menu-host">
+    <span id="conn-state" class="state"></span>
+    <button id="conn-action" type="button"></button>
+    <div id="conn-form" class="menu form" hidden></div>
+  </div>
+  <label id="op" class="op"><input id="op-switch" type="checkbox" class="switch"><b data-t="op_chip"></b><span id="op-text" class="sub"></span></label>
+  <span class="grow"></span>
+  <div class="menu-host">
+    <button id="op-all" type="button" class="quiet" aria-haspopup="menu" aria-expanded="false" hidden></button>
+    <div id="op-all-menu" class="menu end" role="menu" hidden></div>
+  </div>
+  <div class="menu-host">
+    <button id="settings" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" data-title="settings">⚙</button>
+    <div id="settings-menu" class="menu end form" hidden>
+      <label class="row"><span data-t="language"></span><select id="lang"><option value="de">Deutsch</option><option value="en">English</option></select></label>
+      <label class="row"><span data-t="theme"></span><select id="theme"><option value="auto" data-t="theme_auto_short"></option><option value="light" data-t="theme_light_short"></option><option value="dark" data-t="theme_dark_short"></option></select></label>
+      <button id="keys-help" type="button" class="quiet" data-t="n_keys"></button>
+      <a href="./" class="quiet" data-t="n_old_ui"></a>
+    </div>
+  </div>
+</header>
+
+<nav class="bar tabs" aria-label="Bereiche">
+  <a href="#/scan" data-area="scan"><span data-t="tab_scan"></span></a>
+  <a href="#/zaehler" data-area="zaehler"><span data-t="tab_meters"></span> <span class="n" id="n-meters"></span></a>
+  <a href="#/weitergabe" data-area="weitergabe"><span data-t="tab_transfer"></span> <span class="n" id="n-dp"></span></a>
+  <a href="#/anlage" data-area="anlage"><span data-t="tab_project"></span></a>
+  <a href="#/werkzeuge" data-area="werkzeuge"><span data-t="tab_tools"></span></a>
+  <a href="#/simulator" data-area="simulator" id="tab-sim"><span data-t="tab_sim"></span></a>
+</nav>
+
+<main id="work" class="work"></main>
+
+<footer class="bar status" aria-live="polite">
+  <span id="bus" class="state"></span>
+  <span id="issues"></span>
+  <span id="outputs"></span>
+  <span class="grow"></span>
+  <button id="next" type="button" class="tonal" hidden></button>
+</footer>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="js/texts.js"></script>
+<script src="js/base.js"></script>
+<script type="module" src="neu/app.js"></script>
+</body>
+</html>

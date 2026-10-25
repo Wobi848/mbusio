@@ -7,6 +7,7 @@
 <title>mbusio</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/meter.css">
 <link rel="stylesheet" href="css/scan.css">
@@ -16,19 +17,7 @@
 <link rel="stylesheet" href="css/transfer.css">
 <link rel="stylesheet" href="css/sim.css">
 <link rel="stylesheet" href="css/guide.css">
-<script>
-  // Theme vor dem ersten Zeichnen setzen, sonst blitzt kurz das falsche auf. Gesetzt wird immer
-  // hell oder dunkel, „auto“ folgt dem System; so stehen die dunklen Farben nur einmal im CSS.
-  const darkQuery = matchMedia("(prefers-color-scheme: dark)");
-  let themeChoice = "auto";
-  try { themeChoice = localStorage.getItem("theme") || "auto"; } catch (e) {}
-  function applyTheme() {
-    const t = themeChoice === "light" || themeChoice === "dark" ? themeChoice : darkQuery.matches ? "dark" : "light";
-    document.documentElement.dataset.theme = t;
-  }
-  applyTheme();
-  darkQuery.addEventListener("change", applyTheme);
-</script>
+<script src="js/theme.js"></script>
 </head>
 <body>
 <header class="topbar">

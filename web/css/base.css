@@ -1,64 +1,7 @@
 /* mbusio – Grundlage: Farben, Elemente, Kopfzeile, Bausteine (Knöpfe, Formular, Tabelle, Kasten),
    Statusleiste. Schlicht, eine Akzentfarbe, Animationen nur über transform/opacity.
-   Die Reiter haben je eine eigene Datei (scan, tools, meters, project, transfer, sim). */
-
-:root {
-  /* Seitenbreite: ganze Fensterbreite nutzen (Tabellen mit vielen Spalten) */
-  --page-max: 100%;
-  --bg: #f5f6f5;
-  --surface: #ffffff;
-  --sunken: #f0f2f1;
-  --line: #e3e6e4;
-  --line-strong: #cfd4d1;
-  --text: #121614;
-  --muted: #59625e;
-  --accent: #0f766e;
-  --accent-strong: #0b5c55;
-  --accent-ink: #ffffff;
-  --accent-soft: #e3f2ef;
-  --ok: #15803d;
-  --ok-soft: #e6f4ea;
-  --warn: #a85000;
-  --warn-soft: #fbf0e3;
-  --err: #b42318;
-  --err-soft: #fdecea;
-  --code: #f3f5f4;
-  --sheen: rgba(255, 255, 255, .55);
-  --shadow: 0 8px 24px rgba(0, 0, 0, .16);
-  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-  --ease: cubic-bezier(.2, .7, .2, 1);
-  --seg-active: #ffffff;
-  /* Diagrammlinie, geprüft gegen die Fläche (Helligkeit, Sättigung, Kontrast) */
-  --series: #0d9488;
-  color-scheme: light;
-}
-
-/* Dunkel: index.html setzt data-theme immer (auch bei „auto“ nach Systemeinstellung) */
-:root[data-theme="dark"] {
-  --bg: #0e1110;
-  --surface: #151918;
-  --sunken: #1b201e;
-  --line: #242a28;
-  --line-strong: #343c39;
-  --text: #e8ecea;
-  --muted: #9aa5a0;
-  --accent: #2fb5a7;
-  --accent-strong: #52cbbe;
-  --accent-ink: #04201d;
-  --accent-soft: #12302c;
-  --ok: #4cc77a;
-  --ok-soft: #11291b;
-  --warn: #f0a548;
-  --warn-soft: #2e2010;
-  --err: #ff7a6e;
-  --err-soft: #341613;
-  --code: #0b0e0d;
-  --sheen: rgba(255, 255, 255, .18);
-  --shadow: 0 8px 24px rgba(0, 0, 0, .5);
-  --seg-active: #343c39;
-  --series: #26a69a;
-  color-scheme: dark;
-}
+   Die Reiter haben je eine eigene Datei (scan, tools, meters, project, transfer, sim).
+   Farben und Variablen: tokens.css. */
 
 * { box-sizing: border-box; }
 

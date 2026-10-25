@@ -1,6 +1,6 @@
 # Konzept: neue Oberfläche (Werkzeug statt Webseite)
 
-Stand: 25.10.2026 · Status: **Vorschlag, zur Entscheidung** (Abschnitt 10)
+Stand: 25.10.2026 · Status: **in Arbeit** – Schritt 0 (Gerüst) umgesetzt, Entscheidungen in Abschnitt 10
 
 Grundlage: Leitbild [konzept-bedienung.md §14](konzept-bedienung.md) und das Audit vom 25.10.2026
 (Abschnitt 2). Die Server-Schnittstelle steht in [api.md](api.md); die neue Oberfläche benutzt
@@ -222,13 +222,34 @@ wie `tests/ui/run.mjs`) und den Messskripten aus dem Audit als Abnahme.
   die API nicht ohne Eintrag in `api.md`.
 - Vor jedem Commit `git status` und `git log`; nur eigene Dateien committen.
 
-## 10. Zur Entscheidung
+## 10. Entschieden (25.10.2026)
 
-1. **Kein Framework**, reine JavaScript-Module mit kleinem eigenem Baustein für Listen
-   (Empfehlung) – oder eine kleine Bibliothek (z.B. Preact ohne Build-Schritt, etwa 10 KB)?
-2. **Liste links, Details rechts** am Desktop wie in 3.1?
-3. **Geführter Ablauf** („Nächster Schritt“) nur noch als ein Knopf in der Statusleiste, kein
-   ausführlicher Text mehr?
-4. **Tastenkürzel** wie in Abschnitt 6, auch Einzeltasten (`R`, `S`, `1`…`6`)?
-5. **Wer baut:** ich die neue Oberfläche, die andere KI weiter am Server – oder anders verteilt?
-6. Server-Punkte 1 und 2 aus Abschnitt 7 jetzt mitmachen?
+Alle Empfehlungen übernommen: kein Framework (JavaScript-Module, eigener Baustein für Listen),
+Liste links und Details rechts am Desktop, „Nächster Schritt“ nur als ein Knopf in der
+Statusleiste, Tastenkürzel wie Abschnitt 6 (auch Einzeltasten), die neue Oberfläche baut Claude,
+die andere KI arbeitet am Server, Server-Punkte 1 und 2 aus Abschnitt 7 gleich mit.
+
+## 11. Stand
+
+**Schritt 0 (Gerüst), umgesetzt:**
+- Server: Verzeichnisse liefern ihre `index.html` (`/neu/`), ETag aus dem Inhalt mit
+  `Cache-Control: no-cache` (unverändert → 304).
+- Gemeinsam mit der heutigen Oberfläche: `css/tokens.css` (Farben, aus `base.css`),
+  `js/theme.js` (hell/dunkel vor dem ersten Zeichnen), `slotText`/`parseTime` in `js/base.js`.
+- `web/neu/`: `index.html` (`<base href="../">`, damit API, Downloads und gemeinsame Dateien
+  ohne Änderung gehen), `store.js` (Zustand, Benachrichtigung nur bei Änderung), `view.js`
+  (Liste mit Schlüssel, nur Geändertes schreiben, Menü, Rückfrage am Ort, Meldung mit
+  Rückgängig), `keys.js` (Tasten, Escape-Stapel), `app.js` (Kopfzeile, Bereiche, Statusleiste),
+  `app.css`.
+- Kopfzeile in einer Zeile ab 1000 px: Projekt › Linie (Menü), Anschluss mit genau einer
+  Aktion (Verbinden / Ändern / Anschluss festlegen, kleines Formular), Schalter Dauerbetrieb
+  (ohne Plan gesperrt mit Grund daneben, Ausschalten mit Rückfrage am Ort), „N im
+  Dauerbetrieb“ (orange, wenn nicht als Dienst oder gestört; Liste über alle Projekte), ⚙
+  (Sprache, Design, Tastenkürzel, bisherige Oberfläche). Unter 1350 px stehen Gateway und Port
+  nur im Menü bzw. in der Statusleiste; unter 1000 px feste Zeilen für das Handy.
+- Bereiche als Laschen mit Adresse (`#/zaehler`), Tasten 1–6, `?`. Die Arbeitsfläche zeigt bis
+  zum jeweiligen Schritt den Weg in die bisherige Oberfläche.
+- Test `tests/ui/13-neu-geruest`: kein Neuladen beim Linienwechsel, Fokus bleibt über die
+  Statusabfrage, Escape, Tasten, Rückfrage am Ort, keine Browser-Dialoge, Liste mit Schlüssel.
+
+**Nächster Schritt:** 1 (Zähler).

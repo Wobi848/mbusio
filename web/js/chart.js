@@ -7,8 +7,6 @@
 /// { meter, points, keys (Reihen nach Messgrösse/Einheit/Tarif), key (gewählte Reihe), view }
 let hist = null;
 
-const parseTime = (s) => new Date(String(s).replace(" ", "T"));
-
 function formatNum(x, maxDigits = 3) {
   return new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-GB", { maximumFractionDigits: maxDigits }).format(x);
 }
