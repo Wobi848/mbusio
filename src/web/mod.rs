@@ -149,9 +149,24 @@ pub fn router(state: AppState) -> Router {
         .route("/api/time", post(set_time))
         .route("/api/nodered/tree", get(nodered_tree))
         .route("/api/nodered/stream", get(nodered_stream))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            notify_changes,
+        ))
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .fallback(static_file)
         .with_state(state)
+}
+
+/// Nach jeder erfolgreichen ändernden Anfrage (POST, PUT, DELETE): Empfänger (Node-RED) gleichen
+/// ab. So kommen auch neue Namen von Projekt, Linie oder Zähler an, nicht nur neue Werte.
+async fn notify_changes(State(st): State<AppState>, req: Request, next: Next) -> Response {
+    let changes = req.method() != axum::http::Method::GET;
+    let res = next.run(req).await;
+    if changes && res.status().is_success() {
+        st.db.lock().unwrap().notify();
+    }
+    res
 }
 
 /// Prüft den Zugriffsschlüssel (Header `X-Token` oder `?token=`), falls einer gesetzt ist.

@@ -105,8 +105,24 @@ pub struct Db {
     pub changes: tokio::sync::watch::Sender<u64>,
 }
 
+/// Etwas mit dieser ID gibt es nicht (Projekt, Linie, Zähler …); die API antwortet dann mit 404
+#[derive(Debug)]
+pub struct NotFound(String);
+
+impl std::fmt::Display for NotFound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for NotFound {}
+
 fn not_found(what: &str, id: i64) -> anyhow::Error {
-    anyhow!("{what} {id}: {}", tr("nicht gefunden", "not found"))
+    NotFound(format!(
+        "{what} {id}: {}",
+        tr("nicht gefunden", "not found")
+    ))
+    .into()
 }
 
 impl Db {

@@ -135,6 +135,11 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- **Node-RED bekam neue Namen nicht mit:** Umbenennen oder Löschen von Projekt, Linie oder Zähler
+  meldete sich nicht bei Node-RED (erst beim nächsten Plan-Durchgang). Jetzt meldet jede
+  erfolgreiche Änderung über die API den neuen Stand.
+- **API: „nicht gefunden“ ist 404** statt 502 (502 bleibt für Fehler am Bus). Damit zeigt der
+  Node-RED-Node bei einem gelöschten Projekt „Projekt nicht gefunden“ statt „nicht erreichbar“.
 - **Projekt-Import:** Bei einer unlesbaren Datei hiess es „Datei enthält keine Zählerliste“; jetzt
   „Datei ist keine Projektdatei von mbusio“.
 - **MQTT-Einstellungen:** Wer TLS ausschaltete und speicherte, verlor das eigene CA-Zertifikat und

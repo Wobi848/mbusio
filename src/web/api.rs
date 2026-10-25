@@ -37,9 +37,20 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// Fehler aus Datenbank und Bus: „gibt es nicht“ ist 404, alles andere (meist der Bus) 502
 impl From<anyhow::Error> for ApiError {
     fn from(e: anyhow::Error) -> Self {
-        ApiError(StatusCode::BAD_GATEWAY, format!("{e:#}"))
+        let missing = e.downcast_ref::<crate::db::NotFound>().is_some()
+            || matches!(
+                e.downcast_ref::<rusqlite::Error>(),
+                Some(rusqlite::Error::QueryReturnedNoRows)
+            );
+        let status = if missing {
+            StatusCode::NOT_FOUND
+        } else {
+            StatusCode::BAD_GATEWAY
+        };
+        ApiError(status, format!("{e:#}"))
     }
 }
 
