@@ -39,10 +39,19 @@ export default {
     await page.waitForTimeout(6000);
     assert.equal(await page.evaluate(() => document.activeElement.id), "line", "Fokus verloren");
 
+    // Nächster Schritt: Linie mit Zählern, aber noch nie gelesen → „Zähler auslesen“
+    assert.match(await page.textContent("#next"), /Nächster Schritt/);
+    // Tastenübersicht mit ?, Escape schliesst
+    await page.keyboard.press("?");
+    await page.waitForSelector(".keys-help");
+    assert.match(await page.textContent(".keys-help"), /Bereich/);
+    await page.keyboard.press("Escape");
+    await page.waitForSelector(".keys-help", { state: "detached" });
+
     // Tasten 1–6 wechseln den Bereich
     await page.keyboard.press("3");
-    await page.waitForFunction(() => location.hash === "#/weitergabe");
-    assert.equal(await page.getAttribute(".tabs [data-area=weitergabe]", "aria-current"), "page");
+    // hashchange kommt nach dem Setzen der Adresse: auf die Lasche warten, nicht nur auf die Adresse
+    await page.waitForSelector(".tabs [data-area=weitergabe][aria-current=page]");
 
     // Dauerbetrieb: ohne Plan gesperrt mit Grund; mit Plan ein, aus nur nach Rückfrage am Ort
     assert.ok(await page.isDisabled("#op-switch"));

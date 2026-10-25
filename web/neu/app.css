@@ -192,6 +192,14 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .toast.error { background: var(--err); color: #fff; }
 .toast button.quiet { color: inherit; text-decoration: underline; }
 
+.keys-help {
+  position: fixed; right: 16px; bottom: 44px; z-index: 50; width: min(380px, calc(100vw - 32px));
+  padding: 12px 14px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow);
+}
+.keys-help dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 0; }
+.keys-help dt { text-align: right; }
+.keys-help dd { margin: 0; color: var(--muted); }
+
 /* ---------------------------------------------------------------- Arbeitsfläche */
 
 .work { min-height: 0; overflow: hidden; display: grid; }
@@ -276,6 +284,7 @@ button.danger-text:hover { background: var(--err-soft); }
   .tabs { flex-wrap: wrap; }
   .tabs a { height: 32px; padding: 0 10px; }
   button, select, input, .field { height: 36px; } /* Finger */
+  .next-label { display: none; } /* Platz für den Zustand des Busses */
   /* Liste über die ganze Breite, Details als eigene Ansicht mit „←“ */
   .split { grid-template-columns: minmax(0, 1fr); }
   .detail { display: none; }

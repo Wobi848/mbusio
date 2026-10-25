@@ -397,5 +397,13 @@ Namen und langer Fehlermeldung.
 - Server: Verlauf trennt Untereinheiten (Volumen an Eingang 1 und 2 sind eigene Reihen; vorher in
   einer Linie gemischt).
 
-**Nächster Schritt:** Feinschliff (Nächster Schritt in der Statusleiste, Tastenübersicht,
-Durchgang über alle Bereiche), dann Umschalten.
+**Feinschliff, umgesetzt:**
+- **Nächster Schritt** als ein Knopf rechts in der Statusleiste, aus dem Zustand abgeleitet
+  (Anschluss festlegen → Verbinden → Zähler suchen → auslesen → Gestörte zeigen → Bericht; im
+  Dauerbetrieb Werte wählen → Ausgang einrichten). Er führt an die Stelle, an der man es selbst
+  täte; Erklärung im Tooltip. Am Handy ohne das Wort „Nächster Schritt“.
+- **Tastenübersicht** (`?` oder ⚙): Kasten mit allen Tasten, die gerade wirken; Escape schliesst.
+- Durchgang über alle Bereiche (Desktop, Handy, dunkel): kein seitliches Scrollen, keine Fehler im
+  Browser; Anlage: Spalte „Zustand“ mit Mindestbreite.
+
+**Nächster Schritt:** Umschalten (neue Oberfläche unter `/`, alte eine Version unter `/alt/`).

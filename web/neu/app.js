@@ -3,7 +3,7 @@
 
 import { state, set, watch, activeLine, operatingLines } from "./store.js";
 import { html, text, menu, closeMenu, ask, toast } from "./view.js";
-import { bind, keyList } from "./keys.js";
+import { bind, keyList, onEscape } from "./keys.js";
 import { loadStatus, loadTree, reload, useLine, report } from "./data.js";
 
 const $ = (id) => document.getElementById(id);
@@ -250,8 +250,32 @@ $("keys-help").addEventListener("click", () => {
   showKeys();
 });
 
+/// Übersicht der Tasten, die gerade wirken (?); Escape oder Klick daneben schliesst
 function showKeys() {
-  toast(keyList().map((k) => `${k.key} ${k.label}`).join(" · "));
+  document.querySelector(".keys-help")?.remove();
+  const box = document.createElement("div");
+  box.className = "keys-help";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", t("n_keys"));
+  const fixed = [
+    ["↑ ↓", t("n_key_rows")],
+    [t("n_key_space"), t("n_key_select")],
+    ["Ctrl+A", t("n_key_all")],
+    ["Enter", t("n_key_enter")],
+    ["Esc", t("n_key_esc")],
+  ];
+  box.innerHTML = `<b>${esc(t("n_keys"))}</b><dl>${[...keyList().map((k) => [k.key.toUpperCase(), k.label]), ...fixed]
+    .map(([k, l]) => `<dt><kbd>${esc(k)}</kbd></dt><dd>${esc(l)}</dd>`)
+    .join("")}</dl>`;
+  document.body.append(box);
+  const close = () => {
+    release();
+    box.remove();
+    document.removeEventListener("click", outside, true);
+  };
+  const outside = (ev) => !box.contains(ev.target) && close();
+  const release = onEscape(close);
+  setTimeout(() => document.addEventListener("click", outside, true), 0);
 }
 
 // ------------------------------------------------------------ Bereiche
@@ -341,6 +365,44 @@ function renderStatus() {
   );
 }
 
+// ------------------------------------------------------------ Nächster Schritt
+
+/// Der eine nächste Schritt aus dem Zustand (Konzept §3.4): [Text-Schlüssel, Aktion, Argument für
+/// den Erklärtext im Tooltip] oder null.
+/// Der Knopf führt an die Stelle, an der man es auch selbst täte.
+function nextStep() {
+  const s = state.status;
+  const l = activeLine();
+  if (!s || !l) return null;
+  const go = (area, sel) => () => {
+    location.hash = `#/${area}`;
+    setTimeout(() => document.querySelector(`#work .pane[data-area=${area}] ${sel}`)?.click(), 300);
+  };
+  if (!l.connection) return ["guide_conn_set", () => $("conn-action").click()];
+  if (!s.connected) return ["guide_connect", () => $("conn-action").click(), portText(l.connection)];
+  if (!l.meters) return ["guide_scan", go("scan", "[data-start]")];
+  if (!l.last_read) return ["guide_read", go("zaehler", "[data-read-all]"), l.meters];
+  const bad = (state.meters || []).filter((m) => m.last_error).length;
+  if (bad) return ["guide_faulty_btn", go("zaehler", "[data-filter=err]"), bad];
+  if (!l.operation) return ["guide_ready_btn", () => window.open("report.html", "_blank", "noopener")];
+  if (!l.datapoints?.count) return ["guide_transfer", () => (location.hash = "#/zaehler")];
+  if (!(s.outputs || []).some((o) => o.on)) return ["guide_output", () => (location.hash = "#/weitergabe")];
+  return null;
+}
+
+let nextAction = null;
+function renderNext() {
+  const step = nextStep();
+  const b = $("next");
+  b.hidden = !step;
+  if (!step) return;
+  const [key, run, arg] = step;
+  html(b, `<span class="next-label">${esc(t("n_next"))}: </span>${esc(t(key))} →`);
+  b.title = t(key.replace(/_btn$/, "") + "_body", arg);
+  nextAction = run;
+}
+$("next").addEventListener("click", () => nextAction?.());
+
 // ------------------------------------------------------------ Start
 
 async function start() {
@@ -354,6 +416,7 @@ async function start() {
   watch(["tree", "status", "area"], renderTabs);
   watch(["area"], renderWork);
   watch(["tree", "status"], renderStatus);
+  watch(["tree", "status", "meters"], renderNext);
   const fromAddress = location.hash.length > 2;
   readHash();
   await reload().catch(report);
