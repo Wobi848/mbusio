@@ -1,0 +1,76 @@
+/* Bereich Anlage: Projektbaum mit festen Spalten, Zustand der Anlage als Raster
+   (Gerüst für Liste und Details: app.css) */
+
+/* Drei Teile statt zwei: Werkzeugleiste, Zustand der Anlage, Liste mit Details */
+.pane[data-area=anlage] { grid-template-rows: auto auto minmax(0, 1fr); }
+
+/* Name, Anschluss, Zähler, Datenpunkte, Dauerbetrieb · Plan, Zustand, Aktionen */
+/* Jede Zeile ist ein eigenes Raster: alle Spalten fest oder anteilig, keine nach Inhalt (sonst
+   verschieben sich die Spalten zwischen Projekt-, Gateway- und Linienzeilen) */
+[data-area=anlage] .row:not(.vrow):not(.new):not(.add) {
+  grid-template-columns: minmax(140px, 2fr) minmax(120px, 1.4fr) 64px 92px minmax(190px, 1.5fr) minmax(0, 1fr) 128px;
+}
+[data-area=anlage] .row > * { min-width: 0; }
+[data-area=anlage] .row .num { text-align: right; font-variant-numeric: tabular-nums; }
+[data-area=anlage] .rows { overflow-x: hidden; }
+
+/* Ebenen: Projekt, Gateway, Linie eingerückt */
+[data-area=anlage] .row.pj { background: var(--surface); min-height: 38px; }
+[data-area=anlage] .row.pj .name { font-size: 14px; }
+[data-area=anlage] .row.gw .name { gap: 2px; }
+/* eingerückt wird nur der Name, damit die Spalten unter dem Kopf bleiben */
+[data-area=anlage] .row.ln .name { font-weight: 500; padding-left: 26px; }
+[data-area=anlage] .row.current .name { font-weight: 650; }
+[data-area=anlage] button.chev { width: 22px; height: 22px; font-size: 12px; }
+
+/* Dauerbetrieb in der Zeile: nur Schalter und Text (nicht die Pille der Kopfzeile) */
+[data-area=anlage] .row .op { padding: 0; background: none; cursor: default; gap: 8px; display: inline-flex; align-items: center; min-width: 0; }
+[data-area=anlage] .row .op .ok { color: var(--ok); }
+[data-area=anlage] .row .op .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Dauerbetrieb im Detail: Schalter, Wort, Zustand mit Abstand */
+[data-area=anlage] .opline { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 8px 0; }
+[data-area=anlage] .opline .ok { color: var(--ok); }
+
+/* Aktionen rechts, erst beim Überfahren deutlich */
+[data-area=anlage] .row .acts { display: inline-flex; justify-content: flex-end; gap: 2px; opacity: .55; }
+[data-area=anlage] .row:hover .acts,
+[data-area=anlage] .row.active .acts,
+[data-area=anlage] .row .acts:focus-within { opacity: 1; }
+
+/* Eingabezeile „Neues …“ und Zeile „+ Gateway“ */
+[data-area=anlage] .row.new,
+[data-area=anlage] .row.add { display: flex; align-items: center; gap: 8px; padding-left: 42px; }
+[data-area=anlage] .row.new input { flex: 0 1 280px; min-width: 0; }
+
+/* Zustand der Anlage: Raster aus Kacheln, nur im Dauerbetrieb */
+[data-area=anlage] .plant {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1px; background: var(--line); border-bottom: 1px solid var(--line);
+}
+[data-area=anlage] .plant[hidden] { display: none; }
+[data-area=anlage] .plant .cell {
+  display: grid; gap: 3px; align-content: start; min-width: 0;
+  padding: 8px 12px; background: var(--surface);
+}
+[data-area=anlage] .plant .cell > .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Handy: Zeilen als zweizeilige Karten (Name und Zustand, darunter Anschluss und Dauerbetrieb) */
+@media (max-width: 999px) {
+  [data-area=anlage] .row:not(.vrow):not(.new):not(.add) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name state" "conn op";
+    padding: 6px 12px; row-gap: 2px;
+  }
+  [data-area=anlage] .row.ln .name { padding-left: 16px; }
+  [data-area=anlage] .row > :nth-child(1) { grid-area: name; }
+  [data-area=anlage] .row > :nth-child(2) { grid-area: conn; }
+  [data-area=anlage] .row > :nth-child(3),
+  [data-area=anlage] .row > :nth-child(4),
+  [data-area=anlage] .row > :nth-child(7) { display: none; }
+  [data-area=anlage] .row > :nth-child(5) { grid-area: op; justify-self: end; }
+  [data-area=anlage] .row > :nth-child(6) { grid-area: state; justify-self: end; }
+  [data-area=anlage] .row.new,
+  [data-area=anlage] .row.add { padding-left: 12px; flex-wrap: wrap; }
+  [data-area=anlage] .plant { grid-template-columns: minmax(0, 1fr); }
+}

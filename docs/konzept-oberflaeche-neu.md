@@ -1,6 +1,6 @@
 # Konzept: neue Oberfläche (Werkzeug statt Webseite)
 
-Stand: 25.10.2026 · Status: **in Arbeit** – Schritte 0 (Gerüst) und 1 (Zähler) umgesetzt, Entscheidungen in Abschnitt 10
+Stand: 25.10.2026 · Status: **in Arbeit** – Schritte 0 (Gerüst), 1 (Zähler), 3 (Anlage) und 5 (Werkzeuge) umgesetzt, Entscheidungen in Abschnitt 10
 
 Grundlage: Leitbild [konzept-bedienung.md §14](konzept-bedienung.md) und das Audit vom 25.10.2026
 (Abschnitt 2). Die Server-Schnittstelle steht in [api.md](api.md); die neue Oberfläche benutzt
@@ -321,4 +321,24 @@ Grund einer Trennung steht in der Statusleiste, Laschen brechen am Handy um, Lis
 Mindestbreite für Name, Kennung und Wert); der Gerüst-Test prüft das bei 360–1600 px mit langen
 Namen und langer Fehlermeldung.
 
-**Nächster Schritt:** 2 (Scan), mit dem Start im passenden Bereich (3.4).
+**Schritt 3 (Anlage), umgesetzt:**
+- Projektbaum mit festen Spalten (Name, Anschluss, Zähler, Datenpunkte, Dauerbetrieb · Plan,
+  Zustand, Aktionen); jede Spalte fest oder anteilig, damit Projekt-, Gateway- und Linienzeilen
+  genau untereinander stehen. Linien eingerückt nur im Namen.
+- Zustand der Anlage als Raster oben (nur im Dauerbetrieb): Hintergrund/Dienst, Plan, Uhrzeit,
+  Speicher.
+- Anlegen von Projekt, Gateway, Linie als Feld an Ort und Stelle (Enter, Escape); Details rechts mit
+  Speichern beim Verlassen; Dauerbetrieb-Schalter in der Zeile; Linie wechseln ohne Neuladen;
+  Löschen mit Rückfrage am Ort; Bericht, Export, Import.
+- Test `tests/ui/18-neu-anlage`.
+
+**Schritt 5 (Werkzeuge), umgesetzt:**
+- Ein Ziel für alle Werkzeuge (Suche über Zählerliste oder Adresse, ↑↓ Enter); ohne Ziel gesperrt
+  mit Grund. Auslesen (`R`), Primäradresse (freie suchen, Rückfrage am Ort), Baudrate (umstellen,
+  suchen), Reset; Telegramm-Log mit Analyse, Rohtelegramm senden.
+- Nach „Adresse ändern“ / „Baudrate ändern“ führt der Server die Zählerliste nach
+  (`follow_meter_change`), für alte und neue Oberfläche gleich.
+- Test `tests/ui/19-neu-werkzeuge`.
+
+**Nächster Schritt:** 2 (Scan), mit dem Start im passenden Bereich (3.4); danach 4 (Weitergabe)
+und der Simulator.
