@@ -4,33 +4,16 @@
 import { state, set, watch, activeLine, operatingLines } from "./store.js";
 import { html, text, menu, closeMenu, ask, toast } from "./view.js";
 import { bind, keyList } from "./keys.js";
+import { loadStatus, loadTree, reload, useLine, report } from "./data.js";
+import * as meters from "./meters.js";
 
 const $ = (id) => document.getElementById(id);
 const AREAS = ["scan", "zaehler", "weitergabe", "anlage", "werkzeuge", "simulator"];
 const AREA_TAB = { scan: "tab_scan", zaehler: "tab_meters", weitergabe: "tab_transfer", anlage: "tab_project", werkzeuge: "tab_tools", simulator: "tab_sim" };
+/// Bereiche, die es in der neuen Oberfläche schon gibt; die anderen führen in die bisherige
+const BUILT = { zaehler: meters };
 const STATUS_EVERY = 5000;
 const TREE_EVERY = 15000;
-
-// ------------------------------------------------------------ Daten
-
-async function loadStatus() {
-  set({ status: await request("status") });
-}
-
-async function loadTree() {
-  set({ tree: await request("projects") });
-}
-
-/// Nach einer Aktion: beides gleich neu, ohne zu warten
-const reload = () => Promise.all([loadStatus(), loadTree()]);
-
-/// Linie wechseln ohne Neuladen der Seite; der Bereich und seine Einstellungen bleiben
-async function useLine(id) {
-  const r = await request(`lines/${id}/activate`, { method: "POST" });
-  await reload();
-  const name = activeLine()?.name || "";
-  if (r.error) toast(t("activate_failed", name, r.error), { error: true });
-}
 
 // ------------------------------------------------------------ Texte
 
@@ -59,7 +42,7 @@ function renderProjects() {
 $("project").addEventListener("change", (ev) => {
   const p = state.tree.projects.find((x) => x.id === Number(ev.target.value));
   const line = p?.gateways.flatMap((g) => g.lines)[0];
-  if (line) useLine(line.id).catch((e) => toast(e.message, { error: true }));
+  if (line) useLine(line.id).catch(report);
 });
 
 function renderLine() {
@@ -92,7 +75,7 @@ $("line-menu").addEventListener("click", (ev) => {
   if (!b) return;
   closeMenu();
   const id = Number(b.dataset.line);
-  if (id !== state.status.active.line.id) useLine(id).catch((e) => toast(e.message, { error: true }));
+  if (id !== state.status.active.line.id) useLine(id).catch(report);
 });
 
 /// Anschluss: Zustand als Wort und Farbe, daneben genau die passende Aktion
@@ -132,7 +115,7 @@ $("conn-action").addEventListener("click", async (ev) => {
     try {
       await request("connect", { method: "POST", body: { port: s.active.line.connection, baud: s.active.line.baud } });
     } catch (e) {
-      toast(e.message, { error: true });
+      report(e);
     }
     return reload();
   }
@@ -172,7 +155,7 @@ $("conn-form").addEventListener("click", async (ev) => {
     }
     closeMenu(true);
   } catch (e) {
-    toast(e.message, { error: true });
+    report(e);
   }
   reload();
 });
@@ -214,7 +197,7 @@ $("op-switch").addEventListener("change", async (ev) => {
     await loadTree();
     toast(t(on ? "op_switched_on" : "op_switched_off", l.name));
   } catch (e) {
-    toast(e.message, { error: true });
+    report(e);
   }
 });
 
@@ -246,7 +229,7 @@ $("op-all-menu").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-line]");
   if (!b) return;
   closeMenu();
-  useLine(Number(b.dataset.line)).catch((e) => toast(e.message, { error: true }));
+  useLine(Number(b.dataset.line)).catch(report);
 });
 
 // ------------------------------------------------------------ Einstellungen
@@ -297,13 +280,21 @@ function renderTabs() {
   $("tab-sim").hidden = !(l?.connection || "").startsWith("SIMULATOR") && state.area !== "simulator";
 }
 
-/// Arbeitsfläche: jeder Bereich kommt in einem eigenen Schritt (Konzept §8); bis dahin der Weg
-/// in die bisherige Oberfläche
+/// Arbeitsfläche: jeder Bereich hat eine eigene Fläche, die beim Wechsel bleibt (Scroll, Auswahl,
+/// Filter). Bereiche, die noch nicht gebaut sind (Konzept §8), führen in die bisherige Oberfläche.
+const panes = {};
 function renderWork() {
-  html(
-    $("work"),
-    `<div class="soon"><b>${esc(t(AREA_TAB[state.area]))}</b><span>${esc(t("n_soon"))}</span><a href="./">${esc(t("n_old_ui"))} →</a></div>`
-  );
+  for (const a of AREAS) {
+    if (!panes[a] && a === state.area) {
+      panes[a] = document.createElement("section");
+      panes[a].className = "pane";
+      $("work").append(panes[a]);
+      if (BUILT[a]) BUILT[a].mount(panes[a]);
+      else
+        panes[a].innerHTML = `<div class="soon"><b>${esc(t(AREA_TAB[a]))}</b><span>${esc(t("n_soon"))}</span><a href="./">${esc(t("n_old_ui"))} →</a></div>`;
+    }
+    if (panes[a]) panes[a].hidden = a !== state.area;
+  }
 }
 
 AREAS.forEach((a, i) =>
@@ -357,7 +348,7 @@ async function start() {
   watch(["area"], renderWork);
   watch(["tree", "status"], renderStatus);
   readHash();
-  await reload().catch((e) => toast(e.message, { error: true }));
+  await reload().catch(report);
   setInterval(() => loadStatus().catch(() => {}), STATUS_EVERY);
   setInterval(() => loadTree().catch(() => {}), TREE_EVERY);
 }

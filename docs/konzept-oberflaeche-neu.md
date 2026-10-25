@@ -1,6 +1,6 @@
 # Konzept: neue Oberfläche (Werkzeug statt Webseite)
 
-Stand: 25.10.2026 · Status: **in Arbeit** – Schritt 0 (Gerüst) umgesetzt, Entscheidungen in Abschnitt 10
+Stand: 25.10.2026 · Status: **in Arbeit** – Schritte 0 (Gerüst) und 1 (Zähler) umgesetzt, Entscheidungen in Abschnitt 10
 
 Grundlage: Leitbild [konzept-bedienung.md §14](konzept-bedienung.md) und das Audit vom 25.10.2026
 (Abschnitt 2). Die Server-Schnittstelle steht in [api.md](api.md); die neue Oberfläche benutzt
@@ -252,4 +252,20 @@ die andere KI arbeitet am Server, Server-Punkte 1 und 2 aus Abschnitt 7 gleich m
 - Test `tests/ui/13-neu-geruest`: kein Neuladen beim Linienwechsel, Fokus bleibt über die
   Statusabfrage, Escape, Tasten, Rückfrage am Ort, keine Browser-Dialoge, Liste mit Schlüssel.
 
-**Nächster Schritt:** 1 (Zähler).
+**Schritt 1 (Zähler), umgesetzt:**
+- Liste links (34 px je Zeile: 21 von 30 Zählern sichtbar bei 1250×900, vorher 8), Details rechts;
+  Handy: Liste als zweizeilige Karten, Details als eigene Ansicht mit „←“.
+- Zustand am Element: Wert mit Zeit oder „noch nicht ausgelesen“, „antwortet nicht“, „gestört“,
+  „Uhr +1 h 3 min“, Plan nur wenn einer läuft.
+- Suche (`/`), Filter mit Anzahl, Mehrfachauswahl (Kästchen, Leertaste, Shift, Ctrl+A) mit Leiste
+  (auslesen, Plan setzen, löschen); Escape hebt die Auswahl auf.
+- Details: Name, Ort, Notiz speichern beim Verlassen (Enter), Escape setzt zurück; Plan; letzte
+  Auslesung mit allen Werten und Kästchen „als Datenpunkt“; Auslesen (`R`), Löschen mit Rückfrage
+  am Ort; „Zähler hinzufügen“ im Detailbereich.
+- „Alle N auslesen“ als Auftrag, Zeilen werden einzeln nachgeführt; während des Auftrags „Abbrechen“.
+- Gemeinsam: Symbole und `meterBlock` in `js/icons.js` (vorher in `ui.js`).
+- Test `tests/ui/14-neu-zaehler`.
+- **Noch in der bisherigen Oberfläche:** Verlauf, Zählertausch, Liste importieren, Namen nach Muster,
+  CSV-Export. Kommen als Ergänzung zu Schritt 1, bevor umgeschaltet wird.
+
+**Nächster Schritt:** 2 (Scan).

@@ -5,6 +5,8 @@ export const state = {
   status: null, // /api/status
   tree: null, // /api/projects
   ports: null, // /api/ports, erst beim Öffnen des Anschluss-Formulars
+  meters: null, // /api/meters der aktiven Linie
+  job: null, // /api/job, solange ein Auftrag läuft
   area: "zaehler", // Bereich aus der Adresse (#/zaehler)
 };
 
