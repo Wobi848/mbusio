@@ -125,12 +125,45 @@ pub fn json(readings: &[MeterReading]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::field;
+    use super::*;
 
     #[test]
     fn quoting() {
         assert_eq!(field("a;b"), "\"a;b\"");
         assert_eq!(field("x\"y"), "\"x\"\"y\"");
         assert_eq!(field("m³"), "m³");
+    }
+
+    #[test]
+    fn csv_has_one_row_per_value_in_the_chosen_language() {
+        let (_, _, _, r) = crate::testutil::db_with_energy();
+        let de = csv(std::slice::from_ref(&r), Lang::De);
+        assert!(
+            de.starts_with("\u{FEFF}Zeitpunkt;Adresse;"),
+            "BOM und deutsche Spalten"
+        );
+        let lines: Vec<&str> = de.trim_end().split("\r\n").collect();
+        assert_eq!(
+            lines.len(),
+            1 + r.records.len(),
+            "Kopf und eine Zeile je Wert"
+        );
+        let energy = lines
+            .iter()
+            .find(|l| l.contains(";Energie;"))
+            .expect("Zeile mit Energie");
+        assert!(energy.contains(";123456;kWh;"), "{energy}");
+        assert!(energy.contains(";12345678;"), "ID des Zählers");
+        // Hinweise des Werts in Klammern hinter der Beschreibung
+        assert_eq!(
+            description("energy", &["note_only_positive".into()], Lang::De),
+            format!("Energie ({})", label("note_only_positive", Lang::De))
+        );
+        let en = csv(std::slice::from_ref(&r), Lang::En);
+        assert!(en.contains("Timestamp;Address;") && en.contains(";Energy;"));
+        // JSON: dieselben Auslesungen, wieder einlesbar
+        let back: Vec<MeterReading> =
+            serde_json::from_str(&json(std::slice::from_ref(&r))).unwrap();
+        assert_eq!(back[0].records.len(), r.records.len());
     }
 }

@@ -203,3 +203,35 @@ async fn server_answers_over_tcp_and_follows_settings() {
     w.reverse();
     assert_eq!(f64_of(&w), 123456.0);
 }
+
+#[test]
+fn register_list_for_the_integrator() {
+    let mut db = db_with_energy();
+    let mut c = db.modbus_config();
+    c.swap_words = true;
+    c.port = 1502;
+    db.set_modbus_config(&c).unwrap();
+    let rows = db.output_list(1, "modbus", crate::i18n::Lang::De).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["address"], "0", "Startregister aus der Nummer");
+    let info = crate::datapoint::output("modbus")
+        .unwrap()
+        .list_info(&db)
+        .unwrap();
+    assert_eq!(info["port"], 1502);
+    assert_eq!(info["word_order"], "CDAB");
+    assert_eq!(info["block"]["registers"], 10);
+    assert!(info["block"]["+8"].as_str().unwrap().contains("Qualität"));
+    assert!(info["status"]["60001"].is_string());
+    // Übersicht für den Reiter Weitergabe: Zähler mit Datenpunkten, Ausgänge mit Zustand
+    let overview = db.dp_overview(None, Some(1)).unwrap();
+    assert_eq!(
+        overview[0]["datapoints"][0]["outputs"]["modbus"]["enabled"],
+        true
+    );
+    let outputs = db.outputs_info();
+    let keys: Vec<&str> = outputs.iter().map(|o| o["key"].as_str().unwrap()).collect();
+    assert_eq!(keys, ["mqtt", "modbus"]);
+    assert_eq!(outputs[1]["address_label"], "Register");
+    assert_eq!(outputs[1]["on"], false, "Modbus als Ganzes noch aus");
+}

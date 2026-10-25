@@ -115,6 +115,66 @@ fn system_source() -> Option<&'static str> {
     }
 }
 
+/// Quellen des Systems; sie haben Vorrang vor Browser und Leitsystem
+const SYSTEM_SOURCES: [&str; 3] = ["ntp", "rtc", "system"];
+
+impl Clock {
+    fn system_confirmed(&self) -> bool {
+        self.state
+            .source
+            .as_deref()
+            .is_some_and(|s| SYSTEM_SOURCES.contains(&s))
+    }
+
+    /// Zeitquelle des Systems übernehmen (`None` = keine); `now`: Systemzeit. Liefert eine
+    /// Meldung fürs Protokoll, wenn sich etwas geändert hat.
+    fn system(&mut self, source: Option<&str>, now: DateTime<Local>) -> Option<String> {
+        match source {
+            Some(src) if self.state.source.as_deref() != Some(src) => {
+                // eine echte Zeitquelle hat Vorrang vor der Korrektur aus dem Browser
+                self.offset = TimeDelta::zero();
+                self.state = TimeState {
+                    confirmed: true,
+                    source: Some(src.into()),
+                    since: Some(now.format("%Y-%m-%d %H:%M:%S").to_string()),
+                    offset_s: 0.0,
+                };
+                Some(format!("Uhrzeit bestätigt ({src})"))
+            }
+            None if self.system_confirmed() => {
+                self.state.confirmed = false;
+                self.state.source = None;
+                Some("Uhrzeit nicht mehr bestätigt".into())
+            }
+            _ => None,
+        }
+    }
+
+    /// Uhrzeit `at` aus einer Quelle ("browser", "mqtt") übernehmen; `now`: Systemzeit. Eine
+    /// Quelle des Systems hat Vorrang und bleibt. Liefert die Korrektur in Sekunden.
+    fn external(&mut self, source: &str, at: DateTime<Local>, now: DateTime<Local>) -> f64 {
+        if self.system_confirmed() {
+            return 0.0;
+        }
+        let offset = at.naive_local() - now.naive_local();
+        // unter 2 s ist Messungenauigkeit (Laufzeit der Anfrage): Systemzeit gilt dann als richtig
+        let offset = if offset.num_milliseconds().abs() < 2000 {
+            TimeDelta::zero()
+        } else {
+            offset
+        };
+        let secs = offset.num_milliseconds() as f64 / 1000.0;
+        self.offset = offset;
+        self.state = TimeState {
+            confirmed: true,
+            source: Some(source.into()),
+            since: Some(at.format("%Y-%m-%d %H:%M:%S").to_string()),
+            offset_s: secs,
+        };
+        secs
+    }
+}
+
 /// Zeitquelle prüfen (beim Start und danach regelmässig). Liefert eine Meldung fürs Protokoll,
 /// wenn sich etwas geändert hat.
 pub fn check_system() -> Option<String> {
@@ -123,26 +183,7 @@ pub fn check_system() -> Option<String> {
     } else {
         system_source()
     };
-    let mut c = CLOCK.lock().unwrap();
-    match source {
-        Some(src) if c.state.source.as_deref() != Some(src) => {
-            // eine echte Zeitquelle hat Vorrang vor der Korrektur aus dem Browser
-            c.offset = TimeDelta::zero();
-            c.state = TimeState {
-                confirmed: true,
-                source: Some(src.into()),
-                since: Some(Local::now().format("%Y-%m-%d %H:%M:%S").to_string()),
-                offset_s: 0.0,
-            };
-            Some(format!("Uhrzeit bestätigt ({src})"))
-        }
-        None if matches!(c.state.source.as_deref(), Some("ntp" | "rtc" | "system")) => {
-            c.state.confirmed = false;
-            c.state.source = None;
-            Some("Uhrzeit nicht mehr bestätigt".into())
-        }
-        _ => None,
-    }
+    CLOCK.lock().unwrap().system(source, Local::now())
 }
 
 /// Uhrzeit vom Gerät des Benutzers übernehmen (Millisekunden seit 1970, UTC).
@@ -154,28 +195,77 @@ pub fn set_from_browser(epoch_ms: i64) -> Option<f64> {
 /// Uhrzeit aus einer Quelle übernehmen ("browser", "mqtt"); eine echte Systemquelle (NTP,
 /// Uhr-Modul) hat Vorrang und wird nicht überschrieben
 pub fn set_from(source: &str, epoch_ms: i64) -> Option<f64> {
-    if matches!(
-        CLOCK.lock().unwrap().state.source.as_deref(),
-        Some("ntp" | "rtc" | "system")
-    ) {
-        return Some(0.0);
+    let at = chrono::DateTime::from_timestamp_millis(epoch_ms)?.with_timezone(&Local);
+    Some(CLOCK.lock().unwrap().external(source, at, Local::now()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn clock() -> Clock {
+        Clock {
+            state: TimeState::default(),
+            offset: TimeDelta::zero(),
+            distrust_system: false,
+            scale: None,
+        }
     }
-    let browser = chrono::DateTime::from_timestamp_millis(epoch_ms)?.with_timezone(&Local);
-    let offset = browser.naive_local() - Local::now().naive_local();
-    // unter 2 s ist Messungenauigkeit (Laufzeit der Anfrage): Systemzeit gilt dann als richtig
-    let offset = if offset.num_milliseconds().abs() < 2000 {
-        TimeDelta::zero()
-    } else {
-        offset
-    };
-    let secs = offset.num_milliseconds() as f64 / 1000.0;
-    let mut c = CLOCK.lock().unwrap();
-    c.offset = offset;
-    c.state = TimeState {
-        confirmed: true,
-        source: Some(source.into()),
-        since: Some(browser.format("%Y-%m-%d %H:%M:%S").to_string()),
-        offset_s: secs,
-    };
-    Some(secs)
+
+    fn at(s: &str) -> DateTime<Local> {
+        NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+            .unwrap()
+            .and_local_timezone(Local)
+            .unwrap()
+    }
+
+    #[test]
+    fn browser_time_corrects_the_clock_unless_it_is_close() {
+        let now = at("2026-10-25 12:00:00");
+        // Pi nach Stromausfall: 3 Stunden zurück; Browser weiss es besser
+        let mut c = clock();
+        assert_eq!(
+            c.external("browser", at("2026-10-25 15:00:00"), now),
+            10800.0
+        );
+        assert_eq!(c.offset, TimeDelta::hours(3));
+        assert!(c.state.confirmed);
+        assert_eq!(c.state.source.as_deref(), Some("browser"));
+        // unter 2 s: Laufzeit der Anfrage, Systemzeit gilt als richtig (aber bestätigt)
+        let mut c = clock();
+        assert_eq!(
+            c.external("mqtt", now + TimeDelta::milliseconds(1500), now),
+            0.0
+        );
+        assert_eq!(c.offset, TimeDelta::zero());
+        assert!(c.state.confirmed);
+    }
+
+    #[test]
+    fn system_source_wins_and_losing_it_unconfirms() {
+        let now = at("2026-10-25 12:00:00");
+        let mut c = clock();
+        c.external("browser", at("2026-10-25 12:10:00"), now);
+        // NTP kommt: Korrektur aus dem Browser fällt weg
+        assert_eq!(
+            c.system(Some("ntp"), now).as_deref(),
+            Some("Uhrzeit bestätigt (ntp)")
+        );
+        assert_eq!(c.offset, TimeDelta::zero());
+        // danach ändert Browser/Leitsystem nichts mehr
+        assert_eq!(c.external("mqtt", at("2026-10-25 13:00:00"), now), 0.0);
+        assert_eq!(c.state.source.as_deref(), Some("ntp"));
+        // gleiche Quelle: keine neue Meldung
+        assert_eq!(c.system(Some("ntp"), now), None);
+        // NTP weg: nicht mehr bestätigt
+        assert_eq!(
+            c.system(None, now).as_deref(),
+            Some("Uhrzeit nicht mehr bestätigt")
+        );
+        assert!(!c.state.confirmed);
+        // eine Browser-Zeit bleibt bestehen, wenn das System keine Quelle hat
+        c.external("browser", at("2026-10-25 12:10:00"), now);
+        assert_eq!(c.system(None, now), None);
+        assert!(c.state.confirmed);
+    }
 }
