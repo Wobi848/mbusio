@@ -401,8 +401,12 @@ Aufbau:
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim/`: Simulator (bus: Verhalten der Zähler, scenarios: Vorlagen und eigene Anlagen, store: Speichern), alle hinter demselben `Link`-Trait
 - `src/db/`: Datenbank, nach Bereichen (schema mit Migrationen, projects, meters, readings, schedule, report)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
-- `src/datapoint/`: Datenpunkte (Kern: Kennung, Qualität, Plausibilität; outputs: Ausgänge,
-  allgemein (mod, Schnittstelle `Output`) und je Ausgang ein Modul (mqtt, home_assistant, modbus); templates: Vorlagen; exchange: Zählertausch; csv: Export/Import)
+- `src/datapoint/`: Datenpunkte: mod (Datenpunkt, Schema, lesen, anlegen), key (Kennung eines
+  Werts), quality (Qualität, Plausibilität), values (neue Werte aus einer Auslesung), select (Werte
+  wählen), edit (ändern, mehrere auf einmal), list (Listen je Linie/Projekt), live (Stand für
+  Node-RED), outputs (Ausgänge allgemein mit Schnittstelle `Output`, je Ausgang ein Modul: mqtt,
+  home_assistant, modbus), templates (Vorlagen), exchange (Zählertausch), csv (Export/Import),
+  project_file (aus einem Projekt-Export übernehmen)
 - `src/changeset.rs`: Änderungssatz für „Vorschau → Übernehmen“ (Importe, Vorlagen)
 - `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export
 - `src/modbus/`: Modbus-TCP-Server: Einstellungen und Dienst (mod), Registerbild (image),
