@@ -1,6 +1,6 @@
 # Konzept: Node-RED-Integration
 
-Stand: 24.10.2026 · Status: **Entwurf, nicht gebaut** · betrifft mbusio ab Version 0.5
+Stand: 25.10.2026 · Status: **Schnittstelle in mbusio umgesetzt** (2.1, 2.2), Nodes offen · betrifft mbusio ab Version 0.5
 
 Node-RED soll Werte direkt von mbusio bekommen, **ohne MQTT-Broker**. Im Editor wählt man
 Projekt → Gateway → Linie → Zähler → Datenpunkt aus Listen, und im Flow sieht man sofort, ob ein
@@ -64,7 +64,7 @@ Eine offene HTTP-Verbindung (Server-Sent Events), über die mbusio Ereignisse sc
 
 | Ereignis | Wann | Inhalt |
 |---|---|---|
-| `value` | direkt nach dem Verbinden für jeden Datenpunkt (aktueller Stand), danach bei jeder neuen Auslesung und wenn sich nur die Qualität ändert | `{ "no", "value", "unit", "time", "quality", "time_unsure"? }` |
+| `value` | direkt nach dem Verbinden für jeden Datenpunkt (aktueller Stand), danach bei jeder neuen Auslesung und wenn sich nur die Qualität ändert | `{ "no", "value", "unit", "time", "quality" }` |
 | `changed` | Datenpunkte, Zähler oder Linien wurden in mbusio geändert | `{}`, Node-RED holt den Baum neu |
 | Kommentar `: ping` | alle 30 s | hält die Verbindung offen, Node-RED merkt Abbrüche |
 
@@ -77,16 +77,20 @@ ein paar Zeilen `fetch`. Abfragen im Takt wären verspätet und machen unnötig 
 **Weitergabe-Regel:** Es gilt die Einstellung des Datenpunkts wie bei MQTT (bei jeder Auslesung,
 nur bei Änderung, 1× täglich), damit sich Node-RED und MQTT gleich verhalten.
 
-### 2.3 Umsetzung in mbusio
+### 2.3 Umsetzung in mbusio (gebaut)
 
-- Dort, wo heute ein neuer Datenpunktwert entsteht und an die Ausgänge geht, zusätzlich auf einen
-  `tokio::sync::broadcast`-Kanal im `AppState` legen. Kein Empfänger verbunden = kostet nichts.
-- `src/web/nodered.rs`: die zwei Endpunkte; `tree` aus vorhandenen Abfragen (`db.tree()`,
-  `dp_overview`) zusammengesetzt, nicht neu geschrieben.
-- Neue Abhängigkeit nur `tokio-stream` (Kanal → SSE-Stream); bei tokio das Feature `sync`.
-- Langsamer Empfänger: Läuft der Kanal über, bekommt dieser Empfänger den aktuellen Stand neu
-  (wie nach dem Verbinden), statt dass mbusio wartet. Der Bus wird nie aufgehalten.
-- Tests: Baum-Inhalt, Stream liefert zuerst den Stand, dann neue Werte, Token wird geprüft.
+- Signal `Db.changes` (siehe [konzept-ausgaenge.md](konzept-ausgaenge.md) 3.2); der Strom holt
+  bei jedem Signal den Stand und schickt nur, was neu ist (`src/datapoint/live.rs`).
+- `src/web/nodered.rs`: die zwei Endpunkte (HTTP und SSE, keine Logik); `tree` aus vorhandenen
+  Abfragen (`db.tree()`, `dp_by_meters`) zusammengesetzt.
+- Werte nur aus Linien im Dauerbetrieb, wie bei MQTT; der Baum zeigt alle aktiven Datenpunkte mit
+  `operation` je Linie.
+- Neue Abhängigkeit nur `futures-util` (kommt ohnehin mit axum); bei tokio das Feature `sync`.
+- Beim Herunterfahren enden offene Ströme (`Shared.stop`), sonst würde der Server auf sie warten.
+- Unbekanntes Projekt: Fehler 404 statt leerem Strom. `time_unsure` ist (noch) nicht dabei.
+- Geprüft 25.10.2026: Rust-Test (Dauerbetrieb, Weitergabe-Art, Qualität, Aufbau geändert, Baum),
+  mit laufendem mbusio: Token (401), Baum, Strom mit Stand, neuer Auslesung und `changed`,
+  Beenden mit offenem Strom (4 ms).
 
 ## 3. Die Nodes
 

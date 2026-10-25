@@ -92,12 +92,17 @@ pub static OUTPUTS: [&dyn Output; 1] = [&mqtt::Mqtt];
   (`/api/mqtt`), eigener Zustand. `/api/status` liefert zusätzlich `outputs` (Schlüssel, Name,
   eingeschaltet) für alles, was nur wissen muss, ob irgendein Ausgang an ist.
 
-### 3.2 Ein Ereignis für neue Werte
+### 3.2 Ein Signal für Änderungen (umgesetzt)
 
-`dispatch` und `outputs_refresh` legen jeden neuen Wert bzw. jede geänderte Qualität zusätzlich als
-`ValueEvent { project, no, value, quality, utc, unsure }` auf einen `tokio::sync::broadcast`-Kanal.
-Wer zuhört, bekommt es (Node-RED-Strom, BACnet-COV); hört niemand zu, kostet es nichts. Wer zu
-langsam ist, verpasst Ereignisse und holt den aktuellen Stand neu. Das Auslesen wartet nie.
+Statt jedes Ereignis einzeln zu verschicken, zählt `Db.changes` (`tokio::sync::watch`) jede
+Änderung: nach jeder Auslesung (`record`, auch bei Fehler) und bei jedem `outputs_refresh`
+(Qualität veraltet, Einstellungen geändert). Wer mitläuft (Node-RED-Strom, später BACnet-COV),
+holt dann den aktuellen Stand und vergleicht mit dem, was er zuletzt gesendet hat
+(`src/datapoint/live.rs`, mit derselben Weitergabe-Regel wie die Ausgänge).
+
+Warum so: Ein Empfänger kann nichts verpassen (er sieht immer den neuesten Stand), ein langsamer
+Empfänger hält niemanden auf, und auch Änderungen ohne neue Auslesung (veraltet, gestört,
+umbenannt) kommen an. Hört niemand zu, kostet es nichts.
 
 Den **aktuellen Wert** haben alle schon in der Datenbank (`datapoints.last_value`, `invalid`,
 `last_utc`); Server-Ausgänge lesen dort und brauchen keine eigene Kopie.
@@ -135,10 +140,11 @@ Ausgang mit leerer Adresse.
 1. ✓ **Umbau ohne neue Funktion:** Schnittstelle `Output`, `Place`, MQTT als erste Umsetzung,
    `mqtt_enabled` entfernt, Integrator-Liste allgemein, `transfer.js` mit `OUTPUT_UI`.
    Geprüft 25.10.2026: 116 Rust-Tests, 12 UI-Tests (MQTT mit Test-Broker), clippy, fmt.
-2. **Ereignis-Kanal** (3.2) mit Test.
+2. ✓ **Signal für Änderungen** (3.2) mit Test.
 3. ✓ **Home Assistant Discovery** nach [konzept-home-assistant.md](konzept-home-assistant.md)
    (vor dem Ereignis-Kanal gemacht, weil es ihn nicht braucht).
-4. **Node-RED** nach [konzept-node-red.md](konzept-node-red.md).
+4. **Node-RED** nach [konzept-node-red.md](konzept-node-red.md): ✓ Schnittstelle in mbusio,
+   offen: Paket mit den Nodes.
 5. **Modbus TCP, BACnet/IP** erst nach Freigabe (Regel: Modbus vorerst nicht) und nach dem
    7-Tage-Test.
 

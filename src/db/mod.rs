@@ -327,6 +327,8 @@ pub struct Db {
     pub readings_paused: bool,
     /// Meldungen beim Speichern (z.B. Zählerstand gesunken); der Aufrufer schreibt sie ins Protokoll
     pub notes: Vec<String>,
+    /// Zählt jede Änderung an Werten und Datenpunkten; wer mitläuft (Node-RED), gleicht dann ab
+    pub changes: tokio::sync::watch::Sender<u64>,
 }
 
 fn project_of(r: &Row) -> rusqlite::Result<Project> {
@@ -411,6 +413,7 @@ impl Db {
             path: Some(path),
             readings_paused: false,
             notes: Vec::new(),
+            changes: tokio::sync::watch::channel(0).0,
         };
         db.init()?;
         db.import_legacy(dir)?;
@@ -425,6 +428,7 @@ impl Db {
             path: None,
             readings_paused: false,
             notes: Vec::new(),
+            changes: tokio::sync::watch::channel(0).0,
         };
         db.init()?;
         Ok(db)
@@ -454,6 +458,11 @@ impl Db {
         self.import_meters(line, old.meters)?;
         std::fs::rename(&file, dir.join("meters.json.imported"))?;
         Ok(())
+    }
+
+    /// Werte oder Datenpunkte haben sich (vielleicht) geändert: Empfänger gleichen ab
+    pub fn notify(&self) {
+        self.changes.send_modify(|n| *n += 1);
     }
 
     /// Einstellung lesen (z.B. "mqtt"); Fehler gelten als nicht gesetzt

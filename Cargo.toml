@@ -20,7 +20,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # ohne libudev, damit Cross-Compile (Raspberry Pi, Windows) ohne Systembibliotheken klappt
 serialport = { version = "4", default-features = false }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync"] }
+# Ströme für Server-Sent Events (Node-RED); kommt ohnehin mit axum
+futures-util = "0.3"
 webpki-roots = "1"
 
 # nur unter Windows: als Dienst laufen (Konzept Hintergrund), Energiesparmodus verhindern

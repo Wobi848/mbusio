@@ -30,12 +30,13 @@ use crate::scheduler::Planner;
 mod bus;
 mod datapoints;
 mod meters;
+mod nodered;
 mod outputs;
 mod projects;
 mod simulator;
 
 pub use self::bus::parse_hex;
-use self::{bus::*, datapoints::*, meters::*, outputs::*, projects::*, simulator::*};
+use self::{bus::*, datapoints::*, meters::*, nodered::*, outputs::*, projects::*, simulator::*};
 
 #[derive(RustEmbed)]
 #[folder = "web/"]
@@ -80,6 +81,8 @@ pub struct Shared {
     pub(crate) mqtt: crate::mqtt::MqttState,
     /// Optionaler Zugriffsschlüssel für die API (bei LAN-Zugriff)
     token: Option<String>,
+    /// true beim Herunterfahren: offene Ströme (Node-RED) enden, sonst wartet der Server auf sie
+    pub(crate) stop: tokio::sync::watch::Sender<bool>,
 }
 
 impl Shared {
@@ -98,6 +101,7 @@ impl Shared {
             planner,
             mqtt: Default::default(),
             token,
+            stop: tokio::sync::watch::channel(false).0,
         }
     }
 
@@ -450,6 +454,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/lines/{id}/operation", put(line_operation))
         .route("/api/meters/{id}/plan", put(meter_plan))
         .route("/api/time", post(set_time))
+        .route("/api/nodered/tree", get(nodered_tree))
+        .route("/api/nodered/stream", get(nodered_stream))
         .layer(middleware::from_fn_with_state(state.clone(), auth))
         .fallback(static_file)
         .with_state(state)

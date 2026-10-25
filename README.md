@@ -157,6 +157,10 @@ Zählerliste („Weitergabe“) und aus einer Auslesung führt ein Link direkt z
   bei unsicherer Uhrzeit zusätzlich `"time_unsure": true`. Ändert sich nur die Qualität (Zähler
   antwortet nicht mehr, Wert veraltet), wird das ebenfalls gemeldet
 - `mbusio/status` = `online`, bei Absturz oder Stromausfall `offline` (Last Will)
+- **Node-RED** (ohne Broker): `GET /api/nodered/tree` (Projekt › Gateway › Linie › Zähler ›
+  Datenpunkte mit Wert) und `GET /api/nodered/stream?project=1` (Server-Sent Events: zuerst der
+  Stand, dann neue Werte und geänderte Qualität); nur lesend, mit `X-Token` wie die übrige API
+  (siehe [docs/konzept-node-red.md](docs/konzept-node-red.md))
 - **Home Assistant:** Häkchen „Home Assistant (MQTT Discovery)“ in den Einstellungen: alle
   Datenpunkte mit MQTT-Häkchen erscheinen in Home Assistant von selbst, je Zähler ein Gerät, mit
   Einheit und passendem Typ (Energie, Wasser, Gas, Temperatur …, fürs Energie-Dashboard).
@@ -432,6 +436,8 @@ installation; the UI runs in the browser, phones included.
 - MQTT output: one retained topic per datapoint with JSON (value, unit, UTC time, quality), QoS 1,
   status topic with last will, persistent queue with in-order redelivery, TLS, user/password,
   optional time from the control system
+- Node-RED interface without a broker: selection tree and live values as server-sent events
+  (`/api/nodered/tree`, `/api/nodered/stream`)
 - Home Assistant via MQTT discovery (one checkbox): datapoints appear by themselves, one device per
   meter, with unit and type for the energy dashboard
 - History per meter as chart or table, CSV; project report as PDF with changes made and open issues

@@ -11,11 +11,13 @@
 
 mod csv;
 mod exchange;
+mod live;
 mod outputs;
 mod templates;
 #[cfg(test)]
 mod tests;
 
+pub use self::live::{LiveState, LiveValue, Scope};
 pub use self::outputs::{output, Output, Outputs, OUTPUTS};
 
 use self::outputs::Sample;

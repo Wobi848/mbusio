@@ -90,7 +90,7 @@ pub struct Place {
 }
 
 /// Soll gesendet werden? Nach der Weitergabe-Art des Datenpunkts; geänderte Qualität immer
-fn should_send(mode: &str, last: &Sent, s: &Sample) -> bool {
+pub(super) fn should_send(mode: &str, last: &Sent, s: &Sample) -> bool {
     let quality_changed = last.quality.as_deref() != Some(s.quality);
     match mode {
         "change" => last.value != Some(s.value) || quality_changed,
@@ -101,10 +101,10 @@ fn should_send(mode: &str, last: &Sent, s: &Sample) -> bool {
 
 /// Was an einen Ausgang zuletzt gesendet wurde
 #[derive(Default)]
-struct Sent {
-    value: Option<f64>,
-    quality: Option<String>,
-    day: Option<String>,
+pub(super) struct Sent {
+    pub value: Option<f64>,
+    pub quality: Option<String>,
+    pub day: Option<String>,
 }
 
 impl Db {
@@ -397,6 +397,8 @@ impl Db {
     /// eingeschaltete Datenpunkte zum ersten Mal senden und die Zusatznachrichten der Ausgänge
     /// nachführen. Liefert die Anzahl Nachrichten.
     pub fn outputs_refresh(&mut self) -> Result<usize> {
+        // Qualität kann sich mit der Zeit ändern (veraltet), Einstellungen ebenso
+        self.notify();
         let on: Vec<&dyn Output> = OUTPUTS.iter().copied().filter(|o| o.is_on(self)).collect();
         if on.is_empty() {
             return Ok(0);

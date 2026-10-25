@@ -735,3 +735,98 @@ fn home_assistant_config_follows_datapoints() {
     c.ha_prefix = "/ha".into();
     assert!(db.set_mqtt_config(&c).is_err());
 }
+
+/// Auslesung mit Wert, `minutes` vor der Auslesung `r` (so bleibt der Wert aktuell, nicht veraltet)
+fn energy_ago(r: &MeterReading, value: f64, minutes: i64) -> MeterReading {
+    let mut r = with_energy(r, value);
+    r.utc = r.utc.map(|t| t - minutes * 60);
+    r
+}
+
+#[test]
+fn live_values_follow_operation_send_mode_and_quality() {
+    let (mut db, line, mid, r) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    let scope = Scope {
+        project: 1,
+        line: None,
+        meter: None,
+    };
+    let changes = db.changes.subscribe();
+    let read = |db: &mut Db, value, minutes| {
+        db.record(
+            line,
+            &Target::Primary(1),
+            Ok(&energy_ago(&r, value, minutes)),
+            false,
+        )
+        .unwrap()
+    };
+    // jede Auslesung meldet sich bei den Empfängern
+    read(&mut db, 200100.0, 50);
+    assert!(changes.has_changed().unwrap());
+    // ohne Dauerbetrieb: im Aufbau, aber keine Werte (wie bei den Ausgängen)
+    let empty = LiveState::default();
+    let s0 = db.live_state(scope).unwrap();
+    assert!(s0.values.is_empty());
+    assert!(s0.since(&empty).0, "Aufbau neu");
+    let l = db.line(line).unwrap();
+    db.update_line(
+        line,
+        Line {
+            connection: "SIMULATOR".into(),
+            ..l
+        },
+    )
+    .unwrap();
+    db.set_line_plan(line, Some("hourly")).unwrap();
+    db.set_operation(line, true).unwrap();
+    read(&mut db, 200101.0, 40);
+    let s1 = db.live_state(scope).unwrap();
+    let (changed, values) = s1.since(&s0);
+    assert!(!changed);
+    assert_eq!(values.len(), 1);
+    assert_eq!(values[0].value, 200101.0);
+    assert_eq!(values[0].quality, "good");
+    assert!(values[0].time.ends_with('Z'), "UTC: {}", values[0].time);
+    // nichts Neues: nichts
+    assert!(db.live_state(scope).unwrap().since(&s1).1.is_empty());
+    // jede Auslesung: gleicher Wert zu neuer Zeit geht raus
+    read(&mut db, 200101.0, 30);
+    let s2 = db.live_state(scope).unwrap();
+    assert_eq!(s2.since(&s1).1.len(), 1);
+    // nur bei Änderung: gleicher Wert nicht, anderer schon
+    let id = db.dp_by_meter(mid).unwrap()[0].id;
+    let mut d = db.dp(id).unwrap();
+    d.send = "change".into();
+    db.dp_update(id, &d).unwrap();
+    let s2 = db.live_state(scope).unwrap();
+    read(&mut db, 200101.0, 20);
+    let s3 = db.live_state(scope).unwrap();
+    assert!(s3.since(&s2).1.is_empty());
+    read(&mut db, 200102.0, 10);
+    assert_eq!(db.live_state(scope).unwrap().since(&s3).1.len(), 1);
+    // Name geändert: Aufbau geändert
+    let s4 = db.live_state(scope).unwrap();
+    let mut d = db.dp(id).unwrap();
+    d.name = "Wohnung 1 · Energie".into();
+    db.dp_update(id, &d).unwrap();
+    assert!(db.live_state(scope).unwrap().since(&s4).0);
+    // Baum zur Auswahl: Projekt › Gateway › Linie › Zähler › Datenpunkt mit Wert
+    let tree = db.live_tree().unwrap();
+    let line0 = &tree[0]["gateways"][0]["lines"][0];
+    assert_eq!(line0["operation"], true);
+    let dp = &line0["meters"][0]["datapoints"][0];
+    assert_eq!(dp["no"], 1);
+    assert_eq!(dp["name"], "Wohnung 1 · Energie");
+    assert_eq!(dp["value"], 200102.0);
+    // unbekanntes Projekt: Fehler
+    assert!(db
+        .live_state(Scope {
+            project: 99,
+            line: None,
+            meter: None
+        })
+        .is_err());
+}

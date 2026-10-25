@@ -389,6 +389,11 @@ async fn serve(
         open_browser(&url);
     }
 
+    let st = state.clone();
+    let stop = async move {
+        stop.await;
+        st.stop.send_replace(true);
+    };
     axum::serve(listener, web::router(state))
         .with_graceful_shutdown(stop)
         .await?;

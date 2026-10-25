@@ -104,7 +104,20 @@ impl Db {
 
     /// Ergebnis einer Auslesung speichern: Verlauf und, falls in der Liste, beim Zähler.
     /// `compact`: nur die Rohtelegramme (geplante Auslesungen), sonst zusätzlich alles als JSON.
+    /// Danach erfahren Empfänger (Node-RED) davon, auch bei einem Fehler (Qualität „gestört“).
     pub fn record(
+        &mut self,
+        line_id: i64,
+        target: &Target,
+        result: Result<&MeterReading, String>,
+        compact: bool,
+    ) -> Result<()> {
+        let r = self.store_reading(line_id, target, result, compact);
+        self.notify();
+        r
+    }
+
+    fn store_reading(
         &mut self,
         line_id: i64,
         target: &Target,

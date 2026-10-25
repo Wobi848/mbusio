@@ -9,6 +9,9 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Neu
 
+- **Schnittstelle für Node-RED** (ohne MQTT-Broker): `/api/nodered/tree` liefert Projekte,
+  Gateways, Linien, Zähler und Datenpunkte mit aktuellem Wert, `/api/nodered/stream` die
+  laufenden Werte als Server-Sent Events. Grundlage für das Node-RED-Paket.
 - **Home Assistant (MQTT Discovery):** neues Häkchen in den MQTT-Einstellungen. Datenpunkte mit
   MQTT-Häkchen erscheinen in Home Assistant von selbst (je Zähler ein Gerät, Einheit, Typ für das
   Energie-Dashboard); Häkchen weg entfernt den Sensor wieder. Vorgabe: aus.
