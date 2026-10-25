@@ -172,6 +172,15 @@ impl Db {
         self.changes.send_modify(|n| *n += 1);
     }
 
+    /// Einstellung als JSON lesen (z.B. "mqtt"); fehlt sie oder ist unlesbar: Vorgabe
+    pub(crate) fn meta_json<T: serde::de::DeserializeOwned + Default>(&self, key: &str) -> T {
+        self.meta(key)
+            .ok()
+            .flatten()
+            .and_then(|v| serde_json::from_str(&v).ok())
+            .unwrap_or_default()
+    }
+
     /// Einstellung lesen (z.B. "mqtt"); Fehler gelten als nicht gesetzt
     pub(crate) fn meta(&self, key: &str) -> Result<Option<String>> {
         Ok(self

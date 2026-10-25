@@ -32,13 +32,10 @@ impl Master {
                 )
             );
         }
-        // Mehrere Zähler auf derselben Primäradresse würden alle umgestellt
-        if let Target::Primary(a) = target {
-            self.ensure_single(*a)?;
-        }
-        let address = self.address(target)?;
-        self.expect_ack(
-            &Frame::snd_ud(address, CI_DATA_SEND, vec![0x01, 0x7A, new]),
+        self.command(
+            target,
+            CI_DATA_SEND,
+            vec![0x01, 0x7A, new],
             &tr(
                 "Zähler hat die Adressänderung nicht quittiert",
                 "Meter did not acknowledge the address change",
@@ -75,6 +72,16 @@ impl Master {
         }
     }
 
+    /// Befehl an genau einen Zähler senden und auf die Quittung warten. Bei einer Primäradresse
+    /// vorher prüfen, dass dort nur ein Zähler antwortet: sonst würden alle umgestellt.
+    fn command(&mut self, target: &Target, ci: u8, data: Vec<u8>, no_ack: &str) -> Result<()> {
+        if let Target::Primary(a) = target {
+            self.ensure_single(*a)?;
+        }
+        let address = self.address(target)?;
+        self.expect_ack(&Frame::snd_ud(address, ci, data), no_ack)
+    }
+
     fn expect_ack(&mut self, f: &Frame, no_reply: &str) -> Result<()> {
         match self.transact(f)? {
             Reply::Frame(Frame::Ack) => Ok(()),
@@ -104,12 +111,10 @@ impl Master {
         if new == old {
             return Ok(());
         }
-        if let Target::Primary(a) = target {
-            self.ensure_single(*a)?;
-        }
-        let address = self.address(target)?;
-        self.expect_ack(
-            &Frame::snd_ud(address, ci, Vec::new()),
+        self.command(
+            target,
+            ci,
+            Vec::new(),
             &tr(
                 "Zähler hat den Baudratenwechsel nicht quittiert",
                 "Meter did not acknowledge the baud rate change",
@@ -172,12 +177,10 @@ impl Master {
 
     /// Application Reset (CI 50), optional mit Subcode.
     pub fn application_reset(&mut self, target: &Target, subcode: Option<u8>) -> Result<()> {
-        if let Target::Primary(a) = target {
-            self.ensure_single(*a)?;
-        }
-        let address = self.address(target)?;
-        self.expect_ack(
-            &Frame::snd_ud(address, CI_APP_RESET, subcode.into_iter().collect()),
+        self.command(
+            target,
+            CI_APP_RESET,
+            subcode.into_iter().collect(),
             &tr(
                 "Zähler hat den Reset nicht quittiert",
                 "Meter did not acknowledge the reset",

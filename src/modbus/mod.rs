@@ -86,11 +86,7 @@ impl ModbusConfig {
 
 impl Db {
     pub fn modbus_config(&self) -> ModbusConfig {
-        self.meta("modbus")
-            .ok()
-            .flatten()
-            .and_then(|v| serde_json::from_str(&v).ok())
-            .unwrap_or_default()
+        self.meta_json("modbus")
     }
 
     pub fn set_modbus_config(&mut self, c: &ModbusConfig) -> Result<()> {

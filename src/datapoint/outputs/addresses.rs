@@ -13,17 +13,6 @@ impl Db {
         output(key)?.pattern_address(self, &self.dp_place(dp_id)?, &self.dp(dp_id)?)
     }
 
-    /// Projekt eines Datenpunkts
-    pub(super) fn dp_project(&self, dp_id: i64) -> Result<i64> {
-        Ok(self.conn.query_row(
-            "SELECT gateways.project_id FROM datapoints JOIN meters ON meters.id = datapoints.meter_id
-             JOIN lines ON lines.id = meters.line_id JOIN gateways ON gateways.id = lines.gateway_id
-             WHERE datapoints.id = ?1",
-            [dp_id],
-            |r| r.get(0),
-        )?)
-    }
-
     /// Anderer Datenpunkt mit derselben Adresse an diesem Ausgang, über alle Projekte oder nur im
     /// Projekt (siehe `Output::global_addresses`); `enabled`: nur eingeschaltete zählen
     pub(super) fn address_owner(
@@ -37,7 +26,7 @@ impl Db {
         let project = if output(key)?.global_addresses() {
             None
         } else {
-            Some(self.dp_project(dp_id)?)
+            Some(self.project_of_meter(self.dp(dp_id)?.meter_id)?)
         };
         Ok(self
             .conn

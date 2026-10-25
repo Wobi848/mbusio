@@ -31,11 +31,7 @@ CREATE TABLE IF NOT EXISTS mqtt_ha (
 
 impl Db {
     pub fn mqtt_config(&self) -> MqttConfig {
-        self.meta("mqtt")
-            .ok()
-            .flatten()
-            .and_then(|v| serde_json::from_str(&v).ok())
-            .unwrap_or_default()
+        self.meta_json("mqtt")
     }
 
     pub fn set_mqtt_config(&mut self, c: &MqttConfig) -> Result<()> {

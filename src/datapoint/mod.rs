@@ -240,6 +240,7 @@ impl Db {
         })
     }
 
+    /// Projekt, zu dem ein Zähler (und damit jeder seiner Datenpunkte) gehört
     pub(super) fn project_of_meter(&self, meter_id: i64) -> Result<i64> {
         Ok(self.conn.query_row(
             "SELECT gateways.project_id FROM meters JOIN lines ON lines.id = meters.line_id
