@@ -373,7 +373,7 @@ Aufbau:
 - `src/db/`: Datenbank, nach Bereichen (schema mit Migrationen, projects, meters, readings, schedule, report)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
 - `src/datapoint/`: Datenpunkte (Kern: Kennung, Qualität, Plausibilität; outputs: Ausgänge,
-  allgemein für MQTT und später Modbus; templates: Vorlagen; exchange: Zählertausch; csv: Export/Import)
+  allgemein (mod, Schnittstelle `Output`) und je Ausgang ein Modul, heute mqtt; templates: Vorlagen; exchange: Zählertausch; csv: Export/Import)
 - `src/changeset.rs`: Änderungssatz für „Vorschau → Übernehmen“ (Importe, Vorlagen)
 - `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export
 - `src/mqtt/`: MQTT-Ausgang: Einstellungen, Warteschlange in der Datenbank, Dienst (mod);
@@ -387,7 +387,7 @@ Aufbau:
   `base.js` (Speicher, Sprache, API; auch für den Bericht), `core.js`, `ui.js` (gemeinsame Bausteine:
   Chip, Symbol-Knopf, Tabelle, Eingabefeld, Formular, Aufklapp-Bereich, Vorschau → Übernehmen,
   CSV zerlegen), dann je Bereich eine Datei (busbar, scan, fix, tools, meters, chart, meterlist,
-  transfer, sim, project, guide); `main.js` startet alles
+  transfer, je Ausgang `out-<name>.js` (heute out-mqtt), sim, project, guide); `main.js` startet alles
 - `web/css/`: `base.css` (Farben, Elemente, Bausteine: Kopfzeile, Linien-Leiste, Laschen, Zähler-Baustein,
   Tabellen-Leiste, Statusleiste), dann je Reiter eine Datei
 - `tests/ui/`: Browser-Tests der Oberfläche (siehe `tests/ui/README.md`)

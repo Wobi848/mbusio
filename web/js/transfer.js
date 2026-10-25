@@ -14,18 +14,17 @@ const transfer = {
   selected: new Set(), // markierte Datenpunkte
   outputOpen: null, // Ausgang mit offenen Einstellungen
 };
-let mqttConfig = null;
-let mqttHasPassword = false;
 
-const mqttBase = () => (mqttConfig?.base || "mbusio").replace(/\/+$/, "");
+/// Was jeder Ausgang in der Oberfläche selbst mitbringt (je Ausgang eine Datei, z.B. out-mqtt.js):
+/// load() Einstellungen und Zustand laden, state() Chip und Satz, form() Einstellungen,
+/// update(form) / change(form, ev) Formular nachführen, save(form), fullAddress(adresse)
+const OUTPUT_UI = {};
+
 const allDatapoints = () => (transfer.data ? transfer.data.meters.flatMap((m) => m.datapoints) : []);
 
 async function loadTransfer() {
-  const [d, mq] = await Promise.all([api(`datapoints?scope=${transfer.scope}`), api("mqtt")]);
+  const [d] = await Promise.all([api(`datapoints?scope=${transfer.scope}`), ...Object.values(OUTPUT_UI).map((o) => o.load())]);
   transfer.data = d;
-  mqttConfig = mq.config;
-  mqttHasPassword = mq.has_password;
-  mqttStatus = mq.status;
   const ids = new Set(allDatapoints().map((x) => x.id));
   for (const id of [...transfer.selected]) if (!ids.has(id)) transfer.selected.delete(id);
   renderTransfer();
@@ -58,21 +57,8 @@ function renderTransfer() {
 
 // ------------------------------------------------------------ Ausgänge
 
-/// Zustand eines Ausgangs als Chip und Satz (heute nur MQTT)
-function outputState(key) {
-  const s = mqttStatus;
-  if (key !== "mqtt" || !s) return { chip: ui.chip("muted", t("mqtt_off")), text: "" };
-  const kind = { connected: "ok", error: "warn", connecting: "muted" }[s.state] || "muted";
-  const text =
-    s.state === "connected"
-      ? t("mqtt_state_connected", s.broker, s.since, s.sent, s.queued)
-      : s.state === "connecting"
-        ? t("mqtt_state_connecting", s.broker)
-        : s.state === "error"
-          ? t("mqtt_state_error", s.broker, s.error, s.queued)
-          : t("mqtt_state_off");
-  return { chip: ui.chip(kind, t("mqtt_" + (s.state || "off"))), text };
-}
+/// Zustand eines Ausgangs als Chip und Satz
+const outputState = (key) => OUTPUT_UI[key]?.state() || { chip: "", text: "" };
 
 /// Nur den Zustand der Ausgänge nachführen (alle paar Sekunden): ein offenes Formular bleibt,
 /// wie es ist, sonst gingen Eingaben verloren
@@ -109,44 +95,12 @@ function renderOutputs() {
       </div>`;
     })
     .join("");
-  if (transfer.outputOpen === "mqtt") updateMqttForm();
-}
-
-/// Felder der MQTT-Einstellungen (Baustein Formular)
-function mqttFields() {
-  const base = mqttBase();
-  return [
-    { name: "enabled", label: t("mqtt_enabled"), type: "check", wide: true },
-    { name: "host", label: t("mqtt_host"), cls: "mono", placeholder: "192.168.1.10", wide: true },
-    { name: "port", label: t("mqtt_port"), type: "number", cls: "mono" },
-    { name: "tls", label: "TLS", type: "check" },
-    { name: "insecure", label: t("mqtt_insecure"), type: "check", wide: true },
-    { name: "username", label: t("mqtt_user") },
-    { name: "password", label: t("mqtt_password"), type: "password", placeholder: mqttHasPassword ? t("mqtt_pass_saved") : "" },
-    { name: "client_id", label: t("mqtt_client"), cls: "mono", placeholder: "mbusio-…" },
-    { name: "base", label: t("mqtt_base"), cls: "mono", placeholder: "mbusio" },
-    { name: "topic", label: t("mqtt_topic"), cls: "mono", wide: true, placeholder: "{projekt}/{gateway}-{linie}/{zaehler}/{wert}", hint: t("mqtt_topic_hint") },
-    { name: "time_sync", label: t("mqtt_time", base + "/time"), type: "check", wide: true },
-    { name: "ca", label: t("mqtt_ca"), type: "textarea", cls: "mono", placeholder: "-----BEGIN CERTIFICATE-----", wide: true },
-  ];
+  const f = document.querySelector(`[data-out-form="${transfer.outputOpen}"]`);
+  if (f) OUTPUT_UI[transfer.outputOpen].update?.(f);
 }
 
 function outputForm(key) {
-  if (key !== "mqtt") return "";
-  return `${ui.form(mqttFields(), { ...mqttConfig, password: "" })}
-    <p class="hint mono" id="mqtt-example"></p>
-    <div class="row"><button type="submit">${esc(t("save"))}</button></div>`;
-}
-
-/// TLS-Felder nur mit TLS; Beispiel-Topic aktuell halten
-function updateMqttForm() {
-  const f = document.querySelector('[data-out-form="mqtt"]');
-  if (!f) return;
-  const tls = f.querySelector("[name=tls]").checked;
-  for (const n of ["insecure", "ca"]) f.querySelector(`[data-field="${n}"]`).hidden = !tls;
-  const base = (f.querySelector("[name=base]").value.trim() || "mbusio").replace(/\/+$/, "");
-  const sample = allDatapoints().find((d) => d.outputs.mqtt?.address)?.outputs.mqtt.address || "projekt/gateway-1-linie-1/whg-1/energy";
-  $("mqtt-example").textContent = t("mqtt_example", `${base}/${sample}`);
+  return OUTPUT_UI[key]?.form() || "";
 }
 
 $("tr-outputs").addEventListener("click", (ev) => {
@@ -172,30 +126,15 @@ $("tr-outputs").addEventListener("click", (ev) => {
 });
 
 $("tr-outputs").addEventListener("change", (ev) => {
-  const f = ev.target.closest('[data-out-form="mqtt"]');
-  if (!f) return;
-  if (ev.target.name === "tls") {
-    // üblicher Port mitwechseln, solange man keinen eigenen hat
-    const port = f.querySelector("[name=port]");
-    if (["", "1883", "8883"].includes(port.value.trim())) port.value = ev.target.checked ? "8883" : "1883";
-  }
-  updateMqttForm();
+  const f = ev.target.closest("[data-out-form]");
+  if (f) OUTPUT_UI[f.dataset.outForm].change?.(f, ev);
 });
 
 $("tr-outputs").addEventListener("submit", (ev) => {
   ev.preventDefault();
   const f = ev.target;
   guarded(f.querySelector("[type=submit]"), async () => {
-    const v = ui.formValues(f, mqttFields());
-    await api("mqtt", {
-      method: "PUT",
-      body: {
-        config: { ...v, port: v.port || (v.tls ? 8883 : 1883), base: v.base || "mbusio", password: "" },
-        // leer = gespeichertes behalten; Benutzer gelöscht = Passwort auch
-        password: v.password ? v.password : v.username ? null : "",
-      },
-    });
-    toast(t("mqtt_saved"));
+    await OUTPUT_UI[f.dataset.outForm].save(f);
     transfer.outputOpen = null;
     await loadTransfer();
     setTimeout(() => refreshStatus().catch(() => {}), 1500);
@@ -243,7 +182,7 @@ function dpColumns() {
         const x = d.outputs[o.key] || {};
         return `<input type="checkbox" data-dp-out="${o.key}" data-id="${d.id}" ${x.enabled ? "checked" : ""} aria-label="${esc(o.label)}">${
           x.enabled && x.address
-            ? `<span class="sub mono out-addr" title="${esc((o.key === "mqtt" ? mqttBase() + "/" : "") + x.address)}"><bdi dir="ltr">${esc(x.address)}</bdi></span>`
+            ? `<span class="sub mono out-addr" title="${esc(OUTPUT_UI[o.key]?.fullAddress?.(x.address) ?? x.address)}"><bdi dir="ltr">${esc(x.address)}</bdi></span>`
             : ""
         }`;
       },

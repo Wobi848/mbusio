@@ -86,31 +86,14 @@ pub(super) async fn output_list(
     let lang = i18n::current();
     let db = st.db.lock().unwrap();
     let project = db.project(id)?.name;
+    let out = crate::datapoint::output(&key).map_err(bad_request)?;
     let rows = db.output_list(id, &key, lang).map_err(bad_request)?;
     let what = format!("{key}-liste");
     if q.format == "json" {
         let mut v = json!({ "project": project, "output": key, "datapoints": rows });
-        if key == "mqtt" {
-            // was ein Leitsystem zum Abonnieren wissen muss (ohne Zugangsdaten)
-            let c = db.mqtt_config();
-            let base = c.base.trim().trim_end_matches('/').to_string();
-            v["mqtt"] = json!({
-                "base": base,
-                "status_topic": format!("{base}/status"),
-                "status": "online / offline (Last Will)",
-                "time_topic": if c.time_sync { Some(format!("{base}/time")) } else { None },
-                "qos": 1,
-                "retained": true,
-                "payload": {
-                    "value": tr("Zahl, mit Faktor umgerechnet", "number, factor applied"),
-                    "unit": tr("Einheit", "unit"),
-                    "time": tr("Zeitpunkt der Auslesung, UTC (RFC 3339)", "time of reading, UTC (RFC 3339)"),
-                    "quality": "good | stale | disturbed | invalid",
-                    "name": tr("Name des Datenpunkts", "name of the datapoint"),
-                    "no": tr("Nummer des Datenpunkts (bleibt gleich)", "number of the datapoint (stays the same)"),
-                    "time_unsure": tr("nur wenn die Uhrzeit nicht bestätigt war: true", "only if the clock was not confirmed: true"),
-                },
-            });
+        // was ein Leitsystem zusätzlich wissen muss, z.B. bei MQTT Basis- und Status-Topic
+        if let Some(info) = out.list_info(&db) {
+            v[out.key()] = info;
         }
         let name: String = project
             .chars()
@@ -126,7 +109,7 @@ pub(super) async fn output_list(
     let head: Vec<String> = if de {
         [
             "Nr",
-            crate::datapoint::address_label(&key).as_str(),
+            out.address_label().as_str(),
             "Name",
             "Einheit",
             "Faktor",
@@ -144,7 +127,7 @@ pub(super) async fn output_list(
     } else {
         [
             "No",
-            crate::datapoint::address_label(&key).as_str(),
+            out.address_label().as_str(),
             "Name",
             "Unit",
             "Factor",

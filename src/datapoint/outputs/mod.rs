@@ -1,10 +1,11 @@
-//! Ausgänge (MQTT, später Modbus): je Datenpunkt und Ausgang ein/aus und eine Adresse (Topic,
-//! Register …), gespeichert in `dp_outputs`.
+//! Ausgänge (MQTT, später Modbus …): je Datenpunkt und Ausgang ein/aus und eine Adresse (Topic,
+//! Register …), gespeichert in `dp_outputs` (Konzept Ausgänge).
 //!
-//! Für alle Ausgänge gleich: wann gesendet wird (jede Auslesung, bei Änderung, täglich), dass
-//! geänderte Qualität gemeldet wird, was zuletzt gesendet wurde. Was ein Ausgang anders macht,
-//! steht nur in den `match`-Zweigen unten (Name, Adresse prüfen/vorschlagen, senden). Ein neuer
-//! Ausgang ist ein neuer Eintrag in [`OUTPUTS`] und je ein Zweig.
+//! Hier steht nur, was für alle Ausgänge gleich ist: wann gesendet wird (jede Auslesung, bei
+//! Änderung, täglich), dass geänderte Qualität gemeldet wird, was zuletzt gesendet wurde,
+//! Adressen vorschlagen und nach Muster neu setzen, die Liste für den Integrator. Was ein Ausgang
+//! anders macht, steht in seinem Modul hinter der Schnittstelle [`Output`]. Ein neuer Ausgang ist
+//! ein neues Modul und ein Eintrag in [`OUTPUTS`].
 
 use std::collections::{BTreeMap, HashSet};
 
@@ -12,8 +13,44 @@ use crate::changeset::ChangeSet;
 
 use super::*;
 
+mod mqtt;
+
+/// Was ein Ausgang selbst können muss; alles Gemeinsame steht in diesem Modul
+pub trait Output: Sync {
+    /// Schlüssel, so gespeichert (Datenbank, CSV, Export, API): nie ändern
+    fn key(&self) -> &'static str;
+    /// Name für Oberfläche und CSV
+    fn label(&self) -> String;
+    /// Wie die Adresse beim Ausgang heisst (Spalte in Oberfläche und CSV)
+    fn address_label(&self) -> String;
+    fn check_address(&self, address: &str) -> Result<()>;
+    /// Adresse nach dem Muster der Einstellungen (noch nicht eindeutig gemacht)
+    fn pattern_address(&self, db: &Db, place: &Place, d: &Datapoint) -> Result<String>;
+    /// Ist der Ausgang als Ganzes eingeschaltet (z.B. MQTT mit Broker)?
+    fn is_on(&self, db: &Db) -> bool;
+    /// Einen Wert zustellen (z.B. in die Warteschlange für den Broker)
+    fn deliver(&self, db: &mut Db, d: &Datapoint, address: &str, s: &Sample) -> Result<()>;
+    /// Adresse, wie sie ein Leitsystem sieht (MQTT: mit Basis-Topic)
+    fn full_address(&self, _db: &Db, address: &str) -> String {
+        address.to_string()
+    }
+    /// Was ein Leitsystem zusätzlich zur Liste der Datenpunkte wissen muss (ohne Zugangsdaten)
+    fn list_info(&self, _db: &Db) -> Option<Value> {
+        None
+    }
+}
+
 /// Alle Ausgänge, in der Reihenfolge der Oberfläche
-pub const OUTPUTS: [&str; 1] = ["mqtt"];
+pub static OUTPUTS: [&dyn Output; 1] = [&mqtt::Mqtt];
+
+/// Ausgang zu einem Schlüssel
+pub fn output(key: &str) -> Result<&'static dyn Output> {
+    OUTPUTS
+        .iter()
+        .copied()
+        .find(|o| o.key() == key)
+        .ok_or_else(|| anyhow::anyhow!("{}: {key}", tr("Unbekannter Ausgang", "Unknown output")))
+}
 
 /// Einstellung eines Datenpunkts für einen Ausgang
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -28,7 +65,7 @@ pub struct DpOutput {
 pub type Outputs = BTreeMap<String, DpOutput>;
 
 /// Ein gelesener Wert, wie er an die Ausgänge geht
-pub(super) struct Sample<'a> {
+pub struct Sample<'a> {
     pub value: f64,
     pub quality: &'a str,
     pub utc: i64,
@@ -37,72 +74,12 @@ pub(super) struct Sample<'a> {
     pub day: &'a str,
 }
 
-/// Name des Ausgangs für Oberfläche und CSV
-pub fn output_label(key: &str) -> String {
-    match key {
-        "mqtt" => "MQTT".into(),
-        k => k.into(),
-    }
-}
-
-/// Wie die Adresse beim Ausgang heisst (Spalte in Oberfläche und CSV)
-pub fn address_label(key: &str) -> String {
-    match key {
-        "mqtt" => "Topic".into(),
-        _ => tr("Adresse", "Address"),
-    }
-}
-
-/// Fehler für einen Ausgang, den es nicht gibt
-fn unknown(key: &str) -> anyhow::Error {
-    anyhow::anyhow!("{}: {key}", tr("Unbekannter Ausgang", "Unknown output"))
-}
-
-pub fn check_address(key: &str, address: &str) -> Result<()> {
-    match key {
-        "mqtt" => crate::mqtt::check_topic(address),
-        k => Err(unknown(k)),
-    }
-}
-
-/// Nutzlast für MQTT: Wert, Einheit, Zeit (UTC), Qualität, Name, Nummer
-fn mqtt_payload(d: &Datapoint, s: &Sample) -> String {
-    let time = chrono::DateTime::from_timestamp(s.utc, 0)
-        .map(|t| t.format("%Y-%m-%dT%H:%M:%SZ").to_string())
-        .unwrap_or_default();
-    let mut v = json!({
-        "value": s.value,
-        "unit": d.unit,
-        "time": time,
-        "quality": s.quality,
-        "name": d.name,
-        "no": d.no,
-    });
-    if s.unsure {
-        v["time_unsure"] = json!(true);
-    }
-    v.to_string()
-}
-
-/// Letzter Teil eines Topics aus der Kennung, sprachunabhängig: energy, energy-t1, volume-s2
-fn key_slug(key: &str) -> String {
-    let Some(p) = parts(key) else {
-        return crate::mqtt::slug(key);
-    };
-    let mut s = p.quantity.replace('_', "-");
-    if p.function != "instantaneous" {
-        s += &format!("-{}", &p.function[..p.function.len().min(3)]);
-    }
-    if p.tariff != "0" {
-        s += &format!("-t{}", p.tariff);
-    }
-    if p.storage != "0" {
-        s += &format!("-s{}", p.storage);
-    }
-    if p.subunit != "0" {
-        s += &format!("-u{}", p.subunit);
-    }
-    s
+/// Wo ein Datenpunkt liegt: für Adressen und die Liste des Ausgangs
+pub struct Place {
+    pub project: String,
+    pub gateway: String,
+    pub line: String,
+    pub meter: Meter,
 }
 
 /// Soll gesendet werden? Nach der Weitergabe-Art des Datenpunkts; geänderte Qualität immer
@@ -124,14 +101,6 @@ struct Sent {
 }
 
 impl Db {
-    /// Ist der Ausgang als Ganzes eingeschaltet (z.B. MQTT mit Broker)?
-    pub fn output_on(&self, key: &str) -> bool {
-        match key {
-            "mqtt" => self.mqtt_enabled,
-            _ => false,
-        }
-    }
-
     /// Einstellungen aller Ausgänge für die Datenpunkte eines Zählers: Datenpunkt → Ausgänge
     pub(super) fn outputs_of_meter(&self, meter_id: i64) -> Result<HashMap<i64, Outputs>> {
         let mut st = self.conn.prepare(
@@ -156,8 +125,8 @@ impl Db {
         Ok(out)
     }
 
-    /// Projekt, Gateway und Linie eines Datenpunkts (für Adressen und die Liste des Ausgangs)
-    fn dp_place(&self, dp_id: i64) -> Result<(String, String, String, Meter)> {
+    /// Projekt, Gateway, Linie und Zähler eines Datenpunkts
+    fn dp_place(&self, dp_id: i64) -> Result<Place> {
         let (project, gateway, line, meter_id): (String, String, String, i64) = self.conn.query_row(
             "SELECT projects.name, gateways.name, lines.name, meters.id FROM datapoints
              JOIN meters ON meters.id = datapoints.meter_id JOIN lines ON lines.id = meters.line_id
@@ -166,42 +135,17 @@ impl Db {
             [dp_id],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
         )?;
-        Ok((project, gateway, line, self.meter(meter_id)?))
+        Ok(Place {
+            project,
+            gateway,
+            line,
+            meter: self.meter(meter_id)?,
+        })
     }
 
     /// Adresse eines Datenpunkts an einem Ausgang nach dem Muster (noch nicht eindeutig gemacht)
     fn pattern_address(&self, key: &str, dp_id: i64) -> Result<String> {
-        let d = self.dp(dp_id)?;
-        match key {
-            "mqtt" => {
-                let (project, gateway, line, m) = self.dp_place(dp_id)?;
-                let vars = [
-                    ("projekt", project),
-                    ("gateway", gateway),
-                    ("linie", line),
-                    ("zaehler", meter_label(&m)),
-                    ("id", crate::meterlist::meter_ident(&m).unwrap_or_default()),
-                    (
-                        "pa",
-                        m.primary_address.map(|p| p.to_string()).unwrap_or_default(),
-                    ),
-                    ("ort", m.location.clone()),
-                    // sprachunabhängig wie die Grösse: heat-outlet, water …
-                    (
-                        "medium",
-                        m.medium
-                            .as_deref()
-                            .unwrap_or("")
-                            .trim_start_matches("medium_")
-                            .to_string(),
-                    ),
-                    ("wert", key_slug(&d.key)),
-                    ("nr", d.no.to_string()),
-                ];
-                Ok(crate::mqtt::render_topic(&self.mqtt_config().topic, &vars))
-            }
-            k => Err(unknown(k)),
-        }
+        output(key)?.pattern_address(self, &self.dp_place(dp_id)?, &self.dp(dp_id)?)
     }
 
     /// Vorschlag für die Adresse eines Datenpunkts an einem Ausgang, eindeutig gemacht
@@ -240,6 +184,7 @@ impl Db {
     /// Alle Adressen eines Projekts an einem Ausgang nach dem Muster neu setzen: zuerst nur zeigen,
     /// was sich ändert (`apply` = false). Doppelte werden mit der Nummer des Datenpunkts eindeutig.
     pub fn dp_readdress(&mut self, project_id: i64, key: &str, apply: bool) -> Result<ChangeSet> {
+        let address_label = output(key)?.address_label();
         let list = self.dps_with_output(project_id, key)?;
         let mine: HashSet<i64> = list.iter().map(|(dp, ..)| *dp).collect();
         // Adressen anderer Projekte bleiben belegt
@@ -266,7 +211,7 @@ impl Db {
             let item = format!("{} · {}", d.no, d.name);
             if cs.change(
                 &item,
-                address_label(key),
+                address_label.clone(),
                 old.as_deref().unwrap_or(""),
                 &new,
             ) {
@@ -289,25 +234,22 @@ impl Db {
     /// Liste für den Integrator: eingeschaltete Datenpunkte eines Ausgangs mit voller Adresse
     /// und allem, was man zum Einbinden braucht
     pub fn output_list(&self, project_id: i64, key: &str, lang: Lang) -> Result<Vec<Value>> {
-        let base = match key {
-            "mqtt" => self
-                .mqtt_config()
-                .base
-                .trim()
-                .trim_end_matches('/')
-                .to_string(),
-            _ => String::new(),
-        };
+        let o = output(key)?;
         let mut out = Vec::new();
         for (dp, address, enabled) in self.dps_with_output(project_id, key)? {
             let Some(address) = address.filter(|_| enabled) else {
                 continue;
             };
             let d = self.dp(dp)?;
-            let (_, gateway, line, m) = self.dp_place(dp)?;
+            let Place {
+                gateway,
+                line,
+                meter: m,
+                ..
+            } = self.dp_place(dp)?;
             out.push(json!({
                 "no": d.no,
-                "address": if base.is_empty() { address } else { format!("{base}/{address}") },
+                "address": o.full_address(self, &address),
                 "name": d.name,
                 "unit": d.unit,
                 "factor": d.factor,
@@ -327,9 +269,7 @@ impl Db {
     /// Ausgang für einen Datenpunkt ein- oder ausschalten; beim Einschalten eine Adresse
     /// vorschlagen (falls noch keine) und den aktuellen Wert beim nächsten Durchgang senden
     pub(super) fn dp_set_output(&mut self, dp_id: i64, key: &str, on: bool) -> Result<()> {
-        if !OUTPUTS.contains(&key) {
-            return Err(unknown(key));
-        }
+        output(key)?;
         if !on {
             self.conn.execute(
                 "UPDATE dp_outputs SET enabled = 0 WHERE dp = ?1 AND output = ?2",
@@ -371,7 +311,7 @@ impl Db {
         let Some(a) = address.map(str::trim).filter(|a| !a.is_empty()) else {
             return Ok(());
         };
-        check_address(key, a)?;
+        output(key)?.check_address(a)?;
         self.conn.execute(
             "INSERT INTO dp_outputs (dp, output, enabled, address) VALUES (?1, ?2, 0, ?3)
              ON CONFLICT(dp, output) DO UPDATE SET address = excluded.address,
@@ -409,33 +349,37 @@ impl Db {
     }
 
     /// Wert an einen Ausgang geben und als gesendet merken
-    fn send_to(&mut self, key: &str, d: &Datapoint, address: &str, s: &Sample) -> Result<()> {
-        match key {
-            "mqtt" => self.mqtt_enqueue(address, &mqtt_payload(d, s))?,
-            k => return Err(unknown(k)),
-        }
+    fn send_to(&mut self, o: &dyn Output, d: &Datapoint, address: &str, s: &Sample) -> Result<()> {
+        o.deliver(self, d, address, s)?;
         self.conn.execute(
             "UPDATE dp_outputs SET sent_value = ?3, sent_quality = ?4, sent_day = ?5
              WHERE dp = ?1 AND output = ?2",
-            params![d.id, key, s.value, s.quality, s.day],
+            params![d.id, o.key(), s.value, s.quality, s.day],
         )?;
         Ok(())
     }
 
+    /// Eingeschaltete Ausgänge eines Datenpunkts mit ihrer Adresse (nur Ausgänge, die als Ganzes
+    /// an sind)
+    fn active_outputs<'a>(&self, d: &'a Datapoint) -> Vec<(&'static dyn Output, &'a str)> {
+        if !d.active {
+            return Vec::new();
+        }
+        OUTPUTS
+            .iter()
+            .filter_map(|o| {
+                let x = d.outputs.get(o.key())?;
+                let address = x.address.as_deref().filter(|_| x.enabled)?;
+                o.is_on(self).then_some((*o, address))
+            })
+            .collect()
+    }
+
     /// Neuer Wert eines Datenpunkts: an alle eingeschalteten Ausgänge, wie eingestellt
     pub(super) fn dispatch(&mut self, d: &Datapoint, s: &Sample) -> Result<()> {
-        if !d.active {
-            return Ok(());
-        }
-        for (key, o) in &d.outputs {
-            let Some(address) = o.address.as_deref().filter(|_| o.enabled) else {
-                continue;
-            };
-            if !self.output_on(key) {
-                continue;
-            }
-            if should_send(&d.send, &self.sent(d.id, key)?, s) {
-                self.send_to(key, d, address, s)?;
+        for (o, address) in self.active_outputs(d) {
+            if should_send(&d.send, &self.sent(d.id, o.key())?, s) {
+                self.send_to(o, d, address, s)?;
             }
         }
         Ok(())
@@ -444,7 +388,7 @@ impl Db {
     /// Geänderte Qualität melden (Zähler antwortet nicht mehr, Wert veraltet) und gerade
     /// eingeschaltete Datenpunkte zum ersten Mal senden. Liefert die Anzahl Nachrichten.
     pub fn outputs_refresh(&mut self) -> Result<usize> {
-        if !OUTPUTS.iter().any(|k| self.output_on(k)) {
+        if !OUTPUTS.iter().any(|o| o.is_on(self)) {
             return Ok(0);
         }
         let mut n = 0;
@@ -482,15 +426,9 @@ impl Db {
                 unsure,
                 day: &day,
             };
-            for (key, o) in &d.outputs {
-                let Some(address) = o.address.as_deref().filter(|_| o.enabled && d.active) else {
-                    continue;
-                };
-                if !self.output_on(key) {
-                    continue;
-                }
-                if self.sent(d.id, key)?.quality.as_deref() != Some(quality.as_str()) {
-                    self.send_to(key, &d, address, &s)?;
+            for (o, address) in self.active_outputs(&d) {
+                if self.sent(d.id, o.key())?.quality.as_deref() != Some(quality.as_str()) {
+                    self.send_to(o, &d, address, &s)?;
                     n += 1;
                 }
             }

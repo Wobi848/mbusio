@@ -136,8 +136,8 @@ function setOperation() {
   return toggleOperation(tree.active.line.id, sw);
 }
 
-/// Mindestens ein Ausgang eingeschaltet (heute nur MQTT)
-const outputOn = () => !!mqttStatus && mqttStatus.state !== "off";
+/// Mindestens ein Ausgang eingeschaltet
+const outputOn = () => outputsInfo.some((o) => o.on);
 
 /// Zustand der Anlage oben im Projekt: läuft alles? Nur im Dauerbetrieb.
 /// Jeder Teil führt zur Stelle, an der man es behebt.
@@ -149,7 +149,6 @@ function renderPlantState() {
   const lines = activeProjectNode()
     .gateways.flatMap((g) => g.lines)
     .filter((l) => l.operation && l.plan_info?.meters);
-  const mqttOn = outputOn();
   box.hidden = !inOperation();
   if (box.hidden) return;
   const parts = [];
@@ -182,9 +181,8 @@ function renderPlantState() {
     const pct = Math.round(disk.free_pct);
     parts.push(`<b>${esc(t("ps_disk"))}</b> ` + (disk.level === "ok" ? esc(t("ps_disk_free", pct)) : ui.chip("warn", t(disk.level === "full" ? "disk_full" : "disk_low", pct))));
   }
-  if (mqttOn) {
-    const st = outputState("mqtt");
-    parts.push(`<b>MQTT</b> ${st.chip} <a href="#sec-outputs" data-ps-transfer>${esc(t("ps_open_transfer"))}</a>`);
+  for (const o of outputsInfo.filter((o) => o.on)) {
+    parts.push(`<b>${esc(o.label)}</b> ${outputState(o.key).chip} <a href="#sec-outputs" data-ps-transfer>${esc(t("ps_open_transfer"))}</a>`);
   }
   box.innerHTML = parts.map((p) => `<span class="ps-part">${p}</span>`).join("");
 }

@@ -16,7 +16,7 @@ mod templates;
 #[cfg(test)]
 mod tests;
 
-pub use self::outputs::{address_label, output_label, Outputs, OUTPUTS};
+pub use self::outputs::{output, Output, Outputs, OUTPUTS};
 
 use self::outputs::Sample;
 
@@ -522,7 +522,7 @@ impl Db {
                 .map(str::trim)
                 .filter(|a| !a.is_empty())
             {
-                outputs::check_address(key, a)?;
+                output(key)?.check_address(a)?;
             }
         }
         // anderer Faktor: gespeicherte Werte passen nicht mehr zum Vergleich
@@ -756,7 +756,7 @@ impl Db {
     pub fn outputs_info(&self) -> Vec<Value> {
         OUTPUTS
             .iter()
-            .map(|k| json!({ "key": k, "label": output_label(k), "address_label": address_label(k), "on": self.output_on(k) }))
+            .map(|o| json!({ "key": o.key(), "label": o.label(), "address_label": o.address_label(), "on": o.is_on(self) }))
             .collect()
     }
 
@@ -782,15 +782,11 @@ impl Db {
         )?;
         if n == 1 {
             let id = self.conn.last_insert_rowid();
-            for (key, o) in d
-                .outputs
-                .iter()
-                .filter(|(k, _)| OUTPUTS.contains(&k.as_str()))
-            {
+            for (key, o) in d.outputs.iter().filter(|(k, _)| output(k).is_ok()) {
                 let address = o
                     .address
                     .as_deref()
-                    .filter(|a| outputs::check_address(key, a).is_ok());
+                    .filter(|a| output(key).is_ok_and(|o| o.check_address(a).is_ok()));
                 self.conn.execute(
                     "INSERT OR IGNORE INTO dp_outputs (dp, output, enabled, address) VALUES (?1, ?2, ?3, ?4)",
                     params![id, key, o.enabled, address],

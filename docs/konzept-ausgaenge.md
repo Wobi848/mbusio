@@ -1,6 +1,6 @@
 # Konzept: Ausgänge (Schnittstellen nach aussen)
 
-Stand: 25.10.2026 · Status: **Entwurf, nicht gebaut** · Grundlage für Home Assistant, Node-RED,
+Stand: 25.10.2026 · Status: **Schritt 1 umgesetzt** (Schnittstelle `Output`, MQTT als erste Umsetzung) · Grundlage für Home Assistant, Node-RED,
 Modbus TCP und BACnet/IP
 
 mbusio soll mehrere Schnittstellen bekommen. Dieses Dokument legt fest, **was alle gemeinsam
@@ -59,31 +59,37 @@ siehe 6.
 ### 3.1 Ein Ausgang = ein Modul, das eine Schnittstelle erfüllt
 
 ```rust
-/// Was jeder Ausgang können muss; alles Gemeinsame steht ausserhalb
+/// Was jeder Ausgang können muss; alles Gemeinsame steht ausserhalb (src/datapoint/outputs/mod.rs)
 pub trait Output: Sync {
     fn key(&self) -> &'static str;                 // "mqtt", "modbus" … (gespeichert, nie umbenennen)
     fn label(&self) -> String;                     // "MQTT"
     fn address_label(&self) -> String;             // "Topic", "Register"
-    fn check_address(&self, a: &str) -> Result<()>;
-    fn suggest_address(&self, db: &Db, p: &Place, d: &Datapoint) -> Result<String>;
-    fn is_on(&self, db: &Db) -> bool;              // als Ganzes eingeschaltet
-    /// nur Art „Senden“: Wert zustellen (z.B. in die Warteschlange); sonst nichts tun
+    fn check_address(&self, address: &str) -> Result<()>;
+    fn pattern_address(&self, db: &Db, place: &Place, d: &Datapoint) -> Result<String>;
+    fn is_on(&self, db: &Db) -> bool;              // als Ganzes eingeschaltet, aus der eigenen Einstellung
+    /// Wert zustellen (MQTT: in die Warteschlange); Bereitstellen-Ausgänge tun hier nichts
     fn deliver(&self, db: &mut Db, d: &Datapoint, address: &str, s: &Sample) -> Result<()>;
-    fn list_info(&self, db: &Db) -> Option<Value>; // Zusatz für die Integrator-Liste
-    fn status(&self, st: &AppState) -> Value;      // für /api/status und die Oberfläche
+    fn full_address(&self, db: &Db, address: &str) -> String { … }  // MQTT: mit Basis-Topic
+    fn list_info(&self, db: &Db) -> Option<Value> { None }       // Zusatz für die Integrator-Liste
 }
 
 /// Alle Ausgänge, in der Reihenfolge der Oberfläche
-pub fn outputs() -> &'static [&'static dyn Output] { &[&mqtt::MQTT] }
+pub static OUTPUTS: [&dyn Output; 1] = [&mqtt::Mqtt];
 ```
 
 - Der gemeinsame Teil (`dispatch`, `outputs_refresh`, Adressvergabe, „Alle nach Muster setzen“,
   CSV, Integrator-Liste) ruft nur noch die Schnittstelle auf und kennt keinen Ausgang beim Namen.
 - `Place` (Projekt, Gateway, Linie, Zähler) ersetzt das Tupel aus `dp_place` und wird von allen
   Ausgängen benutzt.
-- `Db.mqtt_enabled` wird zu einem Satz „eingeschaltete Ausgänge“, gefüllt über `is_on`.
-- Jeder Ausgang lebt in seinem Ordner (`src/mqtt/`, später `src/modbus/`, `src/bacnet/`,
-  `src/web/nodered.rs`) mit eigenem Thread oder Server, wie MQTT heute.
+- `Db.mqtt_enabled` ist weggefallen: Es war eine Kopie der Einstellung. `is_on` liest jeder
+  Ausgang aus seiner eigenen Einstellung (eine kleine Abfrage je Wert, unbedeutend).
+- **Zwei Teile je Ausgang:** die Anbindung an die Datenpunkte (`src/datapoint/outputs/<name>.rs`:
+  Adressen, Nachricht, Liste) und das Protokoll selbst in einem eigenen Ordner (`src/mqtt/`,
+  später `src/modbus/`, `src/bacnet/`) mit eigenem Thread oder Server. So zeigen die Abhängigkeiten
+  nur in eine Richtung: Datenpunkte → Protokoll.
+- **Einstellungen und Zustand** sind je Ausgang verschieden und bleiben bei ihm: eigener Endpunkt
+  (`/api/mqtt`), eigener Zustand. `/api/status` liefert zusätzlich `outputs` (Schlüssel, Name,
+  eingeschaltet) für alles, was nur wissen muss, ob irgendein Ausgang an ist.
 
 ### 3.2 Ein Ereignis für neue Werte
 
@@ -98,9 +104,10 @@ Den **aktuellen Wert** haben alle schon in der Datenbank (`datapoints.last_value
 ### 3.3 Oberfläche
 
 `transfer.js` behandelt Ausgänge nur noch allgemein (Liste, Zustand, Häkchen, Adresse). Was
-ein Ausgang an Einstellungen hat, steht je Ausgang in einem kleinen Block
-`OUTPUT_UI = { mqtt: { fields, load, save }, … }`. Neue Ausgänge fügen dort einen Eintrag hinzu
-und ändern sonst nichts.
+ein Ausgang an Einstellungen hat, steht je Ausgang in einer eigenen Datei (`web/js/out-mqtt.js`),
+die sich in `OUTPUT_UI` einträgt: `load`, `state`, `form`, `update`, `change`, `save`,
+`fullAddress`. Zustand der Anlage und „Nächster Schritt“ fragen nur `outputsInfo` (aus
+`/api/status`). Ein neuer Ausgang bringt seine Datei mit und ändert sonst nichts.
 
 ### 3.4 Kompatibilität
 
@@ -124,9 +131,9 @@ Ausgang mit leerer Adresse.
 
 ## 5. Umsetzung in Schritten
 
-1. **Umbau ohne neue Funktion:** Schnittstelle `Output`, `Place`, MQTT als erste Umsetzung,
-   `mqtt_enabled` ersetzt, `web/outputs.rs` und `bus.rs` allgemein, `transfer.js` mit `OUTPUT_UI`.
-   Prüfen: alle Rust- und UI-Tests grün, MQTT gegen den Test-Broker unverändert.
+1. ✓ **Umbau ohne neue Funktion:** Schnittstelle `Output`, `Place`, MQTT als erste Umsetzung,
+   `mqtt_enabled` entfernt, Integrator-Liste allgemein, `transfer.js` mit `OUTPUT_UI`.
+   Geprüft 25.10.2026: 116 Rust-Tests, 12 UI-Tests (MQTT mit Test-Broker), clippy, fmt.
 2. **Ereignis-Kanal** (3.2) mit Test.
 3. **Home Assistant Discovery** (eigenes kurzes Konzept, siehe 6).
 4. **Node-RED** nach [konzept-node-red.md](konzept-node-red.md).

@@ -327,8 +327,6 @@ pub struct Db {
     pub readings_paused: bool,
     /// Meldungen beim Speichern (z.B. Zählerstand gesunken); der Aufrufer schreibt sie ins Protokoll
     pub notes: Vec<String>,
-    /// MQTT eingeschaltet: nur dann Werte für den Broker vormerken
-    pub mqtt_enabled: bool,
 }
 
 fn project_of(r: &Row) -> rusqlite::Result<Project> {
@@ -413,7 +411,6 @@ impl Db {
             path: Some(path),
             readings_paused: false,
             notes: Vec::new(),
-            mqtt_enabled: false,
         };
         db.init()?;
         db.import_legacy(dir)?;
@@ -428,7 +425,6 @@ impl Db {
             path: None,
             readings_paused: false,
             notes: Vec::new(),
-            mqtt_enabled: false,
         };
         db.init()?;
         Ok(db)

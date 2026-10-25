@@ -57,6 +57,14 @@ fn with_energy(r: &MeterReading, value: f64) -> MeterReading {
     r
 }
 
+/// MQTT als Ganzes ein- oder ausschalten (ohne laufenden Broker: Nachrichten bleiben in der Warteschlange)
+fn mqtt_on(db: &mut Db, on: bool) {
+    let mut c = db.mqtt_config();
+    c.enabled = on;
+    c.host = "127.0.0.1".into();
+    db.set_mqtt_config(&c).unwrap();
+}
+
 fn setup() -> (Db, i64, i64, MeterReading) {
     let mut db = Db::memory().unwrap();
     let line = db.active_line().unwrap().id;
@@ -278,7 +286,7 @@ fn mqtt_queue_follows_send_mode_and_quality() {
     db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
         .unwrap();
     let id = db.dp_by_meter(mid).unwrap()[0].id;
-    db.mqtt_enabled = true;
+    mqtt_on(&mut db, true);
     db.dp_bulk(&[id], "out:mqtt:on").unwrap();
     let topic = db.dp(id).unwrap().outputs["mqtt"].address.clone().unwrap();
     assert_eq!(topic, "schnellscan/gateway-1-linie-1/whg-1/energy");
@@ -336,7 +344,7 @@ fn mqtt_queue_follows_send_mode_and_quality() {
         Some(topic.as_str())
     );
     // MQTT aus: nichts mehr
-    db.mqtt_enabled = false;
+    mqtt_on(&mut db, false);
     db.record(
         line,
         &Target::Primary(1),
@@ -535,7 +543,7 @@ fn operation_needs_connection_and_plan_and_gates_forwarding() {
     db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
         .unwrap();
     let id = db.dp_by_meter(mid).unwrap()[0].id;
-    db.mqtt_enabled = true;
+    mqtt_on(&mut db, true);
     db.dp_bulk(&[id], "out:mqtt:on").unwrap();
     let queued = |db: &Db| db.mqtt_peek(1000).unwrap().len();
     // ohne Anschluss und ohne Plan nicht einschaltbar
@@ -583,7 +591,8 @@ fn error_value_from_meter_is_invalid_at_once() {
         .find(|x| x.function == "instantaneous" && x.quantity == "power")
         .map(key_of)
         .expect("Leistung im Simulator");
-    db.dp_select(mid, std::slice::from_ref(&power), &[], Lang::De).unwrap();
+    db.dp_select(mid, std::slice::from_ref(&power), &[], Lang::De)
+        .unwrap();
     db.record(line, &Target::Primary(1), Ok(&r), false).unwrap();
     assert_eq!(db.dp_by_meter(mid).unwrap()[0].invalid, None);
     // Zähler ohne Durchfluss: Leistung als Fehlerwert gemeldet (wie Itron auf dem Tisch)

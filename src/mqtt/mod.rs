@@ -248,7 +248,6 @@ impl Db {
     pub fn set_mqtt_config(&mut self, c: &MqttConfig) -> Result<()> {
         c.check()?;
         self.set_meta("mqtt", &serde_json::to_string(c)?)?;
-        self.mqtt_enabled = c.enabled;
         Ok(())
     }
 

@@ -30,9 +30,9 @@ fn header(lang: Lang) -> Vec<String> {
         "No;Line;Meter;Address;Key;Name;Unit;Factor;Send;Active"
     };
     let mut h: Vec<String> = fixed.split(';').map(String::from).collect();
-    for key in OUTPUTS {
-        h.push(output_label(key));
-        h.push(address_label(key));
+    for o in OUTPUTS {
+        h.push(o.label());
+        h.push(o.address_label());
     }
     h
 }
@@ -55,8 +55,8 @@ impl Db {
                 s("send"),
                 flag(v["active"].as_bool().unwrap_or(false)),
             ];
-            for key in OUTPUTS {
-                let o = &v["outputs"][key];
+            for out in OUTPUTS {
+                let o = &v["outputs"][out.key()];
                 row.push(flag(o["enabled"].as_bool().unwrap_or(false)));
                 row.push(o["address"].as_str().unwrap_or("").to_string());
             }
@@ -170,18 +170,17 @@ fn parse_row(c: &[String], old: Option<&Datapoint>) -> std::result::Result<Datap
     })?;
     // Ausgänge: je zwei Spalten
     let mut outputs = old.map(|d| d.outputs.clone()).unwrap_or_default();
-    for (k, key) in OUTPUTS.iter().enumerate() {
+    for (k, out) in OUTPUTS.iter().enumerate() {
         let i = FIXED + 2 * k;
         if c.len() <= i {
             continue;
         }
-        let on =
-            parse_bool(&col(i)).ok_or_else(|| format!("{} „{}“", output_label(key), col(i)))?;
+        let on = parse_bool(&col(i)).ok_or_else(|| format!("{} „{}“", out.label(), col(i)))?;
         let address = Some(col(i + 1)).filter(|a| !a.is_empty());
         if let Some(a) = &address {
-            outputs::check_address(key, a).map_err(|e| format!("{e:#}"))?;
+            out.check_address(a).map_err(|e| format!("{e:#}"))?;
         }
-        let o = outputs.entry(key.to_string()).or_default();
+        let o = outputs.entry(out.key().to_string()).or_default();
         o.enabled = on;
         // leere Adresse in der Datei: vorhandene behalten
         if address.is_some() {
@@ -222,15 +221,15 @@ fn compare(cs: &mut ChangeSet, item: &str, old: &Datapoint, wanted: &Datapoint) 
         &flag(old.active),
         &flag(wanted.active),
     );
-    for key in OUTPUTS {
+    for o in OUTPUTS {
         let (a, b) = (
-            old.outputs.get(key).cloned().unwrap_or_default(),
-            wanted.outputs.get(key).cloned().unwrap_or_default(),
+            old.outputs.get(o.key()).cloned().unwrap_or_default(),
+            wanted.outputs.get(o.key()).cloned().unwrap_or_default(),
         );
-        changed |= cs.change(item, output_label(key), &flag(a.enabled), &flag(b.enabled));
+        changed |= cs.change(item, o.label(), &flag(a.enabled), &flag(b.enabled));
         changed |= cs.change(
             item,
-            address_label(key),
+            o.address_label(),
             a.address.as_deref().unwrap_or(""),
             b.address.as_deref().unwrap_or(""),
         );

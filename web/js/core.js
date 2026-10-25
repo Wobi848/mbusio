@@ -56,6 +56,8 @@ let timeState = null;
 let planActive = false;
 let disk = null;
 let mqttStatus = null;
+/// Ausgänge mit Name und ob eingeschaltet (aus /api/status)
+let outputsInfo = [];
 /// läuft mbusio im Hintergrund (Windows-Dienst, systemd) und auf welchem System
 let host = { background: true, os: "" };
 /// zuletzt gespeicherte Auffälligkeiten (nur bei Änderung neu speichern)

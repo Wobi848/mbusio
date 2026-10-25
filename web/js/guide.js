@@ -125,7 +125,7 @@ function openPlanForm() {
 
 /// Weitergabe: Einstellungen des Ausgangs aufklappen
 function openOutput() {
-  transfer.outputOpen = "mqtt";
+  transfer.outputOpen = outputsInfo[0]?.key ?? null;
   showTab("transfer");
   renderTransfer();
   reveal($("sec-outputs"), "start");

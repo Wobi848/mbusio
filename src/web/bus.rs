@@ -35,6 +35,8 @@ pub(super) async fn status(State(st): State<AppState>) -> ApiResult<serde_json::
         "time": clock::state(),
         "disk": st.planner.disk(),
         "mqtt": mqtt_status(&st, &db),
+        // alle Ausgänge: Schlüssel, Name, eingeschaltet
+        "outputs": db.outputs_info(),
         "now": clock::stamp(),
         // läuft weiter ohne Anmeldung (Windows-Dienst, systemd); sonst Hinweis im Dauerbetrieb
         "background": crate::service::background(),

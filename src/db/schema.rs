@@ -75,7 +75,6 @@ impl Db {
         self.conn.execute_batch(SCHEMA)?;
         self.migrate()?;
         self.ensure_active()?;
-        self.mqtt_enabled = self.mqtt_config().enabled;
         // eigene Simulationen für Verbindungen mit SIMULATOR:<name>
         if self.path.is_some() {
             self.sim_load()?;
