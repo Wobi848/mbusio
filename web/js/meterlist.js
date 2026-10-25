@@ -4,14 +4,6 @@
 
 // ------------------------------------------------------------ Zählerliste schnell füllen
 
-const LIST_FIELDS = ["id", "name", "location", "note", "pa"];
-const LIST_GUESS = {
-  id: /^(id|ident|z(ä|ae)hler.?(nr|nummer)|serien.?(nr|nummer)|fab(rikations)?.?(nr|nummer)|meter.?(id|no)|serial|nummer|nr\.?)$/i,
-  name: /^(name|bezeichnung|benennung|description)$/i,
-  location: /^(ort|lage|standort|einbauort|wohnung|whg|raum|location|place)$/i,
-  note: /^(notiz|bemerkung|kommentar|note|remark|comment)$/i,
-  pa: /^(pa|prim(ä|ae)r.?adr(esse)?|primary.?address|m-?bus.?adr(esse)?)$/i,
-};
 let listData = null;
 
 function listOpen() {
@@ -28,22 +20,7 @@ function listLoad(text) {
     $("list-map").innerHTML = "";
     return;
   }
-  const looksId = (v) => /^\D{0,4}\d{5,8}$/.test(v.replace(/\s/g, ""));
-  const header = !rows[0].some(looksId) && rows.length > 1;
-  const cols = Math.max(...rows.map((r) => r.length));
-  const map = {};
-  if (header) rows[0].forEach((h, i) => LIST_FIELDS.forEach((f) => map[f] === undefined && LIST_GUESS[f].test(h.trim()) && (map[f] = i)));
-  // ohne Überschrift: Spalte mit den meisten ID-artigen Werten ist die ID
-  if (map.id === undefined) {
-    let best = -1;
-    let score = 0;
-    for (let c = 0; c < cols; c++) {
-      const n = rows.slice(header ? 1 : 0).filter((r) => looksId(r[c] || "")).length;
-      if (n > score) [best, score] = [c, n];
-    }
-    if (best >= 0) map.id = best;
-  }
-  listData = { rows, header, cols, map };
+  listData = listLogic.guess(rows);
   renderListMap();
 }
 
@@ -53,23 +30,20 @@ function renderListMap() {
   const data = d.rows.slice(d.header ? 1 : 0);
   $("list-map").innerHTML = `<h3 class="list-h">${esc(t("list_map"))} <span class="hint">${esc(t("list_rows", data.length))}</span></h3>
     <label class="check"><input type="checkbox" id="list-header" ${d.header ? "checked" : ""}> ${esc(t("list_header"))}</label>
-    <div class="form-grid list-grid">${LIST_FIELDS.map(
+    <div class="form-grid list-grid">${listLogic.FIELDS.map(
       (f) => `<label><span>${esc(t("list_f_" + f))}</span><select data-list-f="${f}"><option value="">${esc(t("list_unused"))}</option>${names
         .map((n, i) => `<option value="${i}" ${d.map[f] === i ? "selected" : ""}>${esc(n)}</option>`)
         .join("")}</select></label>`
     ).join("")}</div>
-    <div class="table-wrap"><table class="list-preview"><thead><tr>${LIST_FIELDS.map((f) => `<th>${esc(t("list_f_" + f))}</th>`).join("")}</tr></thead>
+    <div class="table-wrap"><table class="list-preview"><thead><tr>${listLogic.FIELDS.map((f) => `<th>${esc(t("list_f_" + f))}</th>`).join("")}</tr></thead>
     <tbody>${data
       .slice(0, 4)
-      .map((r) => `<tr>${LIST_FIELDS.map((f) => `<td>${esc(d.map[f] !== undefined ? r[d.map[f]] || "" : "")}</td>`).join("")}</tr>`)
+      .map((r) => `<tr>${listLogic.FIELDS.map((f) => `<td>${esc(d.map[f] !== undefined ? r[d.map[f]] || "" : "")}</td>`).join("")}</tr>`)
       .join("")}</tbody></table></div>
     <div class="row"><button type="button" id="list-check">${esc(t("list_check"))}</button></div>`;
 }
 
-function listRows() {
-  const d = listData;
-  return d.rows.slice(d.header ? 1 : 0).map((r) => Object.fromEntries(LIST_FIELDS.map((f) => [f, d.map[f] !== undefined ? r[d.map[f]] || "" : ""])));
-}
+const listRows = () => listLogic.rows(listData);
 
 /// Liste prüfen (Vorschau), dann übernehmen; Baustein „Vorschau → Übernehmen“
 function listCheck() {
@@ -101,7 +75,7 @@ $("list-map").addEventListener("change", (ev) => {
   else if (el.dataset.listF) {
     const v = el.value === "" ? undefined : Number(el.value);
     // jede Spalte nur einmal
-    for (const f of LIST_FIELDS) if (listData.map[f] === v && v !== undefined) delete listData.map[f];
+    for (const f of listLogic.FIELDS) if (listData.map[f] === v && v !== undefined) delete listData.map[f];
     listData.map[el.dataset.listF] = v;
   }
   $("list-result").innerHTML = "";

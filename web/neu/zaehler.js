@@ -2,9 +2,38 @@
 // Zustand als Wort am Element, Bearbeiten direkt in den Feldern, Mehrfachauswahl, Tastatur.
 
 import { state, watch, activeLine } from "./store.js";
-import { html, text, list, ask, toast, styles } from "./view.js";
+import { html, text, list, ask, toast, styles, texts, menu, closeMenu, previewApply } from "./view.js";
 import { bind, onEscape } from "./keys.js";
 import { loadMeters, loadTree, report } from "./data.js";
+
+texts(
+  {
+    zl_more: "Liste ▾",
+    zl_csv: "Als CSV exportieren",
+    zl_history: "Verlauf",
+    zl_exchange: "Zähler getauscht …",
+    zl_exchange_addr: "Adresse des neuen Zählers",
+    zl_exchange_go: "Tauschen",
+    zl_paste: "Aus Excel kopierte Zellen hier einfügen, oder:",
+    zl_file: "Datei wählen (CSV)",
+    zl_names_scope: (n) => (n ? `für die ${n} ausgewählten Zähler` : "für alle Zähler der Linie"),
+    zl_close: "Schliessen",
+    zl_key_history: "Verlauf zeigen",
+  },
+  {
+    zl_more: "List ▾",
+    zl_csv: "Export as CSV",
+    zl_history: "History",
+    zl_exchange: "Meter replaced …",
+    zl_exchange_addr: "Address of the new meter",
+    zl_exchange_go: "Replace",
+    zl_paste: "Paste cells copied from Excel here, or:",
+    zl_file: "Choose file (CSV)",
+    zl_names_scope: (n) => (n ? `for the ${n} selected meters` : "for all meters of the line"),
+    zl_close: "Close",
+    zl_key_history: "Show history",
+  }
+);
 
 /// Einstellungen je Linie: Suche, Filter, gewählter Zähler, Auswahl (bleiben beim Wechsel)
 const perLine = new Map();
@@ -32,6 +61,11 @@ export function mount(pane) {
       <div class="seg" role="group" data-filters></div>
       <span class="grow"></span>
       <span class="sub" data-sum></span>
+      <div class="menu-host"><button type="button" class="quiet" data-more>${esc(t("zl_more"))}</button><div class="menu end" role="menu" data-more-menu hidden>
+        <button type="button" role="menuitem" data-panel="import">${esc(t("list_import"))} …</button>
+        <button type="button" role="menuitem" data-panel="names">${esc(t("quick_names"))}</button>
+        <a role="menuitem" class="quiet" data-csv>${esc(t("zl_csv"))}</a>
+      </div></div>
       <button type="button" class="tonal" data-add>${esc(t("meter_add"))}</button>
       <button type="button" data-read-all></button>
     </div>
@@ -58,7 +92,7 @@ function onLine() {
   const id = state.status?.active?.line?.id;
   if (!id || id === lineId) return;
   lineId = id;
-  if (!perLine.has(id)) perLine.set(id, { search: "", filter: "all", active: null, selected: new Set(), adding: false });
+  if (!perLine.has(id)) perLine.set(id, { search: "", filter: "all", active: null, selected: new Set(), adding: false, panel: null, history: false, exchange: false });
   view = perLine.get(id);
   q("[data-search]").value = view.search;
   values = null;
@@ -144,7 +178,8 @@ function renderDetail() {
   // wer gerade in ein Feld tippt, verliert nichts: neu gezeichnet wird erst danach
   const typing = box.contains(document.activeElement) && document.activeElement.matches("input:not([type=checkbox]), select");
   if (typing && box.dataset.meter === String(view.adding ? "new" : view.active)) return;
-  box.dataset.meter = view.adding ? "new" : String(view.active);
+  box.dataset.meter = view.panel || (view.adding ? "new" : String(view.active));
+  if (view.panel) return; // Liste importieren / Namen: eigener Inhalt, siehe openPanel
   if (view.adding) return html(box, addForm());
   const m = byId(view.active);
   box.classList.toggle("open", !!m);
@@ -174,9 +209,19 @@ function renderDetail() {
     </div>
     <div class="actions">
       <button type="button" data-read title="${esc(t("read"))} (R)">${esc(busy.has(m.id) ? t("reading_busy") : t("read"))}</button>
+      <button type="button" class="${view.history ? "tonal" : "quiet"}" data-history aria-pressed="${view.history}" title="${esc(t("zl_history"))} (V)">${esc(t("zl_history"))}</button>
+      <button type="button" class="quiet" data-exchange aria-pressed="${view.exchange}">${esc(t("zl_exchange"))}</button>
       <span class="grow"></span>
       <button type="button" class="quiet danger-text" data-del>${esc(t("delete"))}</button>
     </div>
+    ${
+      view.exchange
+        ? `<div class="fields inset"><p class="sub">${esc(t("exchange_title"))}</p><label><span>${esc(t("address"))}</span><input data-exchange-addr class="mono" placeholder="${esc(
+            t("address_ph")
+          )}" aria-label="${esc(t("zl_exchange_addr"))}"></label><div class="actions"><button type="button" data-exchange-go>${esc(t("zl_exchange_go"))}</button></div></div>`
+        : ""
+    }
+    ${view.history ? historyHtml(m) : ""}
     <h3>${esc(t("n_last_reading"))} <span class="sub">${esc(m.last_read ? slotText(m.last_read) : t("n_never_read"))}</span></h3>
     ${
       vals
@@ -194,6 +239,151 @@ function renderDetail() {
     }`
   );
   if (values?.id !== m.id) loadValues(m.id);
+  if (view.history) drawHistory(box, m);
+}
+
+// ------------------------------------------------------------ Verlauf
+
+let hist = null; // { id, points, keys (Schlüssel → Reihe), key }
+
+function historyHtml(m) {
+  if (hist?.id !== m.id) return `<h3>${esc(t("zl_history"))}</h3><p class="sub">…</p>`;
+  if (hist.points.length < 2) return `<h3>${esc(t("zl_history"))}</h3><p class="sub">${esc(t(hist.points.length ? "history_few" : "history_none"))}</p>`;
+  return `<h3>${esc(t("zl_history"))} <span class="sub">${esc(t("history_first"))} ${esc(slotText(hist.points[0].timestamp))}</span></h3>
+    <div class="actions"><select data-hist-key aria-label="${esc(t("history_series"))}">${[...hist.keys]
+      .map(([k, v]) => `<option value="${esc(k)}"${k === hist.key ? " selected" : ""}>${esc(seriesName(v))}</option>`)
+      .join("")}</select><button type="button" class="quiet" data-hist-csv>${esc(t("history_csv"))}</button></div>
+    <div class="chart" data-chart></div>`;
+}
+
+async function loadHistory(m) {
+  hist = { id: m.id, points: [], keys: new Map(), key: null };
+  try {
+    const r = await request(`meters/${m.id}/history`);
+    const keys = new Map();
+    for (const p of r.points) for (const v of p.values) if (!keys.has(v.key)) keys.set(v.key, v);
+    const main = [...keys.keys()].find((k) => keys.get(k).quantity === m.last_quantity) ?? [...keys.keys()][0] ?? null;
+    hist = { id: m.id, points: r.points, keys, key: main };
+  } catch (e) {
+    report(e);
+  }
+  render();
+}
+
+/// Diagramm zeichnen, wenn die Fläche neu ist (html() schreibt nur bei Änderung)
+function drawHistory(box, m) {
+  if (hist?.id !== m.id) return loadHistory(m);
+  const el = box.querySelector("[data-chart]");
+  if (!el || el.childElementCount || !hist.key) return;
+  drawChart(el, plotSeries(hist.points, hist.key), seriesName(hist.keys.get(hist.key)));
+}
+
+// ------------------------------------------------------------ Liste importieren, Namen nach Muster
+
+let listData = null;
+
+function openPanel(kind) {
+  closeMenu();
+  view.panel = kind;
+  view.adding = false;
+  const box = q("[data-detail]");
+  box.classList.add("open");
+  box._html = null;
+  if (kind === "import") {
+    listData = null;
+    box.innerHTML = `<button type="button" class="quiet back" data-close-panel>← ${esc(t("tab_meters"))}</button>
+      <header class="dhead"><b>${esc(t("list_title"))}</b></header><p class="sub">${esc(t("list_hint"))}</p>
+      <textarea data-paste rows="5" class="mono" placeholder="${esc(t("list_paste_ph"))}" aria-label="${esc(t("zl_paste"))}"></textarea>
+      <label class="quiet filebtn">${esc(t("zl_file"))}<input type="file" accept=".csv,.txt,text/csv" data-file hidden></label>
+      <div data-map></div><div data-result></div>
+      <div class="actions"><span class="grow"></span><button type="button" class="quiet" data-close-panel>${esc(t("zl_close"))}</button></div>`;
+  } else {
+    const n = view.selected.size;
+    box.innerHTML = `<button type="button" class="quiet back" data-close-panel>← ${esc(t("tab_meters"))}</button>
+      <header class="dhead"><b>${esc(t("names_title"))}</b></header><p class="sub">${esc(t("names_hint"))}</p>
+      <div class="fields"><label><span>${esc(t("names_pattern"))}</span><input data-pattern class="mono" value="{ort} {medium}"></label>
+      <label class="check"><span>${esc(t("names_only_empty"))}</span><input type="checkbox" data-only-empty></label></div>
+      <p class="sub">${esc(t("zl_names_scope", n))}</p>
+      <div class="actions"><button type="button" data-names-preview>${esc(t("quick_names"))}</button><button type="button" class="quiet" data-close-panel>${esc(t("zl_close"))}</button></div>
+      <div data-result></div>`;
+  }
+  box.querySelector("textarea, input")?.focus();
+}
+
+function closePanel() {
+  view.panel = null;
+  q("[data-detail]")._html = null;
+  render();
+}
+
+function listLoad(text_) {
+  listData = listLogic.guess(parseTable(text_));
+  renderListMap();
+}
+
+function renderListMap() {
+  const box = q("[data-detail] [data-map]");
+  if (!box) return;
+  if (!listData) return (box.innerHTML = "");
+  const d = listData;
+  const names = Array.from({ length: d.cols }, (_, i) => (d.header && d.rows[0][i]) || t("list_col", i + 1));
+  box.innerHTML = `<h3>${esc(t("list_map"))} <span class="sub">${esc(t("list_rows", d.rows.length - (d.header ? 1 : 0)))}</span></h3>
+    <div class="fields"><label class="check"><span>${esc(t("list_header"))}</span><input type="checkbox" data-header${d.header ? " checked" : ""}></label>
+    ${listLogic.FIELDS.map(
+      (f) => `<label><span>${esc(t("list_f_" + f))}</span><select data-map-f="${f}"><option value="">${esc(t("list_unused"))}</option>${names
+        .map((n_, i) => `<option value="${i}"${d.map[f] === i ? " selected" : ""}>${esc(n_)}</option>`)
+        .join("")}</select></label>`
+    ).join("")}</div>
+    <div class="actions"><button type="button" data-list-check>${esc(t("list_check"))}</button></div>`;
+}
+
+async function listCheck() {
+  if (listData?.map.id === undefined) return toast(t("list_need_id"), { error: true });
+  const rows = listLogic.rows(listData);
+  await previewApply(q("[data-detail] [data-result]"), {
+    title: t("list_check"),
+    run: (apply) => request("meters/import-list", { method: "POST", body: { rows, apply } }),
+    done: async (cs) => {
+      if (!cs) return;
+      toast(t("list_done", cs.added.length, cs.changed.length));
+      await loadMeters();
+      loadTree().catch(() => {});
+      closePanel();
+    },
+  }).catch(report);
+}
+
+async function namesPreview() {
+  const box = q("[data-detail]");
+  const body = { pattern: box.querySelector("[data-pattern]").value, only_empty: box.querySelector("[data-only-empty]").checked };
+  if (view.selected.size) body.ids = [...view.selected];
+  await previewApply(box.querySelector("[data-result]"), {
+    title: t("names_title"),
+    run: (apply) => request("meters/names", { method: "POST", body: { ...body, apply } }),
+    done: async (cs) => {
+      if (!cs) return;
+      toast(t("names_done", cs.changed.length));
+      await loadMeters();
+      closePanel();
+    },
+  }).catch(report);
+}
+
+async function exchange(button) {
+  const m = byId(view.active);
+  const addr = q("[data-detail] [data-exchange-addr]").value.trim();
+  if (!addr) return;
+  if (!(await ask(button, t("exchange_confirm", m.meter_id || m.address, addr), t("zl_exchange_go")))) return;
+  try {
+    const r = await request(`meters/${m.id}/exchange`, { method: "POST", body: { address: addr } });
+    view.exchange = false;
+    values = null;
+    hist = null;
+    toast(t("exchange_done") + (r.details.length ? ": " + r.details.join(" · ") : ""));
+    await loadMeters();
+  } catch (e) {
+    report(e);
+  }
 }
 
 const field = (name, label_, value, ph) =>
@@ -248,6 +438,8 @@ async function loadValues(id) {
 function select(id, { focusRow = false } = {}) {
   view.active = id;
   view.adding = false;
+  view.panel = null;
+  view.exchange = false;
   render();
   const el = root.querySelector(`#meter-${id}`);
   if (el) {
@@ -395,6 +587,21 @@ function wire() {
     }
     if (el.closest("[data-save-new]")) return saveNew();
     if (el.closest("[data-read-all]")) return readAll();
+    if (el.closest("[data-panel]")) return openPanel(el.closest("[data-panel]").dataset.panel);
+    if (el.closest("[data-close-panel]")) return closePanel();
+    if (el.closest("[data-list-check]")) return listCheck();
+    if (el.closest("[data-names-preview]")) return namesPreview();
+    if (el.closest("[data-history]")) {
+      view.history = !view.history;
+      return render();
+    }
+    if (el.closest("[data-hist-csv]")) return downloadSeries(plotSeries(hist.points, hist.key), hist.keys.get(hist.key), byId(view.active));
+    if (el.closest("[data-exchange]")) {
+      view.exchange = !view.exchange;
+      render();
+      return q("[data-exchange-addr]")?.focus();
+    }
+    if (el.closest("[data-exchange-go]")) return exchange(el.closest("[data-exchange-go]"));
     if (el.closest("[data-read]")) return readMeters([view.active]);
     if (el.closest("[data-del]")) return remove([view.active], el.closest("[data-del]"));
     if (el.closest("[data-sel-read]")) return readMeters([...view.selected]);
@@ -413,6 +620,23 @@ function wire() {
     if (el.matches("[data-plan]")) return setPlan([view.active], el.value || null);
     if (el.matches("[data-sel-plan]") && el.value) return setPlan([...view.selected], el.value === "inherit" ? null : el.value);
     if (el.matches("[data-dp]")) return setDatapoints();
+    if (el.matches("[data-hist-key]")) {
+      hist.key = el.value;
+      q("[data-detail]")._html = null;
+      return render();
+    }
+    if (el.matches("[data-file]") && el.files[0]) return el.files[0].text().then(listLoad);
+    if (el.matches("[data-header]")) {
+      listData.header = el.checked;
+      return renderListMap();
+    }
+    if (el.matches("[data-map-f]")) {
+      const f = el.dataset.mapF;
+      const v = el.value === "" ? undefined : Number(el.value);
+      for (const g of listLogic.FIELDS) if (listData.map[g] === v && v !== undefined) delete listData.map[g];
+      listData.map[f] = v;
+      return renderListMap();
+    }
   });
   root.addEventListener("keydown", (ev) => {
     const el = ev.target;
@@ -448,10 +672,23 @@ function wire() {
       render();
     }
   });
+  root.addEventListener("input", (ev) => {
+    if (ev.target.matches("[data-paste]")) listLoad(ev.target.value);
+  });
+  menu(q("[data-more]"), q("[data-more-menu]"), { onOpen: () => (q("[data-csv]").href = apiHref("meters/csv")) });
   listEl.addEventListener("focus", () => {
     if (view.active == null && shown()[0]) select(shown()[0].id);
   });
   bind("r", () => (view.selected.size ? readMeters([...view.selected]) : view.active != null && readMeters([view.active])), t("n_key_read"), open);
+  bind(
+    "v",
+    () => {
+      view.history = !view.history;
+      render();
+    },
+    t("zl_key_history"),
+    open
+  );
 }
 
 function selectRange(from, to) {

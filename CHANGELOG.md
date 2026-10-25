@@ -141,6 +141,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- **Verlauf:** Werte desselben Zählers an verschiedenen Untereinheiten (z.B. Volumen am Zähler und an
+  Impulseingang 1 und 2) waren im Diagramm zu einer Linie vermischt; jetzt eigene Reihen.
 - **Simulator:** eine Kopie der Vorlage „Praxis“ liess sich nicht speichern („Hersteller: 3
   Grossbuchstaben“), weil der Zähler mit fester Datenstruktur keinen Hersteller hat.
 - **Node-RED bekam neue Namen nicht mit:** Umbenennen oder Löschen von Projekt, Linie oder Zähler

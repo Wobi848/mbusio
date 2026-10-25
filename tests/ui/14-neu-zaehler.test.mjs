@@ -65,6 +65,37 @@ export default {
     await page.locator("[data-detail] [data-dp]").first().check();
     await page.waitForFunction(() => document.querySelector(".tabs #n-dp")?.textContent === "1", null, { timeout: 20000 });
 
+    // Verlauf: zweimal gelesen → Diagramm im Detailbereich (Taste V)
+    await page.focus("[data-list]");
+    await page.keyboard.press("r");
+    await page.waitForTimeout(1500);
+    await page.keyboard.press("v");
+    await page.waitForSelector("section[data-area=zaehler] [data-chart] svg", { timeout: 20000 });
+
+    // Zähler getauscht: Feld statt prompt, Rückfrage am Ort
+    await page.click("section[data-area=zaehler] [data-exchange]");
+    await page.fill("section[data-area=zaehler] [data-exchange-addr]", "9");
+    await page.click("section[data-area=zaehler] [data-exchange-go]");
+    await page.click(".ask button.danger");
+    await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("getauscht"), null, { timeout: 20000 });
+
+    // Namen nach Muster mit Vorschau
+    await page.click("section[data-area=zaehler] [data-more]");
+    await page.click("section[data-area=zaehler] [data-panel=names]");
+    await page.fill("section[data-area=zaehler] [data-pattern]", "Zähler {pa}");
+    await page.click("section[data-area=zaehler] [data-names-preview]");
+    await page.click("section[data-area=zaehler] [data-cs-apply]");
+    await page.waitForFunction(() => document.querySelector("[data-list]")?.textContent.includes("Zähler 1"));
+
+    // Liste vom Kunden einfügen, Spalten werden erkannt, Vorschau, übernehmen
+    await page.click("section[data-area=zaehler] [data-more]");
+    await page.click("section[data-area=zaehler] [data-panel=import]");
+    const id = (await api("meters")).find((m) => m.meter_id)?.meter_id;
+    await page.fill("section[data-area=zaehler] [data-paste]", `ID\tName\tOrt\n${id}\tVom Kunden\tKeller`);
+    await page.click("section[data-area=zaehler] [data-list-check]");
+    await page.click("section[data-area=zaehler] [data-cs-apply]");
+    await page.waitForFunction(() => document.querySelector("[data-list]")?.textContent.includes("Vom Kunden"));
+
     // Hinzufügen im Detailbereich
     await page.click("[data-add]");
     await page.fill("[data-new=address]", "7");

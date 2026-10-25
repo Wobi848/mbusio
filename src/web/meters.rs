@@ -89,6 +89,26 @@ pub(super) async fn meters_read_one(
 
 /// Verlauf eines Zählers: je Auslesung die aktuellen Zahlenwerte (Speicher 0), als Reihen nach
 /// Messgrösse, Einheit und Tarif, damit die Oberfläche eine davon als Linie zeichnen kann
+/// Aktuelle Werte einer Auslesung als Reihen für den Verlauf. Der Schlüssel enthält Tarif und
+/// Untereinheit: sonst landen z.B. Volumen, Volumen an Eingang 1 und 2 in einer Linie.
+fn history_values(r: &MeterReading) -> Vec<serde_json::Value> {
+    r.records
+        .iter()
+        .filter(|x| x.storage == 0 && x.function == "instantaneous" && x.value.is_number())
+        .map(|x| {
+            json!({
+                "key": format!("{}|{}|{}|{}", x.quantity, x.unit, x.tariff, x.subunit),
+                "quantity": x.quantity,
+                "unit": x.unit,
+                "tariff": x.tariff,
+                "subunit": x.subunit,
+                "value": x.value,
+                "text": x.value_text,
+            })
+        })
+        .collect()
+}
+
 pub(super) async fn meter_history(
     State(st): State<AppState>,
     Path(id): Path<i64>,
@@ -98,24 +118,7 @@ pub(super) async fn meter_history(
     let points: Vec<serde_json::Value> = db
         .meter_history(id, 2000)?
         .into_iter()
-        .map(|r| {
-            let values: Vec<serde_json::Value> = r
-                .records
-                .iter()
-                .filter(|x| x.storage == 0 && x.function == "instantaneous" && x.value.is_number())
-                .map(|x| {
-                    json!({
-                        "key": format!("{}|{}|{}", x.quantity, x.unit, x.tariff),
-                        "quantity": x.quantity,
-                        "unit": x.unit,
-                        "tariff": x.tariff,
-                        "value": x.value,
-                        "text": x.value_text,
-                    })
-                })
-                .collect();
-            json!({ "timestamp": r.timestamp, "time_unsure": r.time_unsure, "values": values })
-        })
+        .map(|r| json!({ "timestamp": r.timestamp, "time_unsure": r.time_unsure, "values": history_values(&r) }))
         .collect();
     Ok(Json(json!({ "meter": meter, "points": points })))
 }
@@ -322,4 +325,30 @@ pub(super) async fn export_readings(
         ),
     };
     Ok(download(body, mime, &format!("mbusio-{stamp}.{ext}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn history_keeps_subunits_apart() {
+        let (_, _, _, r) = crate::testutil::db_with_energy();
+        let mut a = r
+            .records
+            .iter()
+            .find(|x| x.quantity == "volume" && x.storage == 0)
+            .unwrap()
+            .clone();
+        a.subunit = 1;
+        let mut r = r.clone();
+        r.records.push(a);
+        let keys: Vec<String> = history_values(&r)
+            .iter()
+            .filter(|v| v["quantity"] == "volume")
+            .map(|v| v["key"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(keys.len(), 2);
+        assert_ne!(keys[0], keys[1], "Untereinheit muss eigene Reihe sein");
+    }
 }

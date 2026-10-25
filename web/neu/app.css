@@ -236,7 +236,7 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .fields label { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; }
 .fields label > span { color: var(--muted); }
 .fields input.saved { border-color: var(--ok); background: var(--ok-soft); }
-.actions { display: flex; gap: 8px; align-items: center; margin: 10px 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
 .detail h3 { margin: 14px 0 6px; font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
 .vals { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .vrow { display: grid; grid-template-columns: 1fr auto 90px; gap: 10px; align-items: center; min-height: 28px; padding: 0 8px; border-bottom: 1px solid var(--line); }

@@ -386,6 +386,16 @@ Namen und langer Fehlermeldung.
   Prüfung.
 - Test `tests/ui/21-neu-simulator`.
 
-**Nächster Schritt:** der Rest der Zähler (Verlauf, Tausch, Import, Namen, CSV), dann Feinschliff
-(Nächster Schritt in der Statusleiste, Tastenübersicht, Durchgang über alle Bereiche) und
-Umschalten.
+**Rest der Zähler, umgesetzt:**
+- Details: **Verlauf** (Taste `V`) als Diagramm mit Reihe zur Auswahl und CSV; **Zähler getauscht …**
+  als Feld mit Rückfrage am Ort (statt prompt/confirm).
+- Menü „Liste“: **Liste importieren** (Datei oder aus Excel einfügen, Überschrift und Spalten
+  werden erkannt, zuordnen, Vorschau, übernehmen), **Namen erzeugen** (Muster, nur ohne Namen, für
+  die Auswahl oder alle, Vorschau), **Als CSV exportieren**.
+- Gemeinsam: `js/plot.js` + `css/plot.css` (Diagramm, Reihe, CSV), `js/listlogic.js`
+  (Spaltenzuordnung der Kundenliste).
+- Server: Verlauf trennt Untereinheiten (Volumen an Eingang 1 und 2 sind eigene Reihen; vorher in
+  einer Linie gemischt).
+
+**Nächster Schritt:** Feinschliff (Nächster Schritt in der Statusleiste, Tastenübersicht,
+Durchgang über alle Bereiche), dann Umschalten.
