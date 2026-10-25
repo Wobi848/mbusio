@@ -498,3 +498,45 @@ laufendes Gateway nach dem Update weiterliest. Im Fenster (Laptop) bleibt alles 
 2. Weitergabe auch nur bei eingeschalteten Linien (Vorschlag: ja, sonst sendet Auslesen von Hand
    in alten Projekten an den Broker)?
 3. Migration wie 13.6, oder einfach alles aus?
+
+## 14. Leitbild: Werkzeug, nicht Webseite (25.10.2026)
+
+**Ausgangslage:** mbusio fühlt sich an wie eine Webseite mit vielen Funktionen: Karten mit viel
+Luft, Seite lädt beim Wechsel von Projekt oder Linie neu, Rückfragen als Browser-Fenster,
+geführter Ablauf überall, kaum Tastatur. Ziel ist ein **professionelles Werkzeug**: direkt,
+präzise, schnell, dicht und für Leute gebaut, die es täglich benutzen.
+
+Diese Prinzipien gelten für jede Änderung an der Oberfläche, in dieser Rangfolge:
+
+1. **Selbsterklärend statt erklärt.** Was ein Element ist, in welchem Zustand es ist und was
+   eine Aktion bewirkt, sieht man am Element selbst: sprechende Beschriftung, Zustand als Farbe
+   und Wort direkt daneben, die sinnvolle nächste Aktion dort, wo man hinschaut. Erklärtexte,
+   Hilfekästen und der geführte Ablauf sind Ergänzung für Neue, nie Voraussetzung. Braucht ein
+   Element eine Erklärung, um verstanden zu werden, ist das Element falsch, nicht die Erklärung
+   zu kurz. Tooltips nur für Details, nie für das Wesentliche.
+2. **Arbeitskontext bleibt.** Kein Neuladen der Seite, keine Sprünge an den Seitenanfang,
+   Auswahl, aufgeklappte Bereiche, Filter und Scrollposition bleiben beim Wechsel von Linie,
+   Reiter oder nach einer Aktion erhalten.
+3. **Direkt bedienen.** Werte dort ändern, wo sie stehen (in der Zeile, im Feld), nicht über
+   Umwege. Keine Browser-Dialoge (`confirm`, `prompt`, `alert`): Rückfragen im Kontext, nur
+   für Gefährliches; Rückgängig, wo es passt, statt Rückfrage.
+4. **Dichte statt Luft.** Bildschirm für Inhalt nutzen: kompakte Zeilen, kleine Abstände, keine
+   Karte um jeden Inhalt, Überschriften so gross wie nötig. Was oft zusammen gebraucht wird,
+   steht gleichzeitig da (z.B. Liste und Details nebeneinander).
+5. **Tastatur und Auswahl.** Tab-Reihenfolge stimmt, Enter bestätigt, Escape bricht ab,
+   Pfeiltasten in Listen, Shortcuts für das Häufigste. Mehrfachauswahl in Listen mit
+   Aktionen für die Auswahl (auslesen, Plan, Werte, löschen).
+6. **Sofortige, ruhige Rückmeldung.** Jede Eingabe zeigt sofort Wirkung, lange Vorgänge
+   blockieren nichts und zeigen Fortschritt am Ort. Keine Animationen, die warten lassen.
+7. **Konsistent.** Gleiches sieht gleich aus und verhält sich gleich (Knöpfe §11.1, Farben
+   §11.2, Schalter für Ein/Aus, gleiche Wörter für gleiche Aktionen).
+
+**Geräte:** Desktop/Laptop zuerst (dort wird eingerichtet und ausgewertet). Handy bleibt
+vollständig bedienbar (Techniker am Strang), darf aber anders angeordnet sein; es bestimmt nicht
+die Dichte am Desktop.
+
+**Vorgehen:** Bestandsaufnahme mit diesem Leitbild (ohne Code zu ändern), Schwachstellen nach
+Nutzen, Häufigkeit, Aufwand und Risiko, getrennt in sofort machbar und grösserer Umbau.
+Technische Aussagen mit Code-Stellen oder Messungen belegen. Danach entscheidet der Nutzer,
+umgesetzt wird in kleinen Schritten mit Tests. Kein Wechsel des Frameworks, keine Änderung nur
+weil etwas moderner aussieht.

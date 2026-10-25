@@ -18,9 +18,17 @@ Klarheit und Sichtbarkeit gehen vor Schmuck. Wichtige Zustände (verbunden, Daue
 Störungen) müssen auf einen Blick erkennbar sein. Bedienelemente, die wichtig sind, dürfen
 nicht wie Beiwerk aussehen.
 
+## Leitbild: Werkzeug, nicht Webseite
+
+mbusio soll sich wie ein professionelles Werkzeug anfühlen, nicht wie eine Webseite. Massgeblich
+ist **§14 in `docs/konzept-bedienung.md`**, vor allem: **selbsterklärend statt erklärt** (Zustand,
+Bedeutung und nächste Aktion am Element selbst, Erklärtexte nur als Ergänzung), Arbeitskontext
+bleibt (kein Neuladen), direkt bedienen (keine Browser-Dialoge), Dichte statt Luft, Tastatur und
+Mehrfachauswahl, sofortige ruhige Rückmeldung, konsistent. Desktop zuerst, Handy bleibt bedienbar.
+
 ## Feste Regeln (nicht ohne Rückfrage brechen)
 
-Lies vor der ersten Arbeit `docs/konzept-bedienung.md`, vor allem §9 bis §13.
+Lies vor der ersten Arbeit `docs/konzept-bedienung.md`, vor allem §9 bis §14.
 
 - **Knöpfe in Stufen (§11.1):** primär (keine Klasse, Akzentfarbe gefüllt) nur für den einen
   nächsten Schritt eines Bereichs; `tonal` für Wichtiges neben dem Hauptweg; `ghost` für
