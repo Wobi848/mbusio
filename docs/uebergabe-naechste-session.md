@@ -1,6 +1,6 @@
-# Übergabe an die nächste Session (Stand 2026-10-20)
+# Übergabe an die nächste Session (Stand 2026-10-25)
 
-Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, letzter Commit `38380b7`.
+Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, letzter Commit `3fa0b90`.
 Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 ## Harte Regeln des Nutzers
@@ -16,9 +16,16 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - `cargo test` → 115 passed, 1 ignored.
 - UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 12 Tests, alle grün.
 - Server lokal: `cargo run -- --no-browser` (Port 8080; der Debug-Build liest web/ direkt von der Platte).
-- Commits enden mit `Co-Authored-By: Claude …`; nach jedem fertigen Schritt committen und pushen.
+- Commits **ohne** KI-Hinweis (globale Regel des Nutzers); nach jedem fertigen Schritt committen und pushen. Nicht mergen ohne ausdrückliches OK.
 
 ## Zuletzt erledigt
+- 25.10.: Ausgänge allgemein (Trait `Output`, docs/konzept-ausgaenge.md), Home Assistant MQTT Discovery
+  (docs/konzept-home-assistant.md, mit echtem HA getestet und wieder entfernt), Signal `Db.changes`,
+  Node-RED-Schnittstelle `/api/nodered/tree|stream` und Paket `node-red/` (node-red-contrib-mbusio,
+  nicht veröffentlicht; Veröffentlichen nur nach Freigabe). CI wieder grün (Tests nahmen an, nicht als
+  Dienst zu laufen; der Runner ist ein systemd-Dienst).
+- Node-RED-Tests: `cd node-red && npm install && npm test`. Echter Durchgang: mbusio mit Simulator,
+  Node-RED mit `ln -s` auf `node-red/`, Editor per Playwright (telemetry und tours in settings.js aus).
 - `38380b7` Port-Auswahl: `link::list_ports()` liefert `{port,label}`, USB-Wandler mit Namen zuerst, leere `/dev/ttyS*` ausgeblendet, Simulatoren am Ende (Rust, CLI `--list-ports`, web/js/scan.js `loadPorts`). Abgeschlossen und getestet.
 - Davor: Buttons (tonal/quiet), orange/rote Problemzeilen, MQTT-Topic-Muster + Liste für den Integrator. MQTT hat der Nutzer mit einem echten Broker getestet: Daten kommen bis MQTT an.
 
@@ -33,6 +40,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Port 1 am externen USB-Hub des Nutzers ist kaputt (kein Softwareproblem).
 
 ## Offen (in dieser Reihenfolge)
+0. Node-RED: `mbusio-status` (konzept-node-red.md 3.3); Entscheidung npm öffentlich ja/nein.
 1. Windows-Dienst auf einem Windows-PC prüfen (Checkliste docs/konzept-hintergrund.md §9; wichtig: COM-Port unter LocalService).
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
 2. 7-Tage-Test auf dem Raspberry Pi (Linien dort mit dem Schalter „Dauerbetrieb“ einschalten), danach erst Release v0.5.0.
