@@ -7,7 +7,7 @@
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use anyhow::Result;
 
@@ -18,10 +18,18 @@ const LOG_FILE: &str = "mbusio.log";
 const LOG_MAX: u64 = 1024 * 1024;
 
 static AS_SERVICE: AtomicBool = AtomicBool::new(false);
+/// Tests: fester Wert statt Erkennung (0 = erkennen, 1 = nein, 2 = ja). Sonst hängt das Ergebnis
+/// davon ab, wo die Tests laufen: ein CI-Runner ist selbst ein systemd-Dienst.
+static TEST_BACKGROUND: AtomicU8 = AtomicU8::new(0);
 
 /// Läuft mbusio im Hintergrund, also weiter, wenn das Fenster zu ist? Windows: als Dienst
 /// gestartet. Linux: siehe `unix_background`.
 pub fn background() -> bool {
+    match TEST_BACKGROUND.load(Ordering::Relaxed) {
+        1 => return false,
+        2 => return true,
+        _ => {}
+    }
     if AS_SERVICE.load(Ordering::Relaxed) {
         return true;
     }
@@ -52,10 +60,10 @@ fn unix_background(ppid: u32, cgroup: &str, tmux_or_screen: bool) -> bool {
     ppid == 1 || unit.ends_with(".service") || tmux_or_screen
 }
 
-/// Tests: so tun, als liefe mbusio als Dienst
+/// Tests: so tun, als liefe mbusio im Hintergrund (true) oder im Fenster (false)
 #[cfg(test)]
 pub fn set_background_for_tests(on: bool) {
-    AS_SERVICE.store(on, Ordering::Relaxed);
+    TEST_BACKGROUND.store(if on { 2 } else { 1 }, Ordering::Relaxed);
 }
 
 /// Befehlszeile, mit der der Dienst mbusio startet

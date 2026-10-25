@@ -546,6 +546,7 @@ mod tests {
         };
         // Laptop (Fenster): alles aus
         let (mut db, id) = setup();
+        crate::service::set_background_for_tests(false);
         db.migrate().unwrap();
         assert!(!db.line(id).unwrap().operation);
         // Gateway (Dienst): Linie mit wirksamem Plan liest weiter
