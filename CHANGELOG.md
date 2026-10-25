@@ -14,7 +14,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   laufenden Werte als Server-Sent Events.
 - **Node-RED-Nodes** im Ordner `node-red/` (node-red-contrib-mbusio, noch nicht auf npm):
   Projekt, Gateway, Linie, Zähler und Datenpunkte im Editor aus Listen wählen, Werte mit Qualität
-  und Status am Node.
+  und Status am Node; „mbusio status“ meldet, ob in einem Projekt oder einer Linie alles in
+  Ordnung ist (für Alarme und Benachrichtigungen).
 - **Home Assistant (MQTT Discovery):** neues Häkchen in den MQTT-Einstellungen. Datenpunkte mit
   MQTT-Häkchen erscheinen in Home Assistant von selbst (je Zähler ein Gerät, Einheit, Typ für das
   Energie-Dashboard); Häkchen weg entfernt den Sensor wieder. Vorgabe: aus.

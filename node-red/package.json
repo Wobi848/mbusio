@@ -5,6 +5,7 @@
   "files": [
     "nodes",
     "lib",
+    "resources",
     "examples"
   ],
   "keywords": [
@@ -22,7 +23,8 @@
   "node-red": {
     "nodes": {
       "mbusio-server": "nodes/mbusio-server.js",
-      "mbusio-in": "nodes/mbusio-in.js"
+      "mbusio-in": "nodes/mbusio-in.js",
+      "mbusio-status": "nodes/mbusio-status.js"
     },
     "version": ">=4.0.0"
   },

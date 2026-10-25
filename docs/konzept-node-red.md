@@ -1,6 +1,6 @@
 # Konzept: Node-RED-Integration
 
-Stand: 25.10.2026 · Status: **umgesetzt** bis auf `mbusio-status` (3.3); Paket in `node-red/`, nicht veröffentlicht · betrifft mbusio ab Version 0.5
+Stand: 25.10.2026 · Status: **umgesetzt**; Paket in `node-red/`, nicht veröffentlicht · betrifft mbusio ab Version 0.5
 
 Node-RED soll Werte direkt von mbusio bekommen, **ohne MQTT-Broker**. Im Editor wählt man
 Projekt → Gateway → Linie → Zähler → Datenpunkt aus Listen, und im Flow sieht man sofort, ob ein
@@ -140,11 +140,21 @@ msg.mbusio   = {
 | keine Verbindung zu mbusio | grauer Ring „mbusio nicht erreichbar“, Neuversuch alle 10 s |
 | Zugriffsschlüssel falsch | roter Ring „Zugriff verweigert“ |
 
-### 3.3 `mbusio-status` (Zustand der Anlage)
+### 3.3 `mbusio-status` (Zustand der Anlage, gebaut)
 
-Sendet bei jeder Änderung: `msg.payload = true/false` (mbusio erreichbar) und
-`msg.mbusio = { online, disturbed: 2, stale: 0, invalid: 0 }` für das gewählte Projekt bzw. die
-Linie. Gedacht für Meldungen, z.B. in einen `rpo-alarm` („Zähler gestört“).
+Ein Ausgang, sendet sobald der Zustand feststeht und bei jeder Änderung (nicht wiederholt):
+
+```js
+msg.payload = true            // alles in Ordnung: erreichbar, nichts gestört oder ungültig
+msg.mbusio  = { online, good, stale, disturbed, invalid,
+                problems: [{ no, name, meter, line, quality, time }] }
+```
+
+Für das ganze Projekt oder eine Linie. **Abweichend vom Entwurf** ist `payload` „alles in Ordnung“
+statt nur „erreichbar“: Für eine Meldung (z.B. `rpo-alarm`) will man genau das; Einzelheiten
+stehen in `msg.mbusio`. Veraltete Werte stehen in `problems`, machen `payload` aber nicht false.
+Viele Werte kurz nacheinander (Stand nach dem Verbinden) ergeben eine Nachricht (500 ms).
+Auch ein kurzer Neustart von mbusio meldet `false`; für Alarme eine Verzögerung verwenden.
 
 ## 4. Technik in Node-RED
 
@@ -173,7 +183,7 @@ Linie. Gedacht für Meldungen, z.B. in einen `rpo-alarm` („Zähler gestört“
    Speichern, Deploy, Wert und Status, erneutes Öffnen, mbusio aus (Status grau, Auswahl bleibt).
    Dabei gefunden und behoben: Editor ging nach dem ersten Speichern nicht mehr auf (Node-RED löst
    beim Öffnen „change“ aus), leeres Feld „Werte“ bei importierten Flows.
-4. **`mbusio-status`** (offen).
+4. ✓ **`mbusio-status`** (3.3), Editor-Code beider Nodes gemeinsam in `resources/mbusio-editor.js`.
 5. Veröffentlichen auf npm **erst nach Freigabe** und nach dem Release v0.5.0 von mbusio (das wartet
    auf den 7-Tage-Test).
 

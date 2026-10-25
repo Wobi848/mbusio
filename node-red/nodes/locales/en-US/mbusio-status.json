@@ -1,0 +1,13 @@
+{
+  "mbusio-status": {
+    "label": { "project": "Project", "line": "Line", "name": "Name" },
+    "editor": { "wholeProject": "whole project" },
+    "status": {
+      "config": "mbusio or project missing",
+      "connecting": "connecting …",
+      "ok": "ok · __n__ values",
+      "disturbed": "disturbed: __n__",
+      "stale": "stale: __n__"
+    }
+  }
+}

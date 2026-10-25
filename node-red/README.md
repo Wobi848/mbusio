@@ -11,6 +11,10 @@ bekommen, **ohne MQTT-Broker**.
 - **mbusio-server** (Konfiguration): Adresse von mbusio (`http://192.168.1.20:8080`) und
   optionaler Zugriffsschlüssel (`--token`). Alle Nodes desselben Projekts teilen sich eine
   Verbindung.
+- **mbusio status**: Zustand eines Projekts oder einer Linie für Meldungen: `payload` = alles in
+  Ordnung (erreichbar, nichts gestört oder ungültig), `msg.mbusio` mit Anzahl je Qualität und der
+  Liste der Datenpunkte mit Problem. Für Alarme eine Verzögerung verwenden (kurzer Neustart von
+  mbusio meldet auch `false`).
 - **mbusio in**: Auswahl im Editor nacheinander: Projekt › Gateway › Linie › Zähler ›
   Datenpunkte, oder „alle dieses Zählers“ / „alle dieser Linie“ (auch später dazukommende).
 
@@ -39,8 +43,9 @@ mbusio ab der Version mit `/api/nodered/…` (siehe CHANGELOG von mbusio), im LA
 
 - `lib/connection.js`: Verbindung je Projekt (Baum, Server-Sent Events, Neuversuch, letzter Wert
   je Datenpunkt für später dazukommende Nodes, keine Doppelten nach Neuverbindung)
-- `nodes/`: die zwei Nodes; die Auswahlliste im Editor holt Node-RED über `POST /mbusio/tree`,
+- `nodes/`: die Nodes; die Auswahlliste im Editor holt Node-RED über `POST /mbusio/tree`,
   damit der Schlüssel auf dem Server bleibt
+- `resources/mbusio-editor.js`: gemeinsamer Editor-Code (Baum laden, Auswahllisten)
 - Schnittstelle in mbusio: [docs/konzept-node-red.md](../docs/konzept-node-red.md)
 
 Tests: `npm test` (gegen ein nachgebautes mbusio).
@@ -49,5 +54,5 @@ Tests: `npm test` (gegen ein nachgebautes mbusio).
 
 Node-RED nodes for mbusio: pick project, gateway, line, meter and datapoints from lists and get
 live meter values with quality, without an MQTT broker. `mbusio-server` holds address and
-optional access key; `mbusio in` sends one message per value (`payload` number, `topic` name,
+optional access key; `mbusio status` reports whether all is fine (for notifications); `mbusio in` sends one message per value (`payload` number, `topic` name,
 `msg.mbusio` with unit, time, quality, meter, line …). Only good values by default. Read-only.

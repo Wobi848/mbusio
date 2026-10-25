@@ -1,0 +1,13 @@
+<script type="text/html" data-help-name="mbusio-status">
+  <p>State of a project or a line in <b>mbusio</b>, for notifications, e.g. into an alarm node.</p>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">boolean</span></dt>
+    <dd><code>true</code> = all fine: mbusio reachable and no value disturbed or invalid. <code>false</code> otherwise.</dd>
+    <dt>mbusio <span class="property-type">object</span></dt>
+    <dd><code>online</code>, number of values per quality (<code>good</code>, <code>stale</code>, <code>disturbed</code>, <code>invalid</code>) and <code>problems</code>: list of datapoints that are not good (<code>no</code>, <code>name</code>, <code>meter</code>, <code>line</code>, <code>quality</code>, <code>time</code>).</dd>
+  </dl>
+  <h3>Details</h3>
+  <p>Sent once the state is known and on every change; not repeated while nothing changes. Stale values are listed but do not make <code>payload</code> false. Only lines in continuous operation deliver values.</p>
+  <p>A short restart of mbusio also gives <code>false</code>. For alarms use a delay (e.g. “delay on” in the alarm node).</p>
+</script>

@@ -1,0 +1,84 @@
+<script type="text/javascript" src="resources/node-red-contrib-mbusio/mbusio-editor.js"></script>
+<script type="text/javascript">
+  RED.nodes.registerType("mbusio-status", {
+    category: "mbusio",
+    color: "#A6D0E8",
+    defaults: {
+      name: { value: "" },
+      server: { value: "", type: "mbusio-server", required: true },
+      project: { value: "", required: true },
+      // leer = ganzes Projekt
+      line: { value: "" },
+      // Anzeige der Auswahl (Label), damit sie ohne Verbindung zu mbusio lesbar bleibt
+      selection: { value: "" },
+    },
+    inputs: 0,
+    outputs: 1,
+    icon: "font-awesome/fa-heartbeat",
+    label: function () {
+      return this.name || (this.selection ? "mbusio: " + this.selection : "mbusio status");
+    },
+    paletteLabel: "mbusio status",
+    oneditprepare: function () {
+      // erst hier: resources/mbusio-editor.js ist dann sicher geladen
+      const { find, options } = window.mbusioEditor;
+      const node = this;
+      const saved = { project: node.project, line: node.line };
+      const lines = (p) => (p ? p.gateways.flatMap((g) => g.lines.map((l) => ({ id: l.id, name: `${g.name} › ${l.name}` }))) : []);
+
+      function render() {
+        const p = find(node._tree.projects, $("#mbusio-project").val() || saved.project);
+        options($("#mbusio-project"), node._tree.projects, p && p.id, (x) => x.name);
+        options($("#mbusio-line"), lines(p), saved.line, (x) => x.name, node._("mbusio-status.editor.wholeProject"));
+      }
+
+      $("#mbusio-selection").hide();
+      $("#mbusio-selection").on("change", "select", function () {
+        if (!node._tree) return;
+        saved.project = $("#mbusio-project").val();
+        saved.line = $("#mbusio-line").val();
+        render();
+      });
+      window.mbusioEditor.loader(node, function () {
+        $("#mbusio-selection").show();
+        render();
+      });
+    },
+    oneditsave: function () {
+      const { find } = window.mbusioEditor;
+      // ohne Baum (mbusio nicht erreichbar): gespeicherte Auswahl bleibt
+      if (!this._tree) return;
+      const p = find(this._tree.projects, $("#mbusio-project").val());
+      const l = p && p.gateways.flatMap((g) => g.lines).find((x) => String(x.id) === $("#mbusio-line").val());
+      this.project = p ? String(p.id) : "";
+      this.line = l ? String(l.id) : "";
+      this.selection = p ? (l ? `${p.name} › ${l.name}` : p.name) : "";
+    },
+  });
+</script>
+
+<script type="text/html" data-template-name="mbusio-status">
+  <div class="form-row">
+    <label for="node-input-server"><i class="fa fa-server"></i> mbusio</label>
+    <input type="text" id="node-input-server">
+  </div>
+  <div class="form-row">
+    <label></label>
+    <span id="mbusio-message" style="display:inline-block;width:65%"></span>
+    <button type="button" id="mbusio-reload" class="red-ui-button red-ui-button-small"><i class="fa fa-refresh"></i></button>
+  </div>
+  <div id="mbusio-selection">
+    <div class="form-row">
+      <label for="mbusio-project"><i class="fa fa-folder"></i> <span data-i18n="mbusio-status.label.project"></span></label>
+      <select id="mbusio-project" style="width:70%"></select>
+    </div>
+    <div class="form-row">
+      <label for="mbusio-line"><i class="fa fa-random"></i> <span data-i18n="mbusio-status.label.line"></span></label>
+      <select id="mbusio-line" style="width:70%"></select>
+    </div>
+  </div>
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="mbusio-status.label.name"></span></label>
+    <input type="text" id="node-input-name">
+  </div>
+</script>

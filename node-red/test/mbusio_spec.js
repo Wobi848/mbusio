@@ -2,6 +2,7 @@ const http = require("http");
 const helper = require("node-red-node-test-helper");
 const serverNode = require("../nodes/mbusio-server.js");
 const inNode = require("../nodes/mbusio-in.js");
+const statusNode = require("../nodes/mbusio-status.js");
 const { sseParser } = require("../lib/connection");
 helper.init(require.resolve("node-red"));
 
@@ -102,7 +103,7 @@ describe("mbusio nodes", function () {
       Object.assign({ id: "n1", type: "mbusio-in", server: "s1", project: "1", scope: "datapoints", datapoints: [1], wires: [["out"]] }, inConfig),
       { id: "out", type: "helper" },
     ];
-    await helper.load([serverNode, inNode], flow, { s1: { token: opts.token || "" } });
+    await helper.load([serverNode, inNode, statusNode], flow, { s1: { token: opts.token || "" } });
     const msgs = [];
     helper.getNode("out").on("input", (m) => msgs.push(m));
     await waitFor(() => fake.streams.length === 1);
@@ -212,6 +213,49 @@ describe("mbusio nodes", function () {
     );
     const n = helper.getNode("n1");
     await waitFor(() => n.status.args.some((a) => a[0].text === "mbusio-in.status.version"));
+  });
+
+  // mbusio-status anstelle von mbusio-in laden
+  const loadStatus = (config) => load(Object.assign({ type: "mbusio-status", line: "" }, config));
+
+  it("status: one message once all is known, payload true when all is fine", async function () {
+    const { msgs } = await loadStatus();
+    for (const no of [1, 2, 3]) fake.send("value", value(no, no));
+    await waitFor(() => msgs.length === 1);
+    msgs[0].payload.should.equal(true);
+    msgs[0].mbusio.should.containDeep({ online: true, good: 3, stale: 0, disturbed: 0, invalid: 0, problems: [] });
+    // gleicher Zustand: keine weitere Nachricht
+    fake.send("value", value(1, 1, "good", "2026-10-25T10:15:00Z"));
+    await new Promise((r) => setTimeout(r, 700));
+    msgs.should.have.length(1);
+  });
+
+  it("status: disturbed values make payload false and are listed; stale only listed", async function () {
+    const { msgs } = await loadStatus();
+    fake.send("value", value(1, 1));
+    fake.send("value", value(2, 2, "stale"));
+    await waitFor(() => msgs.length === 1);
+    msgs[0].payload.should.equal(true);
+    msgs[0].mbusio.problems.should.containDeep([{ no: 2, quality: "stale", meter: "Whg 1" }]);
+    fake.send("value", value(1, 1, "disturbed"));
+    await waitFor(() => msgs.length === 2);
+    msgs[1].payload.should.equal(false);
+    msgs[1].mbusio.disturbed.should.equal(1);
+    msgs[1].mbusio.problems.map((x) => x.no).should.eql([1, 2]);
+  });
+
+  it("status: only the chosen line, and false when mbusio is gone", async function () {
+    const { msgs } = await loadStatus({ line: "99" });
+    fake.send("value", value(1, 1, "disturbed")); // andere Linie
+    await new Promise((r) => setTimeout(r, 700));
+    msgs.should.have.length(1);
+    msgs[0].payload.should.equal(true);
+    msgs[0].mbusio.disturbed.should.equal(0);
+    fake.drop();
+    fake.server.close();
+    await waitFor(() => msgs.length === 2, 3000);
+    msgs[1].payload.should.equal(false);
+    msgs[1].mbusio.online.should.equal(false);
   });
 
   it("gives the editor the tree through Node-RED", async function () {

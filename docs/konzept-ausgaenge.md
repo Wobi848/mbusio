@@ -143,7 +143,7 @@ Node-RED braucht kein Häkchen je Datenpunkt (alle aktiven), so entschieden in
 3. ✓ **Home Assistant Discovery** nach [konzept-home-assistant.md](konzept-home-assistant.md)
    (vor dem Ereignis-Kanal gemacht, weil es ihn nicht braucht).
 4. ✓ **Node-RED** nach [konzept-node-red.md](konzept-node-red.md): Schnittstelle in mbusio und
-   Paket `node-red/` (ohne `mbusio-status`, nicht veröffentlicht).
+   Paket `node-red/` (nicht veröffentlicht).
 5. **Modbus TCP, BACnet/IP** erst nach Freigabe (Regel: Modbus vorerst nicht) und nach dem
    7-Tage-Test.
 
