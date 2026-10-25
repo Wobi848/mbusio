@@ -257,14 +257,13 @@ function updateEstimate() {
   const el = $("scan-estimate");
   const bauds = [...$("scan-bauds").querySelectorAll("input:checked")].map((i) => Number(i.value));
   if (!conn || !bauds.length) return (el.textContent = "");
-  const from = Number($("scan-from").value || 0);
-  const to = Number($("scan-to").value || 250);
-  const tries = Number($("scan-retries").value || 1) + 1;
-  const n = Math.max(0, to - from + 1);
-  const secs = bauds.reduce((sum, b) => {
-    const timeout = conn.timeout_auto ? 330 / b + 0.25 : conn.timeout_ms / 1000;
-    return sum + n * tries * timeout;
-  }, 0);
+  const secs = scanLogic.duration({
+    from: Number($("scan-from").value || 0),
+    to: Number($("scan-to").value || 250),
+    retries: Number($("scan-retries").value || 1),
+    bauds,
+    conn,
+  });
   el.textContent = t("estimate", t("duration", secs));
 }
 

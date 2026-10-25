@@ -354,8 +354,11 @@ async function start() {
   watch(["tree", "status", "area"], renderTabs);
   watch(["area"], renderWork);
   watch(["tree", "status"], renderStatus);
+  const fromAddress = location.hash.length > 2;
   readHash();
   await reload().catch(report);
+  // ohne Adresse dort anfangen, wo es weitergeht: noch keine Zähler → Scan, sonst Zähler (§3.4)
+  if (!fromAddress) location.hash = activeLine()?.meters ? "#/zaehler" : "#/scan";
   setInterval(() => loadStatus().catch(() => {}), STATUS_EVERY);
   setInterval(() => loadTree().catch(() => {}), TREE_EVERY);
 }

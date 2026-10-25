@@ -145,6 +145,24 @@ const scanLogic = {
     return { steps, manual };
   },
 
+  /// Steht der Treffer schon in der Zählerliste? Über Sekundäradresse, ID mit Hersteller oder
+  /// (Merken über PA) die Primäradresse, dann aber nur, wenn dort nicht ein anderer Zähler (andere
+  /// ID, z.B. nach einem Zählertausch) steht
+  listed(h, meters, ctx) {
+    return meters.some(
+      (m) =>
+        (h.secondary_address && m.secondary_address === h.secondary_address) ||
+        (h.id && m.meter_id === h.id && (!m.manufacturer || m.manufacturer === h.manufacturer)) ||
+        (ctx.mode === "primary" && h.primary_address != null && m.address === String(h.primary_address) && (!m.meter_id || !h.id || m.meter_id === h.id))
+    );
+  },
+
+  /// Höchstdauer eines Primärscans in Sekunden (jede Adresse antwortet nicht: volles Timeout)
+  duration({ from, to, retries, bauds, conn }) {
+    const n = Math.max(0, to - from + 1);
+    return bauds.reduce((sum, b) => sum + n * (retries + 1) * (conn.timeout_auto ? 330 / b + 0.25 : conn.timeout_ms / 1000), 0);
+  },
+
   /// Gleicher Zähler: ID und Hersteller; ohne ID (Kollision, keine Daten) über Baudrate und PA
   identity: (h) => (h.id ? `${h.id}:${h.manufacturer}` : `pa:${h.baud}:${h.primary_address}`),
 

@@ -1,0 +1,28 @@
+/* Bereich Scan: Suchzeile, Ergebniszeile, Spalten der Trefferliste (Gerüst: app.css) */
+
+.pane[data-area=scan] { grid-template-rows: auto auto 1fr; }
+[data-area=scan] .toolbar { flex-wrap: wrap; row-gap: 6px; }
+[data-area=scan] .resultbar { background: var(--sunken); }
+[data-area=scan] label.inline { display: inline-flex; align-items: center; gap: 6px; }
+[data-area=scan] input[type=number] { width: 64px; }
+[data-area=scan] input[data-prefix] { width: 110px; }
+[data-area=scan] .bauds { display: grid; grid-template-columns: repeat(4, auto); gap: 6px 14px; }
+[data-area=scan] .baud { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; }
+[data-area=scan] .seg .n.warn { color: var(--warn); }
+[data-area=scan] .ok-text { color: var(--ok); font-weight: 600; }
+[data-area=scan] .err-text { color: var(--err); }
+[data-area=scan] .raw { word-break: break-all; font-size: 11px; color: var(--muted); }
+[data-area=scan] .manual { margin: 4px 0 0; padding-left: 18px; color: var(--muted); }
+
+[data-area=scan] .row:not(.vrow) { grid-template-columns: 44px 56px minmax(140px, 2fr) minmax(110px, 1fr) minmax(0, 1.4fr); }
+[data-area=scan] .row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-area=scan] .rows { overflow-x: hidden; }
+
+@media (max-width: 999px) {
+  [data-area=scan] .row:not(.vrow) { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "pa name state" "baud ident ident"; padding: 6px 12px; row-gap: 2px; }
+  [data-area=scan] .row > :nth-child(1) { grid-area: pa; }
+  [data-area=scan] .row > :nth-child(2) { grid-area: baud; }
+  [data-area=scan] .row > :nth-child(3) { grid-area: name; }
+  [data-area=scan] .row > :nth-child(4) { grid-area: ident; }
+  [data-area=scan] .row > :nth-child(5) { grid-area: state; justify-self: end; }
+}

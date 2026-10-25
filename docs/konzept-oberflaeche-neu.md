@@ -340,5 +340,24 @@ Namen und langer Fehlermeldung.
   (`follow_meter_change`), für alte und neue Oberfläche gleich.
 - Test `tests/ui/19-neu-werkzeuge`.
 
-**Nächster Schritt:** 2 (Scan), mit dem Start im passenden Bereich (3.4); danach 4 (Weitergabe)
+**Schritt 2 (Scan), umgesetzt:**
+- Suchzeile: Art (PA/ID), Adressbereich bzw. „ID beginnt mit“, Baudraten als Menü mit „Prüfen,
+  welche antworten“, Dauer, **[Primärscan starten]** (`S`), während des Scans Fortschritt und
+  Abbrechen; Weitersuchen nach einem abgebrochenen Sekundärscan.
+- Treffer zeilenweise nachgeführt (Klick während des Scans geht nicht verloren, im Test
+  geprüft); 16 Treffer sichtbar bei 1250×900 (vorher 3). Zustand als Wort: Kollision, Keine
+  Daten, PA nicht eindeutig, andere Baudrate, ID doppelt, neu, ✓ in Liste; Vergleich mit dem
+  letzten Scan als Chips.
+- Genau ein Hauptknopf: **N beheben** (Plan mit freien Adressen, Kästchen, Ausführen; danach
+  **Zur Kontrolle neu scannen**) → **N neue merken** (`M`) → „✓ Alle in der Zählerliste“.
+- Details: Ursache und Abhilfe, Knöpfe je Fall (Sekundärscan, freie PA geben, auf Bus-Baudrate
+  umstellen, jeweils mit Rückfrage am Ort), Merken, Auslesen mit Werten, Rohtelegramm.
+- Merken über PA/ID umschaltbar (Rückfrage am Ort, wenn Zähler in der Liste sind).
+- Ohne Adresse startet die Oberfläche im Scan, wenn die Linie noch keine Zähler hat, sonst bei
+  den Zählern.
+- Gemeinsame Auswertung `js/scanlogic.js` (auch von der bisherigen Oberfläche benutzt); „in
+  Liste“ bei Merken über PA nur, wenn dort nicht ein anderer Zähler (andere ID) steht.
+- Test `tests/ui/15-neu-scan`.
+
+**Nächster Schritt:** 4 (Weitergabe), dann Simulator.
 und der Simulator.
