@@ -416,8 +416,9 @@ Aufbau:
   eigener kleiner Client für MQTT 3.1.1 mit TLS über rustls (client)
 - `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
   bestätigt ist; `src/storage.rs`: Schutz vor vollem Speicher
-- `src/web/`: HTTP-API, nach Bereichen (bus: Verbindung und Auftrag, scan, tools, meters, projects,
-  datapoints, outputs, nodered, simulator); `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
+- `src/web/`: HTTP-API: mod (Router, Zugriffsschlüssel, Dateien), state (gemeinsamer Zustand,
+  Linien-Dienste), api (Fehler, Downloads, Arbeit am Bus), dann nach Bereichen (bus: Verbindung und
+  Auftrag, scan, tools, meters, projects, datapoints, outputs, nodered, simulator); `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
 - `src/i18n.rs`: Übersetzungen der Messgrössen, Sprache je Request; alle Texte der Oberfläche und
   des Berichts in `web/js/texts.js`
 - `web/js/`: Oberfläche, normale Skripte ohne Build-Schritt, Reihenfolge in `index.html`:
