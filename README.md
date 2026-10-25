@@ -114,7 +114,9 @@ darunter Primäradresse, Baudrate und Reset; dazu einzelnen Zähler roh auslesen
 - Die Datenbank übersteht Absturz und Stromausfall (SQLite WAL, Transaktionen); nach dem Neustart
   geht es von selbst weiter
 - Konzept und nächste Schritte (MQTT, Modbus):
-  [docs/konzept-dauerbetrieb.md](docs/konzept-dauerbetrieb.md)
+  [docs/konzept-dauerbetrieb.md](docs/konzept-dauerbetrieb.md); Ausgänge allgemein:
+  [docs/konzept-ausgaenge.md](docs/konzept-ausgaenge.md)
+- Node-RED-Nodes (Auswahl Projekt › … › Datenpunkt, ohne Broker): Ordner [node-red/](node-red/)
 
 ### Weitergabe: Datenpunkte und Ausgänge
 

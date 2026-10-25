@@ -1,0 +1,208 @@
+<script type="text/javascript">
+  (function () {
+    const API_VERSION = 1;
+
+    // Liste der Kinder eines Eintrags im Baum (Projekt → Gateways → Linien → Zähler → Datenpunkte)
+    const find = (list, id) => (list || []).find((x) => String(x.id) === String(id));
+
+    RED.nodes.registerType("mbusio-in", {
+      category: "mbusio",
+      color: "#A6D0E8",
+      defaults: {
+        name: { value: "" },
+        server: { value: "", type: "mbusio-server", required: true },
+        project: { value: "", required: true },
+        gateway: { value: "" },
+        line: { value: "" },
+        meter: { value: "" },
+        // datapoints = gewählte Nummern; meter / line = alle (auch später dazukommende)
+        scope: { value: "datapoints" },
+        datapoints: {
+          value: [],
+          validate: function (v) {
+            const scope = $("#node-input-scope").val() || this.scope;
+            if (scope === "line") return !!($("#mbusio-line").val() || this.line);
+            if (scope === "meter") return !!($("#mbusio-meter").val() || this.meter);
+            return Array.isArray(v) && v.length > 0;
+          },
+        },
+        quality: { value: "good" },
+        // Anzeige der Auswahl (Label), damit sie ohne Verbindung zu mbusio lesbar bleibt
+        selection: { value: "" },
+      },
+      inputs: 0,
+      outputs: 1,
+      icon: "font-awesome/fa-tachometer",
+      label: function () {
+        return this.name || this.selection || "mbusio";
+      },
+      paletteLabel: "mbusio in",
+      oneditprepare: function () {
+        const node = this;
+        const t = (k) => node._("mbusio-in.editor." + k);
+        const saved = {
+          project: node.project,
+          gateway: node.gateway,
+          line: node.line,
+          meter: node.meter,
+          datapoints: (node.datapoints || []).map(Number),
+        };
+        node._tree = null;
+        // importierte Flows ohne diese Felder: Vorgaben setzen, sonst bleibt die Auswahl leer
+        if (!$("#node-input-scope").val()) $("#node-input-scope").val("datapoints");
+        if (!$("#node-input-quality").val()) $("#node-input-quality").val("good");
+
+        function options($s, items, value, text) {
+          $s.empty().append($("<option>").val("").text("–"));
+          for (const i of items) $s.append($("<option>").val(i.id).text(text(i)));
+          $s.val(String(value || ""));
+          if ($s.val() === null) $s.val("");
+        }
+
+        function render() {
+          const tree = node._tree;
+          const scope = $("#node-input-scope").val();
+          const p = find(tree.projects, $("#mbusio-project").val() || saved.project);
+          options($("#mbusio-project"), tree.projects, p && p.id, (x) => x.name);
+          const g = p && find(p.gateways, $("#mbusio-gateway").val() || saved.gateway);
+          options($("#mbusio-gateway"), p ? p.gateways : [], g && g.id, (x) => x.name);
+          const l = g && find(g.lines, $("#mbusio-line").val() || saved.line);
+          options($("#mbusio-line"), g ? g.lines : [], l && l.id, (x) => x.name + (x.operation ? "" : " – " + t("noOperation")));
+          const m = l && find(l.meters, $("#mbusio-meter").val() || saved.meter);
+          options($("#mbusio-meter"), l ? l.meters : [], m && m.id, (x) => [x.name, x.ident, x.pa != null ? "PA " + x.pa : ""].filter(Boolean).join(" · "));
+          const list = $("#mbusio-datapoints").empty();
+          for (const d of m ? m.datapoints : []) {
+            const box = $('<input type="checkbox" style="width:auto;margin:0 6px 0 0">').val(d.no).prop("checked", saved.datapoints.includes(d.no));
+            const value = d.value != null ? ` = ${d.value} ${d.unit}` : "";
+            list.append($('<label style="display:block;width:auto">').append(box, document.createTextNode(`${d.no} · ${d.name}${value}`)));
+          }
+          $(".mbusio-row-meter").toggle(scope !== "line");
+          $(".mbusio-row-datapoints").toggle(scope === "datapoints");
+          $("#mbusio-empty").toggle(!!l && !(l.meters || []).length);
+        }
+
+        function remember() {
+          saved.project = $("#mbusio-project").val();
+          saved.gateway = $("#mbusio-gateway").val();
+          saved.line = $("#mbusio-line").val();
+          saved.meter = $("#mbusio-meter").val();
+          saved.datapoints = $("#mbusio-datapoints input:checked").map((_, x) => Number(x.value)).get();
+        }
+
+        // Node-RED meldet die Wahl des Servers beim Öffnen mehrfach: nur bei neuem Server laden
+        let loadedFor = null;
+        function load(force) {
+          const id = $("#node-input-server").val();
+          if (force !== true && id === loadedFor) return;
+          loadedFor = id;
+          const srv = RED.nodes.node(id);
+          $("#mbusio-message").text(srv ? t("loading") : t("noServer"));
+          if (!srv) return;
+          $.ajax({
+            url: "mbusio/tree",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify({ id: srv.id, url: srv.url, token: srv.credentials && srv.credentials.token }),
+          })
+            .done(function (tree) {
+              if (tree.version !== API_VERSION) return $("#mbusio-message").text(t("version"));
+              node._tree = tree;
+              $("#mbusio-message").text("");
+              $("#mbusio-selection").show();
+              render();
+            })
+            .fail(function (x) {
+              const why = (x.responseJSON && x.responseJSON.error) || x.status;
+              $("#mbusio-message").text(t("loadError") + " (" + why + ")" + (node.selection ? " – " + t("keeps") + ": " + node.selection : ""));
+            });
+        }
+
+        $("#mbusio-selection").hide();
+        // Node-RED löst beim Öffnen selbst "change" aus (auch auf "Werte"): erst mit Baum zeichnen
+        $("#mbusio-selection").on("change", "select, input", function () {
+          if (!node._tree) return;
+          remember();
+          render();
+        });
+        $("#node-input-scope").on("change", function () {
+          if (node._tree) render();
+        });
+        $("#node-input-server").on("change", load);
+        $("#mbusio-reload").on("click", () => load(true));
+      },
+      oneditsave: function () {
+        const tree = this._tree;
+        // ohne Baum (mbusio nicht erreichbar): gespeicherte Auswahl bleibt
+        if (!tree) return;
+        const p = find(tree.projects, $("#mbusio-project").val());
+        const g = p && find(p.gateways, $("#mbusio-gateway").val());
+        const l = g && find(g.lines, $("#mbusio-line").val());
+        const m = l && find(l.meters, $("#mbusio-meter").val());
+        const scope = $("#node-input-scope").val();
+        this.project = p ? String(p.id) : "";
+        this.gateway = g ? String(g.id) : "";
+        this.line = l ? String(l.id) : "";
+        this.meter = m ? String(m.id) : "";
+        this.datapoints = scope === "datapoints" ? $("#mbusio-datapoints input:checked").map((_, x) => Number(x.value)).get() : [];
+        const names = (m ? m.datapoints : []).filter((d) => this.datapoints.includes(d.no)).map((d) => d.name);
+        const all = this._("mbusio-in.editor.all");
+        this.selection = scope === "line" ? (l ? `${l.name} (${all})` : "") : scope === "meter" ? (m ? `${m.name} (${all})` : "") : names.join(", ");
+      },
+    });
+  })();
+</script>
+
+<script type="text/html" data-template-name="mbusio-in">
+  <div class="form-row">
+    <label for="node-input-server"><i class="fa fa-server"></i> mbusio</label>
+    <input type="text" id="node-input-server">
+  </div>
+  <div class="form-row">
+    <label></label>
+    <span id="mbusio-message" style="display:inline-block;width:65%"></span>
+    <button type="button" id="mbusio-reload" class="red-ui-button red-ui-button-small"><i class="fa fa-refresh"></i></button>
+  </div>
+  <div id="mbusio-selection">
+    <div class="form-row">
+      <label for="mbusio-project"><i class="fa fa-folder"></i> <span data-i18n="mbusio-in.label.project"></span></label>
+      <select id="mbusio-project" style="width:70%"></select>
+    </div>
+    <div class="form-row">
+      <label for="mbusio-gateway"><i class="fa fa-sitemap"></i> <span data-i18n="mbusio-in.label.gateway"></span></label>
+      <select id="mbusio-gateway" style="width:70%"></select>
+    </div>
+    <div class="form-row">
+      <label for="mbusio-line"><i class="fa fa-random"></i> <span data-i18n="mbusio-in.label.line"></span></label>
+      <select id="mbusio-line" style="width:70%"></select>
+    </div>
+    <div class="form-row">
+      <label for="node-input-scope"><i class="fa fa-filter"></i> <span data-i18n="mbusio-in.label.scope"></span></label>
+      <select id="node-input-scope" style="width:70%">
+        <option value="datapoints" data-i18n="mbusio-in.scope.datapoints"></option>
+        <option value="meter" data-i18n="mbusio-in.scope.meter"></option>
+        <option value="line" data-i18n="mbusio-in.scope.line"></option>
+      </select>
+    </div>
+    <div class="form-row mbusio-row-meter">
+      <label for="mbusio-meter"><i class="fa fa-tachometer"></i> <span data-i18n="mbusio-in.label.meter"></span></label>
+      <select id="mbusio-meter" style="width:70%"></select>
+    </div>
+    <div class="form-row mbusio-row-datapoints">
+      <label><i class="fa fa-list"></i> <span data-i18n="mbusio-in.label.datapoints"></span></label>
+      <div id="mbusio-datapoints" style="display:inline-block;width:70%;max-height:200px;overflow:auto"></div>
+    </div>
+    <div class="form-tips" id="mbusio-empty" data-i18n="mbusio-in.editor.empty"></div>
+  </div>
+  <div class="form-row">
+    <label for="node-input-quality"><i class="fa fa-check-circle"></i> <span data-i18n="mbusio-in.label.quality"></span></label>
+    <select id="node-input-quality" style="width:70%">
+      <option value="good" data-i18n="mbusio-in.quality.good"></option>
+      <option value="all" data-i18n="mbusio-in.quality.all"></option>
+    </select>
+  </div>
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> <span data-i18n="mbusio-in.label.name"></span></label>
+    <input type="text" id="node-input-name">
+  </div>
+  <div class="form-tips" data-i18n="mbusio-in.editor.tip"></div>
+</script>

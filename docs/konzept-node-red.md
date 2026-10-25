@@ -1,6 +1,6 @@
 # Konzept: Node-RED-Integration
 
-Stand: 25.10.2026 · Status: **Schnittstelle in mbusio umgesetzt** (2.1, 2.2), Nodes offen · betrifft mbusio ab Version 0.5
+Stand: 25.10.2026 · Status: **umgesetzt** bis auf `mbusio-status` (3.3); Paket in `node-red/`, nicht veröffentlicht · betrifft mbusio ab Version 0.5
 
 Node-RED soll Werte direkt von mbusio bekommen, **ohne MQTT-Broker**. Im Editor wählt man
 Projekt → Gateway → Linie → Zähler → Datenpunkt aus Listen, und im Flow sieht man sofort, ob ein
@@ -164,18 +164,22 @@ Linie. Gedacht für Meldungen, z.B. in einen `rpo-alarm` („Zähler gestört“
 
 ## 5. Umsetzung in Schritten
 
-1. **mbusio:** Kanal, `/api/nodered/tree`, `/api/nodered/stream`, Tests.
-2. **Nodes:** `mbusio-server`, `mbusio-in` mit Auswahl und Status, Tests, Beispiel-Flow.
-3. **Test:** mbusio mit Simulator, Node-RED-Test-Instanz. Prüfen: Auswahl, Werte, Qualität,
-   mbusio aus/an, Datenpunkt abgewählt, Deploy/Neustart, falscher Schlüssel.
-4. **`mbusio-status`.**
+1. ✓ **mbusio:** Signal für Änderungen, `/api/nodered/tree`, `/api/nodered/stream`, Tests.
+2. ✓ **Nodes:** `mbusio-server`, `mbusio-in` mit Auswahl und Status, Tests (gegen nachgebautes
+   mbusio), Beispiel-Flow. Abweichend von 4.3: Die Auswahl wird mit Projekt-, Linien- und
+   Zähler-ID und den Nummern `no` gespeichert, dazu ein Text für das Label; ein geändertes Topic
+   gibt es hier nicht (kein MQTT).
+3. ✓ **Test** 25.10.2026 mit echtem mbusio (Simulator) und echtem Node-RED im Browser: Auswahl,
+   Speichern, Deploy, Wert und Status, erneutes Öffnen, mbusio aus (Status grau, Auswahl bleibt).
+   Dabei gefunden und behoben: Editor ging nach dem ersten Speichern nicht mehr auf (Node-RED löst
+   beim Öffnen „change“ aus), leeres Feld „Werte“ bei importierten Flows.
+4. **`mbusio-status`** (offen).
 5. Veröffentlichen auf npm **erst nach Freigabe** und nach dem Release v0.5.0 von mbusio (das wartet
    auf den 7-Tage-Test).
 
-## 6. Offene Fragen
+## 6. Entscheidungen (25.10.2026, Vorschlag übernommen) und offene Fragen
 
-1. Soll das Paket öffentlich auf npm (wie die rpo-suite) oder nur für eigene Anlagen sein?
-2. Mehrere Datenpunkte in einem Node: eine Nachricht je Wert (so geplant) oder auf Wunsch alle
-   zusammen in einer Nachricht (`msg.payload = { "Whg 1 · Energie": 12345.6, … }`)?
-3. Soll Node-RED wirklich alle aktiven Datenpunkte sehen, oder braucht es wie bei MQTT ein eigenes
-   Häkchen „Node-RED“ je Datenpunkt im Reiter Weitergabe?
+1. **Eine Nachricht je Wert.** Alle zusammen in einer Nachricht kann später als Option dazukommen.
+2. **Alle aktiven Datenpunkte**, kein eigenes Häkchen „Node-RED“.
+3. **Offen:** öffentlich auf npm (wie die rpo-suite) oder nur für eigene Anlagen? Entscheidet der
+   Benutzer vor dem Veröffentlichen.

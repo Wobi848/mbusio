@@ -1,0 +1,6 @@
+[
+  { "id": "mb_note", "type": "comment", "z": "", "name": "mbusio: Adresse im Konfig-Node anpassen, dann im mbusio-in Projekt › Gateway › Linie › Zähler wählen", "info": "mbusio im LAN starten (--lan, optional --token). Werte kommen nur aus Linien im Dauerbetrieb.", "x": 330, "y": 40, "wires": [] },
+  { "id": "mb_in", "type": "mbusio-in", "z": "", "name": "", "server": "mb_srv", "project": "1", "gateway": "", "line": "1", "meter": "", "scope": "line", "datapoints": [], "quality": "good", "selection": "Linie 1 (alle)", "x": 150, "y": 100, "wires": [["mb_debug"]] },
+  { "id": "mb_debug", "type": "debug", "z": "", "name": "Zählerwerte", "active": true, "tosidebar": true, "console": false, "tostatus": false, "complete": "true", "targetType": "full", "x": 380, "y": 100, "wires": [] },
+  { "id": "mb_srv", "type": "mbusio-server", "name": "mbusio", "url": "http://192.168.1.20:8080" }
+]

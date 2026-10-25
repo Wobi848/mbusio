@@ -1,0 +1,31 @@
+<script type="text/javascript">
+  RED.nodes.registerType("mbusio-server", {
+    category: "config",
+    defaults: {
+      name: { value: "" },
+      url: { value: "http://", required: true, validate: RED.validators.regex(/^https?:\/\/[^/]+/) },
+    },
+    credentials: {
+      token: { type: "password" },
+    },
+    label: function () {
+      return this.name || this.url;
+    },
+  });
+</script>
+
+<script type="text/html" data-template-name="mbusio-server">
+  <div class="form-row">
+    <label for="node-config-input-url"><i class="fa fa-globe"></i> <span data-i18n="mbusio-server.label.url"></span></label>
+    <input type="text" id="node-config-input-url" placeholder="http://192.168.1.20:8080">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-token"><i class="fa fa-key"></i> <span data-i18n="mbusio-server.label.token"></span></label>
+    <input type="password" id="node-config-input-token">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-name"><i class="fa fa-tag"></i> <span data-i18n="mbusio-server.label.name"></span></label>
+    <input type="text" id="node-config-input-name">
+  </div>
+  <div class="form-tips" data-i18n="[html]mbusio-server.tip"></div>
+</script>

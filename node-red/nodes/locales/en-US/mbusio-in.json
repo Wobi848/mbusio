@@ -1,0 +1,46 @@
+{
+  "mbusio-in": {
+    "label": {
+      "project": "Project",
+      "gateway": "Gateway",
+      "line": "Line",
+      "scope": "Values",
+      "meter": "Meter",
+      "datapoints": "Datapoints",
+      "quality": "Pass on",
+      "name": "Name"
+    },
+    "scope": {
+      "datapoints": "selected datapoints",
+      "meter": "all of this meter",
+      "line": "all of this line"
+    },
+    "quality": {
+      "good": "only good values",
+      "all": "all values (check msg.mbusio.quality)"
+    },
+    "editor": {
+      "loading": "Loading list from mbusio …",
+      "noServer": "Choose or add mbusio first",
+      "loadError": "mbusio not reachable",
+      "keeps": "selection kept",
+      "version": "mbusio version does not fit this node, please update mbusio",
+      "noOperation": "continuous operation off, no values",
+      "all": "all",
+      "empty": "No active datapoints on this line. In mbusio: tab Transfer → Choose values.",
+      "tip": "Values only come from lines in continuous operation. \"all of this meter / line\" also includes datapoints added later in mbusio."
+    },
+    "status": {
+      "config": "mbusio or selection missing",
+      "connecting": "connecting …",
+      "offline": "mbusio not reachable __detail__",
+      "denied": "access denied (key)",
+      "noproject": "project not found in mbusio",
+      "version": "mbusio version does not fit",
+      "missing": "datapoint missing in mbusio: __no__",
+      "disturbed": "disturbed: __n__",
+      "stale": "stale: __n__",
+      "values": "__n__ values"
+    }
+  }
+}

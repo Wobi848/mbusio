@@ -1,0 +1,48 @@
+{
+  "name": "node-red-contrib-mbusio",
+  "version": "0.1.0",
+  "description": "Node-RED nodes for mbusio (M-Bus master): choose project, gateway, line, meter and datapoints from lists and get live meter values with quality, without an MQTT broker",
+  "files": [
+    "nodes",
+    "lib",
+    "examples"
+  ],
+  "keywords": [
+    "node-red",
+    "mbus",
+    "m-bus",
+    "meter",
+    "zähler",
+    "energy",
+    "heat-meter",
+    "building-automation"
+  ],
+  "author": "sr.rpo",
+  "license": "MIT",
+  "node-red": {
+    "nodes": {
+      "mbusio-server": "nodes/mbusio-server.js",
+      "mbusio-in": "nodes/mbusio-in.js"
+    },
+    "version": ">=4.0.0"
+  },
+  "engines": {
+    "node": ">=18.5"
+  },
+  "scripts": {
+    "test": "mocha \"test/**/*_spec.js\" --exit"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0",
+    "node-red": "^4.1.0",
+    "node-red-node-test-helper": "^0.3.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Wobi848/mbusio.git",
+    "directory": "node-red"
+  },
+  "bugs": {
+    "url": "https://github.com/Wobi848/mbusio/issues"
+  }
+}

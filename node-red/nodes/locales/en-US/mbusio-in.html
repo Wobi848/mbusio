@@ -1,0 +1,17 @@
+<script type="text/html" data-help-name="mbusio-in">
+  <p>Values of M-Bus meters from <b>mbusio</b>, directly without an MQTT broker. Choose project, gateway, line, meter and datapoints from lists.</p>
+  <h3>Outputs</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">number</span></dt>
+    <dd>Value, factor already applied.</dd>
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>Name of the datapoint, e.g. <code>Apt 1 · Energy</code>.</dd>
+    <dt>mbusio <span class="property-type">object</span></dt>
+    <dd><code>no</code> (number of the datapoint, never changes), <code>unit</code>, <code>time</code> (UTC), <code>quality</code> (<code>good</code>, <code>stale</code>, <code>disturbed</code>, <code>invalid</code>), <code>meter</code>, <code>ident</code>, <code>pa</code>, <code>gateway</code>, <code>line</code>, <code>project</code>.</dd>
+  </dl>
+  <h3>Details</h3>
+  <p>After deploy the current value of each datapoint comes at once, then every new reading as set in mbusio (every reading, on change, daily) and every change of quality. Values only come from lines in continuous operation.</p>
+  <p><b>Pass on</b>: by default only good values. With “all values” stale and disturbed values come too; check <code>msg.mbusio.quality</code>.</p>
+  <p><b>Status</b>: green = good, yellow = stale or datapoint missing in mbusio, red = disturbed or access denied, grey = mbusio not reachable (retries every 10 s).</p>
+  <p>Node-RED only reads. Reading the bus stays with the plan in mbusio.</p>
+</script>

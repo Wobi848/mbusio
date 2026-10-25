@@ -1,0 +1,6 @@
+{
+  "mbusio-server": {
+    "label": { "url": "Address", "token": "Access key", "name": "Name" },
+    "tip": "Address of mbusio in the LAN (started with <code>--lan</code>), e.g. <code>http://192.168.1.20:8080</code>. Access key as given with <code>--token</code>; leave empty if mbusio has none."
+  }
+}

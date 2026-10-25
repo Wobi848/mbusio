@@ -1,0 +1,17 @@
+<script type="text/html" data-help-name="mbusio-in">
+  <p>Werte von M-Bus-Zählern aus <b>mbusio</b>, direkt ohne MQTT-Broker. Projekt, Gateway, Linie, Zähler und Datenpunkte aus Listen wählen.</p>
+  <h3>Ausgang</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">number</span></dt>
+    <dd>Wert, Faktor schon angewendet.</dd>
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>Name des Datenpunkts, z.B. <code>Whg 1 · Energie</code>.</dd>
+    <dt>mbusio <span class="property-type">object</span></dt>
+    <dd><code>no</code> (Nummer des Datenpunkts, bleibt immer gleich), <code>unit</code>, <code>time</code> (UTC), <code>quality</code> (<code>good</code>, <code>stale</code>, <code>disturbed</code>, <code>invalid</code>), <code>meter</code>, <code>ident</code>, <code>pa</code>, <code>gateway</code>, <code>line</code>, <code>project</code>.</dd>
+  </dl>
+  <h3>Details</h3>
+  <p>Nach dem Deploy kommt sofort der aktuelle Wert jedes Datenpunkts, danach jede neue Auslesung wie in mbusio eingestellt (jede Auslesung, bei Änderung, täglich) und jede geänderte Qualität. Werte kommen nur aus Linien im Dauerbetrieb.</p>
+  <p><b>Weitergeben</b>: Vorgabe nur gute Werte. Mit „alle Werte“ kommen auch veraltete und gestörte; dann <code>msg.mbusio.quality</code> prüfen.</p>
+  <p><b>Status</b>: grün = gut, gelb = veraltet oder Datenpunkt fehlt in mbusio, rot = gestört oder Zugriff verweigert, grau = mbusio nicht erreichbar (neuer Versuch alle 10 s).</p>
+  <p>Node-RED liest nur. Das Auslesen des Busses bleibt beim Plan in mbusio.</p>
+</script>

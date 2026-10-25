@@ -1,0 +1,46 @@
+{
+  "mbusio-in": {
+    "label": {
+      "project": "Projekt",
+      "gateway": "Gateway",
+      "line": "Linie",
+      "scope": "Werte",
+      "meter": "Zähler",
+      "datapoints": "Datenpunkte",
+      "quality": "Weitergeben",
+      "name": "Name"
+    },
+    "scope": {
+      "datapoints": "gewählte Datenpunkte",
+      "meter": "alle dieses Zählers",
+      "line": "alle dieser Linie"
+    },
+    "quality": {
+      "good": "nur gute Werte",
+      "all": "alle Werte (msg.mbusio.quality prüfen)"
+    },
+    "editor": {
+      "loading": "Liste von mbusio wird geladen …",
+      "noServer": "Zuerst mbusio wählen oder anlegen",
+      "loadError": "mbusio nicht erreichbar",
+      "keeps": "Auswahl bleibt",
+      "version": "mbusio-Version passt nicht zu diesem Node, bitte mbusio aktualisieren",
+      "noOperation": "Dauerbetrieb aus, keine Werte",
+      "all": "alle",
+      "empty": "Keine aktiven Datenpunkte auf dieser Linie. In mbusio: Reiter Weitergabe → Werte wählen.",
+      "tip": "Werte kommen nur aus Linien im Dauerbetrieb. „alle dieses Zählers / dieser Linie“ schliesst auch Datenpunkte ein, die später in mbusio dazukommen."
+    },
+    "status": {
+      "config": "mbusio oder Auswahl fehlt",
+      "connecting": "verbindet …",
+      "offline": "mbusio nicht erreichbar __detail__",
+      "denied": "Zugriff verweigert (Schlüssel)",
+      "noproject": "Projekt in mbusio nicht gefunden",
+      "version": "mbusio-Version passt nicht",
+      "missing": "Datenpunkt fehlt in mbusio: __no__",
+      "disturbed": "gestört: __n__",
+      "stale": "veraltet: __n__",
+      "values": "__n__ Werte"
+    }
+  }
+}

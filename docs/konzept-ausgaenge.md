@@ -131,9 +131,8 @@ die sich in `OUTPUT_UI` einträgt: `load`, `state`, `form`, `update`, `change`, 
 | Modbus TCP | Bereitstellen | Server, Register-Aufbau, Adressvorschlag | Häkchen, Adressen, aktueller Wert, Qualität |
 | BACnet/IP | Bereitstellen | Server, Objekte, Gerätesuche, COV | wie Modbus, dazu Ereignis-Kanal für COV |
 
-Node-RED braucht kein Häkchen je Datenpunkt (alle aktiven), es sei denn, die offene Frage in
-[konzept-node-red.md](konzept-node-red.md) wird anders entschieden. Dann wäre es ein normaler
-Ausgang mit leerer Adresse.
+Node-RED braucht kein Häkchen je Datenpunkt (alle aktiven), so entschieden in
+[konzept-node-red.md](konzept-node-red.md).
 
 ## 5. Umsetzung in Schritten
 
@@ -143,8 +142,8 @@ Ausgang mit leerer Adresse.
 2. ✓ **Signal für Änderungen** (3.2) mit Test.
 3. ✓ **Home Assistant Discovery** nach [konzept-home-assistant.md](konzept-home-assistant.md)
    (vor dem Ereignis-Kanal gemacht, weil es ihn nicht braucht).
-4. **Node-RED** nach [konzept-node-red.md](konzept-node-red.md): ✓ Schnittstelle in mbusio,
-   offen: Paket mit den Nodes.
+4. ✓ **Node-RED** nach [konzept-node-red.md](konzept-node-red.md): Schnittstelle in mbusio und
+   Paket `node-red/` (ohne `mbusio-status`, nicht veröffentlicht).
 5. **Modbus TCP, BACnet/IP** erst nach Freigabe (Regel: Modbus vorerst nicht) und nach dem
    7-Tage-Test.
 
