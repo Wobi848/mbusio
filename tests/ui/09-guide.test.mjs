@@ -83,8 +83,10 @@ export default {
     assert.match(await page.textContent("#op-all-sum"), /Dauerbetrieb: 1 Linie/);
     assert.ok(await page.isVisible("#lb-op.on [data-op-toggle]:checked"));
     assert.match(await page.textContent("#lb-op"), /läuft/);
-    // Testserver läuft nicht als Dienst: Hinweis, dass es nur mit offenem mbusio läuft
-    assert.match(await page.textContent("#plant-state"), /Läuft nur, solange mbusio geöffnet ist/);
+    // Hinweis „nur mit offenem mbusio“ genau dann, wenn mbusio nicht im Hintergrund läuft (ein
+    // CI-Runner ist selbst ein systemd-Dienst, dann erkennt mbusio zu Recht „Hintergrund“)
+    const hint = /Läuft nur, solange mbusio geöffnet ist/.test(await page.textContent("#plant-state"));
+    assert.equal(hint, !(await api("status")).background);
     await page.click("[data-guide-go]");
     await page.waitForFunction(() => !document.querySelector("#sec-transfer").hidden);
     await page.click("[data-guide-go]");
