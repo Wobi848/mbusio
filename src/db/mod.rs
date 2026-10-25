@@ -79,6 +79,7 @@ pub(crate) fn main_value(r: &MeterReading) -> Option<&crate::mbus::decode::Recor
         .or_else(|| current().next())
 }
 
+mod lines;
 mod meters;
 mod projects;
 mod readings;

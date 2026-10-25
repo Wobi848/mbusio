@@ -400,7 +400,7 @@ Aufbau:
 - `src/mbus/analyze.rs`: Telegramm-Analyse Byte für Byte
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim/`: Simulator (bus: der Bus, meter: ein simulierter Zähler, scenarios: Vorlagen und eigene Anlagen, store: Speichern), alle hinter demselben `Link`-Trait
 - `src/db/`: Datenbank, nach Bereichen (types: Datentypen und Tabellenzeilen, schema mit Migrationen,
-  projects, meters, readings, schedule, report)
+  projects, lines, meters, readings, schedule, report)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
 - `src/datapoint/`: Datenpunkte: mod (Datenpunkt, Schema, lesen, anlegen), key (Kennung eines
   Werts), quality (Qualität, Plausibilität), values (neue Werte aus einer Auslesung), select (Werte
