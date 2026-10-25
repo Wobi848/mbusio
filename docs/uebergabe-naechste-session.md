@@ -1,6 +1,6 @@
 # Übergabe an die nächste Session (Stand 2026-10-25)
 
-Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, letzter Commit `81da159`.
+Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, letzter Commit `12bee0a`.
 Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 ## Harte Regeln des Nutzers
@@ -19,6 +19,9 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Commits **ohne** KI-Hinweis (globale Regel des Nutzers); nach jedem fertigen Schritt committen und pushen. Nicht mergen ohne ausdrückliches OK.
 
 ## Zuletzt erledigt
+- 25.10.: Modbus TCP (docs/konzept-modbus.md), geprüft mit eigenem Client und pymodbus. Simulator-
+  Zählerstände laufen ab 1.10.2026 (Systemuhr) und überleben Neustarts. Repo hat nur diesen einen
+  Branch (Standard-Branch), es gibt nichts zu mergen.
 - 25.10.: Ausgänge allgemein (Trait `Output`, docs/konzept-ausgaenge.md), Home Assistant MQTT Discovery
   (docs/konzept-home-assistant.md, mit echtem HA getestet und wieder entfernt), Signal `Db.changes`,
   Node-RED-Schnittstelle `/api/nodered/tree|stream` und Paket `node-red/` (node-red-contrib-mbusio,
