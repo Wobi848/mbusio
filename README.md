@@ -429,7 +429,8 @@ Aufbau:
   `base.js` (Speicher, Sprache, API; auch für den Bericht), `core.js`, `ui.js` (gemeinsame Bausteine:
   Chip, Symbol-Knopf, Tabelle, Eingabefeld, Formular, Aufklapp-Bereich, Vorschau → Übernehmen,
   CSV zerlegen), dann je Bereich eine Datei (busbar, connection, scan, hits, fix, tools, meters, chart, meterlist,
-  transfer, je Ausgang `out-<name>.js` (out-mqtt, out-modbus), sim, project, guide); `main.js` startet alles
+  transfer, je Ausgang `out-<name>.js` (out-mqtt, out-modbus), sim, plan, project, linebar, guide);
+  `main.js` startet alles
 - `web/css/`: `base.css` (Farben, Elemente, Bausteine: Kopfzeile, Linien-Leiste, Laschen, Zähler-Baustein,
   Tabellen-Leiste, Statusleiste), dann je Reiter eine Datei
 - `tests/ui/`: Browser-Tests der Oberfläche (siehe `tests/ui/README.md`)
