@@ -14,7 +14,7 @@ module.exports = function (RED) {
     node.use = (project) => {
       let s = shared.get(project);
       if (!s) {
-        s = { conn: new Connection({ url: node.url, token: node.credentials.token, project }), users: 0 };
+        s = { conn: new Connection({ url: node.url, token: node.credentials?.token, project }), users: 0 };
         s.conn.setMaxListeners(0); // ein Satz Listener je mbusio-in
         shared.set(project, s);
         s.conn.start();

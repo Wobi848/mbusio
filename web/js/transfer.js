@@ -17,7 +17,8 @@ const transfer = {
 
 /// Was jeder Ausgang in der Oberfläche selbst mitbringt (je Ausgang eine Datei, z.B. out-mqtt.js):
 /// load() Einstellungen und Zustand laden, state() Chip und Satz, form() Einstellungen,
-/// update(form) / change(form, ev) Formular nachführen, save(form), fullAddress(adresse)
+/// update(form) / change(form, ev) Formular nachführen, save(form), fullAddress(adresse),
+/// problem() Text für die Statusleiste oder null
 const OUTPUT_UI = {};
 
 const allDatapoints = () => (transfer.data ? transfer.data.meters.flatMap((m) => m.datapoints) : []);

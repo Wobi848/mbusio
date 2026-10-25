@@ -91,4 +91,7 @@ OUTPUT_UI.mqtt = {
   },
 
   fullAddress: (address) => `${mqttBase()}/${address}`,
+
+  /// Für die Statusleiste: Broker getrennt (mit wartenden Nachrichten), sonst nichts
+  problem: () => (mqttStatus?.state === "error" ? t("mqtt_busbar", mqttStatus.queued) : null),
 };

@@ -705,7 +705,7 @@ body.has-busbar #toast { bottom: calc(var(--busbar-h, 48px) + 12px); }
 }
 #busbar-disk { cursor: help; }
 #busbar-disk.full { background: var(--err-soft); color: var(--err); }
-#busbar-mqtt { text-decoration: none; }
+#busbar-outputs { text-decoration: none; }
 
 /* ------------------------------------------------------------ Schmalere Fenster */
 

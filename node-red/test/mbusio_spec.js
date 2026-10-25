@@ -180,6 +180,14 @@ describe("mbusio nodes", function () {
     msgs[1].payload.should.equal(6);
   });
 
+  it("closes the stream when the project disappears in mbusio", async function () {
+    const { n1 } = await load();
+    fake.tree.projects = [];
+    fake.send("changed", {});
+    await waitFor(() => n1.status.args.some((a) => a[0].text === "mbusio-in.status.noproject"));
+    await waitFor(() => fake.streams.every((s) => s.destroyed || s.writableEnded || s.closed));
+  });
+
   it("sends the access key and reports a wrong one", async function () {
     fake = await fakeMbusio({ token: "geheim" });
     const url = `http://127.0.0.1:${fake.server.address().port}`;

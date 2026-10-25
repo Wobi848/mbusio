@@ -36,10 +36,14 @@ function renderBusbar() {
   // Uhrzeit nur ein Thema, wenn geplant ausgelesen wird
   const tm = $("busbar-time");
   tm.hidden = !(planActive && timeState && !timeState.confirmed);
+  // Ausgänge mit Problem (z.B. MQTT getrennt); jeder Ausgang sagt selbst, was er meldet
+  const out = $("busbar-outputs");
+  const problems = Object.values(OUTPUT_UI)
+    .map((o) => o.problem?.())
+    .filter(Boolean);
+  out.hidden = !problems.length;
+  if (!out.hidden) out.textContent = problems.join(" · ");
   // Speicher: "knapp" nur im Dauerbetrieb wichtig, "voll" immer
-  const mq = $("busbar-mqtt");
-  mq.hidden = mqttStatus?.state !== "error";
-  if (!mq.hidden) mq.textContent = t("mqtt_busbar", mqttStatus.queued);
   const dk = $("busbar-disk");
   const level = disk?.level || "ok";
   dk.hidden = level === "ok" || (level === "low" && !planActive);
