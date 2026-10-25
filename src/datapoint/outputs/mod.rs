@@ -14,6 +14,7 @@ use crate::changeset::ChangeSet;
 use super::*;
 
 mod home_assistant;
+mod modbus;
 mod mqtt;
 
 /// Was ein Ausgang selbst können muss; alles Gemeinsame steht in diesem Modul
@@ -31,6 +32,11 @@ pub trait Output: Sync {
     fn is_on(&self, db: &Db) -> bool;
     /// Einen Wert zustellen (z.B. in die Warteschlange für den Broker)
     fn deliver(&self, db: &mut Db, d: &Datapoint, address: &str, s: &Sample) -> Result<()>;
+    /// Müssen Adressen über alle Projekte eindeutig sein (MQTT: ein Broker) oder nur im Projekt
+    /// (Modbus: ein Server je Projekt)?
+    fn global_addresses(&self) -> bool {
+        true
+    }
     /// Adresse, wie sie ein Leitsystem sieht (MQTT: mit Basis-Topic)
     fn full_address(&self, _db: &Db, address: &str) -> String {
         address.to_string()
@@ -47,7 +53,7 @@ pub trait Output: Sync {
 }
 
 /// Alle Ausgänge, in der Reihenfolge der Oberfläche
-pub static OUTPUTS: [&dyn Output; 1] = [&mqtt::Mqtt];
+pub static OUTPUTS: [&dyn Output; 2] = [&mqtt::Mqtt, &modbus::Modbus];
 
 /// Ausgang zu einem Schlüssel
 pub fn output(key: &str) -> Result<&'static dyn Output> {
@@ -156,12 +162,34 @@ impl Db {
         output(key)?.pattern_address(self, &self.dp_place(dp_id)?, &self.dp(dp_id)?)
     }
 
-    /// Vorschlag für die Adresse eines Datenpunkts an einem Ausgang, eindeutig gemacht
+    /// Projekt eines Datenpunkts
+    fn dp_project(&self, dp_id: i64) -> Result<i64> {
+        Ok(self.conn.query_row(
+            "SELECT gateways.project_id FROM datapoints JOIN meters ON meters.id = datapoints.meter_id
+             JOIN lines ON lines.id = meters.line_id JOIN gateways ON gateways.id = lines.gateway_id
+             WHERE datapoints.id = ?1",
+            [dp_id],
+            |r| r.get(0),
+        )?)
+    }
+
+    /// Vorschlag für die Adresse eines Datenpunkts an einem Ausgang, eindeutig gemacht (über alle
+    /// Projekte oder nur im Projekt, siehe `Output::global_addresses`)
     fn default_address(&self, key: &str, dp_id: i64) -> Result<String> {
         let address = self.pattern_address(key, dp_id)?;
+        // None = alle Projekte
+        let project = if output(key)?.global_addresses() {
+            None
+        } else {
+            Some(self.dp_project(dp_id)?)
+        };
         let taken: bool = self.conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM dp_outputs WHERE output = ?1 AND address = ?2 AND dp != ?3)",
-            params![key, address, dp_id],
+            "SELECT EXISTS(SELECT 1 FROM dp_outputs JOIN datapoints ON datapoints.id = dp_outputs.dp
+               JOIN meters ON meters.id = datapoints.meter_id JOIN lines ON lines.id = meters.line_id
+               JOIN gateways ON gateways.id = lines.gateway_id
+             WHERE dp_outputs.output = ?1 AND dp_outputs.address = ?2 AND dp_outputs.dp != ?3
+               AND (?4 IS NULL OR gateways.project_id = ?4))",
+            params![key, address, dp_id, project],
             |r| r.get(0),
         )?;
         Ok(if taken {
@@ -192,11 +220,14 @@ impl Db {
     /// Alle Adressen eines Projekts an einem Ausgang nach dem Muster neu setzen: zuerst nur zeigen,
     /// was sich ändert (`apply` = false). Doppelte werden mit der Nummer des Datenpunkts eindeutig.
     pub fn dp_readdress(&mut self, project_id: i64, key: &str, apply: bool) -> Result<ChangeSet> {
-        let address_label = output(key)?.address_label();
+        let o = output(key)?;
+        let address_label = o.address_label();
         let list = self.dps_with_output(project_id, key)?;
         let mine: HashSet<i64> = list.iter().map(|(dp, ..)| *dp).collect();
-        // Adressen anderer Projekte bleiben belegt
-        let mut used: HashSet<String> = {
+        // Adressen anderer Projekte bleiben belegt, wenn sie global eindeutig sein müssen
+        let mut used: HashSet<String> = if !o.global_addresses() {
+            HashSet::new()
+        } else {
             let mut st = self.conn.prepare(
                 "SELECT dp, address FROM dp_outputs WHERE output = ?1 AND address IS NOT NULL",
             )?;

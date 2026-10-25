@@ -8,6 +8,7 @@ mod line;
 mod link;
 mod mbus;
 mod meterlist;
+mod modbus;
 mod mqtt;
 mod plan;
 mod scheduler;
@@ -374,6 +375,7 @@ async fn serve(
     std::thread::Builder::new()
         .name("mqtt".into())
         .spawn(move || mqtt::run(st))?;
+    tokio::spawn(modbus::run(state.clone()));
     let port = listener.local_addr()?.port();
     let url = format!("http://localhost:{port}");
     println!("mbusio {}: {url}", env!("CARGO_PKG_VERSION"));

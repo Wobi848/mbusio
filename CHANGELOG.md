@@ -9,6 +9,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Neu
 
+- **Modbus TCP:** mbusio ist Modbus-Server für Leitsystem, SPS oder Loxone. Je Datenpunkt das
+  Häkchen Modbus; 10 Register ab (Nummer − 1) × 10 mit Wert (float64, float32, int32 × 100),
+  Qualität und Alter; ab Register 60000 der Zustand; nur lesen; Registerliste für den Integrator.
+  Vorgabe: aus.
 - **Schnittstelle für Node-RED** (ohne MQTT-Broker): `/api/nodered/tree` liefert Projekte,
   Gateways, Linien, Zähler und Datenpunkte mit aktuellem Wert, `/api/nodered/stream` die
   laufenden Werte als Server-Sent Events.
@@ -99,6 +103,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Geändert
 
+- **CSV der Datenpunkte:** zwei neue Spalten am Ende (Modbus, Register). Ältere Dateien ohne diese
+  Spalten lassen sich weiter einlesen.
 - Knöpfe: weitere wichtige Aktionen in der Sekundärfarbe (MQTT-Einstellungen, + Linie/Gateway,
   Benennen, Baudrate suchen, Simulator kopieren); „Alle Auslesungen löschen“ rot; Menü-Einträge
   immer leise (Ziel-Menü in den Werkzeugen war unlesbar).

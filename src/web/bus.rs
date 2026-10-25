@@ -35,6 +35,7 @@ pub(super) async fn status(State(st): State<AppState>) -> ApiResult<serde_json::
         "time": clock::state(),
         "disk": st.planner.disk(),
         "mqtt": mqtt_status(&st, &db),
+        "modbus": modbus_status(&st),
         // alle Ausgänge: Schlüssel, Name, eingeschaltet
         "outputs": db.outputs_info(),
         "now": clock::stamp(),

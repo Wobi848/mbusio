@@ -1,6 +1,6 @@
 # Konzept: Modbus TCP (Server)
 
-Stand: 25.10.2026 · Status: **in Arbeit** · Phase 4 aus [konzept-dauerbetrieb.md](konzept-dauerbetrieb.md),
+Stand: 25.10.2026 · Status: **umgesetzt** (geprüft mit eigenem Client und pymodbus) · Phase 4 aus [konzept-dauerbetrieb.md](konzept-dauerbetrieb.md),
 Ausgang der Art „Bereitstellen“ nach [konzept-ausgaenge.md](konzept-ausgaenge.md)
 
 mbusio wird ein **Modbus-TCP-Server**: Leitsystem, SPS oder Loxone lesen die Zählerwerte als

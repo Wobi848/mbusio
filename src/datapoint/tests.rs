@@ -405,7 +405,10 @@ fn outputs_in_csv_round_trip() {
         .unwrap();
     let csv = db.dp_csv(1, Lang::De).unwrap();
     assert!(
-        csv.lines().next().unwrap().ends_with(";MQTT;Topic"),
+        csv.lines()
+            .next()
+            .unwrap()
+            .ends_with(";MQTT;Topic;Modbus;Register"),
         "{csv}"
     );
     let row = csv.lines().nth(1).unwrap().to_string();
@@ -413,11 +416,17 @@ fn outputs_in_csv_round_trip() {
         row.contains(";1;schnellscan/gateway-1-linie-1/whg-1/energy"),
         "{row}"
     );
-    // Topic in Excel geändert, MQTT aus
+    // Topic in Excel geändert, MQTT aus; Datei von vor Modbus (ohne die zwei Spalten)
     let mut c = fields(&row);
     c[10] = "0".into();
     c[11] = "haus/whg1/energie".into();
-    let text = format!("{}\n{}\n", csv.lines().next().unwrap(), c.join(";"));
+    c.truncate(12);
+    let head = csv
+        .lines()
+        .next()
+        .unwrap()
+        .trim_end_matches(";Modbus;Register");
+    let text = format!("{head}\n{}\n", c.join(";"));
     let p = db.dp_import(1, &table(&text), true, Lang::De).unwrap();
     assert!(p.applied && p.changed.len() == 2, "{:?}", p.changed);
     let d = &db.dp_by_meter(mid).unwrap()[0];

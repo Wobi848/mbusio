@@ -31,7 +31,7 @@ export default {
     // CSV exportieren, ändern, mit Vorschau wieder einlesen
     const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#tr-export")]);
     const lines = fs.readFileSync(await dl.path(), "utf8").replace(/^\uFEFF/, "").split(/\r?\n/);
-    assert.match(lines[0], /^Nr;Linie;Zähler.*;MQTT;Topic$/);
+    assert.match(lines[0], /^Nr;Linie;Zähler.*;MQTT;Topic;Modbus;Register$/);
     const c = lines[1].split(";");
     c[5] = "Wärme Whg 1";
     lines[1] = c.join(";");

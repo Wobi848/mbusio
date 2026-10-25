@@ -25,7 +25,7 @@ async function refreshStatus() {
   timeState = s.time;
   planActive = !!s.plan_active;
   disk = s.disk;
-  mqttStatus = s.mqtt;
+  for (const o of Object.values(OUTPUT_UI)) o.fromStatus?.(s);
   outputsInfo = s.outputs || [];
   host = { background: !!s.background, os: s.os || "" };
   if (transfer.data && !$("sec-outputs").hidden) renderOutputState();

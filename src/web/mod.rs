@@ -79,6 +79,8 @@ pub struct Shared {
     pub(crate) planner: Planner,
     /// MQTT-Ausgang: Zustand und Version der Einstellungen
     pub(crate) mqtt: crate::mqtt::MqttState,
+    /// Modbus-Server: Zustand, Version der Einstellungen, Registerbild
+    pub(crate) modbus: crate::modbus::ModbusState,
     /// Optionaler Zugriffsschlüssel für die API (bei LAN-Zugriff)
     token: Option<String>,
     /// true beim Herunterfahren: offene Ströme (Node-RED) enden, sonst wartet der Server auf sie
@@ -100,6 +102,7 @@ impl Shared {
             db: Mutex::new(db),
             planner,
             mqtt: Default::default(),
+            modbus: Default::default(),
             token,
             stop: tokio::sync::watch::channel(false).0,
         }
@@ -424,6 +427,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/projects/{id}/plan", put(project_plan))
         .route("/api/projects/{id}/thin", put(project_thin))
         .route("/api/mqtt", get(mqtt_get).put(mqtt_put))
+        .route("/api/modbus", get(modbus_get).put(modbus_put))
         .route(
             "/api/projects/{id}/outputs/{key}/readdress",
             post(output_readdress),

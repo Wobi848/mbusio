@@ -1,4 +1,4 @@
-//! Ausgänge: MQTT-Einstellungen und Zustand
+//! Ausgänge: Einstellungen und Zustand von MQTT und Modbus; Adressen und Liste für den Integrator
 
 use super::*;
 
@@ -45,6 +45,43 @@ pub(super) async fn mqtt_put(
     st.log.push(
         "INFO",
         tr("MQTT-Einstellungen gespeichert", "MQTT settings saved"),
+    );
+    Ok(Json(json!({ "ok": true })))
+}
+
+pub(super) fn modbus_status(st: &AppState) -> crate::modbus::ModbusStatus {
+    st.modbus.status.lock().unwrap().clone()
+}
+
+/// Einstellungen, Zustand und die Projekte zur Auswahl
+pub(super) async fn modbus_get(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let db = st.db.lock().unwrap();
+    let projects: Vec<serde_json::Value> = db
+        .tree()?
+        .iter()
+        .map(|p| json!({ "id": p.project.id, "name": p.project.name }))
+        .collect();
+    Ok(Json(json!({
+        "config": db.modbus_config(),
+        "status": modbus_status(&st),
+        "projects": projects,
+    })))
+}
+
+pub(super) async fn modbus_put(
+    State(st): State<AppState>,
+    Json(mut c): Json<crate::modbus::ModbusConfig>,
+) -> ApiResult<serde_json::Value> {
+    c.bind = c.bind.trim().to_string();
+    {
+        let mut db = st.db.lock().unwrap();
+        db.set_modbus_config(&c).map_err(bad_request)?;
+        db.outputs_refresh()?;
+    }
+    st.modbus.version.fetch_add(1, Ordering::SeqCst);
+    st.log.push(
+        "INFO",
+        tr("Modbus-Einstellungen gespeichert", "Modbus settings saved"),
     );
     Ok(Json(json!({ "ok": true })))
 }

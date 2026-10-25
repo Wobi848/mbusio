@@ -496,7 +496,7 @@ funktioniert (Broker weg, Netzwerk weg), beeinflusst weder das Auslesen noch die
 | 1 | Linien-Dienst, Ausleseplan, Uhrzeit, kompakte Speicherung, Speicherschutz | ✓ umgesetzt, Hardware-Tests offen (5.1) |
 | 2 | Datenpunkte, Qualität, Plausibilität, Zählertausch, Vorlagen, CSV | ✓ umgesetzt |
 | 3 | MQTT | ✓ umgesetzt, gegen Test-Broker geprüft |
-| 4 | Modbus TCP (Server, Registertabelle für den Integrator) | ⏸ zurückgestellt |
+| 4 | Modbus TCP (Server, Registertabelle für den Integrator) | ✓ umgesetzt 25.10.2026, siehe konzept-modbus.md |
 | 5 | BACnet/IP | offen, nur bei Bedarf und nach Prüfung einer Bibliothek |
 
 **Offen, bevor ein Release als dauerbetriebstauglich gilt:**

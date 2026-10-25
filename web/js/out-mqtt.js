@@ -37,6 +37,10 @@ OUTPUT_UI.mqtt = {
     mqttStatus = mq.status;
   },
 
+  fromStatus(s) {
+    mqttStatus = s.mqtt;
+  },
+
   state() {
     const s = mqttStatus;
     if (!s) return { chip: ui.chip("muted", t("mqtt_off")), text: "" };

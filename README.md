@@ -175,6 +175,20 @@ Zählerliste („Weitergabe“) und aus einer Auslesung führt ein Link direkt z
   Millisekunden seit 1970 oder `2026-10-17T12:00:00Z`)
 - Das Passwort erscheint nie in der Oberfläche, im Protokoll oder im Projekt-Export
 
+### Modbus TCP
+
+- mbusio ist Modbus-TCP-Server: Leitsystem, SPS oder Loxone lesen die Werte als Register (nur
+  lesen, Funktion 03 und 04 liefern dieselben Register, jede Unit-ID)
+- Reiter Weitergabe → Ausgänge → Modbus → **Einstellungen**: einschalten, Adresse der
+  Netzwerkschnittstelle (Modbus hat keine Zugangskontrolle), Port (502; unter Linux braucht ein
+  Port unter 1024 Rechte, sonst z.B. 1502), Projekt, Wortreihenfolge (ABCD oder CDAB)
+- Je Datenpunkt das Häkchen **Modbus**; Startregister = (Nummer − 1) × 10, bleibt immer gleich
+- Je Datenpunkt 10 Register: Wert als float64 (+0), float32 (+4), int32 × 100 (+6), Qualität (+8:
+  0 gut, 1 veraltet, 2 gestört, 3 ungültig, 4 kein Wert), Alter in Minuten (+9); ab 60000 der
+  Zustand (Lebenszeichen, Anzahl gestört, Anzahl veraltet)
+- **Registerliste für den Integrator** als CSV oder JSON, wie bei MQTT
+  (siehe [docs/konzept-modbus.md](docs/konzept-modbus.md))
+
 ### Dokumentation
 
 - Bericht je Projekt mit Kunde, Objekt, Bearbeiter, allen Linien und Zählern, optional mit allen
@@ -388,9 +402,11 @@ Aufbau:
 - `src/db/`: Datenbank, nach Bereichen (schema mit Migrationen, projects, meters, readings, schedule, report)
 - `src/line.rs`: Linien-Dienst, eine Verbindung und Warteschlange je Linie (Bedienung vor Plan)
 - `src/datapoint/`: Datenpunkte (Kern: Kennung, Qualität, Plausibilität; outputs: Ausgänge,
-  allgemein (mod, Schnittstelle `Output`) und je Ausgang ein Modul, heute mqtt; templates: Vorlagen; exchange: Zählertausch; csv: Export/Import)
+  allgemein (mod, Schnittstelle `Output`) und je Ausgang ein Modul (mqtt, home_assistant, modbus); templates: Vorlagen; exchange: Zählertausch; csv: Export/Import)
 - `src/changeset.rs`: Änderungssatz für „Vorschau → Übernehmen“ (Importe, Vorlagen)
 - `src/meterlist.rs`: Zählerliste importieren (über die ID), Namen nach Muster, CSV-Export
+- `src/modbus/`: Modbus-TCP-Server: Einstellungen und Dienst (mod), Registerbild (image),
+  Anfragen und Antworten (protocol)
 - `src/mqtt/`: MQTT-Ausgang: Einstellungen, Warteschlange in der Datenbank, Dienst (mod);
   eigener kleiner Client für MQTT 3.1.1 mit TLS über rustls (client)
 - `src/plan.rs`, `src/scheduler.rs`: Ausleseplan und Zeitplan; `src/clock.rs`: Uhrzeit und ob sie
@@ -402,7 +418,7 @@ Aufbau:
   `base.js` (Speicher, Sprache, API; auch für den Bericht), `core.js`, `ui.js` (gemeinsame Bausteine:
   Chip, Symbol-Knopf, Tabelle, Eingabefeld, Formular, Aufklapp-Bereich, Vorschau → Übernehmen,
   CSV zerlegen), dann je Bereich eine Datei (busbar, scan, fix, tools, meters, chart, meterlist,
-  transfer, je Ausgang `out-<name>.js` (heute out-mqtt), sim, project, guide); `main.js` startet alles
+  transfer, je Ausgang `out-<name>.js` (out-mqtt, out-modbus), sim, project, guide); `main.js` startet alles
 - `web/css/`: `base.css` (Farben, Elemente, Bausteine: Kopfzeile, Linien-Leiste, Laschen, Zähler-Baustein,
   Tabellen-Leiste, Statusleiste), dann je Reiter eine Datei
 - `tests/ui/`: Browser-Tests der Oberfläche (siehe `tests/ui/README.md`)
@@ -442,6 +458,8 @@ installation; the UI runs in the browser, phones included.
 - MQTT output: one retained topic per datapoint with JSON (value, unit, UTC time, quality), QoS 1,
   status topic with last will, persistent queue with in-order redelivery, TLS, user/password,
   optional time from the control system
+- Modbus TCP server: 10 registers per datapoint (float64, float32, int32 × 100, quality, age),
+  start register (number − 1) × 10, read only (03/04), register list for the integrator
 - Node-RED interface without a broker: selection tree and live values as server-sent events
   (`/api/nodered/tree`, `/api/nodered/stream`)
 - Home Assistant via MQTT discovery (one checkbox): datapoints appear by themselves, one device per

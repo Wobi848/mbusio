@@ -16,7 +16,8 @@ const transfer = {
 };
 
 /// Was jeder Ausgang in der Oberfläche selbst mitbringt (je Ausgang eine Datei, z.B. out-mqtt.js):
-/// load() Einstellungen und Zustand laden, state() Chip und Satz, form() Einstellungen,
+/// load() Einstellungen und Zustand laden, fromStatus(status) Zustand aus /api/status übernehmen,
+/// state() Chip und Satz, form() Einstellungen,
 /// update(form) / change(form, ev) Formular nachführen, save(form), fullAddress(adresse),
 /// problem() Text für die Statusleiste oder null
 const OUTPUT_UI = {};
