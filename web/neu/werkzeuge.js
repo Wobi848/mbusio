@@ -3,59 +3,13 @@
 // (Konzept neue Oberfläche §3.2).
 
 import { state, set, watch, activeLine } from "./store.js";
-import { html, text, list, ask, toast, styles, texts } from "./view.js";
+import { html, text, list, ask, toast, styles } from "./view.js";
 import { bind, onEscape } from "./keys.js";
 import { loadMeters, report } from "./data.js";
 import { clear as clearBusLog, logRow } from "./buslog.js";
+import "./werkzeuge-texte.js";
+import { analysisHtml, rawReplyHtml } from "./werkzeuge-analyse.js";
 
-texts(
-  {
-    wz_target: "Ziel",
-    wz_target_ph: "Zähler suchen oder Adresse (PA, ID, Sekundär)",
-    wz_use_address: (a) => `Adresse ${a} verwenden`,
-    wz_no_target: "Kein Ziel · Zähler wählen oder Adresse eingeben",
-    wz_no_match: "Kein Zähler passt · PA (0–250), ID (8 Ziffern) oder Sekundäradresse (16 Hex) eingeben",
-    wz_clear_target: "Ziel lösen",
-    wz_sim: "Simulator",
-    wz_sim_title: "Virtuelle Anlage ohne Hardware: üben, testen, vorführen",
-    wz_locked_target: "gesperrt: kein Ziel",
-    wz_locked_conn: "gesperrt: nicht verbunden",
-    wz_read_what: "Werte und Rohtelegramme",
-    wz_from_baud: (b) => `läuft mit ${b} Bd, nicht wie der Bus`,
-    wz_free: "Freie suchen",
-    wz_free_found: (n) => `PA ${n} ist frei`,
-    wz_result_empty: "Noch nichts ausgelesen. Ziel wählen, dann „Auslesen“ (R).",
-    wz_raw_frames: "Rohtelegramme",
-    wz_not_listed: "nicht in der Zählerliste",
-    wz_listed: "in der Zählerliste",
-    wz_log_empty: "Noch keine Telegramme. Jede Anfrage an den Bus erscheint hier.",
-    wz_close: "Schliessen",
-    wz_key_read: "Ziel auslesen",
-  },
-  {
-    wz_target: "Target",
-    wz_target_ph: "Search meter or address (PA, ID, secondary)",
-    wz_use_address: (a) => `Use address ${a}`,
-    wz_no_target: "No target · pick a meter or enter an address",
-    wz_no_match: "No meter matches · enter PA (0–250), ID (8 digits) or secondary address (16 hex)",
-    wz_clear_target: "Clear target",
-    wz_sim: "Simulator",
-    wz_sim_title: "Virtual plant without hardware: practise, test, demonstrate",
-    wz_locked_target: "locked: no target",
-    wz_locked_conn: "locked: not connected",
-    wz_read_what: "Values and raw telegrams",
-    wz_from_baud: (b) => `runs at ${b} Bd, not like the bus`,
-    wz_free: "Find free",
-    wz_free_found: (n) => `PA ${n} is free`,
-    wz_result_empty: "Nothing read yet. Pick a target, then “Read” (R).",
-    wz_raw_frames: "Raw telegrams",
-    wz_not_listed: "not in the meter list",
-    wz_listed: "in the meter list",
-    wz_log_empty: "No telegrams yet. Every request to the bus appears here.",
-    wz_close: "Close",
-    wz_key_read: "Read target",
-  }
-);
 
 const PICKS_MAX = 50;
 const ADDRESS = /^(\d{1,3}|\d{8}|[0-9a-f]{16})$/i;
@@ -436,14 +390,7 @@ async function analyze(hex) {
   if (!hex) return q("[data-hex]").focus();
   q("[data-hex]").value = hex;
   try {
-    const a = await request("analyze", { method: "POST", body: { hex } });
-    showAnalysis(
-      `<b>${esc(a.summary)}</b>`,
-      (a.problems.length ? a.problems.map((p) => `<p class="chip err wide">${esc(p)}</p>`).join("") : `<p class="chip ok wide">${esc(t("an_clean"))}</p>`) +
-        `<table class="atable"><thead><tr><th>${esc(t("an_bytes"))}</th><th>${esc(t("an_field"))}</th><th>${esc(t("an_meaning"))}</th></tr></thead><tbody>${a.fields
-          .map((f) => `<tr${f.bad ? ' class="bad"' : ""}><td class="mono">${esc(f.bytes || "–")}</td><td>${esc(f.name)}</td><td>${esc(f.value)}</td></tr>`)
-          .join("")}</tbody></table>`
-    );
+    showAnalysis(...analysisHtml(await request("analyze", { method: "POST", body: { hex } })));
   } catch (e) {
     report(e);
   }
@@ -453,15 +400,7 @@ async function sendRaw(button) {
   const hex = q("[data-hex]").value.trim();
   if (!hex) return q("[data-hex]").focus();
   await run(button, async () => {
-    const r = await request("raw", { method: "POST", body: { hex } });
-    const lines = [];
-    if (r.decoded?.header) lines.push(`ID ${r.decoded.header.id} · ${r.decoded.header.manufacturer} · ${label(r.decoded.header.medium)}`);
-    for (const x of r.decoded?.records || []) lines.push(`${label(x.quantity)}: ${x.value_text} ${x.unit}`.trim());
-    showAnalysis(
-      `<b>${esc(t("raw_" + r.kind))}</b>`,
-      (r.hex && r.kind !== "ack" ? `<button type="button" class="frame mono" data-hex="${esc(r.hex)}" title="${esc(t("log_click"))}">${esc(r.hex)}</button>` : "") +
-        lines.map((l) => `<div>${esc(l)}</div>`).join("")
-    );
+    showAnalysis(...rawReplyHtml(await request("raw", { method: "POST", body: { hex } })));
   });
 }
 
