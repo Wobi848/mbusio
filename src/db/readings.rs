@@ -97,6 +97,15 @@ impl Db {
         Ok(self.query_readings("meter", meter_id, 1)?.pop())
     }
 
+    /// Anzahl Auslesungen eines Zählers mit `from <= timestamp < to`
+    pub fn meter_reading_count(&self, meter_id: i64, from: &str, to: &str) -> Result<i64> {
+        Ok(self.conn.query_row(
+            "SELECT COUNT(*) FROM readings WHERE meter = ?1 AND timestamp >= ?2 AND timestamp < ?3",
+            params![meter_id, from, to],
+            |r| r.get(0),
+        )?)
+    }
+
     /// Auslesungen eines Zählers vor `time` (Ortszeit wie `timestamp`), neueste zuerst
     pub fn meter_readings_before(
         &self,
@@ -153,6 +162,24 @@ impl Db {
             }
             Err(e) => {
                 let _ = self.conn.execute_batch("ROLLBACK");
+                Err(e)
+            }
+        }
+    }
+
+    /// Wie `tx`, aber auch innerhalb einer laufenden Transaktion (geplante Auslesungen speichern
+    /// schon in einer): ganz oder gar nicht
+    pub(crate) fn savepoint<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+        self.conn.execute_batch("SAVEPOINT nested")?;
+        match f(self) {
+            Ok(v) => {
+                self.conn.execute_batch("RELEASE nested")?;
+                Ok(v)
+            }
+            Err(e) => {
+                let _ = self
+                    .conn
+                    .execute_batch("ROLLBACK TO nested; RELEASE nested");
                 Err(e)
             }
         }

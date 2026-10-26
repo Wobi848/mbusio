@@ -82,6 +82,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/meters/{id}", put(meters_update).delete(meters_remove))
         .route("/api/meters/read-all", post(meters_read_all))
+        .route("/api/exchanges/{id}/confirm", post(swap_confirm))
         .route("/api/meters/{id}/read", post(meters_read_one))
         .route("/api/meters/{id}/history", get(meter_history))
         .route("/api/meters/import", post(meters_import))

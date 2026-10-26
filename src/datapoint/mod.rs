@@ -213,7 +213,8 @@ CREATE TABLE IF NOT EXISTS exchanges (
     time TEXT NOT NULL,
     old_id TEXT,
     new_id TEXT,
-    details TEXT NOT NULL
+    details TEXT NOT NULL,
+    confirmed INTEGER NOT NULL DEFAULT 1
 );
 ";
 

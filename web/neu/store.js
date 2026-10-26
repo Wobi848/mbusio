@@ -37,9 +37,9 @@ export function activeLine() {
   return null;
 }
 
-/// Gestört: antwortet nicht oder im Plan mehrmals nicht gelesen. Eine Regel für Filter „Gestört“,
-/// „Nächster Schritt“ und Anlage
-export const faulty = (m) => !!(m.last_error || m.plan_info?.disturbed);
+/// Gestört: antwortet nicht, im Plan mehrmals nicht gelesen oder meldet selbst einen Fehler (eine
+/// schwache Batterie zählt nicht). Eine Regel für Filter „Gestört“, „Nächster Schritt“ und Anlage
+export const faulty = (m) => !!(m.last_error || m.plan_info?.disturbed || (m.fault && m.fault !== "power_low"));
 
 /// Alle Linien im Dauerbetrieb über alle Projekte: was dieses Gerät im Hintergrund tut
 export function operatingLines() {

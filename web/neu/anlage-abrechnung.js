@@ -115,7 +115,11 @@ const PREVIEW_COLS = { billing: [2, 7, 8, 9, 11, 13, 14], series: [0, 3, 8, 9, 1
 function preview(p) {
   if (!p) return `<p class="chip warn wide">${esc(data.error || "")}</p>`;
   const head = `<h3>${esc(t("an_b_preview"))} <span class="sub">${esc(`${day(p.from)} – ${day(p.to)} · ${t("an_b_rows", p.total)}`)}</span></h3>`;
-  const notes = p.notes ? `<p class="chip warn wide">${esc(t("an_b_notes", p.notes))}</p>` : "";
+  // je Art des Hinweises: „1 × Tausch erkannt · 2 × antwortet nicht“ (Konzept Export 3.6)
+  const kinds = Object.entries(p.summary || {})
+    .map(([k, n]) => `${n} × ${t("an_bs_" + k)}`)
+    .join(" · ");
+  const notes = p.notes ? `<p class="chip warn wide">${esc(t("an_b_notes", p.notes))}${kinds ? `: ${esc(kinds)}` : ""}</p>` : "";
   if (!p.rows.length) return head + `<p class="sub">${esc(t("an_b_empty"))}</p>`;
   const cols = PREVIEW_COLS[data.settings.form];
   const pick = (r) => cols.map((i) => r[i] ?? "");

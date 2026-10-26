@@ -9,6 +9,7 @@ pub(super) async fn meters_list(State(st): State<AppState>) -> ApiResult<Vec<ser
     let line = db.active_line()?;
     let project_plan = db.project_plan_of_line(line.id)?;
     let now = clock::now();
+    let swaps = db.open_swaps(line.id)?;
     let out = db
         .meters(line.id)?
         .into_iter()
@@ -16,6 +17,8 @@ pub(super) async fn meters_list(State(st): State<AppState>) -> ApiResult<Vec<ser
             let info = Db::meter_plan_info(&m, line.plan.as_deref(), &project_plan, now);
             let mut v = serde_json::to_value(&m).unwrap_or_default();
             v["plan_info"] = info;
+            // erkannter Tausch, noch nicht bestätigt (Konzept Export 3.6)
+            v["swap"] = swaps.get(&m.id).cloned().unwrap_or_default();
             v
         })
         .collect();
@@ -238,6 +241,19 @@ pub(super) async fn meter_exchange(
     Ok(Json(
         json!({ "ok": true, "details": lines.iter().map(|l| l.get()).collect::<Vec<_>>(), "reading": reading }),
     ))
+}
+
+/// Erkannten Zählertausch bestätigen
+pub(super) async fn swap_confirm(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
+    st.db
+        .lock()
+        .unwrap()
+        .confirm_swap(id)
+        .map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 #[derive(Deserialize)]

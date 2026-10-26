@@ -95,7 +95,7 @@ Bezeichnungen zu Schlüsseln (`energy`, `medium_water`, `checksum` …): `GET /a
 
 | | |
 | --- | --- |
-| `GET /api/meters` | Zähler der aktiven Linie (`Meter` + `plan_info`: gültiger Plan, nächster Termin, gestört/ausgesetzt). |
+| `GET /api/meters` | Zähler der aktiven Linie (`Meter` + `plan_info`: gültiger Plan, nächster Termin, gestört/ausgesetzt). `fault`: Fehler, den der Zähler in der letzten Auslesung selbst meldet (`status_error`, `error_flags`, `power_low`, sonst `null`). `swap`: erkannter, nicht bestätigter Zählertausch `{id, time, old_id, new_id}` oder `null`. |
 | `POST /api/meters` | Zähler merken: `Meter` (mindestens `address`) → `Meter`. |
 | `PUT /api/meters/{id}` | Ändern (Name, Ort, Adresse, Baudrate …): `Meter` → `Meter`. |
 | `DELETE /api/meters/{id}` | Entfernen. `DELETE /api/meters` leert die Liste → `{ok, removed}`. |
@@ -103,6 +103,7 @@ Bezeichnungen zu Schlüsseln (`energy`, `medium_water`, `checksum` …): `GET /a
 | `POST /api/meters/read-all` | Alle auslesen (auch gemischte Baudraten) → `JobStatus`. |
 | `GET /api/meters/{id}/history` | Verlauf: `{meter, points: [{timestamp, time_unsure, values: [{key, quantity, unit, tariff, value, text}]}]}`. |
 | `POST /api/meters/{id}/exchange` | Zählertausch: `{address, baud?}` des neuen → `{ok, details, reading}`. |
+| `POST /api/exchanges/{id}/confirm` | Erkannten Zählertausch bestätigen (`id` aus `swap`) → `{ok}`. |
 | `PUT /api/meters/{id}/plan` | Eigener Plan des Zählers: `{plan}` (`null` = wie Linie) → `{ok, warnings}`. |
 | `POST /api/meters/import` | Zählerliste aus mbusio (JSON): `{meters: [Meter]}` → `{ok, added}`. |
 | `POST /api/meters/import-list` | Liste vom Kunden (CSV/Excel, schon zerlegt): `{rows: [{id, pa, name, location, note}], apply}` → `ChangeSet`. |
@@ -127,7 +128,7 @@ leer = noch nicht festgelegt), `baud`, `timeout_ms`, `addressing` (`secondary`/`
 | `PUT /api/projects/{id}` · `DELETE` | Ändern → `Project` · Löschen. |
 | `POST /api/projects/{id}/clear` | Projekt leeren (Zähler, Auslesungen, Änderungen, letzter Scan; Linien bleiben) → `{ok, removed}`. |
 | `GET /api/projects/{id}/export` | Projektdatei (JSON, Datei). `POST /api/projects/import` mit deren Inhalt → `{ok, project}`. |
-| `GET /api/projects/{id}/billing` | Export für die Abrechnung: `{settings, kinds, preview, error}`. `settings`: `form` (`billing`, `series`), `step` (`month`, `day`), `main` (Hauptwert je Zähler), `keys` (weitere Werte), `period` (`prev_month`, `prev_year`, `custom` mit `from`, `to` als JJJJ-MM-TT), `decimal` (`,`, `.`, leer = nach Sprache). `kinds`: Werte im Projekt `{key, label, unit, meters, main}`. `preview`: `{from, to, header, rows (die ersten 30), total, notes}`; bei unvollständigem Zeitraum `null` und `error`. |
+| `GET /api/projects/{id}/billing` | Export für die Abrechnung: `{settings, kinds, preview, error}`. `settings`: `form` (`billing`, `series`), `step` (`month`, `day`), `main` (Hauptwert je Zähler), `keys` (weitere Werte), `period` (`prev_month`, `prev_year`, `custom` mit `from`, `to` als JJJJ-MM-TT), `decimal` (`,`, `.`, leer = nach Sprache). `kinds`: Werte im Projekt `{key, label, unit, meters, main}`. `preview`: `{from, to, header, rows (die ersten 30), total, notes, summary}`; `summary`: Zeilen je Art des Hinweises (`swap`, `swap_open`, `swap_gap`, `missing`, `decreased`, `not_read`, `no_answer`, `disturbed`, `fault`, `power_low`, `unsure`, `never_read`); bei unvollständigem Zeitraum `null` und `error`. |
 | `PUT /api/projects/{id}/billing` | Einstellungen speichern (ganzes `settings`); Antwort wie `GET`. |
 | `GET /api/projects/{id}/billing/csv` | Ganze Tabelle nach den gespeicherten Einstellungen als CSV (Datei). |
 | `DELETE /api/projects/{id}/changes` | Änderungsprotokoll leeren → `{ok, removed}`. |

@@ -12,11 +12,15 @@ export function rowHtml(m, { active, selected, busy }) {
   const ident = [b.ident, b.pa != null && b.pa !== "" ? `PA ${b.pa}` : ""].filter(Boolean).join(" · ");
   const state_ = busy.has(m.id)
     ? `<span class="chip">${esc(t("reading_busy"))}</span>`
-    : m.last_error
+    : m.swap
+      ? `<span class="chip warn" title="${esc(t("zl_swap_title", m.swap.old_id || "?", m.swap.new_id || "?"))}">${esc(t("zl_swap"))}</span>`
+      : m.last_error
       ? `<span class="chip err" title="${esc(m.last_error)}">${esc(t("n_no_answer"))}</span>`
       : m.plan_info?.disturbed
         ? `<span class="chip warn">${esc(t("meter_disturbed"))}</span>`
-        : m.clock_off != null
+        : m.fault
+          ? `<span class="chip ${m.fault === "power_low" ? "warn" : "err"}" title="${esc(t("meter_fault_title_" + m.fault))}">${esc(t("meter_fault_" + m.fault))}</span>`
+          : m.clock_off != null
           ? `<span class="chip warn" title="${esc(t("meter_clock_title", m.clock_off))}">${esc(t("meter_clock", m.clock_off))}</span>`
           : m.plan_info?.effective && m.plan_info.effective !== "off"
             ? `<span class="sub">${esc(planText(m.plan_info.effective))}</span>`
@@ -45,7 +49,14 @@ export function detailHtml(m, { vals, busy, history, exchange, linePlan }) {
   const info = [b.ident ? `ID ${b.ident}` : "", b.pa != null && b.pa !== "" ? `PA ${b.pa}` : "", b.man, m.medium ? label(m.medium) : "", b.info].filter(Boolean).join(" · ");
   return `<button type="button" class="quiet back" data-back>← ${esc(t("tab_meters"))}</button>
     <header class="dhead">${mediumIcon(m.medium)}<div><b>${m.name ? esc(m.name) : esc(t("meter_unnamed"))}</b><div class="sub mono">${esc(info)}</div></div></header>
+    ${
+      m.swap
+        ? `<div class="chip warn wide swap">${esc(t("zl_swap_detail", slotText(m.swap.time), m.swap.old_id || "?", m.swap.new_id || "?"))}
+            <button type="button" class="tonal" data-swap-confirm="${m.swap.id}">${esc(t("zl_swap_confirm"))}</button></div>`
+        : ""
+    }
     ${m.last_error ? `<p class="chip err wide">${esc(m.last_error)}</p>` : ""}
+    ${m.fault ? `<p class="chip ${m.fault === "power_low" ? "warn" : "err"} wide">${esc(t("meter_fault_title_" + m.fault))}</p>` : ""}
     ${m.clock_off != null ? `<p class="chip warn wide" title="${esc(t("meter_clock_title", m.clock_off))}">${esc(t("meter_clock", m.clock_off))}</p>` : ""}
     <div class="fields">
       ${field("name", t("meter_name"), m.name, t("meter_name_ph"))}

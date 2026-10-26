@@ -24,3 +24,6 @@
 [data-area=zaehler] .chart svg { height: 200px; }
 [data-area=zaehler] .menu a[role=menuitem] { display: flex; padding: 0 10px; height: 28px; align-items: center; color: var(--text); font-weight: 500; text-decoration: none; }
 [data-area=zaehler] .menu a[role=menuitem]:hover { background: var(--accent-soft); }
+
+/* erkannter Zählertausch: Satz und Knopf „Bestätigen“ im Hinweis */
+[data-area=zaehler] .chip.wide.swap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; height: auto; padding: 6px 8px; white-space: normal; }

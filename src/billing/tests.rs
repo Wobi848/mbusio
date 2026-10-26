@@ -233,3 +233,77 @@ fn series_has_month_ends_and_end_of_period() {
         69
     );
 }
+
+/// Erkannter Tausch (nicht bestätigt), im Zeitraum nicht gelesen, Fehler des Zählers: Hinweis je
+/// Zeile und Zusammenfassung (Konzept Export 3.6)
+#[test]
+fn notes_for_detected_swap_not_read_and_fault() {
+    let (mut db, line, mid, r) = with_readings(&[("2026-08-10 10:00:00", 100.0)]);
+    // anderer Zähler unter derselben Adresse: erkannt, nicht bestätigt
+    let mut new = at(&r, "2026-08-20 10:00:00", 10.0);
+    new.header.as_mut().unwrap().id = "99999999".into();
+    db.record(line, &Target::Primary(1), Ok(&new), false)
+        .unwrap();
+    // Endstand: der neue Zähler meldet einen Fehler im Statusbyte
+    let mut last = at(&new, "2026-08-30 10:00:00", 30.0);
+    last.header.as_mut().unwrap().status = 0x08;
+    db.record(line, &Target::Primary(1), Ok(&last), false)
+        .unwrap();
+    let t = db
+        .billing_table(
+            1,
+            &custom("2026-08-01", "2026-08-31"),
+            day("2026-10-26"),
+            None,
+        )
+        .unwrap();
+    let row = &t.rows[0];
+    assert_eq!(
+        row[13], "20",
+        "(100 − 100) bis zum Tausch, (30 − 10) danach: {row:?}"
+    );
+    assert!(
+        row[14].contains("Zählertausch erkannt 20.08.2026 10:00 (nicht bestätigt)"),
+        "{}",
+        row[14]
+    );
+    assert!(row[14].contains("meldet Fehler"), "{}", row[14]);
+    assert!(
+        row[12].contains("meldet Fehler"),
+        "Quelle Ende: {}",
+        row[12]
+    );
+    assert_eq!((t.summary["swap_open"], t.summary["fault"]), (1, 1));
+    // bestätigt: nur noch „Zählertausch“
+    let ex = db.open_swaps(line).unwrap()[&mid]["id"].as_i64().unwrap();
+    db.confirm_swap(ex).unwrap();
+    let t = db
+        .billing_table(
+            1,
+            &custom("2026-08-01", "2026-08-31"),
+            day("2026-10-26"),
+            None,
+        )
+        .unwrap();
+    assert!(
+        t.rows[0][14].starts_with("Zählertausch 20.08.2026"),
+        "{}",
+        t.rows[0][14]
+    );
+    assert!(!t.summary.contains_key("swap_open"));
+    // Zeitraum ohne Auslesung
+    let t = db
+        .billing_table(
+            1,
+            &custom("2026-07-01", "2026-07-31"),
+            day("2026-10-26"),
+            None,
+        )
+        .unwrap();
+    assert!(
+        t.rows[0][14].contains("im Zeitraum nicht gelesen"),
+        "{}",
+        t.rows[0][14]
+    );
+    assert_eq!((t.summary["not_read"], t.summary["missing"]), (1, 1));
+}

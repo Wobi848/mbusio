@@ -341,3 +341,93 @@ fn growth_per_day_follows_plan_and_operation() {
     db.set_meter_plan(mid, Some("off")).unwrap();
     assert_eq!(db.growth_per_day().unwrap(), 0);
 }
+
+/// Unter der Adresse antwortet ein anderer Zähler, den alten hat mbusio schon gelesen: Tausch
+/// erkannt (nicht bestätigt), Zählerstand läuft weiter, Meldung; bestätigen (Konzept Export 3.6)
+#[test]
+fn swap_is_detected_continues_counter_and_waits_for_confirmation() {
+    let (mut db, line, mid, r) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    let id = db.dp_by_meter(mid).unwrap()[0].id;
+    let before = db.dp(id).unwrap().last_value.unwrap();
+    db.notes.clear();
+    let mut new = with_energy(&r, 10.0);
+    new.header.as_mut().unwrap().id = "99999999".into();
+    db.record(line, &Target::Primary(1), Ok(&new), false)
+        .unwrap();
+    // Tausch eingetragen, nicht bestätigt; der Zähler hat die neue ID
+    let open = db.open_swaps(line).unwrap();
+    assert_eq!(open[&mid]["new_id"], "99999999");
+    assert_eq!(open[&mid]["old_id"], "12345678");
+    assert_eq!(db.meter(mid).unwrap().meter_id.as_deref(), Some("99999999"));
+    // Zählerstand des Datenpunkts springt nicht, gilt nicht als gesunken
+    let d = db.dp(id).unwrap();
+    assert_eq!((d.last_value, d.invalid.as_deref()), (Some(before), None));
+    assert!(db
+        .notes
+        .iter()
+        .any(|n| n.de.contains("Zählertausch erkannt") && n.de.contains("12345678 → 99999999")));
+    // gleiche ID beim nächsten Mal: kein neuer Tausch
+    db.record(
+        line,
+        &Target::Primary(1),
+        Ok(&with_energy(&new, 11.0)),
+        false,
+    )
+    .unwrap();
+    assert_eq!(db.open_swaps(line).unwrap().len(), 1);
+    // bestätigen
+    let ex = open[&mid]["id"].as_i64().unwrap();
+    db.confirm_swap(ex).unwrap();
+    assert!(db.open_swaps(line).unwrap().is_empty());
+}
+
+/// ID aus der Liste des Kunden, Zähler nie gelesen: kein Tausch, nur eine Meldung
+#[test]
+fn list_id_mismatch_is_no_swap() {
+    let mut db = Db::memory().unwrap();
+    let line = db.active_line().unwrap().id;
+    let m = db
+        .add_meter(
+            line,
+            Meter {
+                address: "1".into(),
+                meter_id: Some("11111111".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    db.record(line, &Target::Primary(1), Ok(&heat_reading()), false)
+        .unwrap();
+    assert!(db.open_swaps(line).unwrap().is_empty());
+    assert_eq!(
+        db.meter(m.id).unwrap().meter_id.as_deref(),
+        Some("12345678")
+    );
+    assert!(db
+        .notes
+        .iter()
+        .any(|n| n.de.contains("ID weicht von der Liste ab")
+            && n.de.contains("12345678 statt 11111111")));
+}
+
+/// Fehler, die der Zähler selbst meldet, stehen am Zähler
+#[test]
+fn meter_fault_is_kept() {
+    let (mut db, line, mid, r) = setup();
+    assert_eq!(db.meter(mid).unwrap().fault, None);
+    let mut bad = r.clone();
+    bad.header.as_mut().unwrap().status = 0x08;
+    db.record(line, &Target::Primary(1), Ok(&bad), false)
+        .unwrap();
+    assert_eq!(
+        db.meter(mid).unwrap().fault.as_deref(),
+        Some("status_error")
+    );
+    let mut low = r.clone();
+    low.header.as_mut().unwrap().status = 0x04;
+    db.record(line, &Target::Primary(1), Ok(&low), false)
+        .unwrap();
+    assert_eq!(db.meter(mid).unwrap().fault.as_deref(), Some("power_low"));
+}

@@ -127,6 +127,11 @@ Mehrfachauswahl. Werte wählt man im Bereich Zähler beim Zähler an.
   nicht), ungültig (Zähler meldet Fehler, oder Zählerstand gesunken)
 - **Zähler getauscht…** (beim Bearbeiten eines Zählers): neuer Zähler wird ausgelesen, die
   Zählerstände laufen nahtlos weiter (alter Endstand → neuer Anfangsstand), steht im Bericht
+- **Tausch erkannt:** antwortet unter derselben Primäradresse ein Zähler mit anderer ID, nachdem
+  mbusio den alten schon gelesen hat, wird der Tausch selbst eingetragen (Stände laufen weiter) und
+  in der Liste als „Tausch erkannt“ zum Bestätigen gezeigt. Stimmt nur die importierte Liste nicht,
+  übernimmt mbusio die ID mit Meldung im Protokoll. Meldet ein Zähler selbst einen Fehler
+  (Statusbyte, Fehlerflags, Batterie schwach), steht das am Zähler
 - Mehrere markieren und gemeinsam aktiv/inaktiv schalten, Weitergabe setzen oder löschen
 - **CSV** exportieren, in Excel bearbeiten und wieder importieren; mbusio zeigt vorher, was sich
   ändert, und übernimmt erst nach Bestätigung. Die Liste dient auch als Unterlage für den
@@ -194,7 +199,9 @@ Mehrfachauswahl. Werte wählt man im Bereich Zähler beim Zähler an.
   kommen aus den gespeicherten Auslesungen, also auch rückwirkend für Werte, die nie als Datenpunkt
   gewählt waren. Stand am Stichtag: der Stichtagswert, den der Zähler selbst gespeichert hat, sonst
   die letzte Auslesung davor; die Quelle steht daneben, Fehlendes und unsichere Uhrzeit als Hinweis.
-  Ein Zählertausch im Zeitraum wird verrechnet
+  Ein Zählertausch im Zeitraum wird verrechnet. Hinweise auch für erkannten, nicht bestätigten
+  Tausch, im Zeitraum nicht gelesen, antwortet nicht, gestört und Fehler des Zählers; über der
+  Vorschau zusammengezählt („2 × antwortet nicht · 1 × Zählertausch“)
 - Export der Messwerte als CSV (Semikolon, Excel) oder JSON; Projekte als Datei sichern
   („Projekt sichern“) und importieren (z.B. vom PC auf den Raspberry Pi)
 - Telegramm-Log; jede TX/RX-Zeile anklicken erklärt das Telegramm Byte für Byte

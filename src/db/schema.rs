@@ -231,6 +231,17 @@ impl Db {
             self.conn
                 .execute_batch("ALTER TABLE meters ADD COLUMN clock_off INTEGER")?;
         }
+        if !has(&self.conn, "meters", "fault")? {
+            // Fehler, den der Zähler bei der letzten Auslesung selbst meldet (Konzept Export 3.6)
+            self.conn
+                .execute_batch("ALTER TABLE meters ADD COLUMN fault TEXT")?;
+        }
+        if !has(&self.conn, "exchanges", "confirmed")? {
+            // Zählertausch erkannt (0) oder gemeldet bzw. bestätigt (1)
+            self.conn.execute_batch(
+                "ALTER TABLE exchanges ADD COLUMN confirmed INTEGER NOT NULL DEFAULT 1",
+            )?;
+        }
         if !has(&self.conn, "lines", "operation")? {
             // Dauerbetrieb je Linie einschalten (Konzept Bedienung §13), Standard aus. Läuft mbusio
             // schon als Dienst (Gateway), bleiben Linien mit wirksamem Plan eingeschaltet, damit

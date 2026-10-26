@@ -1,6 +1,7 @@
 //! Zähler einer Linie und Speichern von Auslesungen
 
 use super::*;
+use crate::i18n::both;
 
 impl Db {
     pub fn meters(&self, line_id: i64) -> Result<Vec<Meter>> {
@@ -147,6 +148,45 @@ impl Db {
         r
     }
 
+    /// Antwortet unter der Primäradresse ein anderer Zähler (Konzept Export 3.6)? Ein Tausch ist
+    /// es nur, wenn mbusio den alten Zähler schon selbst gelesen hat; sonst stimmt die Zählerliste
+    /// nicht (z.B. falsch zugeordnet importiert): dann nur eine Meldung, die neue ID gilt.
+    fn swap_check(&mut self, m: &Meter, target: &Target, r: &MeterReading) -> Result<bool> {
+        let (Target::Primary(_), Some(old), Some(new)) = (
+            target,
+            m.meter_id.as_deref(),
+            r.header.as_ref().map(|h| h.id.as_str()),
+        ) else {
+            return Ok(false);
+        };
+        if old.is_empty() || new.is_empty() || old == new {
+            return Ok(false);
+        }
+        let label = crate::datapoint::meter_label(m);
+        let read_before = self
+            .latest_reading(m.id)?
+            .and_then(|x| x.header)
+            .is_some_and(|h| h.id == old);
+        let (old, new) = (old.to_string(), new.to_string());
+        self.notes.push(if read_before {
+            both(|| {
+                format!(
+                    "{label}: {} {old} → {new}",
+                    tr("Zählertausch erkannt, ID", "meter replacement detected, ID")
+                )
+            })
+        } else {
+            both(|| {
+                format!(
+                    "{label}: {} {new} {} {old}",
+                    tr("ID weicht von der Liste ab:", "ID differs from the list:"),
+                    tr("statt", "instead of")
+                )
+            })
+        });
+        Ok(read_before)
+    }
+
     fn store_reading(
         &mut self,
         line_id: i64,
@@ -157,6 +197,15 @@ impl Db {
         let meter = self.find_meter(line_id, target)?;
         match result {
             Ok(r) => {
+                if let Some(m) = &meter {
+                    if self.swap_check(m, target, r)? {
+                        // wie „Zähler getauscht“, aber erkannt: speichert die Auslesung selbst
+                        self.savepoint(|db| {
+                            db.exchange_core(m, &m.address, r, &r.timestamp, true)
+                        })?;
+                        return Ok(());
+                    }
+                }
                 if !self.readings_paused {
                     let data = if compact {
                         String::new()
@@ -188,7 +237,8 @@ impl Db {
                        meter_id = COALESCE(?4, meter_id), manufacturer = COALESCE(?5, manufacturer),
                        medium = COALESCE(?6, medium), last_value = COALESCE(?7, last_value),
                        last_quantity = COALESCE(?8, last_quantity),
-                       secondary_address = COALESCE(?9, secondary_address), clock_off = ?10
+                       secondary_address = COALESCE(?9, secondary_address), clock_off = ?10,
+                       fault = ?11
                      WHERE id = ?1",
                     params![
                         m.id,
@@ -200,7 +250,8 @@ impl Db {
                         main.map(|x| format!("{} {}", x.value_text, x.unit).trim().to_string()),
                         main.map(|x| x.quantity.clone()),
                         h.map(|h| h.secondary_address.clone()),
-                        clock_offset(r)
+                        clock_offset(r),
+                        fault_of(r)
                     ],
                 )?;
                 // Datenpunkte nachführen (auch wenn der Speicher voll ist, dann ohne Verlauf)

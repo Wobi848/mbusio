@@ -26,6 +26,14 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Rückwirkend aus den gespeicherten Auslesungen; Stichtagswert des Zählers vor der letzten
   Auslesung; Quelle, Fehlendes und unsichere Uhrzeit stehen dabei; Zählertausch verrechnet.
   Der bisherige Knopf „Exportieren“ (Projekt als Datei) heisst „Projekt sichern“.
+- **Zählertausch erkennen:** Antwortet unter derselben Primäradresse ein anderer Zähler (neue ID),
+  nachdem der alte schon gelesen wurde, trägt mbusio den Tausch selbst ein; Zählerstände laufen
+  weiter statt zu springen. Hinweis „Tausch erkannt“ in der Zählerliste, in den Details
+  bestätigen. Bisher wurde die neue ID still übernommen und der Zählerstand galt als „gesunken“.
+- **Defekte Zähler melden:** Fehler, die ein Zähler selbst meldet (Statusbyte, Fehlerflags,
+  Batterie schwach), stehen am Zähler und zählen bei „Fehler“. Die Abrechnung nennt je Zeile auch
+  „im Zeitraum nicht gelesen“, „antwortet nicht“, „gestört“ und Fehler des Zählers und zählt die
+  Hinweise über der Vorschau zusammen.
 - **Speicher-Vorschau:** im Zustand der Anlage, wie lange der Platz beim heutigen Plan reicht
   („81 % frei · reicht ca. 12 Jahre“, Zuwachs je Tag im Tooltip); unter 90 Tagen als Hinweis.
 - **Weitergabe-Protokoll:** was an MQTT ging, was wartet und was verworfen wurde (Broker zu

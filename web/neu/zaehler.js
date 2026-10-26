@@ -166,6 +166,17 @@ async function panelDone() {
   closePanel();
 }
 
+/// Erkannten Zählertausch bestätigen (Konzept Export 3.6)
+async function confirmSwap(id) {
+  try {
+    await request(`exchanges/${id}/confirm`, { method: "POST" });
+    toast(t("zl_swap_confirmed"));
+    await loadMeters();
+  } catch (e) {
+    report(e);
+  }
+}
+
 async function exchange(button) {
   const m = byId(view.active);
   const addr = q("[data-detail] [data-exchange-addr]").value.trim();
@@ -388,6 +399,7 @@ function wire() {
       return q("[data-exchange-addr]")?.focus();
     }
     if (el.closest("[data-exchange-go]")) return exchange(el.closest("[data-exchange-go]"));
+    if (el.closest("[data-swap-confirm]")) return confirmSwap(el.closest("[data-swap-confirm]").dataset.swapConfirm);
     if (el.closest("[data-read]")) return readMeters([view.active]);
     if (el.closest("[data-del]")) return remove([view.active], el.closest("[data-del]"));
     if (el.closest("[data-sel-read]")) return readMeters([...view.selected]);

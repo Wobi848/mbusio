@@ -271,4 +271,12 @@ ein Komma, in der Schweiz einen Punkt erwartet. Zählertausch: alt und neu über
 weil der neue Zähler vor dem Eintrag des Tauschs gelesen wird. Noch nicht: einzelne Linien wählen,
 Hinweis „gestört im Zeitraum“. Tests: Rust `billing::tests` (5), Browser `18-abrechnung`.
 
+**Schritt 3 umgesetzt (26.10.2026), 3.6:** `swap_check` in `store_reading` (nur Primäradresse,
+alter Zähler schon gelesen), `exchange_core` mit `detected` im Savepoint (`Db::savepoint`),
+`exchanges.confirmed`, `open_swaps`/`confirm_swap`, `POST /api/exchanges/{id}/confirm`, `swap` in
+der Zählerliste; `meters.fault` aus der letzten Auslesung (`fault_of`), zählt bei „Fehler“ ausser
+Batterie schwach. Export: Hinweisarten je Zeile, `summary` in der Tabelle, Fehler auch bei der
+Quelle (Zeitreihe). Tests: Rust `swap_is_detected_…`, `list_id_mismatch_is_no_swap`,
+`meter_fault_is_kept`, `notes_for_detected_swap_not_read_and_fault`, Browser `19-tausch`.
+
 **Nächster Schritt:** automatisch (3.5).

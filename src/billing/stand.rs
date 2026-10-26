@@ -29,6 +29,8 @@ pub struct Stand {
     /// Zeit der Auslesung, aus der der Wert stammt
     pub time: String,
     pub unsure: bool,
+    /// Fehler, den der Zähler in dieser Auslesung selbst meldet (`db::fault_of`)
+    pub fault: Option<&'static str>,
 }
 
 impl Stand {
@@ -38,6 +40,7 @@ impl Stand {
             source: Source::Missing,
             time: String::new(),
             unsure: false,
+            fault: None,
         }
     }
 
@@ -47,6 +50,7 @@ impl Stand {
             source,
             time: r.timestamp.clone(),
             unsure: r.time_unsure,
+            fault: crate::db::fault_of(r),
         }
     }
 }
@@ -55,6 +59,8 @@ impl Stand {
 /// keine Auslesung davor bzw. danach den Wert hat)
 pub struct Swap {
     pub time: String,
+    /// gemeldet oder bestätigt; erkannt und nicht bestätigt: false
+    pub confirmed: bool,
     pub old_end: Option<f64>,
     pub new_start: Option<f64>,
 }
@@ -153,18 +159,20 @@ impl Db {
         from: &str,
         to: &str,
     ) -> Result<Vec<Swap>> {
-        let found: Vec<(String, Option<String>)> = {
+        let found: Vec<(String, Option<String>, bool)> = {
             let mut st = self.conn.prepare(
-                "SELECT time, new_id FROM exchanges WHERE meter_id = ?1 AND time >= ?2 AND time < ?3 ORDER BY time",
+                "SELECT time, new_id, confirmed FROM exchanges WHERE meter_id = ?1 AND time >= ?2 AND time < ?3 ORDER BY time",
             )?;
-            let rows = st.query_map(params![meter_id, from, to], |r| Ok((r.get(0)?, r.get(1)?)))?;
+            let rows = st.query_map(params![meter_id, from, to], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            })?;
             rows.collect::<rusqlite::Result<_>>()?
         };
         let is_new = |r: &MeterReading, new: &Option<String>| {
             new.is_some() && r.header.as_ref().map(|h| &h.id) == new.as_ref()
         };
         let mut out = Vec::new();
-        for (time, new_id) in found {
+        for (time, new_id, confirmed) in found {
             // eine Stunde Spielraum vor dem Eintrag: so lange dauert ein Tausch höchstens
             let window = crate::plan::parse_time(&time)
                 .map(|t| {
@@ -185,6 +193,7 @@ impl Db {
                 .find_map(|r| value_of(r, key));
             out.push(Swap {
                 time,
+                confirmed,
                 old_end,
                 new_start,
             });

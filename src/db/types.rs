@@ -146,6 +146,9 @@ pub struct Meter {
     /// Uhr im Zähler weicht so viele Minuten ab (ab 5 min, bei der letzten Auslesung)
     #[serde(default, skip_deserializing)]
     pub clock_off: Option<i64>,
+    /// Fehler, den der Zähler bei der letzten Auslesung selbst meldet (`fault_of`)
+    #[serde(default, skip_deserializing)]
+    pub fault: Option<String>,
 }
 
 /// Abweichung der Uhr im Zähler von der eigenen Uhr in Minuten, ab `CLOCK_OFF_MIN`. Nur wenn die
@@ -165,6 +168,24 @@ pub(crate) fn clock_offset(r: &MeterReading) -> Option<i64> {
 }
 
 const CLOCK_OFF_MIN: i64 = 5;
+
+/// Fehler, den der Zähler selbst meldet (Konzept Export 3.6): `status_error` (Statusbyte 0x08
+/// dauerhaft, 0x10 vorübergehend), `error_flags` (Fehlerflags ungleich 0), `power_low` (0x04)
+pub(crate) fn fault_of(r: &MeterReading) -> Option<&'static str> {
+    let status = r.header.as_ref().map_or(0, |h| h.status);
+    let flags = r.records.iter().any(|x| {
+        x.quantity == "error_flags" && x.storage == 0 && x.value.as_f64().is_some_and(|v| v != 0.0)
+    });
+    if status & 0x18 != 0 {
+        Some("status_error")
+    } else if flags {
+        Some("error_flags")
+    } else if status & 0x04 != 0 {
+        Some("power_low")
+    } else {
+        None
+    }
+}
 
 /// Ab so vielen verpassten Terminen nacheinander gilt ein Zähler als gestört
 pub const DISTURBED_AFTER: i64 = 3;
@@ -298,5 +319,6 @@ pub(super) fn meter_of(r: &Row) -> rusqlite::Result<Meter> {
         plan_fails: r.get("plan_fails")?,
         plan_ms: r.get("plan_ms")?,
         clock_off: r.get("clock_off")?,
+        fault: r.get("fault")?,
     })
 }

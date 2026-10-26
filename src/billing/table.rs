@@ -13,8 +13,52 @@ pub struct Table {
     pub rows: Vec<Vec<String>>,
     /// Zeilen insgesamt (die Vorschau zeigt nur die ersten)
     pub total: usize,
-    /// Zeilen mit Hinweis (fehlt, Zeit unsicher, Tausch, gesunken)
+    /// Zeilen mit Hinweis (fehlt, Zeit unsicher, Tausch, gesunken, Fehler …)
     pub notes: usize,
+    /// Zeilen je Art des Hinweises (Konzept Export 3.6), für die Zusammenfassung über der Vorschau
+    pub summary: BTreeMap<String, usize>,
+}
+
+/// Hinweise einer Zeile: Text für die CSV, Art für die Zusammenfassung
+#[derive(Default)]
+struct Notes {
+    texts: Vec<String>,
+    kinds: Vec<&'static str>,
+}
+
+impl Notes {
+    fn add(&mut self, kind: &'static str, text: String) {
+        if !self.kinds.contains(&kind) {
+            self.kinds.push(kind);
+            self.texts.push(text);
+        }
+    }
+
+    /// Fehler, den der Zähler in einer Auslesung selbst meldet
+    fn fault(&mut self, st: &Stand) {
+        match st.fault {
+            Some("power_low") => self.add("power_low", tr("Batterie schwach", "battery low")),
+            Some("error_flags") => self.add(
+                "fault",
+                tr(
+                    "meldet Fehler (Fehlerflags)",
+                    "reports an error (error flags)",
+                ),
+            ),
+            Some(_) => self.add("fault", tr("meldet Fehler", "reports an error")),
+            None => {}
+        }
+    }
+}
+
+impl Table {
+    /// Zeile mit ihren Hinweisen zählen
+    fn count(&mut self, n: &Notes) {
+        self.notes += usize::from(!n.kinds.is_empty());
+        for k in &n.kinds {
+            *self.summary.entry((*k).to_string()).or_default() += 1;
+        }
+    }
 }
 
 /// Zahl ohne Rundungsrauschen (höchstens 6 Stellen), mit dem gewählten Dezimaltrennzeichen
@@ -44,10 +88,15 @@ fn source(st: &Stand, lang: Lang) -> String {
         ),
         Source::Missing => tr("fehlt", "missing"),
     };
+    let mut out = what;
     if st.unsure {
-        format!("{what} · {}", tr("Zeit unsicher", "time unsure"))
-    } else {
-        what
+        out = format!("{out} · {}", tr("Zeit unsicher", "time unsure"));
+    }
+    // die Zeitreihe hat keine Spalte „Hinweis“: was der Zähler meldet, steht bei der Quelle
+    match st.fault {
+        Some("power_low") => format!("{out} · {}", tr("Batterie schwach", "battery low")),
+        Some(_) => format!("{out} · {}", tr("meldet Fehler", "reports an error")),
+        None => out,
     }
 }
 
@@ -102,6 +151,7 @@ impl Db {
             rows: Vec::new(),
             total,
             notes: 0,
+            summary: BTreeMap::new(),
         };
         let full = |t: &Table| limit.is_some_and(|n| t.rows.len() >= n);
         let col = |de: &str, en: &str| tr(de, en);
@@ -146,7 +196,15 @@ impl Db {
                             break 'all;
                         }
                         let st = self.stand_at(it.meter.id, key, *d, None)?;
-                        t.notes += usize::from(st.value.is_none() || st.unsure);
+                        let mut n = Notes::default();
+                        if st.value.is_none() {
+                            n.add("missing", String::new());
+                        }
+                        if st.unsure {
+                            n.add("unsure", String::new());
+                        }
+                        n.fault(&st);
+                        t.count(&n);
                         let row = [
                             vec![d.to_string()],
                             place(it),
@@ -163,7 +221,9 @@ impl Db {
                     }
                 }
                 if it.keys.is_empty() && !full(&t) {
-                    t.notes += 1;
+                    let mut n = Notes::default();
+                    n.add("never_read", String::new());
+                    t.count(&n);
                     t.rows.push(
                         [
                             vec![String::new()],
@@ -194,22 +254,21 @@ impl Db {
         ]
         .concat();
         let before = from - Duration::days(1);
+        let (start_ts, end_ts) = (stand::after_day(before), stand::after_day(to));
         for it in &items {
             if full(&t) {
                 break;
             }
             if it.keys.is_empty() {
-                t.notes += 1;
-                t.rows.push(
-                    [
-                        place(it),
-                        vec![String::new(); 7],
-                        vec![tr("noch nie ausgelesen", "never read")],
-                    ]
-                    .concat(),
-                );
+                let mut n = Notes::default();
+                n.add("never_read", tr("noch nie ausgelesen", "never read"));
+                t.count(&n);
+                t.rows
+                    .push([place(it), vec![String::new(); 7], n.texts].concat());
                 continue;
             }
+            // je Zähler, für alle seine Werte gleich
+            let read_in_period = self.meter_reading_count(it.meter.id, &start_ts, &end_ts)? > 0;
             for key in &it.keys {
                 if full(&t) {
                     break;
@@ -217,56 +276,87 @@ impl Db {
                 let (factor, unit) = scale_of(it, key);
                 let start = self.stand_at(it.meter.id, key, before, Some(to))?;
                 let end = self.stand_at(it.meter.id, key, to, None)?;
-                let swaps = self.exchanges_between(
-                    it.meter.id,
-                    key,
-                    &stand::after_day(before),
-                    &stand::after_day(to),
-                )?;
-                let mut notes = Vec::new();
+                let swaps = self.exchanges_between(it.meter.id, key, &start_ts, &end_ts)?;
+                let mut n = Notes::default();
                 let mut used = match (start.value, end.value) {
                     (Some(a), Some(b)) => Some(b - a),
                     _ => None,
                 };
                 for sw in &swaps {
-                    notes.push(format!(
-                        "{} {}",
-                        tr("Zählertausch", "meter replaced"),
-                        when(&sw.time, lang)
-                    ));
+                    if sw.confirmed {
+                        n.add(
+                            "swap",
+                            format!(
+                                "{} {}",
+                                tr("Zählertausch", "meter replaced"),
+                                when(&sw.time, lang)
+                            ),
+                        );
+                    } else {
+                        n.add(
+                            "swap_open",
+                            format!(
+                                "{} {} ({})",
+                                tr("Zählertausch erkannt", "meter replacement detected"),
+                                when(&sw.time, lang),
+                                tr("nicht bestätigt", "not confirmed")
+                            ),
+                        );
+                    }
                     used = match (used, sw.old_end, sw.new_start) {
-                        (Some(u), Some(o), Some(n)) => Some(u + o - n),
+                        (Some(u), Some(o), Some(new)) => Some(u + o - new),
                         _ => None,
                     };
                 }
                 if start.value.is_none() || end.value.is_none() {
-                    notes.push(tr("Stand fehlt", "reading missing"));
+                    n.add("missing", tr("Stand fehlt", "reading missing"));
                 } else if used.is_none() {
-                    notes.push(tr(
-                        "Stand beim Tausch fehlt",
-                        "reading at replacement missing",
-                    ));
+                    n.add(
+                        "swap_gap",
+                        tr("Stand beim Tausch fehlt", "reading at replacement missing"),
+                    );
                 }
                 if used.is_some_and(|u| u < 0.0) {
-                    notes.push(tr("Zählerstand gesunken", "meter reading decreased"));
+                    n.add(
+                        "decreased",
+                        tr("Zählerstand gesunken", "meter reading decreased"),
+                    );
                 }
+                if !read_in_period {
+                    n.add(
+                        "not_read",
+                        tr("im Zeitraum nicht gelesen", "not read in the period"),
+                    );
+                }
+                if it.meter.last_error.is_some() {
+                    n.add(
+                        "no_answer",
+                        tr("antwortet zurzeit nicht", "currently not answering"),
+                    );
+                }
+                if it.meter.plan_fails >= crate::db::DISTURBED_AFTER {
+                    n.add("disturbed", tr("zurzeit gestört", "currently disturbed"));
+                }
+                n.fault(&start);
+                n.fault(&end);
                 if start.unsure || end.unsure {
-                    notes.push(tr("Zeit unsicher", "time unsure"));
+                    n.add("unsure", tr("Zeit unsicher", "time unsure"));
                 }
-                t.notes += usize::from(!notes.is_empty());
-                let n = |v: Option<f64>| v.map(|v| num(v * factor, decimal)).unwrap_or_default();
+                t.count(&n);
+                let num_of =
+                    |v: Option<f64>| v.map(|v| num(v * factor, decimal)).unwrap_or_default();
                 t.rows.push(
                     [
                         place(it),
                         vec![
                             key_label(key, lang),
                             unit,
-                            n(start.value),
+                            num_of(start.value),
                             source(&start, lang),
-                            n(end.value),
+                            num_of(end.value),
                             source(&end, lang),
-                            n(used),
-                            notes.join("; "),
+                            num_of(used),
+                            n.texts.join("; "),
                         ],
                     ]
                     .concat(),
