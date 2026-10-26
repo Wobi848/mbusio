@@ -47,7 +47,7 @@ export default {
     await page.waitForSelector(".keys-help", { state: "detached" });
 
     // Tasten 1–6 wechseln den Bereich
-    await page.keyboard.press("3");
+    await page.keyboard.press("4");
     // hashchange kommt nach dem Setzen der Adresse: auf die Lasche warten, nicht nur auf die Adresse
     await page.waitForSelector(".tabs [data-area=weitergabe][aria-current=page]");
 

@@ -7,7 +7,7 @@ import { bind, keyList, onEscape } from "./keys.js";
 import { loadStatus, loadTree, reload, useLine, report } from "./data.js";
 
 const $ = (id) => document.getElementById(id);
-const AREAS = ["scan", "zaehler", "weitergabe", "anlage", "werkzeuge", "simulator"];
+const AREAS = ["anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
 const AREA_TAB = { scan: "tab_scan", zaehler: "tab_meters", weitergabe: "tab_transfer", anlage: "tab_project", werkzeuge: "tab_tools", simulator: "tab_sim" };
 const STATUS_EVERY = 5000;
 const TREE_EVERY = 15000;

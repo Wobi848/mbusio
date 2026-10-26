@@ -152,6 +152,9 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .tabs a:hover { color: var(--text); }
 .tabs a[aria-current="page"] { color: var(--text); border-bottom-color: var(--accent); background: var(--surface); }
 .tabs .n:empty { display: none; }
+/* Gruppen bleiben beim Umbrechen beisammen */
+.tabs .tab-group { display: flex; align-self: stretch; gap: 2px; }
+.tabs .tab-sep { flex: none; align-self: center; width: 1px; height: 18px; margin: 0 8px; background: var(--line-strong); }
 .tabs .n { font-size: 11px; padding: 0 5px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
 
 .status { min-height: 30px; border-top: 1px solid var(--line); border-bottom: 0; font-size: 12px; color: var(--muted); }
@@ -280,7 +283,9 @@ button.danger-text:hover { background: var(--err-soft); }
   .path .menu-host { flex: 1; min-width: 0; }
   #line { width: 100%; }
   .conn .mono { max-width: 150px; }
-  .tabs { flex-wrap: wrap; }
+  /* schmal: Gruppen umbrechen als Ganzes, Abstand statt Strich trennt sie */
+  .tabs { flex-wrap: wrap; column-gap: 16px; }
+  .tabs .tab-sep { display: none; }
   .tabs a { height: 32px; padding: 0 10px; }
   button, select, input, .field { height: 36px; } /* Finger */
   .next-label { display: none; } /* Platz für den Zustand des Busses */

@@ -15,12 +15,15 @@ Schritt ist immer genau ein Knopf (siehe [docs/konzept-oberflaeche-neu.md](docs/
 - **Kopfzeile:** Projekt › Linie, Anschluss mit genau der passenden Aktion (Anschluss festlegen,
   Verbinden, Ändern), Schalter **Dauerbetrieb** der Linie mit Plan, „N im Dauerbetrieb“ über alle
   Projekte, ⚙ (Sprache, Design, Tastenkürzel).
-- **Bereiche** (Tasten 1–6): **Scan** (Suchzeile, Treffer mit Zustand als Wort, beheben, neue
-  merken), **Zähler** (Liste, Bearbeiten in den Feldern, Mehrfachauswahl, auslesen, Verlauf,
-  Tausch, Liste importieren, Namen nach Muster), **Weitergabe** (Ausgänge MQTT und Modbus mit
-  Schalter, Datenpunkte), **Anlage** (Gateways und Linien, Zustand der Anlage, Bericht,
-  Export/Import), **Werkzeuge** (ein Ziel für Auslesen, Adresse, Baudrate, Reset, Telegramme),
-  **Simulator**.
+- **Bereiche** (Tasten 1–6) in drei Gruppen, getrennt durch einen Strich:
+  - einrichten: **Anlage** (Projekte, Gateways und Linien, Zustand der Anlage, Bericht,
+    Export/Import)
+  - der Arbeitsablauf: **Scan** (Suchzeile, Treffer mit Zustand als Wort, doppelte PA auflösen
+    und beheben, neue merken), **Zähler** (Liste, Bearbeiten in den Feldern, Mehrfachauswahl,
+    auslesen, Verlauf, Tausch, Liste importieren, Namen nach Muster), **Weitergabe** (Ausgänge
+    MQTT und Modbus mit Schalter, Datenpunkte)
+  - Hilfsmittel: **Werkzeuge** (ein Ziel für Auslesen, Adresse, Baudrate, Reset, Telegramme),
+    **Simulator**
 - **Statusleiste:** was der Bus macht, Auffälligkeiten, Ausgänge und rechts der **nächste Schritt**.
 - **Tastatur:** ↑↓ in Listen, Leertaste wählt aus, Ctrl+A alle, Enter, Escape, `/` sucht, `R`
   liest aus, `S` scannt, `?` zeigt alle Tasten. Keine Browser-Fenster für Rückfragen: sie stehen am

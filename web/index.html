@@ -49,13 +49,20 @@
   </div>
 </header>
 
+<!-- Gruppen: einrichten | Arbeitsablauf (in dieser Reihenfolge) | Hilfsmittel -->
 <nav class="bar tabs" aria-label="Bereiche">
-  <a href="#/scan" data-area="scan"><span data-t="tab_scan"></span></a>
-  <a href="#/zaehler" data-area="zaehler"><span data-t="tab_meters"></span> <span class="n" id="n-meters"></span></a>
-  <a href="#/weitergabe" data-area="weitergabe"><span data-t="tab_transfer"></span> <span class="n" id="n-dp"></span></a>
-  <a href="#/anlage" data-area="anlage"><span data-t="tab_project"></span></a>
-  <a href="#/werkzeuge" data-area="werkzeuge"><span data-t="tab_tools"></span></a>
-  <a href="#/simulator" data-area="simulator" id="tab-sim"><span data-t="tab_sim"></span></a>
+  <span class="tab-group"><a href="#/anlage" data-area="anlage"><span data-t="tab_project"></span></a></span>
+  <span class="tab-sep" aria-hidden="true"></span>
+  <span class="tab-group">
+    <a href="#/scan" data-area="scan"><span data-t="tab_scan"></span></a>
+    <a href="#/zaehler" data-area="zaehler"><span data-t="tab_meters"></span> <span class="n" id="n-meters"></span></a>
+    <a href="#/weitergabe" data-area="weitergabe"><span data-t="tab_transfer"></span> <span class="n" id="n-dp"></span></a>
+  </span>
+  <span class="tab-sep" aria-hidden="true"></span>
+  <span class="tab-group">
+    <a href="#/werkzeuge" data-area="werkzeuge"><span data-t="tab_tools"></span></a>
+    <a href="#/simulator" data-area="simulator" id="tab-sim"><span data-t="tab_sim"></span></a>
+  </span>
 </nav>
 
 <main id="work" class="work"></main>
