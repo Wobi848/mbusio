@@ -32,17 +32,32 @@ export default {
     await rows(page).nth(0).click();
     await page.waitForSelector("section[data-area=scan] [data-detail] [data-secondary]");
 
-    // ein Hauptknopf: neue merken → danach „✓ in Liste“ und „alle in der Zählerliste“
-    await page.click("[data-merge]");
-    await page.waitForFunction(() => document.querySelector("[data-main]")?.textContent.includes("Zählerliste"));
+    // Kollisionen = doppelte PA: Hauptknopf „auflösen“, merken geht daneben trotzdem
+    assert.match(await page.textContent("[data-main] [data-secondary]"), /2 doppelte PA auflösen/);
+    await page.click("[data-main] [data-merge]");
+    await page.waitForFunction(() => !document.querySelector("[data-main] [data-merge]"));
     assert.equal((await api("meters")).length, 10);
     assert.match(await rows(page).nth(1).textContent(), /in Liste/);
+
+    // auflösen: Sekundärscan findet die Zähler einzeln, dann mit einem Klick umadressieren
+    await page.click("[data-main] [data-secondary]");
+    await scanDone(page, 300000);
+    await page.waitForSelector("[data-main] [data-fix]");
+    assert.match(await page.textContent("[data-main] [data-fix]"), /3 beheben/);
+    await page.click("[data-main] [data-fix]");
+    // erst wenn die freien Adressen gefunden sind, lässt sich ausführen
+    assert.ok(await page.isDisabled("[data-plan-run]"));
+    await page.waitForSelector("[data-plan-run]:not([disabled])", { timeout: 120000 });
+    await page.click("[data-plan-run]");
+    await page.waitForSelector("[data-start-check]", { timeout: 120000 });
+    assert.match(await page.textContent("section[data-area=scan] [data-detail]"), /3 von 3/);
 
     // Beheben: Zähler mit anderer Baudrate auf die Bus-Baudrate umstellen
     await api("lines/1", "PUT", { name: "Haus A", connection: "SIMULATOR:bauds", baud: 2400 });
     await api("lines/1/activate", "POST");
     await page.goto(base + "/#/scan");
-    await page.waitForSelector("[data-to]");
+    // die Art merkt sich der Scan je Linie: zuletzt war es der Sekundärscan
+    await page.click("[data-kind=primary]");
     await page.fill("[data-to]", "8");
     await page.press("[data-to]", "Tab");
     await page.click("[data-baud-btn]");

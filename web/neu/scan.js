@@ -20,6 +20,8 @@ texts(
     sc_to_meters: "Zur Zählerliste",
     sc_merge_n: (n) => `${n} neue merken`,
     sc_fix_n: (n) => `${n} beheben`,
+    sc_resolve_n: (n) => `${n} doppelte PA auflösen`,
+    sc_resolve_title: "Mehrere Zähler auf derselben Primäradresse: ein Sekundärscan findet sie einzeln, danach lassen sie sich mit einem Klick umadressieren",
     sc_check: "Zur Kontrolle neu scannen",
     sc_pick: "Treffer in der Liste wählen (↑↓): hier stehen Ursache, Abhilfe und Werte.",
     sc_baud_menu: (b) => `Baudrate ${b}`,
@@ -52,6 +54,8 @@ texts(
     sc_to_meters: "Go to meter list",
     sc_merge_n: (n) => `Keep ${n} new`,
     sc_fix_n: (n) => `Fix ${n}`,
+    sc_resolve_n: (n) => `Resolve ${n} duplicate PA`,
+    sc_resolve_title: "Several meters on the same primary address: a secondary scan finds them one by one, then one click gives them new addresses",
     sc_check: "Scan again to check",
     sc_pick: "Pick a hit in the list (↑↓) to see cause, remedy and values here.",
     sc_baud_menu: (b) => `Baud rate ${b}`,
@@ -271,6 +275,10 @@ function mainAction(c, a) {
   const steps = scanLogic.planSteps(c, a).steps.length;
   if (steps) return `<button type="button" data-fix>${esc(t("sc_fix_n", steps))}</button>`;
   const fresh = newOnes(c).length;
+  // Kollision im Primärscan = doppelte PA: erst der Sekundärscan macht sie behebbar; merken bleibt daneben möglich
+  const doubled = job.kind === "primary" ? c.hits.filter((h) => h.status === "collision" && h.primary_address != null).length : 0;
+  if (doubled)
+    return `${fresh ? `<button type="button" class="quiet" data-merge>${esc(t("sc_merge_n", fresh))}</button>` : ""}<button type="button" data-secondary title="${esc(t("sc_resolve_title"))}">${esc(t("sc_resolve_n", doubled))}</button>`;
   if (fresh) return `<button type="button" data-merge title="${esc(t("sc_key_merge"))} (M)">${esc(t("sc_merge_n", fresh))}</button>`;
   const ok = c.hits.some((h) => h.status === "ok");
   return ok ? `<span class="ok-text">${esc(t("sc_all_listed"))}</span> <a href="#/zaehler">${esc(t("sc_to_meters"))} →</a>` : "";
@@ -329,6 +337,8 @@ function planView() {
   const p = view.plan;
   const desc = (s) => (s.kind === "baud" ? t("plan_baud", s.name, s.from, s.to) : t("plan_pa", s.name, s.from, s.to ?? "…"));
   const todo = p.steps.filter((s) => !s.skip).length;
+  // freie Adressen werden noch gesucht (fragt den Bus ab): erst danach ausführen
+  const searching = p.steps.some((s) => s.kind === "pa" && s.to == null);
   return `<header class="dhead"><b>${esc(t("sc_plan_head"))}</b></header>
     <div class="vals">${p.steps
       .map(
@@ -341,7 +351,7 @@ function planView() {
     <div class="actions">${
       p.done
         ? `<span class="sub">${esc(t("plan_done", p.steps.filter((s) => s.state === "ok").length, p.steps.filter((s) => s.state).length))}</span>`
-        : `<button type="button" data-plan-run${todo && !p.running ? "" : " disabled"}>${esc(t("plan_run", todo))}</button>`
+        : `${searching ? `<span class="sub"><span class="dot busy"></span> ${esc(t("plan_busy_free"))}</span>` : ""}<button type="button" data-plan-run${todo && !p.running && !searching ? "" : " disabled"}>${esc(t("plan_run", todo))}</button>`
     }<button type="button" class="quiet" data-plan-close${p.running ? " disabled" : ""}>${esc(t(p.done ? "plan_close" : "cancel"))}</button></div>`;
 }
 
