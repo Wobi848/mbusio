@@ -11,6 +11,7 @@ use std::sync::Mutex;
 
 use std::time::Instant;
 
+use crate::i18n::{both, tr, Text};
 use chrono::{DateTime, Local, NaiveDateTime, TimeDelta};
 use serde::Serialize;
 
@@ -128,7 +129,7 @@ impl Clock {
 
     /// Zeitquelle des Systems übernehmen (`None` = keine); `now`: Systemzeit. Liefert eine
     /// Meldung fürs Protokoll, wenn sich etwas geändert hat.
-    fn system(&mut self, source: Option<&str>, now: DateTime<Local>) -> Option<String> {
+    fn system(&mut self, source: Option<&str>, now: DateTime<Local>) -> Option<Text> {
         match source {
             Some(src) if self.state.source.as_deref() != Some(src) => {
                 // eine echte Zeitquelle hat Vorrang vor der Korrektur aus dem Browser
@@ -139,12 +140,16 @@ impl Clock {
                     since: Some(now.format("%Y-%m-%d %H:%M:%S").to_string()),
                     offset_s: 0.0,
                 };
-                Some(format!("Uhrzeit bestätigt ({src})"))
+                Some(both(|| {
+                    format!("{} ({src})", tr("Uhrzeit bestätigt", "Time confirmed"))
+                }))
             }
             None if self.system_confirmed() => {
                 self.state.confirmed = false;
                 self.state.source = None;
-                Some("Uhrzeit nicht mehr bestätigt".into())
+                Some(both(|| {
+                    tr("Uhrzeit nicht mehr bestätigt", "Time no longer confirmed")
+                }))
             }
             _ => None,
         }
@@ -177,7 +182,7 @@ impl Clock {
 
 /// Zeitquelle prüfen (beim Start und danach regelmässig). Liefert eine Meldung fürs Protokoll,
 /// wenn sich etwas geändert hat.
-pub fn check_system() -> Option<String> {
+pub fn check_system() -> Option<Text> {
     let source = if CLOCK.lock().unwrap().distrust_system {
         None
     } else {
@@ -248,8 +253,11 @@ mod tests {
         c.external("browser", at("2026-10-25 12:10:00"), now);
         // NTP kommt: Korrektur aus dem Browser fällt weg
         assert_eq!(
-            c.system(Some("ntp"), now).as_deref(),
-            Some("Uhrzeit bestätigt (ntp)")
+            c.system(Some("ntp"), now).map(|t| (t.de, t.en)),
+            Some((
+                "Uhrzeit bestätigt (ntp)".into(),
+                "Time confirmed (ntp)".into()
+            ))
         );
         assert_eq!(c.offset, TimeDelta::zero());
         // danach ändert Browser/Leitsystem nichts mehr
@@ -259,8 +267,8 @@ mod tests {
         assert_eq!(c.system(Some("ntp"), now), None);
         // NTP weg: nicht mehr bestätigt
         assert_eq!(
-            c.system(None, now).as_deref(),
-            Some("Uhrzeit nicht mehr bestätigt")
+            c.system(None, now).map(|t| t.de),
+            Some("Uhrzeit nicht mehr bestätigt".into())
         );
         assert!(!c.state.confirmed);
         // eine Browser-Zeit bleibt bestehen, wenn das System keine Quelle hat

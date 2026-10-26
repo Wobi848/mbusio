@@ -12,7 +12,7 @@ use super::frame::{
     self, hex, Frame, Parse, ADDR_BROADCAST, ADDR_BROADCAST_REPLY, ADDR_SELECTED, CI_APP_RESET,
     CI_DATA_SEND, CI_SELECT,
 };
-use crate::i18n::tr;
+use crate::i18n::{both, tr, Text};
 use crate::link::Link;
 
 mod config;
@@ -25,6 +25,7 @@ type RawTelegram = (u8, Vec<u8>, Vec<u8>);
 
 // ---------------------------------------------------------------- Frame-Log
 
+/// Eintrag, wie ihn die Oberfläche bekommt: Text in der Sprache der Anfrage
 #[derive(Debug, Clone, Serialize)]
 pub struct LogEntry {
     pub seq: u64,
@@ -33,21 +34,29 @@ pub struct LogEntry {
     pub text: String,
 }
 
+struct Stored {
+    seq: u64,
+    time: String,
+    dir: &'static str,
+    text: Text,
+}
+
 #[derive(Default)]
 pub struct FrameLog {
-    inner: Mutex<(u64, VecDeque<LogEntry>)>,
+    inner: Mutex<(u64, VecDeque<Stored>)>,
 }
 
 impl FrameLog {
-    pub fn push(&self, dir: &'static str, text: String) {
+    /// `text`: Telegramm oder Systemtext als `String`, Meldungen in beiden Sprachen mit `i18n::both`
+    pub fn push(&self, dir: &'static str, text: impl Into<Text>) {
         let mut g = self.inner.lock().unwrap();
         g.0 += 1;
         let seq = g.0;
-        g.1.push_back(LogEntry {
+        g.1.push_back(Stored {
             seq,
             time: crate::clock::now().format("%H:%M:%S%.3f").to_string(),
             dir,
-            text,
+            text: text.into(),
         });
         while g.1.len() > 1000 {
             g.1.pop_front();
@@ -61,7 +70,12 @@ impl FrameLog {
             .1
             .iter()
             .filter(|e| e.seq > seq)
-            .cloned()
+            .map(|e| LogEntry {
+                seq: e.seq,
+                time: e.time.clone(),
+                dir: e.dir,
+                text: e.text.get().to_string(),
+            })
             .collect()
     }
 
@@ -451,10 +465,12 @@ impl Master {
                         self.note("collision", Some(&buf));
                         self.log.push(
                             "INFO",
-                            tr(
-                                "Zusätzliche Bytes empfangen: Kollision",
-                                "Extra bytes received: collision",
-                            ),
+                            both(|| {
+                                tr(
+                                    "Zusätzliche Bytes empfangen: Kollision",
+                                    "Extra bytes received: collision",
+                                )
+                            }),
                         );
                         return Ok(Reply::Collision(buf));
                     }
@@ -466,21 +482,23 @@ impl Master {
                         buf.extend_from_slice(&tmp[..n]);
                     }
                     let key = match why {
-                        "Prüfsumme falsch" => "checksum",
-                        "Stopbyte fehlt" => "stop",
+                        "checksum" | "stop" => why,
                         _ => "garbled",
                     };
                     self.note(key, Some(&buf));
                     self.log.push("RX", hex(&buf));
                     self.log.push(
                         "INFO",
-                        format!(
-                            "{} ({why})",
-                            tr(
-                                "Ungültiges Telegramm: Kollision oder Störung",
-                                "Invalid telegram: collision or noise"
+                        both(|| {
+                            format!(
+                                "{} ({})",
+                                tr(
+                                    "Ungültiges Telegramm: Kollision oder Störung",
+                                    "Invalid telegram: collision or noise"
+                                ),
+                                frame::invalid_text(why)
                             )
-                        ),
+                        }),
                     );
                     return Ok(Reply::Collision(buf));
                 }
@@ -489,11 +507,13 @@ impl Master {
         if buf.is_empty() {
             self.log.push(
                 "INFO",
-                format!(
-                    "{} ({} ms)",
-                    tr("Keine Antwort", "No reply"),
-                    self.timeout.as_millis()
-                ),
+                both(|| {
+                    format!(
+                        "{} ({} ms)",
+                        tr("Keine Antwort", "No reply"),
+                        self.timeout.as_millis()
+                    )
+                }),
             );
             Ok(Reply::None)
         } else {
@@ -501,7 +521,7 @@ impl Master {
             self.note("truncated", Some(&buf));
             self.log.push(
                 "INFO",
-                tr("Unvollständiges Telegramm", "Incomplete telegram"),
+                both(|| tr("Unvollständiges Telegramm", "Incomplete telegram")),
             );
             Ok(Reply::Collision(buf))
         }

@@ -148,17 +148,19 @@ pub(super) async fn set_time(
     let offset = clock::set_from_browser(r.epoch_ms).ok_or_else(|| bad_request("epoch_ms"))?;
     st.log.push(
         "INFO",
-        if offset == 0.0 {
-            tr("Uhrzeit vom Gerät bestätigt", "Time confirmed by device")
-        } else {
-            format!(
-                "{} {offset:+.0} s",
-                tr(
-                    "Uhrzeit vom Gerät übernommen, Korrektur",
-                    "Time taken from device, correction"
+        both(|| {
+            if offset == 0.0 {
+                tr("Uhrzeit vom Gerät bestätigt", "Time confirmed by device")
+            } else {
+                format!(
+                    "{} {offset:+.0} s",
+                    tr(
+                        "Uhrzeit vom Gerät übernommen, Korrektur",
+                        "Time taken from device, correction"
+                    )
                 )
-            )
-        },
+            }
+        }),
     );
     Ok(Json(
         json!({ "ok": true, "offset_s": offset, "time": clock::state() }),

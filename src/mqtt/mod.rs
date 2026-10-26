@@ -21,7 +21,7 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use serde::Serialize;
 
-use crate::i18n::{self, tr, Lang};
+use crate::i18n::{both, tr};
 
 mod client;
 mod config;
@@ -78,7 +78,6 @@ fn set_status(st: &crate::web::AppState, f: impl FnOnce(&mut MqttStatus)) {
 
 /// Läuft im eigenen Thread, solange mbusio läuft
 pub fn run(st: crate::web::AppState) {
-    i18n::set(Lang::De);
     let mut backoff = Duration::from_secs(2);
     let mut last_error = String::new();
     loop {
@@ -137,12 +136,14 @@ fn session(
     }
     st.log.push(
         "INFO",
-        format!(
-            "MQTT {} {}:{}",
-            tr("verbunden mit", "connected to"),
-            cfg.host.trim(),
-            cfg.port
-        ),
+        both(|| {
+            format!(
+                "MQTT {} {}:{}",
+                tr("verbunden mit", "connected to"),
+                cfg.host.trim(),
+                cfg.port
+            )
+        }),
     );
     set_status(st, |x| {
         x.state = "connected".into();
@@ -177,25 +178,29 @@ fn session(
                             {
                                 st.log.push(
                                     "INFO",
-                                    format!(
-                                        "{} ({:+.0} s)",
-                                        tr(
-                                            "Uhrzeit vom Leitsystem (MQTT) übernommen",
-                                            "Time taken from control system (MQTT)"
-                                        ),
-                                        off
-                                    ),
+                                    both(|| {
+                                        format!(
+                                            "{} ({:+.0} s)",
+                                            tr(
+                                                "Uhrzeit vom Leitsystem (MQTT) übernommen",
+                                                "Time taken from control system (MQTT)"
+                                            ),
+                                            off
+                                        )
+                                    }),
                                 );
                             }
                         }
                     }
                     None => st.log.push(
                         "INFO",
-                        format!(
-                            "MQTT {}: {}",
-                            topic,
-                            tr("Uhrzeit unlesbar", "time unreadable")
-                        ),
+                        both(|| {
+                            format!(
+                                "MQTT {}: {}",
+                                topic,
+                                tr("Uhrzeit unlesbar", "time unreadable")
+                            )
+                        }),
                     ),
                 }
             }

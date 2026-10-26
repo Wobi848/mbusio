@@ -34,7 +34,7 @@ pub use self::quality::{check, quality};
 use self::outputs::Sample;
 
 use crate::db::{Db, Meter, DISTURBED_AFTER};
-use crate::i18n::{self, tr, Lang};
+use crate::i18n::{self, both, tr, Lang, Text};
 use crate::mbus::decode::Record;
 use crate::mbus::master::{MeterReading, Target};
 use crate::plan::{self, Plan};

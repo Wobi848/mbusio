@@ -44,7 +44,7 @@ pub(super) async fn mqtt_put(
     st.mqtt.version.fetch_add(1, Ordering::SeqCst);
     st.log.push(
         "INFO",
-        tr("MQTT-Einstellungen gespeichert", "MQTT settings saved"),
+        both(|| tr("MQTT-Einstellungen gespeichert", "MQTT settings saved")),
     );
     Ok(Json(json!({ "ok": true })))
 }
@@ -81,7 +81,7 @@ pub(super) async fn modbus_put(
     st.modbus.version.fetch_add(1, Ordering::SeqCst);
     st.log.push(
         "INFO",
-        tr("Modbus-Einstellungen gespeichert", "Modbus settings saved"),
+        both(|| tr("Modbus-Einstellungen gespeichert", "Modbus settings saved")),
     );
     Ok(Json(json!({ "ok": true })))
 }

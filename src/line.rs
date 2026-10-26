@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, Result};
 use serde::Serialize;
 
-use crate::i18n::{self, tr};
+use crate::i18n::{self, both, tr};
 use crate::link;
 use crate::mbus::master::{FrameLog, Master, MeterReading, Target};
 
@@ -273,13 +273,15 @@ fn open(inner: &Inner) -> Result<(Master, Claim)> {
     let master = Master::new(link, conf.baud, conf.timeout_ms, log.clone());
     log.push(
         "INFO",
-        format!(
-            "{} {}, {} Bd, 8E1, Timeout {} ms",
-            tr("Verbunden mit", "Connected to"),
-            conf.connection,
-            conf.baud,
-            master.timeout.as_millis()
-        ),
+        both(|| {
+            format!(
+                "{} {}, {} Bd, 8E1, Timeout {} ms",
+                tr("Verbunden mit", "Connected to"),
+                conf.connection,
+                conf.baud,
+                master.timeout.as_millis()
+            )
+        }),
     );
     Ok((master, claim))
 }
@@ -298,6 +300,9 @@ fn run(inner: Arc<Inner>) {
     let mut retry_at: Option<Instant> = None;
     let mut backoff = Duration::from_secs(5);
     loop {
+        // eigene Meldungen der Linie in der Sprache der Oberfläche; ein Auftrag aus der Bedienung
+        // setzt seine Sprache selbst
+        i18n::follow_ui();
         let (work, manual) = {
             let mut q = inner.queues.lock().unwrap();
             loop {
@@ -314,7 +319,7 @@ fn run(inner: Arc<Inner>) {
                     if master.take().is_some() {
                         inner
                             .log
-                            .push("INFO", tr("Verbindung getrennt", "Disconnected"));
+                            .push("INFO", both(|| tr("Verbindung getrennt", "Disconnected")));
                     }
                     *inner.status.lock().unwrap() = LineStatus::default();
                     return;
@@ -330,21 +335,23 @@ fn run(inner: Arc<Inner>) {
                 q = inner.wake.wait_timeout(q, DEVICE_CHECK).unwrap().0;
                 if master.is_some() && device_gone(&inner.conf.connection) {
                     master = None;
-                    let msg = tr(
-                        &format!(
-                            "{}: nicht vorhanden – USB-Wandler abgezogen?",
-                            inner.conf.connection
-                        ),
-                        &format!(
-                            "{}: not present – USB converter unplugged?",
-                            inner.conf.connection
-                        ),
-                    );
-                    inner.log.push("INFO", msg.clone());
+                    let msg = both(|| {
+                        tr(
+                            &format!(
+                                "{}: nicht vorhanden – USB-Wandler abgezogen?",
+                                inner.conf.connection
+                            ),
+                            &format!(
+                                "{}: not present – USB converter unplugged?",
+                                inner.conf.connection
+                            ),
+                        )
+                    });
                     let mut s = inner.status.lock().unwrap();
                     s.connected = false;
                     s.connection = None;
-                    s.error = Some(msg);
+                    s.error = Some(msg.get().to_string());
+                    inner.log.push("INFO", msg);
                 }
             }
         };
@@ -396,10 +403,12 @@ fn run(inner: Arc<Inner>) {
             // gestörte Verbindung: beim nächsten Auftrag neu aufbauen
             inner.log.push(
                 "INFO",
-                tr(
-                    "Verbindung gestört, wird neu aufgebaut",
-                    "Connection broken, reconnecting",
-                ),
+                both(|| {
+                    tr(
+                        "Verbindung gestört, wird neu aufgebaut",
+                        "Connection broken, reconnecting",
+                    )
+                }),
             );
             let mut s = inner.status.lock().unwrap();
             s.connected = false;

@@ -159,12 +159,14 @@ where
         }
         s.log.push(
             "INFO",
-            format!(
-                "{} {}: {}",
-                job.kind,
-                tr("beendet, Treffer", "finished, hits"),
-                job.hits.len()
-            ),
+            both(|| {
+                format!(
+                    "{} {}: {}",
+                    job.kind,
+                    tr("beendet, Treffer", "finished, hits"),
+                    job.hits.len()
+                )
+            }),
         );
         if job.kind != "read_all" {
             // nur ein vollständiger Scan wird verglichen und für den nächsten Vergleich gemerkt

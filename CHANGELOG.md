@@ -16,6 +16,9 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Linie und Projekt ohne Neuladen, Zeilen werden während eines Scans nicht mehr ersetzt (keine
   verlorenen Klicks). Die bisherige Oberfläche ist entfernt; alte Lesezeichen auf `/neu/` führen
   zur Startseite.
+- **Protokoll und Meldungen in der eingestellten Sprache:** Meldungen aus dem Hintergrund
+  (Zeitplan, MQTT, Modbus, Uhrzeit, Linie getrennt) waren immer deutsch; jetzt folgen sie der
+  Sprache der Oberfläche, Einträge im Protokoll auch nach einem Sprachwechsel.
 - **Zugriffsschlüssel** (`--token`) wird in einem Feld auf der Seite abgefragt statt in einem
   Browser-Fenster; ein falscher wird als falsch gemeldet.
 - **Schnelleres Neuladen:** die Dateien der Oberfläche kommen mit ETag; unverändert antwortet

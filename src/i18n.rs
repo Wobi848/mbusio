@@ -6,6 +6,7 @@
 
 use std::cell::Cell;
 use std::future::Future;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Lang {
@@ -26,16 +27,41 @@ impl Lang {
 }
 
 thread_local! {
-    static CURRENT: Cell<Lang> = const { Cell::new(Lang::De) };
+    /// Sprache des Threads; `None` = wie die Oberfläche
+    static CURRENT: Cell<Option<Lang>> = const { Cell::new(None) };
+    /// vorübergehend erzwungen (`both`), gilt vor Request und Thread
+    static FORCED: Cell<Option<Lang>> = const { Cell::new(None) };
 }
 
 tokio::task_local! {
     static TASK: Lang;
 }
 
-/// Sprache des Threads setzen (Bus-Aufträge, Hintergrund-Threads)
+/// Sprache der Oberfläche: die der letzten Anfrage mit `X-Lang` (0 = Deutsch, 1 = Englisch). Danach
+/// richten sich Arbeiten ohne eigene Anfrage (Zeitplan, Ausgänge, Linien-Threads)
+static UI: AtomicU8 = AtomicU8::new(0);
+
+/// Sprache des Threads setzen (Aufträge aus einer Anfrage)
 pub fn set(lang: Lang) {
-    CURRENT.with(|c| c.set(lang));
+    CURRENT.with(|c| c.set(Some(lang)));
+}
+
+/// Thread folgt wieder der Sprache der Oberfläche (Arbeit im Hintergrund)
+pub fn follow_ui() {
+    CURRENT.with(|c| c.set(None));
+}
+
+/// Sprache der Oberfläche merken (Anfrage mit `X-Lang`)
+pub fn remember_ui(lang: Lang) {
+    UI.store(lang as u8, Ordering::Relaxed);
+}
+
+fn ui() -> Lang {
+    if UI.load(Ordering::Relaxed) == Lang::En as u8 {
+        Lang::En
+    } else {
+        Lang::De
+    }
 }
 
 /// `f` mit dieser Sprache ausführen, auch über `await` hinweg (ein Request)
@@ -43,10 +69,13 @@ pub async fn scope<F: Future>(lang: Lang, f: F) -> F::Output {
     TASK.scope(lang, f).await
 }
 
-/// Sprache des Requests, sonst des Threads
+/// Erzwungene Sprache, sonst die des Requests, sonst des Threads, sonst der Oberfläche
 pub fn current() -> Lang {
-    TASK.try_with(|l| *l)
-        .unwrap_or_else(|_| CURRENT.with(|c| c.get()))
+    FORCED
+        .with(|c| c.get())
+        .or_else(|| TASK.try_with(|l| *l).ok())
+        .or_else(|| CURRENT.with(|c| c.get()))
+        .unwrap_or_else(ui)
 }
 
 /// Meldung in der Sprache des aktuellen Threads.
@@ -54,6 +83,48 @@ pub fn tr(de: &str, en: &str) -> String {
     match current() {
         Lang::De => de.to_string(),
         Lang::En => en.to_string(),
+    }
+}
+
+/// Text in beiden Sprachen, gezeigt in der Sprache, die gerade fragt (Protokoll: eine Meldung
+/// bleibt, die Sprache der Oberfläche kann wechseln)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Text {
+    pub de: String,
+    pub en: String,
+}
+
+impl Text {
+    pub fn get(&self) -> &str {
+        match current() {
+            Lang::De => &self.de,
+            Lang::En => &self.en,
+        }
+    }
+}
+
+/// Ohne Übersetzung (Telegramm, Fehlertext vom System): in beiden Sprachen gleich
+impl From<String> for Text {
+    fn from(s: String) -> Self {
+        Text {
+            de: s.clone(),
+            en: s,
+        }
+    }
+}
+
+/// `f` einmal deutsch und einmal englisch auswerten: alles, was darin `tr` benutzt, gibt es dann
+/// in beiden Sprachen
+pub fn both(f: impl Fn() -> String) -> Text {
+    let with = |lang| {
+        let before = FORCED.with(|c| c.replace(Some(lang)));
+        let s = f();
+        FORCED.with(|c| c.set(before));
+        s
+    };
+    Text {
+        de: with(Lang::De),
+        en: with(Lang::En),
     }
 }
 
@@ -252,6 +323,20 @@ mod tests {
         assert_eq!(label("no_such_key", Lang::En), "no_such_key");
         assert_eq!(Lang::parse("en-US"), Lang::En);
         assert_eq!(Lang::parse("de-CH"), Lang::De);
+    }
+
+    #[test]
+    fn both_languages_and_thread_language_kept() {
+        set(Lang::En);
+        let t = both(|| format!("{} 3", tr("Zähler", "Meter")));
+        assert_eq!((t.de.as_str(), t.en.as_str()), ("Zähler 3", "Meter 3"));
+        // danach gilt wieder die Sprache des Threads
+        assert_eq!(tr("ja", "yes"), "yes");
+        assert_eq!(t.get(), "Meter 3");
+        // ohne Übersetzung in beiden gleich
+        let raw = Text::from("68 03 03 68".to_string());
+        assert_eq!(raw.de, raw.en);
+        follow_ui();
     }
 
     #[test]

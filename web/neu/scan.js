@@ -72,7 +72,6 @@ texts(
   }
 );
 
-const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 const FILTERS = ["all", "unique", "attention"];
 
 /// Einstellungen je Linie: Suche (Art, Bereich, Baudraten), Filter, gewählter Treffer, Plan

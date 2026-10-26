@@ -142,7 +142,7 @@ fn follow_list(st: &AppState, line: i64, target: &Target, pa: Option<u8>, baud: 
     {
         st.log.push(
             "INFO",
-            format!("{}: {e:#}", tr("Zählerliste", "Meter list")),
+            both(|| format!("{}: {e:#}", tr("Zählerliste", "Meter list"))),
         );
     }
 }

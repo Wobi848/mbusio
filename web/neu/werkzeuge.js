@@ -56,7 +56,6 @@ texts(
   }
 );
 
-const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 const LOG_EVERY = 1000;
 const LOG_KEEP = 1000;
 const PICKS_MAX = 50;

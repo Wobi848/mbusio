@@ -121,7 +121,9 @@ fn select_values_and_follow_readings() {
     assert_eq!(dp.invalid.as_deref(), Some("decreased"));
     assert_eq!(dp.last_good, Some(123460.0));
     assert!(
-        db.notes.iter().any(|n| n.contains("gesunken")),
+        db.notes
+            .iter()
+            .any(|n| n.de.contains("gesunken") && n.en.contains("decreased")),
         "{:?}",
         db.notes
     );
@@ -147,7 +149,7 @@ fn exchange_continues_the_counter() {
     new.header.as_mut().unwrap().id = "99999999".into();
     let lines = db.exchange_meter(mid, "5", &new).unwrap();
     assert!(
-        lines[0].contains("123456") && lines[0].contains("10"),
+        lines[0].de.contains("123456") && lines[0].en.contains("10"),
         "{lines:?}"
     );
     let dp = &db.dp_by_meter(mid).unwrap()[0];

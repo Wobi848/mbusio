@@ -18,7 +18,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::db::Db;
-use crate::i18n::tr;
+use crate::i18n::{both, tr};
 
 mod image;
 mod protocol;
@@ -182,7 +182,10 @@ pub async fn run(st: crate::web::AppState) {
             Ok(l) => l,
             Err(e) => {
                 let msg = bind_error(&e, cfg.port);
-                st.log.push("INFO", format!("Modbus {listen}: {msg}"));
+                st.log.push(
+                    "INFO",
+                    both(|| format!("Modbus {listen}: {}", bind_error(&e, cfg.port))),
+                );
                 set_status(&st, |s| {
                     *s = ModbusStatus {
                         state: "error".into(),
@@ -197,7 +200,7 @@ pub async fn run(st: crate::web::AppState) {
         };
         st.log.push(
             "INFO",
-            format!("Modbus {} {listen}", tr("hört auf", "listening on")),
+            both(|| format!("Modbus {} {listen}", tr("hört auf", "listening on"))),
         );
         set_status(&st, |s| {
             *s = ModbusStatus {

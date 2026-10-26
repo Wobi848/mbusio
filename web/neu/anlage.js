@@ -67,7 +67,6 @@ texts(
 const PLAN_KINDS = ["off", "monthly", "daily", "hourly", "15min"];
 const TIMED = ["daily", "monthly"];
 const THIN_DAYS = [0, 30, 90, 365];
-const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 const README = "https://github.com/Wobi848/mbusio";
 const open = () => state.area === "anlage";
 

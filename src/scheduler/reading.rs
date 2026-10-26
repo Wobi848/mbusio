@@ -56,14 +56,18 @@ pub(super) fn work(
     slot: NaiveDateTime,
 ) -> Work {
     Box::new(move |m| {
-        i18n::set(Lang::De);
+        // ein Auftrag aus der Bedienung kann den Thread auf seine Sprache gesetzt haben
+        i18n::follow_ui();
         let outcome = match m {
             Err(e) => Attempt::NoLink(e),
             Ok(master) => attempt(master, &meter),
         };
         let link_ok = !matches!(outcome, Attempt::NoLink(_));
         if let Err(e) = finish(&st, line_id, &meter, plan, slot, outcome) {
-            note(&st, format!("{}: {e:#}", tr("Zeitplan", "Schedule")));
+            note(
+                &st,
+                both(|| format!("{}: {e:#}", tr("Zeitplan", "Schedule"))),
+            );
         }
         link_ok
     })
@@ -114,16 +118,18 @@ pub(super) fn finish(
             if fails == DISTURBED_AFTER {
                 note(
                     st,
-                    format!(
-                        "{} {}: {} {fails} {} ({e})",
-                        tr("Zähler", "Meter"),
-                        meter_name(meter),
-                        tr("gestört,", "disturbed,"),
-                        tr(
-                            "Termine nacheinander nicht gelesen",
-                            "terms in a row not read"
+                    both(|| {
+                        format!(
+                            "{} {}: {} {fails} {} ({e})",
+                            tr("Zähler", "Meter"),
+                            meter_name(meter),
+                            tr("gestört,", "disturbed,"),
+                            tr(
+                                "Termine nacheinander nicht gelesen",
+                                "terms in a row not read"
+                            )
                         )
-                    ),
+                    }),
                 );
             }
             error = Some(e);
@@ -133,12 +139,14 @@ pub(super) fn finish(
             save(Err(e.clone()), PlanOutcome::Refused { until })?;
             note(
                 st,
-                format!(
-                    "{} {}: {e}; {}",
-                    tr("Zähler", "Meter"),
-                    meter_name(meter),
-                    tr("für heute ausgesetzt", "suspended for today")
-                ),
+                both(|| {
+                    format!(
+                        "{} {}: {e}; {}",
+                        tr("Zähler", "Meter"),
+                        meter_name(meter),
+                        tr("für heute ausgesetzt", "suspended for today")
+                    )
+                }),
             );
             error = Some(e);
         }
@@ -203,21 +211,24 @@ pub(super) fn finish_run(st: &AppState, run: Run) -> anyhow::Result<()> {
     if offline {
         note(
             st,
-            format!(
-                "{} {}: {} ({})",
-                tr("Plan", "Plan"),
-                run.label,
-                tr(
-                    "Linie nicht verbunden, Zähler bleiben fällig",
-                    "line not connected, meters stay due"
-                ),
-                run.last_error.unwrap_or_default()
-            ),
+            both(|| {
+                format!(
+                    "{} {}: {} ({})",
+                    tr("Plan", "Plan"),
+                    run.label,
+                    tr(
+                        "Linie nicht verbunden, Zähler bleiben fällig",
+                        "line not connected, meters stay due"
+                    ),
+                    run.last_error.as_deref().unwrap_or_default()
+                )
+            }),
         );
     } else if line_down {
         note(
             st,
-            format!(
+            both(|| {
+                format!(
                 "{} {}: {}",
                 tr("Linie", "Line"),
                 run.label,
@@ -225,19 +236,22 @@ pub(super) fn finish_run(st: &AppState, run: Run) -> anyhow::Result<()> {
                     "gestört, kein einziger Zähler hat geantwortet (Leitung, Wandler, Gateway?)",
                     "disturbed, not a single meter answered (cable, converter, gateway?)"
                 )
-            ),
+            )
+            }),
         );
     } else {
         note(
             st,
-            format!(
-                "{} {}: {}/{} {}",
-                tr("Plan", "Plan"),
-                run.label,
-                run.ok,
-                run.attempted,
-                tr("gelesen", "read")
-            ),
+            both(|| {
+                format!(
+                    "{} {}: {}/{} {}",
+                    tr("Plan", "Plan"),
+                    run.label,
+                    run.ok,
+                    run.attempted,
+                    tr("gelesen", "read")
+                )
+            }),
         );
     }
     Ok(())

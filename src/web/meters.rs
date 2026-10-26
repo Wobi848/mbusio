@@ -236,7 +236,7 @@ pub(super) async fn meter_exchange(
         st.log.push("INFO", n);
     }
     Ok(Json(
-        json!({ "ok": true, "details": lines, "reading": reading }),
+        json!({ "ok": true, "details": lines.iter().map(|l| l.get()).collect::<Vec<_>>(), "reading": reading }),
     ))
 }
 

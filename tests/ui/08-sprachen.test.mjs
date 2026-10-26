@@ -6,8 +6,7 @@ import { assert, simLine } from "./helpers.mjs";
 const AREAS = ["scan", "zaehler", "weitergabe", "anlage", "werkzeuge", "simulator"];
 const KEY = /^[a-z]+(_[a-z0-9]+)+$/;
 const GERMAN = /[äöüÄÖÜß]|\b(und|nicht|oder|mit|der|die|das|ein|eine|keine?|noch|auf|für|wählen|speichern|Linie|Zähler)\b/;
-// Daten aus der Datenbank (Projekt- und Linienname) und das Protokoll des Servers (aufgezeichnet in
-// der Sprache des Threads) sind keine Oberflächentexte
+// Daten aus der Datenbank (Projekt- und Linienname) sind keine Oberflächentexte
 const DATA = /Schnellscan|Haus A|Gateway 1|Whg \d/g;
 
 /// sichtbare Texte, Tooltips, Platzhalter und Beschriftungen im Arbeitsbereich, Kopf- und Statusleiste
@@ -15,7 +14,7 @@ const visibleTexts = (page) =>
   page.evaluate(() => {
     const out = [];
     for (const el of document.querySelectorAll("body *:not(script):not(style)")) {
-      if (!el.getClientRects().length || el.closest("[data-log]")) continue;
+      if (!el.getClientRects().length) continue;
       if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) {
         if (!el.title && !el.placeholder && !el.getAttribute("aria-label")) continue;
       } else out.push([...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(" ").trim());

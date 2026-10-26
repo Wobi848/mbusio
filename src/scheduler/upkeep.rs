@@ -26,7 +26,7 @@ pub(super) fn check_disk(st: &AppState) {
         };
         note(
             st,
-            format!("{msg} ({:.0} % {})", new.free_pct, tr("frei", "free")),
+            both(|| format!("{msg} ({:.0} % {})", new.free_pct, tr("frei", "free"))),
         );
     }
 }
@@ -44,24 +44,28 @@ pub(super) fn thin(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
     if dropped > 0 {
         note(
             st,
-            format!(
-                "MQTT: {dropped} {}",
-                tr(
-                    "alte Nachrichten verworfen (Broker zu lange nicht erreichbar)",
-                    "old messages dropped (broker unreachable for too long)"
+            both(|| {
+                format!(
+                    "MQTT: {dropped} {}",
+                    tr(
+                        "alte Nachrichten verworfen (Broker zu lange nicht erreichbar)",
+                        "old messages dropped (broker unreachable for too long)"
+                    )
                 )
-            ),
+            }),
         );
     }
     let n = st.db.lock().unwrap().thin_readings(now)?;
     if n > 0 {
         note(
             st,
-            format!(
-                "{}: {n} {}",
-                tr("Verlauf ausgedünnt", "History thinned"),
-                tr("Auslesungen gelöscht", "readings deleted")
-            ),
+            both(|| {
+                format!(
+                    "{}: {n} {}",
+                    tr("Verlauf ausgedünnt", "History thinned"),
+                    tr("Auslesungen gelöscht", "readings deleted")
+                )
+            }),
         );
     }
     Ok(())
@@ -93,14 +97,16 @@ pub(super) fn check_clock(st: &AppState, now: NaiveDateTime) {
         if jump.abs() > 60 {
             note(
                 st,
-                format!(
-                    "{} {:+} min ({} → {}); {}",
-                    tr("Uhr gesprungen um", "Clock jumped by"),
-                    jump / 60,
-                    expected.format("%d.%m. %H:%M"),
-                    now.format("%d.%m. %H:%M"),
-                    tr("Termine richten sich neu aus", "terms realign")
-                ),
+                both(|| {
+                    format!(
+                        "{} {:+} min ({} → {}); {}",
+                        tr("Uhr gesprungen um", "Clock jumped by"),
+                        jump / 60,
+                        expected.format("%d.%m. %H:%M"),
+                        now.format("%d.%m. %H:%M"),
+                        tr("Termine richten sich neu aus", "terms realign")
+                    )
+                }),
             );
         }
     }

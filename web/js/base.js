@@ -20,6 +20,9 @@ function storageSet(key, value) {
 
 const $ = (id) => document.getElementById(id);
 
+/// Baudraten des M-Bus
+const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
+
 let lang = storageGet("lang") || (navigator.language || "de").slice(0, 2);
 if (!UI[lang]) lang = "de";
 let labels = {}; // Messdaten-Begriffe vom Server

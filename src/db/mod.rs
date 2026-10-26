@@ -100,7 +100,7 @@ pub struct Db {
     /// aktualisiert), damit die Datenbank intakt und das Gerät bedienbar bleibt
     pub readings_paused: bool,
     /// Meldungen beim Speichern (z.B. Zählerstand gesunken); der Aufrufer schreibt sie ins Protokoll
-    pub notes: Vec<String>,
+    pub notes: Vec<crate::i18n::Text>,
     /// Zählt jede Änderung an Werten und Datenpunkten; wer mitläuft (Node-RED), gleicht dann ab
     pub changes: tokio::sync::watch::Sender<u64>,
 }

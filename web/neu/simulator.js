@@ -35,7 +35,6 @@ texts(
   }
 );
 
-const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 const MAN = { heat: "KAM", cooling: "KAM", heat_old: "KAM", electricity: "ABB", gas: "ELS" };
 /// Medium der Simulation → Schlüssel des Servers (für Symbol und Farbe)
 const MEDIUM_KEY = { heat: "medium_heat_outlet", heat_old: "medium_heat_outlet", cooling: "medium_cooling_inlet", water: "medium_water", cold_water: "medium_cold_water", warm_water: "medium_warm_water", gas: "medium_gas", electricity: "medium_electricity" };

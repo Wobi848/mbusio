@@ -10,7 +10,7 @@ impl Db {
         meter_id: i64,
         r: &MeterReading,
         store: bool,
-    ) -> Result<Vec<String>> {
+    ) -> Result<Vec<Text>> {
         let status = r.header.as_ref().map_or(0, |h| h.status);
         let utc = r.utc.unwrap_or_else(crate::clock::utc_secs);
         // weitergegeben wird nur aus Linien im Dauerbetrieb, nie beim Debuggen alter Projekte
@@ -41,14 +41,16 @@ impl Db {
                 check(&dp.key, value, dp.last_good, status)
             };
             if invalid == Some("decreased") && dp.invalid.as_deref() != Some("decreased") {
-                notes.push(format!(
-                    "{}: {} {} → {} – {}",
-                    dp.name,
-                    tr("Zählerstand gesunken", "Meter reading decreased"),
-                    dp.last_good.unwrap_or_default(),
-                    value,
-                    tr("Zählertausch?", "meter replaced?")
-                ));
+                notes.push(both(|| {
+                    format!(
+                        "{}: {} {} → {} – {}",
+                        dp.name,
+                        tr("Zählerstand gesunken", "Meter reading decreased"),
+                        dp.last_good.unwrap_or_default(),
+                        value,
+                        tr("Zählertausch?", "meter replaced?")
+                    )
+                }));
             }
             let good = if invalid.is_none() {
                 Some(value)

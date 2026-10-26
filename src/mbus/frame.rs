@@ -1,5 +1,7 @@
 //! M-Bus Link-Layer (EN 13757-2): Telegramme bauen und parsen.
 
+use crate::i18n::tr;
+
 pub const ACK: u8 = 0xE5;
 
 pub const C_SND_NKE: u8 = 0x40;
@@ -38,7 +40,19 @@ pub enum Parse {
     /// Gültiges Telegramm, Anzahl verbrauchter Bytes.
     Complete(Frame, usize),
     Incomplete,
+    /// Grund als Schlüssel (checksum, stop, header, length, start), lesbar mit `invalid_text`
     Invalid(&'static str),
+}
+
+/// Grund eines ungültigen Telegramms in der aktuellen Sprache
+pub fn invalid_text(why: &str) -> String {
+    match why {
+        "checksum" => tr("Prüfsumme falsch", "checksum wrong"),
+        "stop" => tr("Stopbyte fehlt", "stop byte missing"),
+        "header" => tr("Header ungültig", "header invalid"),
+        "length" => tr("Länge ungültig", "length invalid"),
+        _ => tr("Startbyte unbekannt", "start byte unknown"),
+    }
 }
 
 impl Frame {
@@ -112,10 +126,10 @@ pub fn parse(buf: &[u8]) -> Parse {
             }
             let (control, address) = (buf[1], buf[2]);
             if buf[3] != control.wrapping_add(address) {
-                return Parse::Invalid("Prüfsumme falsch");
+                return Parse::Invalid("checksum");
             }
             if buf[4] != 0x16 {
-                return Parse::Invalid("Stopbyte fehlt");
+                return Parse::Invalid("stop");
             }
             Parse::Complete(Frame::Short { control, address }, 5)
         }
@@ -125,20 +139,20 @@ pub fn parse(buf: &[u8]) -> Parse {
             }
             let l = buf[1] as usize;
             if buf[2] as usize != l || buf[3] != 0x68 {
-                return Parse::Invalid("Header ungültig");
+                return Parse::Invalid("header");
             }
             if l < 3 {
-                return Parse::Invalid("Länge ungültig");
+                return Parse::Invalid("length");
             }
             let total = l + 6;
             if buf.len() < total {
                 return Parse::Incomplete;
             }
             if checksum(&buf[4..4 + l]) != buf[4 + l] {
-                return Parse::Invalid("Prüfsumme falsch");
+                return Parse::Invalid("checksum");
             }
             if buf[5 + l] != 0x16 {
-                return Parse::Invalid("Stopbyte fehlt");
+                return Parse::Invalid("stop");
             }
             Parse::Complete(
                 Frame::Long {
@@ -150,7 +164,7 @@ pub fn parse(buf: &[u8]) -> Parse {
                 total,
             )
         }
-        Some(_) => Parse::Invalid("Startbyte unbekannt"),
+        Some(_) => Parse::Invalid("start"),
     }
 }
 

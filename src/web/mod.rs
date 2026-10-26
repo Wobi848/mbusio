@@ -17,7 +17,7 @@ use serde_json::json;
 use crate::clock;
 use crate::db::{Db, Gateway, Line, Meter, Project};
 use crate::export;
-use crate::i18n::{self, tr, Lang};
+use crate::i18n::{self, both, tr, Lang};
 use crate::line::{is_link_error, ConnInfo, LineConf, LineService, Ports};
 use crate::link;
 use crate::mbus::decode::decode_rsp_ud;
@@ -171,7 +171,12 @@ async fn notify_changes(State(st): State<AppState>, req: Request, next: Next) ->
 
 /// Prüft den Zugriffsschlüssel (Header `X-Token` oder `?token=`), falls einer gesetzt ist.
 async fn auth(State(st): State<AppState>, req: Request, next: Next) -> Response {
-    i18n::scope(lang_of(&req), check_token(st, req, next)).await
+    let lang = lang_of(&req);
+    // die Oberfläche schickt ihre Sprache immer mit; andere Programme (Node-RED) ändern sie nicht
+    if req.headers().contains_key("x-lang") {
+        i18n::remember_ui(lang);
+    }
+    i18n::scope(lang, check_token(st, req, next)).await
 }
 
 async fn check_token(st: AppState, req: Request, next: Next) -> Response {

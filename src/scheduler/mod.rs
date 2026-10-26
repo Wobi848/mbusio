@@ -15,7 +15,7 @@ use serde_json::json;
 
 use crate::clock;
 use crate::db::{Meter, PlanOutcome, DISTURBED_AFTER};
-use crate::i18n::{self, tr, Lang};
+use crate::i18n::{self, both, tr, Text};
 use crate::line::read_listed;
 use crate::line::{is_link_error, Work};
 use crate::mbus::master::{Master, MeterReading, MeterRefused, Target};
@@ -139,17 +139,20 @@ impl Planner {
 }
 
 /// Meldung ins Protokoll der Oberfläche und auf die Konsole (beim Dienst: ins Systemprotokoll)
-fn note(st: &AppState, msg: String) {
-    println!("{} {msg}", clock::stamp());
+fn note(st: &AppState, msg: impl Into<Text>) {
+    let msg = msg.into();
+    println!("{} {}", clock::stamp(), msg.get());
     st.log.push("INFO", msg);
 }
 
 /// Läuft im eigenen Thread, solange mbusio läuft
 pub fn run(st: AppState) {
-    i18n::set(Lang::De);
     loop {
         if let Err(e) = tick(&st) {
-            note(&st, format!("{}: {e:#}", tr("Zeitplan", "Schedule")));
+            note(
+                &st,
+                both(|| format!("{}: {e:#}", tr("Zeitplan", "Schedule"))),
+            );
         }
         // solange ein Plan läuft, nicht einschlafen (Windows)
         crate::service::keep_awake(st.planner.any_planned());
