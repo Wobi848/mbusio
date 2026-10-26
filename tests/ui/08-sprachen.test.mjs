@@ -95,6 +95,11 @@ export default {
       await page.keyboard.press("?");
       await check(page, lang, "Tasten");
       await page.keyboard.press("Escape");
+      // Bus-Konsole
+      await page.click("#bus");
+      await page.waitForSelector("#console:not([hidden])");
+      await check(page, lang, "Bus-Konsole");
+      await page.keyboard.press("Escape");
     }
   },
 };

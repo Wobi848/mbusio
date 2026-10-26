@@ -5,12 +5,14 @@ import { state, set, watch, activeLine, operatingLines } from "./store.js";
 import { html, text, menu, closeMenu, ask, toast } from "./view.js";
 import { bind, keyList, onEscape } from "./keys.js";
 import { loadStatus, loadTree, reload, useLine, report } from "./data.js";
+import { follow, poll, logRow } from "./buslog.js";
 
 const $ = (id) => document.getElementById(id);
 const AREAS = ["anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
 const AREA_TAB = { scan: "tab_scan", zaehler: "tab_meters", weitergabe: "tab_transfer", anlage: "tab_project", werkzeuge: "tab_tools", simulator: "tab_sim" };
 const STATUS_EVERY = 5000;
 const TREE_EVERY = 15000;
+const CONSOLE_KEEP = 300; // Zeilen in der Bus-Konsole; alles in Werkzeuge
 
 // ------------------------------------------------------------ Texte
 
@@ -325,22 +327,32 @@ bind("?", showKeys, t("n_key_help"));
 
 // ------------------------------------------------------------ Statusleiste
 
+/// Was der Bus gerade macht (Statusleiste und Kopf der Bus-Konsole)
+function busState(s) {
+  const run = s.plans?.[0];
+  return s.job_running
+    ? `<span class="dot busy"></span>${esc(t("lb_busy"))}`
+    : run
+      ? `<span class="dot busy"></span>${esc(t("plan_running", run.label, run.done, run.total))}`
+      : s.connected
+        ? `<span class="dot on"></span>${esc(t("idle_ready", portText(s.connection.port), s.connection.baud))}`
+        : `<span class="dot off"></span>${esc(t("idle_off"))}${s.line?.error ? ` <span class="warn cut" title="${esc(s.line.error)}">· ${esc(s.line.error)}</span>` : ""}`;
+}
+
 function renderStatus() {
   const s = state.status;
   if (!s) return;
-  const run = s.plans?.[0];
-  html(
-    $("bus"),
-    s.job_running
-      ? `<span class="dot busy"></span>${esc(t("lb_busy"))}`
-      : run
-        ? `<span class="dot busy"></span>${esc(t("plan_running", run.label, run.done, run.total))}`
-        : s.connected
-          ? `<span class="dot on"></span>${esc(t("idle_ready", portText(s.connection.port), s.connection.baud))}`
-          : `<span class="dot off"></span>${esc(t("idle_off"))}${s.line?.error ? ` <span class="warn cut" title="${esc(s.line.error)}">· ${esc(s.line.error)}</span>` : ""}`
-  );
+  html($("bus"), busState(s));
+  html($("console-state"), busState(s));
   const issues = activeLine()?.issues;
-  html($("issues"), issues ? `<span class="chip ${issues.count ? "warn" : "ok"}">${esc(issues.count ? t("issues", issues.count) : t("issues_none"))}</span>` : "");
+  html(
+    $("issues"),
+    issues
+      ? issues.count
+        ? `<button type="button" class="chip warn" data-show-issues title="${esc(t("n_issues_title"))}">${esc(t("issues", issues.count))}</button>`
+        : `<span class="chip ok">${esc(t("issues_none"))}</span>`
+      : ""
+  );
   const outs = (s.outputs || []).filter((o) => o.on);
   html(
     $("outputs"),
@@ -363,10 +375,7 @@ function nextStep() {
   const s = state.status;
   const l = activeLine();
   if (!s || !l) return null;
-  const go = (area, sel) => () => {
-    location.hash = `#/${area}`;
-    setTimeout(() => document.querySelector(`#work .pane[data-area=${area}] ${sel}`)?.click(), 300);
-  };
+  const go = (area, sel) => () => goTo(area, sel);
   if (!l.connection) return ["guide_conn_set", () => $("conn-action").click()];
   if (!s.connected) return ["guide_connect", () => $("conn-action").click(), portText(l.connection)];
   if (!l.meters) return ["guide_scan", go("scan", "[data-start]")];
@@ -377,6 +386,20 @@ function nextStep() {
   if (!l.datapoints?.count) return ["guide_transfer", () => (location.hash = "#/zaehler")];
   if (!(s.outputs || []).some((o) => o.on)) return ["guide_output", () => (location.hash = "#/weitergabe")];
   return null;
+}
+
+/// In einen Bereich wechseln und dort nacheinander klicken, sobald das jeweilige Element da ist
+/// (ein Bereich lädt beim ersten Öffnen erst seine Daten)
+async function goTo(area, ...sels) {
+  location.hash = `#/${area}`;
+  for (const sel of sels) {
+    let el = null;
+    for (let i = 0; i < 40 && !el; i++) {
+      el = document.querySelector(`#work .pane[data-area=${area}] ${sel}`);
+      if (!el) await new Promise((r) => setTimeout(r, 100));
+    }
+    el?.click();
+  }
 }
 
 let nextAction = null;
@@ -391,6 +414,50 @@ function renderNext() {
   nextAction = run;
 }
 $("next").addEventListener("click", () => nextAction?.());
+
+// Auffälligkeiten: im Scan zeigen, die erste gewählt (rechts Ursache und Abhilfe)
+$("issues").addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-show-issues]")) goTo("scan", "[data-filter=attention]", "[data-list] [role=option]");
+});
+
+// ------------------------------------------------------------ Bus-Konsole
+
+let consoleOpen = false;
+let releaseConsole = null;
+
+function toggleConsole(open = !consoleOpen) {
+  consoleOpen = open;
+  $("console").hidden = !open;
+  $("bus").setAttribute("aria-expanded", String(open));
+  releaseConsole?.();
+  releaseConsole = open ? onEscape(() => toggleConsole(false)) : null;
+  if (open) {
+    poll().catch(() => {});
+    renderConsole(true);
+  }
+}
+
+/// Neueste Zeilen; unten bleiben, solange man unten ist (zum Lesen hochscrollen hält an)
+function renderConsole(toEnd = false) {
+  if (!consoleOpen) return;
+  const box = $("console-log");
+  const atEnd = toEnd || box.scrollHeight - box.scrollTop - box.clientHeight < 30;
+  const rows = (state.log || []).slice(-CONSOLE_KEEP);
+  html(box, rows.length ? rows.map(logRow).join("") : `<div class="empty">${esc(t("n_console_empty"))}</div>`);
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+
+$("bus").addEventListener("click", () => toggleConsole());
+$("console-close").addEventListener("click", () => toggleConsole(false));
+$("console").addEventListener("click", (ev) => {
+  // ganzes Protokoll oder ein Telegramm: in Werkzeuge weiter, dort ist das Protokoll ohnehin offen
+  if (ev.target.closest("a[href='#/werkzeuge']")) return toggleConsole(false);
+  const frame = ev.target.closest("[data-hex]");
+  if (!frame) return;
+  set({ analyze: frame.dataset.hex });
+  location.hash = "#/werkzeuge";
+  toggleConsole(false);
+});
 
 // ------------------------------------------------------------ Start
 
@@ -412,6 +479,8 @@ async function start() {
   // ohne Adresse dort anfangen, wo es weitergeht: noch keine Zähler → Scan, sonst Zähler (§3.4)
   if (!fromAddress) location.hash = activeLine()?.meters ? "#/zaehler" : "#/scan";
   setInterval(() => loadStatus().catch(() => {}), STATUS_EVERY);
+  watch(["log"], () => renderConsole());
+  follow(() => consoleOpen || state.area === "werkzeuge");
   setInterval(() => loadTree().catch(() => {}), TREE_EVERY);
 }
 

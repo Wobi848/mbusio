@@ -2,10 +2,11 @@
 // darunter Auslesen, Primäradresse, Baudrate, Reset; daneben Telegramm-Log, Rohbytes und Analyse
 // (Konzept neue Oberfläche §3.2).
 
-import { state, watch, activeLine } from "./store.js";
+import { state, set, watch, activeLine } from "./store.js";
 import { html, text, list, ask, toast, styles, texts } from "./view.js";
 import { bind, onEscape } from "./keys.js";
 import { loadMeters, report } from "./data.js";
+import { clear as clearBusLog, logRow } from "./buslog.js";
 
 texts(
   {
@@ -56,8 +57,6 @@ texts(
   }
 );
 
-const LOG_EVERY = 1000;
-const LOG_KEEP = 1000;
 const PICKS_MAX = 50;
 const ADDRESS = /^(\d{1,3}|\d{8}|[0-9a-f]{16})$/i;
 
@@ -69,8 +68,6 @@ let lineId = null;
 let picks = []; // Einträge der Zielauswahl: { meter } oder { address }
 let pickAt = 0;
 let releasePicks = null;
-let log = []; // Telegramm-Log, älteste zuerst
-let logSeq = 0;
 
 const open = () => state.area === "werkzeuge";
 const q = (sel) => root.querySelector(sel);
@@ -130,7 +127,7 @@ export function mount(pane) {
           <span class="grow"></span>
           <button type="button" class="quiet" data-clear-log>${esc(t("clear_log"))}</button>
         </div>
-        <div class="lines mono" data-log></div>
+        <div class="lines buslog mono" data-log></div>
         <div class="empty" data-log-empty>${esc(t("wz_log_empty"))}</div>
         <div class="rawrow">
           <input class="mono" data-hex placeholder="10 40 01 41 16" aria-label="${esc(t("raw_bytes"))}" title="${esc(t("raw_hint"))}">
@@ -143,8 +140,14 @@ export function mount(pane) {
   wire();
   watch(["status"], onLine);
   watch(["status", "meters"], render);
-  setInterval(() => open() && !document.hidden && pollLog().catch(() => {}), LOG_EVERY);
-  pollLog().catch(() => {});
+  // Protokoll fragt app.js ab (buslog.js), solange Werkzeuge oder Bus-Konsole offen sind
+  watch(["log"], renderLog);
+  // Telegramm aus der Bus-Konsole: hier erklären
+  watch(["analyze"], () => {
+    if (!state.analyze) return;
+    analyze(state.analyze);
+    set({ analyze: null });
+  });
 }
 
 /// Linie gewechselt: Ziel dieser Linie holen, Zählerliste laden
@@ -416,35 +419,16 @@ async function remember(button) {
 
 // ------------------------------------------------------------ Log, Rohbytes, Analyse
 
-async function pollLog() {
-  const entries = await request("log?since=" + logSeq);
-  if (entries.length) {
-    logSeq = entries[entries.length - 1].seq;
-    log = [...log, ...entries].slice(-LOG_KEEP);
-  }
-  renderLog();
-}
-
 function renderLog() {
   const box = q("[data-log]");
+  const log = state.log || [];
   list(box, log, (e) => e.seq, logRow);
   q("[data-log-empty]").hidden = log.length > 0;
   if (q("[data-follow]").checked) box.scrollTop = box.scrollHeight;
 }
 
-function logRow(e) {
-  const frame = e.dir === "TX" || e.dir === "RX";
-  return `<div class="l d-${esc(e.dir)}"${frame ? ` data-hex="${esc(e.text)}" title="${esc(t("log_click"))}"` : ""}><span class="sub">${esc(e.time)}</span><b>${esc(e.dir)}</b><span>${esc(e.text)}</span></div>`;
-}
-
 async function clearLog() {
-  try {
-    await request("log", { method: "DELETE" });
-    log = [];
-    renderLog();
-  } catch (e) {
-    report(e);
-  }
+  await clearBusLog().catch(report);
 }
 
 /// Telegramm erklären lassen (sendet nichts)

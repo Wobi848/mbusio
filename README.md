@@ -25,6 +25,8 @@ Schritt ist immer genau ein Knopf (siehe [docs/konzept-oberflaeche-neu.md](docs/
   - Hilfsmittel: **Werkzeuge** (ein Ziel für Auslesen, Adresse, Baudrate, Reset, Telegramme),
     **Simulator**
 - **Statusleiste:** was der Bus macht, Auffälligkeiten, Ausgänge und rechts der **nächste Schritt**.
+  Klick auf den Bus öffnet die **Bus-Konsole** (Telegramme live, ein Telegramm anklicken erklärt es
+  in Werkzeuge), Klick auf die Auffälligkeiten zeigt sie im Scan.
 - **Tastatur:** ↑↓ in Listen, Leertaste wählt aus, Ctrl+A alle, Enter, Escape, `/` sucht, `R`
   liest aus, `S` scannt, `?` zeigt alle Tasten. Keine Browser-Fenster für Rückfragen: sie stehen am
   Knopf.

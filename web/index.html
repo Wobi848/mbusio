@@ -67,8 +67,15 @@
 
 <main id="work" class="work"></main>
 
+<section id="console" class="console" aria-label="Bus" hidden>
+  <div class="chead"><b data-t="n_console"></b><span id="console-state" class="sub cut"></span><span class="grow"></span>
+    <a href="#/werkzeuge" class="quiet" data-t="n_console_tools"></a>
+    <button id="console-close" type="button" class="icon" data-title="close">×</button></div>
+  <div id="console-log" class="buslog mono"></div>
+</section>
+
 <footer class="bar status" aria-live="polite">
-  <span id="bus" class="state"></span>
+  <button id="bus" type="button" class="state" aria-expanded="false" aria-controls="console" data-title="n_bus_title"></button>
   <span id="issues"></span>
   <span id="outputs"></span>
   <span class="grow"></span>

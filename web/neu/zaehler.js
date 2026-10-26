@@ -4,7 +4,7 @@
 import { state, watch, activeLine } from "./store.js";
 import { html, text, list, ask, toast, styles, texts, menu, closeMenu, previewApply } from "./view.js";
 import { bind, onEscape } from "./keys.js";
-import { loadMeters, loadTree, report } from "./data.js";
+import { loadMeters, loadTree, loadStatus, report } from "./data.js";
 
 texts(
   {
@@ -486,6 +486,7 @@ async function readAll() {
   if (state.job?.running) return request("job/cancel", { method: "POST" }).catch(report);
   try {
     let job = await request("meters/read-all", { method: "POST" });
+    loadStatus().catch(() => {}); // Statusleiste gleich auf „Bus arbeitet“
     while (job.running) {
       state.job = job;
       await loadMeters();
@@ -495,6 +496,7 @@ async function readAll() {
     state.job = null;
     await loadMeters();
     loadTree().catch(() => {});
+    loadStatus().catch(() => {});
     const bad = state.meters.filter((m) => m.last_error).length;
     toast(bad ? t("read_all_sum_bad", state.meters.length - bad, state.meters.length, bad) : t("read_all_sum_ok", state.meters.length), { error: !!bad });
   } catch (e) {

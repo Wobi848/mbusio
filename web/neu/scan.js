@@ -180,6 +180,8 @@ async function start(body = null) {
       view.kind === "primary"
         ? await request("scan/primary", { method: "POST", body: body || { from: view.from, to: view.to, retries: 1, bauds: bauds() } })
         : await request("scan/secondary", { method: "POST", body: body || { bauds: bauds(), prefix: view.prefix } });
+    // Statusleiste gleich auf „Bus arbeitet“, nicht erst bei der nächsten Abfrage
+    loadStatus().catch(() => {});
     render();
     poll();
   } catch (e) {
