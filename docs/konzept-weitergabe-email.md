@@ -78,29 +78,34 @@ Für Geräte, die allein laufen (Pi im Keller): mbusio meldet sich, wenn etwas n
 
 **Was eine Warnung auslöst** (aus dem, was mbusio schon erkennt):
 
-| Problem | Schlüssel | gilt ab |
-|---|---|---|
-| Zähler gestört | `disturbed:<zähler>` | Beginn in `disturbances` (3 Fehlversuche) |
-| Zähler meldet Fehler | `fault:<zähler>` | `meters.fault` (ohne Batterie schwach) |
-| Batterie schwach | `battery:<zähler>` | `meters.fault = power_low` |
-| Zählertausch erkannt | `swap:<zähler>` | offener Tausch |
-| Linie im Dauerbetrieb nicht verbunden | `line:<linie>` | seit 30 min |
-| MQTT nicht verbunden | `mqtt` | seit 60 min, nur wenn eingeschaltet |
-| Speicher knapp / voll | `disk` | Stufe Low/Full |
-| Abrechnung nicht gesendet | `billing:<projekt>` | nach dem 1. Fehlversuch |
+Jede Art ist **einzeln ein- und ausschaltbar**, Wartezeiten sind **einstellbar** (Vorgaben):
+
+| Problem | Schlüssel | gilt ab (Vorgabe, einstellbar) | Vorgabe |
+|---|---|---|---|
+| Zähler gestört | `disturbed:<zähler>` | Beginn in `disturbances` (3 Fehlversuche) | ein |
+| Zähler meldet Fehler | `fault:<zähler>` | `meters.fault` (ohne Batterie schwach) | ein |
+| Batterie schwach | `battery:<zähler>` | `meters.fault = power_low` | ein |
+| Zählertausch erkannt | `swap:<zähler>` | offener Tausch | ein |
+| Linie im Dauerbetrieb nicht verbunden | `line:<linie>` | seit **30 min** | ein |
+| MQTT nicht verbunden | `mqtt` | seit **60 min**, nur wenn eingeschaltet | ein |
+| Speicher knapp / voll | `disk` | Stufe Low/Full | ein |
+| Abrechnung nicht gesendet | `billing:<projekt>` | nach dem 1. Fehlversuch | ein |
 
 **Wie:** Alle 15 Minuten die Menge der offenen Probleme bestimmen und mit der zuletzt gemeldeten
 vergleichen (`meta` `warn_state`). **Neue** Probleme → eine Mail mit allen neuen (gebündelt), dazu
-in derselben Mail, was seit der letzten **behoben** ist. Höchstens **eine Warnmail pro Stunde**;
-was in der Zwischenzeit dazukommt, geht in die nächste. Ein Problem, das bleibt, wird nicht
-wiederholt (der Bericht nennt es weiter). Betreff: „mbusio <Gerät/Projekt>: 2 neue Probleme“.
+in derselben Mail, was seit der letzten **behoben** ist (abschaltbar). Höchstens **eine Warnmail
+pro Abstand** (Vorgabe 1 Stunde; wählbar sofort, 15 min, 1 h, 4 h, 1 Tag); was in der
+Zwischenzeit dazukommt, geht in die nächste. Ein Problem, das bleibt, wird nicht wiederholt
+(Vorgabe; wählbar: täglich erinnern), der Bericht nennt es weiter. Betreff: „mbusio <Gerät/Projekt>: 2 neue Probleme“.
 Klappt der Versand nicht: im Protokoll, erneuter Versuch beim nächsten Durchlauf, höchstens 1 Tag.
 
 ## 6. Bericht per E-Mail
 
-**Täglich** (Vorgabe 07:00) oder **wöchentlich** (Montag 07:00), an „Bericht an“:
+**Aus · täglich · wöchentlich** (Vorgabe täglich), **Uhrzeit** (Vorgabe 07:00), **Wochentag**
+(Vorgabe Montag), an „Bericht an“. Jeder Teil ist **abwählbar** (Vorgabe: alle):
 
-- je Projekt und Linie: gelesen x von y Zählern seit dem letzten Bericht, Datenpunkte weitergegeben
+- Auslesung: je Projekt und Linie gelesen x von y Zählern seit dem letzten Bericht
+- Weitergabe: Datenpunkte gesendet / verworfen je Ausgang
 - offene Probleme (wie Abschnitt 5, auch alte)
 - Abrechnungen abgelegt / gesendet
 - Speicher: frei, reicht noch ca. …
@@ -112,19 +117,48 @@ Klappt der Versand nicht: im Protokoll, erneuter Versuch beim nächsten Durchlau
   `send_logged(kind, message)` schreibt `out_log` und den Zustand der Karte (`meta` `mail_last`);
   Abrechnung, Testmail, Warnung, Bericht nutzen ihn.
 - Gesendet wird im Zeitplan ohne Datenbank-Sperre (wie heute).
-- `MailConfig` bekommt `enabled`, `warn_to`, `report_to`, `report` (`off`, `daily`, `weekly`);
-  alte Einstellungen laden weiter (Vorgaben).
+- `MailConfig` bekommt `enabled`, `retry_days` (Vorgabe 7), `warn: WarnSettings` (Empfänger, je
+  Art an/aus, Wartezeiten Linie/MQTT, Abstand, behoben melden, erinnern) und `report:
+  ReportSettings` (Empfänger, Häufigkeit, Uhrzeit, Wochentag, Teile). Alles mit Vorgaben über
+  `#[serde(default)]`, alte Einstellungen laden weiter.
 - Weitergabe-Oberfläche: `weitergabe-ausgaenge.js` um E-Mail erweitert, Abrechnung als
   `weitergabe-abrechnung.js` (aus `anlage-abrechnung.js`), `anlage-mail.js` entfällt.
 
 ## 8. Entschieden (26.10.2026)
+
+**Alles ist einstellbar** (Abschnitt 3, 5, 6, 10); die folgenden Punkte sind nur die Vorgaben.
 
 1. Empfänger von Warnungen und Bericht **je Gerät** (Ausgang E-Mail); Abrechnung je Projekt.
 2. Warnungen **gebündelt, höchstens 1 Mail pro Stunde**; bleibende Probleme nicht wiederholen.
 3. Bericht Vorgabe **täglich 07:00** (geht nur raus, wenn „Bericht an“ ausgefüllt ist).
 4. **Batterie schwach** ist eine Warnung (eigene Zeile).
 
-## 9. Umsetzung in Schritten
+## 9. Einstellungen im Überblick
+
+Weitergabe → E-Mail → Einstellungen, drei Abschnitte untereinander (aufklappbar wie „Weitere
+Werte“ bei der Abrechnung, der erste offen):
+
+| Abschnitt | Einstellung | Vorgabe |
+|---|---|---|
+| **Server** | Server, Port, Verschlüsselung, Zertifikat prüfen, Benutzer, Passwort, Absender | –, 587, STARTTLS, ja, –, –, Benutzer |
+| | Nicht gesendete erneut versuchen | 7 Tage |
+| | Testmail an … Senden | – |
+| **Warnungen** | Warnungen an | leer = keine |
+| | je Art an/aus (Tabelle Abschnitt 5) | alle an |
+| | Linie nicht verbunden seit | 30 min |
+| | MQTT nicht verbunden seit | 60 min |
+| | höchstens eine Warnmail pro | 1 Stunde |
+| | Behobenes melden | ja |
+| | Offene Probleme erinnern | nie |
+| **Bericht** | Bericht an | leer = keiner |
+| | Häufigkeit, Uhrzeit, Wochentag | täglich, 07:00, Montag |
+| | Teile: Auslesung, Weitergabe, Probleme, Abrechnung, Speicher | alle |
+
+Bei der **Abrechnung** (je Projekt) bleibt einstellbar, was es heute gibt (Zeitraum, Form, Werte,
+Linien, Dezimalzeichen, automatisch, E-Mail an), dazu neu: **warten auf Auslesung höchstens**
+(Vorgabe 2 Tage, heute fest).
+
+## 10. Umsetzung in Schritten
 
 1. **Ausgang E-Mail** (Karte, Einstellungen, Testmail, Schalter, Protokoll); Mailserver aus der
    Abrechnung entfernen. Tests: Browser (Karte, Einstellungen, Testmail, Protokoll), Rust.
