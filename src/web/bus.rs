@@ -159,13 +159,23 @@ where
         }
         s.log.push(
             "INFO",
-            both(|| {
-                format!(
+            both(|| match job.kind.as_str() {
+                "read_all" => format!(
+                    "{}: {}/{}",
+                    tr("Alle auslesen beendet", "Read all finished"),
+                    job.done,
+                    job.total
+                ),
+                kind => format!(
                     "{} {}: {}",
-                    job.kind,
-                    tr("beendet, Treffer", "finished, hits"),
+                    if kind == "secondary" {
+                        tr("Sekundärscan", "Secondary scan")
+                    } else {
+                        tr("Primärscan", "Primary scan")
+                    },
+                    tr("beendet, gefunden", "finished, found"),
                     job.hits.len()
-                )
+                ),
             }),
         );
         if job.kind != "read_all" {

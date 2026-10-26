@@ -101,7 +101,7 @@ export function mount(pane) {
         <h3>${esc(t("set_primary"))}</h3>
         <p class="sub" data-now="pa"></p>
         <div class="trow">
-          <input type="number" min="0" max="250" class="mono" data-new-pa aria-label="${esc(t("new_primary"))}" placeholder="${esc(t("new_primary"))}">
+          <input type="number" min="0" max="250" class="mono" data-new-pa aria-label="${esc(t("new_primary"))}" placeholder="1–250">
           <button type="button" class="quiet" data-free>${esc(t("wz_free"))}</button>
           <button type="button" class="tonal" data-set-pa>${esc(t("set"))}</button>
         </div>

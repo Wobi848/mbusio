@@ -59,7 +59,10 @@ select, input {
   padding: 0 8px;
   border: 1px solid var(--line-strong);
   background: var(--surface);
+  /* Farbe ausdrücklich: sonst nimmt Windows im dunklen Design eine Systemfarbe, Text unsichtbar */
+  color: var(--text);
 }
+option { background: var(--surface); color: var(--text); }
 .field {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 0 8px;
