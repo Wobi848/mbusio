@@ -173,8 +173,11 @@ async fn notify_changes(State(st): State<AppState>, req: Request, next: Next) ->
 async fn auth(State(st): State<AppState>, req: Request, next: Next) -> Response {
     let lang = lang_of(&req);
     // die Oberfläche schickt ihre Sprache immer mit; andere Programme (Node-RED) ändern sie nicht
-    if req.headers().contains_key("x-lang") {
-        i18n::remember_ui(lang);
+    // gespeichert, damit Meldungen gleich nach einem Neustart schon in dieser Sprache entstehen
+    if req.headers().contains_key("x-lang") && i18n::remember_ui(lang) {
+        if let Err(e) = st.db.lock().unwrap().set_meta("ui_lang", lang.code()) {
+            st.log.push("INFO", format!("DB: {e:#}"));
+        }
     }
     i18n::scope(lang, check_token(st, req, next)).await
 }

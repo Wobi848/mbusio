@@ -24,6 +24,13 @@ impl Lang {
             Lang::De
         }
     }
+
+    pub fn code(self) -> &'static str {
+        match self {
+            Lang::De => "de",
+            Lang::En => "en",
+        }
+    }
 }
 
 thread_local! {
@@ -51,9 +58,10 @@ pub fn follow_ui() {
     CURRENT.with(|c| c.set(None));
 }
 
-/// Sprache der Oberfläche merken (Anfrage mit `X-Lang`)
-pub fn remember_ui(lang: Lang) {
-    UI.store(lang as u8, Ordering::Relaxed);
+/// Sprache der Oberfläche merken (Anfrage mit `X-Lang`, beim Start die gespeicherte). Liefert, ob
+/// sie sich geändert hat.
+pub fn remember_ui(lang: Lang) -> bool {
+    UI.swap(lang as u8, Ordering::Relaxed) != lang as u8
 }
 
 fn ui() -> Lang {

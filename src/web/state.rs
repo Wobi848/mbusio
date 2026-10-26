@@ -51,6 +51,9 @@ impl Shared {
     }
 
     pub fn with_planner(token: Option<String>, db: Db, planner: Planner) -> Self {
+        if let Ok(Some(lang)) = db.meta("ui_lang") {
+            crate::i18n::remember_ui(crate::i18n::Lang::parse(&lang));
+        }
         Shared {
             lines: Mutex::default(),
             ports: Arc::default(),

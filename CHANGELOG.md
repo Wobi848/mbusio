@@ -18,7 +18,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   zur Startseite.
 - **Protokoll und Meldungen in der eingestellten Sprache:** Meldungen aus dem Hintergrund
   (Zeitplan, MQTT, Modbus, Uhrzeit, Linie getrennt) waren immer deutsch; jetzt folgen sie der
-  Sprache der Oberfläche, Einträge im Protokoll auch nach einem Sprachwechsel.
+  Sprache der Oberfläche, Einträge im Protokoll auch nach einem Sprachwechsel. Die Sprache bleibt
+  über einen Neustart gespeichert.
 - **Zugriffsschlüssel** (`--token`) wird in einem Feld auf der Seite abgefragt statt in einem
   Browser-Fenster; ein falscher wird als falsch gemeldet.
 - **Schnelleres Neuladen:** die Dateien der Oberfläche kommen mit ETag; unverändert antwortet
