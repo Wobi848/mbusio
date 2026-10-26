@@ -382,10 +382,14 @@ cargo run -- --time-scale 48   # Zeitraffer für Dauertests: ein Tag in 30 Minut
 Aufbau:
 
 - `src/mbus/frame.rs`: Telegramme bauen und prüfen (EN 13757-2)
-- `src/mbus/decode.rs`, `tables.rs`: Datensätze decodieren (EN 13757-3)
-- `src/mbus/master/`: Verbindung, Auslesen, Ursachen von Störungen (mod), Primär- und
-  Sekundärscan, Baudraten am Bus (scan), Adresse, Baudrate, Reset (config)
-- `src/mbus/analyze.rs`: Telegramm-Analyse Byte für Byte
+- `src/mbus/decode/`, `tables.rs`: Datensätze decodieren (EN 13757-3): variable Struktur (mod),
+  feste Struktur und Fehlermeldungen des Zählers (fixed), Rohbytes in Werte (values)
+- `src/mbus/master/`: Verbindung, Auslesen, Ursachen von Störungen (mod), Typen (types),
+  Protokoll (log), Primär- und Sekundärscan, Baudraten am Bus (scan), Adresse, Baudrate, Reset
+  (config)
+- `src/mbus/analyze/`: Telegramm-Analyse Byte für Byte, Verbindungsschicht (mod) und
+  Anwendungsschicht (application)
+- Tests liegen in `tests.rs` bzw. `tests/` neben dem Modul, grosse nach Thema geteilt
 - `src/link.rs`: serielle Schnittstelle und TCP; `src/sim/`: Simulator (bus: der Bus, meter: ein simulierter Zähler, scenarios: Vorlagen und eigene Anlagen, store: Speichern), alle hinter demselben `Link`-Trait
 - `src/db/`: Datenbank, nach Bereichen (types: Datentypen und Tabellenzeilen, schema mit Migrationen,
   projects, lines, meters, readings, schedule, report)
