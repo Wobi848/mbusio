@@ -99,6 +99,13 @@ Zwischenzeit dazukommt, geht in die nächste. Ein Problem, das bleibt, wird nich
 (Vorgabe; wählbar: täglich erinnern), der Bericht nennt es weiter. Betreff: „mbusio <Gerät/Projekt>: 2 neue Probleme“.
 Klappt der Versand nicht: im Protokoll, erneuter Versuch beim nächsten Durchlauf, höchstens 1 Tag.
 
+### 5.1 Meldungen in der Oberfläche
+
+Dieselben Warnungen erscheinen auch ohne E-Mail in der Oberfläche: Statusleiste **Meldungen 3**,
+anklickbar, Liste mit Zeit, Problem und Ort (Zähler, Linie) mit Sprung dorthin, „gesehen“ zum
+Wegklicken; behobene verschwinden von selbst. Gleiche Regeln (Arten an/aus, Wartezeiten), ohne
+Abstand. So sieht man beim Öffnen, was in der Zwischenzeit war, auch ohne Mailserver.
+
 ## 6. Bericht per E-Mail
 
 **Aus · täglich · wöchentlich** (Vorgabe täglich), **Uhrzeit** (Vorgabe 07:00), **Wochentag**

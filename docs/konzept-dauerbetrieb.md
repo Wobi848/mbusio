@@ -199,6 +199,22 @@ Heute wird jede Auslesung vollständig als JSON abgelegt. Für den Dauerbetrieb:
   Warnung in Oberfläche und Statusleiste. Unter 5 % frei: keine neuen Rohdaten mehr speichern
   (Werte werden weiter gelesen, angezeigt und weitergegeben), Auffälligkeit „Speicher voll“.
   So bleibt die Datenbank intakt und das Gerät bedienbar, statt abzustürzen.
+- **Speicherschutz (26.10.2026, ersetzt „nie automatisch“):** Droht der Speicher voll zu laufen,
+  dünnt mbusio selbst aus, statt nur das Speichern einzustellen. Einstellbar, Vorgaben:
+  - eingeschaltet;
+  - Stufe „knapp“ (Warnung): Auslesungen und Werte **älter als 365 Tage** auf **eine je Zähler
+    und Tag**; reicht das nicht, **älter als 90 Tage**; nie jünger als 90 Tage;
+  - behalten wird je Tag die **letzte** Auslesung (Stand am Tagesende, genau das, was die
+    Abrechnung braucht; Stichtagswerte des Zählers stecken in jeder Auslesung). Auch das
+    Ausdünnen je Projekt behält ab jetzt die letzte statt der ersten (Fehler: die erste
+    verfälschte den Stand am Tagesende um den Verbrauch des Tages);
+  - danach **verkleinern**: Datenbank mit `auto_vacuum = INCREMENTAL` (neue Datenbanken von
+    Anfang an, bestehende einmalig umgestellt, wenn genug Platz für eine Kopie frei ist), freie
+    Seiten gehen mit `PRAGMA incremental_vacuum` an das Dateisystem zurück, ohne die ganze Datei
+    neu zu schreiben;
+  - Meldung im Protokoll und als Warnung: „Speicher knapp: Auslesungen vor dem … auf eine je Tag
+    ausgedünnt, 120 MB frei geworden“;
+  - „fast voll“ (unter 5 %) bleibt die letzte Stufe: keine neuen Rohdaten mehr.
 - **Schreibverhalten:** Auslesungen eines Termins werden gesammelt in einem Schreibvorgang
   (Transaktion) gespeichert; SQLite im WAL-Modus. Das schont die SD-Karte und übersteht
   Stromausfall (Transaktion ganz oder gar nicht).

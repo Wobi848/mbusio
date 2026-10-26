@@ -220,6 +220,16 @@ der CSV stehen die Hinweise je Zeile.
 **Grenze:** Bekommt ein neuer Zähler dieselbe ID wie der alte (praktisch nie), bleibt nur der
 gesunkene Stand als Hinweis.
 
+### 3.7 Quartal, Halbjahr, Vorjahre (26.10.2026)
+
+- **Zeiträume:** Vormonat, **Vorquartal**, **Vorhalbjahr**, Vorjahr, eigener. Automatisch geht
+  mit allen ausser „eigener“ (Quartal: Datei Anfang Januar, April, Juli, Oktober).
+- **Vorjahre zum Vergleich** (Abrechnung): 0–10, Vorgabe **1** (Vergleich mit dem Vorjahr, wie
+  ihn z.B. die Heizkostenverordnung verlangt). Je Vorjahr eine Spalte „Verbrauch <Zeitraum>“ mit
+  demselben Zeitraum ein, zwei … Jahre früher (Q3 2026 → Q3 2025, Q3 2024). Fehlen dort Stände,
+  bleibt die Spalte leer und der Hinweis sagt es. Höchstens 10 Jahre, weil die Tabelle sonst
+  unlesbar wird und so alte Stände selten vollständig sind. Bei der Zeitreihe nicht.
+
 ## 4. Teil C: E-Mail (umgesetzt, siehe 7; Ort und Ausbau neu in [konzept-weitergabe-email.md](konzept-weitergabe-email.md))
 
 Die Datei aus 3.5 geht als Anhang an die Empfänger des Projekts.
