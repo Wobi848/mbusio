@@ -163,6 +163,63 @@ sie beim nächsten Start nach, wie verpasste Termine. Eine Meldung im Protokoll 
 
 ---
 
+### 3.6 Zählertausch erkennen, defekte Zähler melden
+
+Eine Abrechnung ist nur so gut wie die Zuordnung der Stände. Zwei Lücken im heutigen Stand:
+
+- **Tausch nur, wenn man ihn meldet.** Beim Auslesen über die Primäradresse prüft mbusio nicht, ob
+  ein anderer Zähler antwortet; eine neue ID überschreibt die alte still. Der Export rechnet dann
+  „neuer Stand − alter Stand“ (meist negativ), Datenpunkte springen und gelten als „gesunken“.
+  Bei Sekundäradressierung kann das nicht passieren (die ID ist die Adresse).
+- **Defekte Zähler** erkennt mbusio (antwortet nicht, gestört, Fehlerwert, Fehler im Statusbyte,
+  gesunken), der Export zeigt davon aber nur „fehlt“, „Zeit unsicher“ und „gesunken“.
+
+**Tausch erkennen.** Beim Speichern einer Auslesung (`store_reading`), wenn alles zutrifft:
+
+1. der Zähler steht in der Liste und hat eine ID,
+2. die Auslesung ist sauber (kein Fehler, keine Kollision) und hat eine **andere** ID,
+3. mbusio hat den **alten Zähler schon selbst ausgelesen** (die letzte gespeicherte Auslesung hat
+   die alte ID). Ohne das ist es kein Tausch, sondern eine Zählerliste, die nicht stimmt (z.B. vom
+   Kunden mit falscher Zuordnung importiert): dann wie heute die neue ID übernehmen, aber mit
+   Meldung „ID weicht von der Liste ab: … statt …“ im Protokoll.
+
+Dann geschieht dasselbe wie beim gemeldeten Tausch („Zähler getauscht …“): Tausch eintragen
+(`exchanges`), Zählerstände der Datenpunkte laufen weiter (Verschiebung), Eintrag im
+Änderungsverlauf des Berichts, Auslesung beim Zähler gespeichert. Unterschiede:
+
+- `exchanges.confirmed = 0`: **erkannt, nicht bestätigt**. Die Zählerliste zeigt beim Zähler einen
+  orangen Hinweis „Tausch erkannt“; in den Details „alte ID → neue ID, am …“ und **Bestätigen**.
+  Bestätigen setzt `confirmed = 1` (der gemeldete Tausch ist von Anfang an bestätigt).
+- Meldung im Protokoll und in der Bus-Konsole: „Zähler …: Tausch erkannt, alte ID … → neue ID …“.
+- Der Export schreibt „Zählertausch erkannt (nicht bestätigt)“ in den Hinweis, bis bestätigt ist.
+
+Technisch: Der Kern des Tauschs wird von `exchange_meter` getrennt (`exchange_core`, mit
+`detected`), weil geplante Auslesungen schon in einer Transaktion speichern; der erkannte Tausch
+läuft in einem Savepoint (verschachtelbar), der gemeldete wie bisher in einer eigenen Transaktion.
+
+**Defekte Zähler melden.** Je Auslesung wird festgehalten, ob der Zähler selbst einen Fehler
+meldet (`meters.fault`, wie `clock_off` beim Zähler gespeichert):
+
+| Schlüssel | woran erkannt | Wort |
+|---|---|---|
+| `status_error` | Statusbyte 0x08 (dauerhaft) oder 0x10 (vorübergehend) | meldet Fehler |
+| `error_flags` | Fehlerflags (VIF FD 17) ungleich 0 | meldet Fehler (Fehlerflags) |
+| `power_low` | Statusbyte 0x04 | Batterie schwach |
+
+Die Zählerliste zeigt das als Hinweis am Zähler. Der Export schreibt je Zähler in den Hinweis:
+
+- Zählertausch (bestätigt) bzw. Zählertausch erkannt (nicht bestätigt), mit Datum,
+- im Zeitraum nicht gelesen,
+- antwortet zurzeit nicht, zurzeit gestört (3 Termine nicht gelesen),
+- meldet Fehler / Batterie schwach in der Auslesung, aus der ein Stand stammt,
+- wie bisher: Stand fehlt, Zeit unsicher, Zählerstand gesunken.
+
+Über der Vorschau steht die Zusammenfassung je Art („2 Tausch erkannt · 1 antwortet nicht …“), in
+der CSV stehen die Hinweise je Zeile.
+
+**Grenze:** Bekommt ein neuer Zähler dieselbe ID wie der alte (praktisch nie), bleibt nur der
+gesunkene Stand als Hinweis.
+
 ## 4. Teil C: E-Mail (später)
 
 Einstellungen wie bei MQTT: Server, Port, TLS, Benutzer, Passwort, Absender, Empfänger je Projekt.
