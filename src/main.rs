@@ -25,6 +25,7 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context};
 use clap::{Parser, Subcommand};
+use tokio::net::TcpListener;
 
 use cli::{run_cli, Cmd};
 use mbus::master::{Bauds, FrameLog, Master, Progress, Reply, ScanHit, Target};
@@ -99,6 +100,36 @@ fn open_browser(url: &str) {
     };
     if result.is_err() {
         println!("Browser: {url}");
+    }
+}
+
+/// Wie viele Ports nach dem gewünschten probiert werden, wenn Windows ihn sperrt
+const PORT_TRIES: u16 = 10;
+
+/// Port für die Oberfläche belegen. Sperrt Windows ihn (reservierter Bereich von Hyper-V, WSL oder
+/// Docker: os error 10013), den nächsten nehmen. Belegt heisst meist, dass mbusio schon läuft
+/// (zweiter Doppelklick): dann nur den Browser öffnen und `None` liefern.
+async fn listen(host: &str, port: u16, no_browser: bool) -> anyhow::Result<Option<TcpListener>> {
+    let mut p = port;
+    loop {
+        match TcpListener::bind((host, p)).await {
+            Ok(l) => return Ok(Some(l)),
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !no_browser => {
+                let url = format!("http://localhost:{p}");
+                println!("Port {p} belegt, mbusio läuft vermutlich schon / already running: {url}");
+                open_browser(&url);
+                return Ok(None);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied && p < port + PORT_TRIES => {
+                println!(
+                    "Port {p} gesperrt, versuche {} / port {p} not allowed, trying {}",
+                    p + 1,
+                    p + 1
+                );
+                p += 1;
+            }
+            Err(e) => return Err(e).with_context(|| format!("Cannot listen on {host}:{p}")),
+        }
     }
 }
 
@@ -190,21 +221,8 @@ async fn serve(
     );
 
     let host = if args.lan { "0.0.0.0" } else { "127.0.0.1" };
-    let listener = match tokio::net::TcpListener::bind((host, args.http_port)).await {
-        Ok(l) => l,
-        // Port belegt: meist läuft mbusio schon (zweiter Doppelklick), dann nur den Browser öffnen
-        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !args.no_browser => {
-            let url = format!("http://localhost:{}", args.http_port);
-            println!(
-                "Port {} belegt, mbusio läuft vermutlich schon / already running: {url}",
-                args.http_port
-            );
-            open_browser(&url);
-            return Ok(());
-        }
-        Err(e) => {
-            return Err(e).with_context(|| format!("Cannot listen on {host}:{}", args.http_port))
-        }
+    let Some(listener) = listen(host, args.http_port, args.no_browser).await? else {
+        return Ok(());
     };
     // Zeitplan erst, wenn sicher nur dieses mbusio läuft
     if args.untrusted_clock {
