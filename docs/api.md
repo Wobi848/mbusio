@@ -171,7 +171,8 @@ siehe `plan.rs`). Antworten mit `warnings` (z.B. Buslast zu hoch).
 | --- | --- |
 | `GET /api/mqtt` | `{config, has_password, status}`; das Passwort kommt nie zurück. |
 | `PUT /api/mqtt` | `{config, password}`: `password` `null` = gespeichertes behalten, `""` = löschen. Felder von `config`: `enabled`, `host`, `port`, `tls`, `insecure`, `ca`, `username`, `client_id`, `base`, `topic` (Muster), `time_sync`, `ha`, `ha_prefix`. Felder, die man nicht schickt, gehen auf die Vorgabe zurück: immer die ganze Einstellung schicken. |
-| `GET /api/modbus` | `{config, status, projects}`. |
+| `GET /api/modbus` | `{config, status, projects}`; `status.peers`: je Leitsystem (IP) `last` (letzte Abfrage) und `requests`. |
+| `GET /api/out-log` | Protokoll der Weitergabe, neueste zuerst, höchstens 500 Zeilen. Filter: `output`, `dp`, `days` (1, 7, 30; 0 = alle 30 Tage), `result` (`sent`, `waiting`, `dropped`), `q` (Suche in Name und Adresse). Antwort `{rows, counts, more}`; Zeile: `time`, `output`, `dp`, `name`, `address` (volles Topic), `value`, `quality`, `result`, `reason` (`too_old`, `too_many`). Was wartet, kommt aus der Warteschlange. `format=csv`: die gefilterten Zeilen für Excel. |
 | `PUT /api/modbus` | `{enabled, bind, port, project (0 = aktives), swap_words}`. |
 | `POST /api/projects/{id}/outputs/{key}/readdress` | Alle Adressen eines Ausgangs nach Muster: `{apply}` → `ChangeSet`. |
 | `GET /api/projects/{id}/outputs/{key}/list?format=csv|json` | Liste für den Integrator (Datei); im JSON zusätzlich, was ein Leitsystem wissen muss (MQTT: Topics, QoS; Modbus: Registerblock, Wortreihenfolge). |

@@ -160,6 +160,11 @@ impl Db {
             )?;
         }
         self.conn.execute_batch(crate::mqtt::SCHEMA)?;
+        if !has(&self.conn, "mqtt_queue", "dp")? {
+            // Protokoll der Weitergabe: Nachricht ihrem Datenpunkt zuordnen
+            self.conn
+                .execute_batch("ALTER TABLE mqtt_queue ADD COLUMN dp INTEGER")?;
+        }
         self.conn.execute_batch(crate::sim::SCHEMA)?;
         if !has(&self.conn, "dp_templates", "outputs")? {
             // Ausgänge, an die neue Datenpunkte einer Vorlage gleich gehen (JSON-Liste)

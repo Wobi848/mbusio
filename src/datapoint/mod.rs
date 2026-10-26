@@ -27,7 +27,8 @@ mod values;
 pub use self::key::{is_counter, key_label, key_of, key_unit};
 use self::key::{parts, COUNTERS};
 pub use self::live::{LiveState, LiveValue, Scope};
-pub use self::outputs::{output, Output, Outputs, OUTPUTS};
+pub(crate) use self::outputs::Entry as OutLogEntry;
+pub use self::outputs::{output, sample_of, LogFilter, LogRow, Output, Outputs, OUTPUTS};
 pub use self::project_file::{from_export, template_from_export};
 pub use self::quality::{check, quality};
 
@@ -184,6 +185,20 @@ CREATE TABLE IF NOT EXISTS dp_outputs (
     sent_day TEXT,
     PRIMARY KEY (dp, output)
 );
+CREATE TABLE IF NOT EXISTS out_log (
+    id INTEGER PRIMARY KEY,
+    utc INTEGER NOT NULL,
+    time TEXT NOT NULL,
+    output TEXT NOT NULL,
+    dp INTEGER,
+    name TEXT NOT NULL,
+    address TEXT NOT NULL,
+    value TEXT NOT NULL,
+    quality TEXT NOT NULL,
+    result TEXT NOT NULL,
+    reason TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS out_log_utc ON out_log(utc);
 CREATE TABLE IF NOT EXISTS dp_templates (
     id INTEGER PRIMARY KEY,
     line_id INTEGER NOT NULL REFERENCES lines(id) ON DELETE CASCADE,

@@ -119,7 +119,8 @@ function renderWork() {
 AREAS.forEach((a, i) =>
   bind(String(i + 1), () => (location.hash = `#/${a}`), t("n_key_area", t(AREA_TAB[a])))
 );
-bind("/", () => document.querySelector("#work .pane:not([hidden]) [data-search]")?.focus(), t("n_key_search"));
+// das erste sichtbare Suchfeld (im Protokoll der Weitergabe ist die Liste darunter versteckt)
+bind("/", () => [...document.querySelectorAll("#work .pane:not([hidden]) [data-search]")].find((el) => el.offsetParent)?.focus(), t("n_key_search"));
 bind("?", showKeys, t("n_key_help"));
 
 // ------------------------------------------------------------ Start

@@ -197,3 +197,67 @@ pub(super) async fn output_list(
     }
     Ok(csv_download(csv, &what, &project))
 }
+
+/// Protokoll der Weitergabe mit Filtern (Ausgang, Datenpunkt, Tage, Ergebnis, Suche); was wartet,
+/// kommt aus der Warteschlange. `format=csv` liefert die gefilterten Zeilen für Excel.
+pub(super) async fn out_log(
+    State(st): State<AppState>,
+    Query(f): Query<crate::datapoint::LogFilter>,
+    Query(x): Query<super::meters::ExportQuery>,
+) -> Result<Response, ApiError> {
+    let page = {
+        let db = st.db.lock().unwrap();
+        let waiting = db.mqtt_waiting()?;
+        db.out_log_page(&f, waiting)?
+    };
+    if x.format == "csv" {
+        return Ok(csv_download(
+            out_log_csv(&page.rows),
+            "weitergabe",
+            "protokoll",
+        ));
+    }
+    Ok(Json(page).into_response())
+}
+
+/// Ergebnis, Grund und Qualität als Wort in der Sprache der Anfrage
+fn out_log_csv(rows: &[crate::datapoint::LogRow]) -> String {
+    let word = |k: &str| match k {
+        "sent" => tr("gesendet", "sent"),
+        "waiting" => tr("wartet", "waiting"),
+        "dropped" => tr("verworfen", "dropped"),
+        "too_old" => tr(
+            "Broker zu lange nicht erreichbar",
+            "broker unreachable for too long",
+        ),
+        "too_many" => tr("Warteschlange voll", "queue full"),
+        "good" => tr("gut", "good"),
+        "stale" => tr("veraltet", "stale"),
+        "disturbed" => tr("gestört", "disturbed"),
+        "invalid" => tr("ungültig", "invalid"),
+        other => other.to_string(),
+    };
+    let mut out = crate::export::row(&[
+        tr("Zeit", "Time"),
+        tr("Ausgang", "Output"),
+        tr("Datenpunkt", "Datapoint"),
+        tr("Adresse", "Address"),
+        tr("Wert", "Value"),
+        tr("Qualität", "Quality"),
+        tr("Ergebnis", "Result"),
+        tr("Grund", "Reason"),
+    ]);
+    for r in rows {
+        out.push_str(&crate::export::row(&[
+            r.time.clone(),
+            r.output.to_uppercase(),
+            r.name.clone(),
+            r.address.clone(),
+            r.value.clone(),
+            word(&r.quality),
+            word(&r.result),
+            word(&r.reason),
+        ]));
+    }
+    out
+}

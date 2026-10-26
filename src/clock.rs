@@ -84,6 +84,17 @@ pub fn stamp() -> String {
     now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
+/// Ortszeit zu Sekunden seit 1970 (UTC), im Format von `stamp`
+pub fn stamp_of(utc: i64) -> String {
+    DateTime::from_timestamp(utc, 0)
+        .map(|t| {
+            t.with_timezone(&Local)
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string()
+        })
+        .unwrap_or_default()
+}
+
 pub fn confirmed() -> bool {
     CLOCK.lock().unwrap().state.confirmed
 }

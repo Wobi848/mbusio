@@ -55,6 +55,8 @@ pub(super) fn thin(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
             }),
         );
     }
+    // Protokoll der Weitergabe: 30 Tage, Grenze an Zeilen
+    st.db.lock().unwrap().out_log_trim()?;
     let n = st.db.lock().unwrap().thin_readings(now)?;
     if n > 0 {
         note(

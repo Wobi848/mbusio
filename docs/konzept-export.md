@@ -1,6 +1,7 @@
 # Konzept: Weitergabe-Protokoll und Export für die Abrechnung
 
-Stand: 26.10.2026 · Status: **Entwurf**, zur Entscheidung
+Stand: 26.10.2026 · Status: **Schritt 1 umgesetzt** (Weitergabe-Protokoll); Vorgaben aus Abschnitt 6
+entschieden: 30 Tage fest, eine Zeile je Zähler und Wert, Ablage zum Herunterladen bis zur E-Mail
 
 Zwei Wünsche aus dem Betrieb:
 
@@ -168,10 +169,22 @@ SMTP-Client dazukommt und es ohne echten Mailserver schwer zu testen ist.
 
 Schritt 1 und 2 sind unabhängig; Schritt 1 ist kleiner.
 
-## 6. Zu entscheiden
+## 6. Entschieden (26.10.2026)
 
-- Protokoll 30 Tage als feste Vorgabe, oder einstellbar?
-- Abrechnung: reicht „eine Zeile je Zähler und Wert“, oder lieber eine Zeile je Zähler mit den
-  Werten nebeneinander (mehrere Werte, z.B. Energie und Volumen)?
-- Ablage `exporte/` im Datenordner: auf dem Raspberry Pi ist sie nur über die Oberfläche
-  (Herunterladen) erreichbar. Reicht das bis zur E-Mail?
+- Protokoll **30 Tage fest** (dazu höchstens 200 000 Zeilen).
+- Abrechnung: **eine Zeile je Zähler und Wert**, lässt sich in Excel leichter filtern.
+- Ablage `exporte/` im Datenordner, erreichbar über **Herunterladen** in der Oberfläche, bis die
+  E-Mail kommt.
+- Vorgaben wie in 3.1 (einstellbar, Wahl je Projekt gespeichert).
+
+## 7. Stand
+
+**Schritt 1 umgesetzt (26.10.2026):** Tabelle `out_log` (`datapoint/outputs/log.rs`),
+`mqtt_queue.dp`; „gesendet“ beim Bestätigen durch den Broker, „verworfen“ mit Grund beim Begrenzen
+der Warteschlange, „wartet“ aus der Warteschlange; Modbus je Leitsystem letzte Abfrage im Status
+(`status.modbus.peers`) und an der Zeile des Ausgangs; aufgeräumt mit dem Ausdünnen; `GET
+/api/out-log` mit Filtern und CSV; Ansicht Weitergabe → Protokoll (`weitergabe-protokoll.js`), vom
+Datenpunkt aus vorgefiltert. Tests: Rust `out_log_shows_waiting_sent_and_dropped`, Browser
+`17-protokoll`, Modbus und MQTT ergänzt.
+
+**Nächster Schritt:** Export von Hand (3.1–3.4).

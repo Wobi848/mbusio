@@ -13,10 +13,12 @@ use super::*;
 
 mod addresses;
 mod home_assistant;
+mod log;
 mod modbus;
 mod mqtt;
 mod send;
 
+pub use log::{sample_of, Entry, LogFilter, LogRow};
 pub(in crate::datapoint) use send::{should_send, Sent};
 
 /// Was ein Ausgang selbst können muss; alles Gemeinsame steht in diesem Modul

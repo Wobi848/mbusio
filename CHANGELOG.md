@@ -20,6 +20,9 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   (Zeitplan, MQTT, Modbus, Uhrzeit, Linie getrennt) waren immer deutsch; jetzt folgen sie der
   Sprache der Oberfläche, Einträge im Protokoll auch nach einem Sprachwechsel. Die Sprache bleibt
   über einen Neustart gespeichert.
+- **Weitergabe-Protokoll:** was an MQTT ging, was wartet und was verworfen wurde (Broker zu
+  lange weg, Warteschlange voll), je Wert mit Zeit, Topic und Qualität; Filter nach Zeitraum,
+  Ergebnis, Datenpunkt und Suche; CSV; 30 Tage. Modbus: welches Leitsystem zuletzt abgefragt hat.
 - **Windows: Port gesperrt** (os error 10013, reservierte Ports von Hyper-V, WSL oder Docker):
   mbusio nimmt den nächsten freien Port (8081, 8082 …) und nennt ihn, statt abzubrechen.
 - **Zugriffsschlüssel** (`--token`) wird in einem Feld auf der Seite abgefragt statt in einem

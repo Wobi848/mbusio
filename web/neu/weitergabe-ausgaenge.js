@@ -12,7 +12,7 @@ function outputState(s) {
       : s.state === "connected"
         ? t("wg_mqtt_info", s.broker, s.sent, s.queued)
         : s.state === "listening"
-          ? t("wg_modbus_info", s.listen, s.clients)
+          ? [t("wg_modbus_info", s.listen, s.clients), ...Object.entries(s.peers || {}).map(([ip, p]) => t("wg_modbus_peer", ip, slotText(p.last)))].join(" · ")
           : s.state === "connecting"
             ? s.broker || ""
             : s.error || "";
@@ -23,7 +23,7 @@ function outputState(s) {
 /// `ctx`: { status, active (offenes Formular), hasAddress(key), projectId }
 export function outputsHtml(outs, { status, active, hasAddress, projectId }) {
   return (
-    `<span class="eyebrow">${esc(t("wg_outputs"))}</span>` +
+    `<div class="outhead"><span class="eyebrow">${esc(t("wg_outputs"))}</span><button type="button" class="quiet" data-open-log title="${esc(t("wg_log_title"))}">${esc(t("wg_log"))} →</button></div>` +
       outs
         .map((o) => {
           const [cls, word, info] = outputState(status?.[o.key]);

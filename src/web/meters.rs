@@ -304,7 +304,7 @@ pub(super) async fn meters_csv(State(st): State<AppState>) -> Result<Response, A
 #[derive(Deserialize)]
 pub(super) struct ExportQuery {
     #[serde(default)]
-    format: String,
+    pub(super) format: String,
 }
 
 pub(super) async fn export_readings(

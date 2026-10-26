@@ -76,5 +76,10 @@ export default {
     assert.ok(b.readDoubleBE(0) > 123456, `Wert ${b.readDoubleBE(0)}`);
     assert.equal(regs[8], 0, "Qualität gut");
     assert.equal((await readRegisters(port, 60000, 3))[1], 0);
+
+    // wer abfragt: je Leitsystem letzte Abfrage, an der Zeile des Ausgangs
+    const peer = (await api("status")).modbus.peers["127.0.0.1"];
+    assert.ok(peer?.requests >= 2, JSON.stringify(peer));
+    await page.waitForFunction(() => document.querySelector("[data-outputs]")?.textContent.includes("127.0.0.1 zuletzt"), null, { timeout: 10000 });
   },
 };

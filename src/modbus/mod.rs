@@ -8,6 +8,7 @@
 //!   hält mbusio nicht auf.
 //! - Eigener kleiner Server (`protocol`), keine Bibliothek.
 
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
@@ -119,6 +120,15 @@ pub struct ModbusStatus {
     pub clients: u64,
     /// beantwortete Anfragen seit dem Start
     pub requests: u64,
+    /// je Leitsystem (IP): letzte Abfrage und Anzahl seit dem Start. Modbus holt ab; jede Abfrage
+    /// einzeln zu speichern wäre bei Abfragen im Sekundentakt zu viel (Konzept Export, Teil A)
+    pub peers: BTreeMap<String, ModbusPeer>,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ModbusPeer {
+    pub last: String,
+    pub requests: u64,
 }
 
 pub struct ModbusState {
@@ -214,8 +224,8 @@ pub async fn run(st: crate::web::AppState) {
         loop {
             tokio::select! {
                 accepted = listener.accept() => {
-                    if let Ok((socket, _)) = accepted {
-                        tokio::spawn(client(st.clone(), socket, version));
+                    if let Ok((socket, peer)) = accepted {
+                        tokio::spawn(client(st.clone(), socket, version, peer.ip().to_string()));
                     }
                 }
                 r = changes.changed() => {
@@ -253,7 +263,7 @@ fn bind_error(e: &std::io::Error, port: u16) -> String {
 }
 
 /// Ein verbundenes Leitsystem: Anfragen beantworten, bis es trennt oder die Einstellungen sich ändern
-async fn client(st: crate::web::AppState, mut socket: TcpStream, version: u64) {
+async fn client(st: crate::web::AppState, mut socket: TcpStream, version: u64, peer: String) {
     set_status(&st, |s| s.clients += 1);
     let mut buf = Vec::new();
     let mut chunk = [0u8; 512];
@@ -276,7 +286,12 @@ async fn client(st: crate::web::AppState, mut socket: TcpStream, version: u64) {
                 protocol::Next::Request(len) => {
                     out.extend(protocol::answer(&buf[..len], &image));
                     buf.drain(..len);
-                    set_status(&st, |s| s.requests += 1);
+                    set_status(&st, |s| {
+                        s.requests += 1;
+                        let p = s.peers.entry(peer.clone()).or_default();
+                        p.last = crate::clock::stamp();
+                        p.requests += 1;
+                    });
                 }
             }
         }

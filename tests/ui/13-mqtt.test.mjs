@@ -53,6 +53,10 @@ export default {
       assert.fail(what);
     };
     const sent = await sentAtLeast(1, "Datenpunkt nicht gesendet");
+    // im Protokoll als gesendet
+    await page.click("[data-open-log]");
+    await page.waitForFunction(() => /gesendet/.test(document.querySelector("[data-log-rows]")?.textContent), null, { timeout: 10000 });
+    await page.click("[data-log-back]");
     // Home Assistant ein: eine Konfig-Nachricht mehr
     await settings(page, { ha: true });
     await sentAtLeast(sent + 1, "Konfig für Home Assistant nicht gesendet");

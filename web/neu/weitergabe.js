@@ -7,6 +7,7 @@ import { onEscape } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
 import { outputsHtml, outputFormHtml, formValues } from "./weitergabe-ausgaenge.js";
+import { openLog } from "./weitergabe-protokoll.js";
 
 
 const SEND = ["every", "change", "daily"];
@@ -26,6 +27,7 @@ export function mount(pane) {
   root = pane;
   root.innerHTML = `
     <div class="outputs" data-outputs></div>
+    <section class="logview" data-logview hidden></section>
     <div class="toolbar">
       <input type="search" data-search placeholder="${esc(t("n_search"))}" aria-label="${esc(t("n_search"))}">
       <div class="seg" role="group" data-scope></div>
@@ -212,7 +214,8 @@ function renderDetail() {
         })
         .join("")}
     </div>
-    <p class="sub">${p.last_time ? esc(`${t("n_last_reading")}: ${slotText(p.last_time)}`) : ""}</p>`
+    <p class="sub">${p.last_time ? esc(`${t("n_last_reading")}: ${slotText(p.last_time)}`) : ""}</p>
+    <div class="actions"><button type="button" class="quiet" data-dp-log>${esc(t("wg_dp_log"))} →</button></div>`
   );
 }
 
@@ -331,6 +334,12 @@ function toggle(id) {
 
 // ------------------------------------------------------------ Bedienung
 
+/// Protokoll statt der Datenpunkte zeigen; `p` filtert auf einen Datenpunkt
+function showLog(p = null) {
+  root.classList.add("showlog");
+  openLog(q("[data-logview]"), { dp: p?.id ?? null, dpName: p?.name || "", close: () => root.classList.remove("showlog") });
+}
+
 function wire() {
   q("[data-search]").addEventListener("input", (ev) => {
     view.search = ev.target.value;
@@ -338,6 +347,8 @@ function wire() {
   });
   root.addEventListener("click", async (ev) => {
     const b = (sel) => ev.target.closest(sel);
+    if (b("[data-open-log]")) return showLog();
+    if (b("[data-dp-log]")) return showLog(byId(view.active));
     if (b("[data-scope-set]")) {
       view.scope = b("[data-scope-set]").dataset.scopeSet;
       storageSet("wg_scope", view.scope);

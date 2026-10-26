@@ -117,6 +117,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/projects/{id}/thin", put(project_thin))
         .route("/api/mqtt", get(mqtt_get).put(mqtt_put))
         .route("/api/modbus", get(modbus_get).put(modbus_put))
+        .route("/api/out-log", get(out_log))
         .route(
             "/api/projects/{id}/outputs/{key}/readdress",
             post(output_readdress),

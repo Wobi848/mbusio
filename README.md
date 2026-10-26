@@ -111,6 +111,11 @@ Alles im Reiter **Weitergabe**: oben die **Ausgänge** (heute MQTT) mit Zustand 
 darunter die **Datenpunkte** als Liste (aktive Linie oder ganzes Projekt) mit Details rechts und
 Mehrfachauswahl. Werte wählt man im Bereich Zähler beim Zähler an.
 
+- **Protokoll** (Knopf bei den Ausgängen, oder „Protokoll dieses Datenpunkts“): was an MQTT ging,
+  was wartet und was verworfen wurde (mit Grund), mit Filtern nach Zeitraum, Ergebnis, Datenpunkt
+  und Suche, als CSV. 30 Tage. Bei Modbus steht an der Zeile des Ausgangs, welches Leitsystem
+  zuletzt abgefragt hat.
+
 - Je Zähler **„Werte wählen“**: alle Werte mit aktuellem Wert anhaken; der Hauptwert ist
   vorgeschlagen. Jeder gewählte Wert ist ein Datenpunkt; je Ausgang ein Häkchen. Name, Einheit und
   Umrechnung (z.B. Wh → kWh mit Faktor 0.001) einstellbar

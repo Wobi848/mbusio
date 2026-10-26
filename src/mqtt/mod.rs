@@ -164,7 +164,7 @@ fn session(
         for (id, topic, payload, abs) in batch {
             let topic = if abs { topic } else { cfg.topic(&topic) };
             s.publish(&topic, payload.as_bytes())?;
-            st.db.lock().unwrap().mqtt_done(id)?;
+            st.db.lock().unwrap().mqtt_done(id, &topic)?;
             set_status(st, |x| x.sent += 1);
         }
         for (topic, payload) in std::mem::take(&mut s.inbox) {

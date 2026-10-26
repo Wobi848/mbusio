@@ -103,7 +103,7 @@ impl Output for Mqtt {
     }
 
     fn deliver(&self, db: &mut Db, d: &Datapoint, address: &str, s: &Sample) -> Result<()> {
-        db.mqtt_enqueue(address, &payload(d, s))
+        db.mqtt_enqueue(d.id, address, &payload(d, s))
     }
 
     fn full_address(&self, db: &Db, address: &str) -> String {

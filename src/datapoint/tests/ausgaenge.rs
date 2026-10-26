@@ -320,3 +320,109 @@ fn live_values_follow_operation_send_mode_and_quality() {
         })
         .is_err());
 }
+
+/// Protokoll der Weitergabe: wartet (aus der Warteschlange), gesendet (vom Broker bestätigt),
+/// verworfen mit Grund; Filter; aufgeräumt nach 30 Tagen
+#[test]
+fn out_log_shows_waiting_sent_and_dropped() {
+    let (mut db, line, mid, r) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    let id = db.dp_by_meter(mid).unwrap()[0].id;
+    mqtt_on(&mut db, true);
+    db.dp_bulk(&[id], "out:mqtt:on").unwrap();
+    db.operation_on(line);
+    db.outputs_refresh().unwrap();
+    let page = |db: &Db, f: LogFilter| db.out_log_page(&f, db.mqtt_waiting().unwrap()).unwrap();
+
+    // wartet: mit Datenpunkt, Wert, Qualität und vollem Topic
+    let p = page(&db, LogFilter::default());
+    assert_eq!(p.counts["waiting"], 1);
+    let w = &p.rows[0];
+    assert_eq!(
+        (
+            w.result.as_str(),
+            w.dp,
+            w.value.as_str(),
+            w.quality.as_str()
+        ),
+        ("waiting", Some(id), "123456 kWh", "good")
+    );
+    assert_eq!(
+        w.address,
+        "mbusio/schnellscan/gateway-1-linie-1/whg-1/energy"
+    );
+
+    // gesendet, sobald der Broker bestätigt; Name des Datenpunkts bleibt im Protokoll
+    let (qid, ..) = db.mqtt_peek(1).unwrap()[0].clone();
+    db.mqtt_done(qid, &w.address).unwrap();
+    let p = page(&db, LogFilter::default());
+    assert_eq!((p.counts["waiting"], p.counts["sent"]), (0, 1));
+    assert_eq!(p.rows[0].name, db.dp(id).unwrap().name);
+
+    // verworfen: Broker zu lange nicht erreichbar
+    db.record(
+        line,
+        &Target::Primary(1),
+        Ok(&with_energy(&r, 123457.0)),
+        false,
+    )
+    .unwrap();
+    db.conn
+        .execute("UPDATE mqtt_queue SET created = 0", [])
+        .unwrap();
+    assert_eq!(db.mqtt_trim().unwrap(), 1);
+    let dropped = page(
+        &db,
+        LogFilter {
+            result: "dropped".into(),
+            ..Default::default()
+        },
+    );
+    assert_eq!(dropped.rows.len(), 1);
+    assert_eq!(
+        (
+            dropped.rows[0].reason.as_str(),
+            dropped.rows[0].value.as_str()
+        ),
+        ("too_old", "123457 kWh")
+    );
+
+    // Filter: Datenpunkt, Suche, Ausgang
+    let by = |f: LogFilter| page(&db, f).rows.len();
+    assert_eq!(
+        by(LogFilter {
+            dp: Some(id),
+            ..Default::default()
+        }),
+        2
+    );
+    assert_eq!(
+        by(LogFilter {
+            dp: Some(id + 99),
+            ..Default::default()
+        }),
+        0
+    );
+    assert_eq!(
+        by(LogFilter {
+            q: "whg-1".into(),
+            ..Default::default()
+        }),
+        2
+    );
+    assert_eq!(
+        by(LogFilter {
+            output: "modbus".into(),
+            ..Default::default()
+        }),
+        0
+    );
+
+    // aufgeräumt: älter als 30 Tage
+    db.conn
+        .execute("UPDATE out_log SET utc = 0 WHERE result = 'sent'", [])
+        .unwrap();
+    assert_eq!(db.out_log_trim().unwrap(), 1);
+    assert_eq!(page(&db, LogFilter::default()).rows.len(), 1);
+}
