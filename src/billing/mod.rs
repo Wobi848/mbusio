@@ -43,6 +43,8 @@ pub struct Settings {
     pub decimal: String,
     /// nach Ende des Zeitraums selbst als Datei ablegen; ruht bei eigenem Zeitraum
     pub auto: bool,
+    /// nur diese Linien (leer = alle des Projekts; gelöschte zählen nicht)
+    pub lines: Vec<i64>,
     /// abgelegte Dateien an diese Adressen senden (Komma oder Semikolon); leer = nur ablegen
     pub mail_to: String,
 }
@@ -59,6 +61,7 @@ impl Default for Settings {
             to: None,
             decimal: String::new(),
             auto: false,
+            lines: Vec::new(),
             mail_to: String::new(),
         }
     }
@@ -126,6 +129,14 @@ pub struct Kind {
     pub main: usize,
 }
 
+/// Eine Linie des Projekts zur Auswahl
+#[derive(Debug, Serialize)]
+pub struct LineChoice {
+    pub id: i64,
+    pub label: String,
+    pub meters: usize,
+}
+
 /// Ein Zähler mit allem, was der Export braucht
 pub(crate) struct Item {
     pub line: String,
@@ -191,10 +202,37 @@ impl Db {
         Ok(out)
     }
 
+    /// Linien des Projekts mit Zählern, zur Auswahl
+    pub fn billing_lines(&self, project_id: i64) -> Result<Vec<LineChoice>> {
+        let mut out: Vec<LineChoice> = Vec::new();
+        for (label, m) in self.meters_with_line_label(project_id)? {
+            match out.iter_mut().find(|l| l.id == m.line_id) {
+                Some(l) => l.meters += 1,
+                None => out.push(LineChoice {
+                    id: m.line_id,
+                    label,
+                    meters: 1,
+                }),
+            }
+        }
+        Ok(out)
+    }
+
     /// Zähler des Projekts mit den Werten, die nach den Einstellungen ausgegeben werden
     pub(crate) fn billing_items(&self, project_id: i64, s: &Settings) -> Result<Vec<Item>> {
+        let all = self.meters_with_line_label(project_id)?;
+        // gewählte Linien, soweit es sie noch gibt; keine mehr da = alle
+        let chosen: Vec<i64> = s
+            .lines
+            .iter()
+            .copied()
+            .filter(|id| all.iter().any(|(_, m)| m.line_id == *id))
+            .collect();
         let mut out = Vec::new();
-        for (line, m) in self.meters_with_line_label(project_id)? {
+        for (line, m) in all {
+            if !chosen.is_empty() && !chosen.contains(&m.line_id) {
+                continue;
+            }
             let latest = self.latest_reading(m.id)?;
             let has = |r: &MeterReading, k: &str| stand::value_of(r, k).is_some();
             let mut keys: Vec<String> = Vec::new();

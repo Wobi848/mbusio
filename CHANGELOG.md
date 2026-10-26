@@ -43,6 +43,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   geht als Anhang raus; je Datei steht „gesendet“ oder „nicht gesendet“ mit Grund und „Senden“.
   Fehlgeschlagene werden 7 Tage lang alle 15 Minuten erneut versucht, ins Protokoll kommt nur der
   erste Fehler, ein neuer Grund und der Erfolg.
+- **Abrechnung: gestört im Zeitraum und Linien wählen.** mbusio hält fest, von wann bis wann ein
+  Zähler gestört war; die Abrechnung nennt das („gestört 05.09.2026 08:00 – 07.09.2026 09:00“),
+  auch wenn er heute wieder antwortet. Bisher stand nur „zurzeit gestört“. Bei Projekten mit
+  mehreren Linien lassen sich einzelne Linien wählen.
 - **Speicher-Vorschau:** im Zustand der Anlage, wie lange der Platz beim heutigen Plan reicht
   („81 % frei · reicht ca. 12 Jahre“, Zuwachs je Tag im Tooltip); unter 90 Tagen als Hinweis.
 - **Weitergabe-Protokoll:** was an MQTT ging, was wartet und was verworfen wurde (Broker zu

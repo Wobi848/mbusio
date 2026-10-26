@@ -65,6 +65,12 @@ function onChange(ev) {
   if (el.matches("[data-b-auto]")) return save({ auto: el.checked });
   if (el.matches("[data-b-mail-to]")) return save({ mail_to: el.value.trim() });
   if (el.matches("[data-mail-form] [name=security]")) return securityChanged(el);
+  if (el.matches("[data-b-line]")) {
+    const lines = chosenLines(el);
+    if (lines) return save({ lines });
+    el.checked = true; // mindestens eine Linie
+    return;
+  }
   if (el.matches("[data-b-key]")) {
     const keys = new Set(s.keys);
     if (el.checked) keys.add(el.dataset.bKey);
@@ -119,6 +125,31 @@ async function onSubmit(ev) {
   );
 }
 
+/// Gewählte Linien nach einem Häkchen; alle gewählt = [] (auch künftige Linien), keine = null
+function chosenLines(el) {
+  const ids = data.lines.map((l) => l.id);
+  const on = new Set(data.settings.lines.length ? data.settings.lines.filter((id) => ids.includes(id)) : ids);
+  if (el.checked) on.add(Number(el.dataset.bLine));
+  else on.delete(Number(el.dataset.bLine));
+  if (!on.size) return null;
+  return on.size === ids.length ? [] : [...on];
+}
+
+/// Linien zur Auswahl, nur wenn das Projekt mehrere hat
+function linesHtml(s) {
+  if (data.lines.length < 2) return "";
+  const on = (id) => !s.lines.length || s.lines.includes(id);
+  const n = data.lines.filter((l) => on(l.id)).length;
+  const what = n === data.lines.length ? t("an_b_lines_all", n) : t("an_b_lines_some", n, data.lines.length);
+  return `<details class="more"${n < data.lines.length ? " open" : ""}><summary>${esc(t("an_b_lines", what))}</summary>
+    <div class="vals">${data.lines
+      .map(
+        (l) =>
+          `<label class="vrow"><span>${esc(l.label)}</span><span class="sub">${esc(t("an_b_line_meters", l.meters))}</span><input type="checkbox" data-b-line="${l.id}"${on(l.id) ? " checked" : ""}></label>`
+      )
+      .join("")}</div></details>`;
+}
+
 const opt = (value, label, current) => `<option value="${esc(value)}"${value === current ? " selected" : ""}>${esc(label)}</option>`;
 const day = (iso) => (lang === "de" ? iso.split("-").reverse().join(".") : iso);
 
@@ -143,6 +174,7 @@ function render() {
       ${s.form === "series" ? `<label><span>${esc(t("an_b_step"))}</span><select data-b-step>${opt("month", t("an_b_month"), s.step)}${opt("day", t("an_b_day"), s.step)}</select></label>` : ""}
       <label><span>${esc(t("an_b_decimal"))}</span><select data-b-decimal>${opt(",", t("an_b_comma"), decimal)}${opt(".", t("an_b_point"), decimal)}</select></label>
     </div>
+    ${linesHtml(s)}
     <h3>${esc(t("an_b_values"))}</h3>
     <div class="vals">
       <label class="vrow main"><span>${esc(t("an_b_main"))}</span><span class="sub">${esc(t("an_b_main_hint"))}</span><input type="checkbox" data-b-main${s.main ? " checked" : ""}></label>

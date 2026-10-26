@@ -91,6 +91,7 @@ impl Db {
                primary_address = NULL, last_error = NULL, plan_fails = 0, plan_pause = NULL WHERE id = ?1",
             params![meter_id, new_address],
         )?;
+        self.disturbed_sync(meter_id)?;
         // gespeichert wird in der Sprache der Anfrage, wie alle Datensätze
         let saved: Vec<&str> = lines.iter().map(|l| l.get()).collect();
         self.conn.execute(

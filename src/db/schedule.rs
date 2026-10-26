@@ -92,7 +92,7 @@ impl Db {
             "UPDATE meters SET plan_key = ?2, plan_slot = ?3, plan_pause = NULL, plan_fails = 0 WHERE id = ?1",
             params![meter_id, key, slot],
         )?;
-        Ok(())
+        self.disturbed_sync(meter_id)
     }
 
     /// Plan aus: Zustand vergessen
@@ -101,7 +101,7 @@ impl Db {
             "UPDATE meters SET plan_key = NULL, plan_slot = NULL, plan_pause = NULL, plan_fails = 0 WHERE id = ?1",
             [meter_id],
         )?;
-        Ok(())
+        self.disturbed_sync(meter_id)
     }
 
     /// Termin erledigt; liefert die Anzahl verpasster Termine nacheinander
@@ -122,6 +122,11 @@ impl Db {
                 params![meter_id, slot, until],
             )?,
         };
+        self.disturbed_sync(meter_id)?;
+        self.plan_fails(meter_id)
+    }
+
+    fn plan_fails(&self, meter_id: i64) -> Result<i64> {
         Ok(self
             .conn
             .query_row(
@@ -131,6 +136,50 @@ impl Db {
             )
             .optional()?
             .unwrap_or(0))
+    }
+
+    /// Störung von–bis festhalten: beginnt, wenn ein Zähler als gestört gilt, endet, sobald er
+    /// wieder gelesen oder sein Plan zurückgesetzt wird
+    pub(crate) fn disturbed_sync(&self, meter_id: i64) -> Result<()> {
+        let disturbed = self.plan_fails(meter_id)? >= DISTURBED_AFTER;
+        let open: Option<i64> = self
+            .conn
+            .query_row(
+                "SELECT id FROM disturbances WHERE meter = ?1 AND end IS NULL",
+                [meter_id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let now = crate::clock::stamp();
+        match (disturbed, open) {
+            (true, None) => self.conn.execute(
+                "INSERT INTO disturbances (meter, start) VALUES (?1, ?2)",
+                params![meter_id, now],
+            )?,
+            (false, Some(id)) => self.conn.execute(
+                "UPDATE disturbances SET end = ?2 WHERE id = ?1",
+                params![id, now],
+            )?,
+            _ => 0,
+        };
+        Ok(())
+    }
+
+    /// Störungen eines Zählers, die in [from, to) fallen: (Beginn, Ende oder None = noch gestört)
+    pub fn disturbances_between(
+        &self,
+        meter_id: i64,
+        from: &str,
+        to: &str,
+    ) -> Result<Vec<(String, Option<String>)>> {
+        Ok(self
+            .conn
+            .prepare(
+                "SELECT start, end FROM disturbances
+                 WHERE meter = ?1 AND start < ?3 AND (end IS NULL OR end >= ?2) ORDER BY start",
+            )?
+            .query_map(params![meter_id, from, to], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?)
     }
 
     /// Dauerbetrieb einer Linie ein- oder ausschalten (Konzept Bedienung §13). Ein nur mit

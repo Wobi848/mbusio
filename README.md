@@ -200,7 +200,8 @@ Mehrfachauswahl. Werte wählt man im Bereich Zähler beim Zähler an.
   gewählt waren. Stand am Stichtag: der Stichtagswert, den der Zähler selbst gespeichert hat, sonst
   die letzte Auslesung davor; die Quelle steht daneben, Fehlendes und unsichere Uhrzeit als Hinweis.
   Ein Zählertausch im Zeitraum wird verrechnet. Hinweise auch für erkannten, nicht bestätigten
-  Tausch, im Zeitraum nicht gelesen, antwortet nicht, gestört und Fehler des Zählers; über der
+  Tausch, im Zeitraum nicht gelesen, antwortet nicht, gestört im Zeitraum (von–bis) und Fehler
+  des Zählers; einzelne Linien wählbar; über der
   Vorschau zusammengezählt („2 × antwortet nicht · 1 × Zählertausch“). **Automatisch:** nach Ende
   des Zeitraums (am Monatsanfang bzw. im Januar, nach der ersten Auslesung) legt mbusio die Datei
   im Datenordner unter `exporte/<projekt-nr>/` ab; verpasste Zeiträume (Gerät aus) werden

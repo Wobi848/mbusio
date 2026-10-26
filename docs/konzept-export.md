@@ -321,4 +321,11 @@ geprüft (keine Leerzeichen, spitzen Klammern, Kommas), damit nichts in die Kopf
 Tests: Rust `mail::tests` (5, mit kleinem SMTP-Server), `auto_export_mails_file_and_retries`,
 Browser `20-email` (SMTP-Server in Node). TLS/STARTTLS mit echtem Server noch nicht geprüft.
 
-**Offen:** einzelne Linien wählen, Hinweis „gestört im Zeitraum“, TLS mit echtem Mailserver.
+**Schritt 6 umgesetzt (26.10.2026):** Tabelle `disturbances` (Zähler, Beginn, Ende), geführt in
+`disturbed_sync` bei jedem Termin, Plan-Start/-Reset und Tausch (Beginn ab `DISTURBED_AFTER`
+Fehlversuchen); im Export „gestört von – bis“ bzw. „gestört seit“, Rückfall „zurzeit gestört“ für
+Störungen von vor dem Update. `Settings.lines` mit `billing_lines`, Auswahl nur bei mehreren Linien
+mit Zählern; alle gewählt = leer (auch künftige Linien), die letzte bleibt gewählt. Tests: Rust
+`disturbed_in_period_and_chosen_lines`, Browser `18-abrechnung`.
+
+**Offen:** TLS/STARTTLS mit echtem Mailserver prüfen.

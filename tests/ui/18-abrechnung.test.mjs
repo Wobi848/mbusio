@@ -87,6 +87,30 @@ export default {
     const s = (await api("projects/1/billing")).settings;
     assert.deepEqual([s.period, s.form, s.step, s.decimal, s.keys.length], ["custom", "series", "day", ".", 1]);
 
+    // Linien wählen: nur bei mehreren Linien; die letzte bleibt gewählt
+    assert.equal(await page.locator("[data-b-line]").count(), 0, "eine Linie: keine Auswahl");
+    const gw = await api("projects/1/gateways", "POST", { name: "Haus B" });
+    const line = await api(`gateways/${gw.id}/lines`, "POST", { name: "Linie 1", connection: "SIMULATOR", baud: 2400 });
+    // Zähler kommen auf die aktive Linie: kurz umschalten
+    await api(`lines/${line.id}/activate`, "POST");
+    await api("meters", "POST", { address: "5", name: "Whg 5" });
+    await api("lines/1/activate", "POST");
+    await page.click("[data-billing-close]");
+    await page.click("[data-billing]");
+    await page.waitForSelector("[data-b-form]");
+    await page.selectOption("[data-b-form]", "billing");
+    await page.waitForFunction(() => !document.querySelector("[data-b-step]"));
+    await page.click("text=Linien: alle");
+    await page.uncheck("[data-b-line] >> nth=0");
+    for (let i = 0; !(await api("projects/1/billing")).settings.lines.length; i++) {
+      assert.ok(i < 10);
+      await page.waitForTimeout(200);
+    }
+    assert.deepEqual((await api("projects/1/billing")).settings.lines, [line.id]);
+    await page.waitForFunction(() => /Whg 5/.test(document.querySelector(".btable tbody")?.textContent) && document.querySelectorAll(".btable tbody tr").length === 1);
+    await page.click(`[data-b-line="${line.id}"]`);
+    assert.ok(await page.isChecked(`[data-b-line="${line.id}"]`), "mindestens eine Linie");
+
     // schliessen: wieder die Details des Projekts
     await page.click("[data-billing-close]");
     await page.waitForSelector("[data-billing]");

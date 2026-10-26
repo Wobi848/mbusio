@@ -461,3 +461,67 @@ fn auto_export_mails_file_and_retries() {
     assert!(db.billing_mail_pending(&dir, later).unwrap().0.is_empty());
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// Gestört im Zeitraum: von–bis aus dem Verlauf der Störungen, auch wenn der Zähler heute wieder
+/// antwortet; nur gewählte Linien
+#[test]
+fn disturbed_in_period_and_chosen_lines() {
+    use crate::db::{Gateway, Line, PlanOutcome};
+    let today = crate::clock::now().date();
+    let (mut db, _, mid, _) = with_readings(&[(&format!("{today} 00:00:01"), 100.0)]);
+    for _ in 0..crate::db::DISTURBED_AFTER {
+        db.plan_done(mid, "2026-01-01 00:00:00", PlanOutcome::Failed)
+            .unwrap();
+    }
+    db.plan_done(mid, "2026-01-01 00:00:00", PlanOutcome::Read { ms: 100.0 })
+        .unwrap();
+    let period = custom(&(today - Duration::days(1)).to_string(), &today.to_string());
+    let t = db.billing_table(1, &period, today, None).unwrap();
+    assert!(
+        t.rows[0][14].contains("gestört ") && t.rows[0][14].contains(" – "),
+        "{}",
+        t.rows[0][14]
+    );
+    assert_eq!(t.summary["disturbed"], 1);
+    // vor der Störung: kein Hinweis
+    let before = custom("2026-01-01", "2026-01-31");
+    assert!(!db.billing_table(1, &before, today, None).unwrap().rows[0][14].contains("gestört"));
+
+    // zweite Linie mit einem Zähler: alle, nur eine, gelöschte Wahl = alle
+    let gw = db
+        .create_gateway(
+            1,
+            Gateway {
+                name: "GW 2".into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let line2 = db
+        .create_line(
+            gw.id,
+            Line {
+                name: "L2".into(),
+                baud: 2400,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    db.add_meter(
+        line2.id,
+        Meter {
+            address: "7".into(),
+            name: "Whg 7".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(db.billing_lines(1).unwrap().len(), 2);
+    let mut s = period.clone();
+    assert_eq!(db.billing_table(1, &s, today, None).unwrap().total, 2);
+    s.lines = vec![line2.id];
+    let t = db.billing_table(1, &s, today, None).unwrap();
+    assert_eq!((t.total, t.rows[0][2].as_str()), (1, "Whg 7"));
+    s.lines = vec![9999];
+    assert_eq!(db.billing_table(1, &s, today, None).unwrap().total, 2);
+}

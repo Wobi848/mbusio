@@ -41,6 +41,7 @@ fn billing_view(db: &Db, id: i64) -> Result<serde_json::Value, ApiError> {
     Ok(json!({
         "settings": s,
         "kinds": db.billing_kinds(id)?,
+        "lines": db.billing_lines(id)?,
         "preview": preview,
         "error": error,
         "files": files(db, id)?,

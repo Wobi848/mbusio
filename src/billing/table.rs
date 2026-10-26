@@ -100,6 +100,25 @@ fn source(st: &Stand, lang: Lang) -> String {
     }
 }
 
+/// „gestört 05.09.2026 08:00 – 07.09.2026 09:00“, „gestört seit …“; mehrere mit Komma
+fn disturbed_text(list: &[(String, Option<String>)], lang: Lang) -> Option<String> {
+    if list.is_empty() {
+        return None;
+    }
+    let spans: Vec<String> = list
+        .iter()
+        .map(|(start, end)| match end {
+            Some(end) => format!("{} – {}", when(start, lang), when(end, lang)),
+            None => format!("{} {}", tr("seit", "since"), when(start, lang)),
+        })
+        .collect();
+    Some(format!(
+        "{} {}",
+        tr("gestört", "disturbed"),
+        spans.join(", ")
+    ))
+}
+
 /// Monatsenden im Zeitraum, dazu das Ende des Zeitraums
 fn steps(from: NaiveDate, to: NaiveDate, step: &str) -> Vec<NaiveDate> {
     let mut out = Vec::new();
@@ -334,7 +353,11 @@ impl Db {
                         tr("antwortet zurzeit nicht", "currently not answering"),
                     );
                 }
-                if it.meter.plan_fails >= crate::db::DISTURBED_AFTER {
+                let disturbed = self.disturbances_between(it.meter.id, &start_ts, &end_ts)?;
+                if let Some(text) = disturbed_text(&disturbed, lang) {
+                    n.add("disturbed", text);
+                } else if it.meter.plan_fails >= crate::db::DISTURBED_AFTER {
+                    // gestört seit vor dem Festhalten der Störungen (älterer Stand)
                     n.add("disturbed", tr("zurzeit gestört", "currently disturbed"));
                 }
                 n.fault(&start);

@@ -56,6 +56,14 @@ CREATE TABLE IF NOT EXISTS readings (
     data TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS readings_line ON readings(line_id, id);
+-- Störungen je Zähler von–bis (`end` leer = noch gestört), für „gestört im Zeitraum“ im Export
+CREATE TABLE IF NOT EXISTS disturbances (
+    id INTEGER PRIMARY KEY,
+    meter INTEGER NOT NULL REFERENCES meters(id) ON DELETE CASCADE,
+    start TEXT NOT NULL,
+    end TEXT
+);
+CREATE INDEX IF NOT EXISTS disturbances_meter ON disturbances(meter, start);
 CREATE TABLE IF NOT EXISTS changes (
     id INTEGER PRIMARY KEY,
     line_id INTEGER NOT NULL REFERENCES lines(id) ON DELETE CASCADE,
