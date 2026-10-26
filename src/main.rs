@@ -8,6 +8,7 @@ mod export;
 mod i18n;
 mod line;
 mod link;
+mod mail;
 mod mbus;
 mod meterlist;
 mod modbus;
@@ -19,6 +20,7 @@ mod sim;
 mod storage;
 #[cfg(test)]
 mod testutil;
+mod tls;
 mod web;
 
 use std::path::PathBuf;

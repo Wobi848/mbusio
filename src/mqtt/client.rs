@@ -113,82 +113,6 @@ fn connack_error(rc: u8) -> String {
 trait Stream: Read + Write + Send {}
 impl<T: Read + Write + Send> Stream for T {}
 
-#[derive(Debug)]
-struct NoVerify(Arc<rustls::crypto::CryptoProvider>);
-
-impl rustls::client::danger::ServerCertVerifier for NoVerify {
-    fn verify_server_cert(
-        &self,
-        _: &rustls::pki_types::CertificateDer<'_>,
-        _: &[rustls::pki_types::CertificateDer<'_>],
-        _: &rustls::pki_types::ServerName<'_>,
-        _: &[u8],
-        _: rustls::pki_types::UnixTime,
-    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
-        Ok(rustls::client::danger::ServerCertVerified::assertion())
-    }
-
-    fn verify_tls12_signature(
-        &self,
-        message: &[u8],
-        cert: &rustls::pki_types::CertificateDer<'_>,
-        dss: &rustls::DigitallySignedStruct,
-    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        rustls::crypto::verify_tls12_signature(
-            message,
-            cert,
-            dss,
-            &self.0.signature_verification_algorithms,
-        )
-    }
-
-    fn verify_tls13_signature(
-        &self,
-        message: &[u8],
-        cert: &rustls::pki_types::CertificateDer<'_>,
-        dss: &rustls::DigitallySignedStruct,
-    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        rustls::crypto::verify_tls13_signature(
-            message,
-            cert,
-            dss,
-            &self.0.signature_verification_algorithms,
-        )
-    }
-
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        self.0.signature_verification_algorithms.supported_schemes()
-    }
-}
-
-fn tls_config(c: &MqttConfig) -> Result<rustls::ClientConfig> {
-    use rustls::pki_types::pem::PemObject;
-    let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let builder = rustls::ClientConfig::builder_with_provider(provider.clone())
-        .with_safe_default_protocol_versions()?;
-    if c.insecure {
-        return Ok(builder
-            .dangerous()
-            .with_custom_certificate_verifier(Arc::new(NoVerify(provider)))
-            .with_no_client_auth());
-    }
-    let mut roots = rustls::RootCertStore::empty();
-    if c.ca.trim().is_empty() {
-        roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    } else {
-        for cert in rustls::pki_types::CertificateDer::pem_slice_iter(c.ca.as_bytes()) {
-            roots.add(cert.context(tr("CA-Zertifikat unlesbar", "CA certificate unreadable"))?)?;
-        }
-        if roots.is_empty() {
-            bail!(tr(
-                "Kein Zertifikat im CA-Feld (PEM erwartet)",
-                "No certificate in the CA field (PEM expected)"
-            ));
-        }
-    }
-    Ok(builder.with_root_certificates(roots).with_no_client_auth())
-}
-
 /// Eine Verbindung zum Broker
 pub struct Session {
     stream: Box<dyn Stream>,
@@ -214,7 +138,10 @@ impl Session {
         let stream: Box<dyn Stream> = if c.tls {
             let name = rustls::pki_types::ServerName::try_from(c.host.trim().to_string())
                 .map_err(|e| anyhow!("{}: {e}", c.host))?;
-            let conn = rustls::ClientConnection::new(Arc::new(tls_config(c)?), name)?;
+            let conn = rustls::ClientConnection::new(
+                Arc::new(crate::tls::config(c.insecure, &c.ca)?),
+                name,
+            )?;
             Box::new(rustls::StreamOwned::new(conn, tcp))
         } else {
             Box::new(tcp)

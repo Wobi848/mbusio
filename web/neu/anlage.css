@@ -83,3 +83,11 @@
 [data-area=anlage] .btable th { position: sticky; top: 0; background: var(--sunken); font-weight: 650; }
 [data-area=anlage] details.more { margin: 6px 0 10px; }
 [data-area=anlage] details.more > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 4px 0; }
+
+/* Abrechnung: Wert bzw. Schalter und Hinweis teilen sich die Breite (sonst bricht jedes Wort um) */
+[data-area=anlage] .vrow:not(.bfile) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; }
+/* abgelegte Dateien: Name, Zeit, Zustand der E-Mail, Senden */
+[data-area=anlage] .vrow.bfile { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+[data-area=anlage] .vrow.bfile a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-area=anlage] .bmail { margin: 8px 0; }
+[data-area=anlage] [data-mail-form] label.check input { justify-self: start; width: 16px; height: 16px; }

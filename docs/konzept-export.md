@@ -122,7 +122,7 @@ Die Vorgaben sind so gewählt, dass die meisten nichts einstellen müssen:
 | Stand am Stichtag | **automatisch** (siehe 3.2) | nur Auslesungen von mbusio, nur Stichtagswerte des Zählers |
 | Format | **CSV für Excel:** Semikolon, Dezimalkomma auf Deutsch, UTF-8 mit BOM (wie die bestehenden CSV) | – |
 | Automatisch | **aus** | monatlich am 1. bzw. jährlich nach dem Stichtag |
-| Ziel | **Ordner** `exporte/<projekt>/` im Datenordner, dazu Liste zum Herunterladen | später E-Mail (Teil C) |
+| Ziel | **Ordner** `exporte/<projekt-nr>/` im Datenordner, dazu Liste zum Herunterladen | E-Mail an Empfänger des Projekts (Teil C) |
 
 ### 3.2 Stand am Stichtag: woher
 
@@ -220,13 +220,35 @@ der CSV stehen die Hinweise je Zeile.
 **Grenze:** Bekommt ein neuer Zähler dieselbe ID wie der alte (praktisch nie), bleibt nur der
 gesunkene Stand als Hinweis.
 
-## 4. Teil C: E-Mail (später)
+## 4. Teil C: E-Mail (umgesetzt, siehe 7)
 
-Einstellungen wie bei MQTT: Server, Port, TLS, Benutzer, Passwort, Absender, Empfänger je Projekt.
-Das Passwort bleibt wie beim MQTT-Passwort nur in der Datenbank auf dem Gerät und geht nie an den
-Browser (die Oberfläche zeigt nur „gespeichert“). Gesendet wird die Datei aus 3.5 als Anhang;
-klappt es nicht, bleibt sie im Ordner und das Protokoll sagt warum. Eigener Schritt, weil ein
-SMTP-Client dazukommt und es ohne echten Mailserver schwer zu testen ist.
+Die Datei aus 3.5 geht als Anhang an die Empfänger des Projekts.
+
+**Mailserver einmal je Gerät** (`meta` `mail`, wie MQTT): Server, Port, Verschlüsselung
+(**STARTTLS** auf 587 als Vorgabe, **TLS** auf 465, keine auf 25), Zertifikat nicht prüfen (nur im
+geschützten Netz), Benutzer, Passwort, Absender. Das Passwort bleibt nur in der Datenbank auf dem
+Gerät und geht nie an den Browser (die Oberfläche zeigt nur „gespeichert“), nie ins Protokoll.
+Einstellbar im Feld „Abrechnung exportieren“ unter **E-Mail-Server (für alle Projekte)**, mit
+**Testmail senden** an die Empfänger des Projekts: so sieht man den Fehler sofort und nicht erst am
+Monatsanfang.
+
+**Empfänger je Projekt** (`Settings.mail_to`, mehrere mit Komma), sichtbar beim Schalter
+„Automatisch“. Leer = nur ablegen.
+
+**Senden.** Eigener kleiner SMTP-Client (`src/mail/`, wie der eigene MQTT-Client: keine grosse
+Bibliothek, TLS mit rustls wie dort, gemeinsam in `src/tls.rs`): EHLO, STARTTLS bzw. TLS, AUTH
+PLAIN oder LOGIN, eine Nachricht mit Text („Abrechnung <Projekt> <Zeitraum>, Hinweise …“) und der
+CSV als Anhang (Base64). Zeitüberschreitung 20 s.
+
+**Wenn es nicht klappt:** Die Datei bleibt im Ordner. Je Datei steht in `meta`
+(`billing_mail:<projekt>`), wann sie gesendet wurde oder warum nicht; die Liste der Dateien zeigt
+„gesendet 1.10. 00:10“ bzw. „nicht gesendet: <Grund>“ und einen Knopf **Senden**. Der Zeitplan
+versucht nicht gesendete Dateien der letzten 7 Tage bei jeder Prüfung (alle 15 Minuten) erneut;
+ins Protokoll kommt nur der erste Fehler, ein geänderter Grund und der Erfolg, damit ein falsches
+Passwort das Protokoll nicht füllt.
+
+**Tests:** kleiner SMTP-Server im Rust-Test (ohne TLS): Anmeldung, Empfänger, Anhang, Fehler mit
+erneutem Versuch. TLS und STARTTLS nur mit echtem Server prüfbar.
 
 ---
 
@@ -288,4 +310,15 @@ Name steht in der Datei. Der letzte Zeitraum wartet auf eine Auslesung danach, h
 der letzte. Bei eigenem Zeitraum ruht der Schalter, statt das Speichern abzulehnen. Dateien werden
 nicht aufgeräumt (wenige KB je Monat). Tests: Rust `auto_export_*` (2), Browser `18-abrechnung`.
 
-**Nächster Schritt:** E-Mail (Teil C).
+**Schritt 5 umgesetzt (26.10.2026), Teil C:** `src/mail/` (mod: `MailConfig` in `meta` `mail`,
+Adressen prüfen; message: Nachricht mit Anhang, Base64; smtp: Client mit STARTTLS/TLS, AUTH PLAIN
+oder LOGIN), TLS aus dem MQTT-Client nach `src/tls.rs`, `billing/mail.rs` (zu senden, Nachricht,
+Ergebnis je Datei in `billing_mail:<projekt>`), gesendet im Zeitplan nach dem Ablegen ohne
+Datenbank-Sperre, `GET/PUT /api/mail`, `POST /api/mail/test`, `…/billing/files/{name}/send`,
+Oberfläche `anlage-mail.js` (Server aufklappbar, offen solange Empfänger, aber kein Server; Port
+folgt der Verschlüsselung; Grund des Fehlers sichtbar unter der Liste). Adressen werden streng
+geprüft (keine Leerzeichen, spitzen Klammern, Kommas), damit nichts in die Kopfzeilen gerät.
+Tests: Rust `mail::tests` (5, mit kleinem SMTP-Server), `auto_export_mails_file_and_retries`,
+Browser `20-email` (SMTP-Server in Node). TLS/STARTTLS mit echtem Server noch nicht geprüft.
+
+**Offen:** einzelne Linien wählen, Hinweis „gestört im Zeitraum“, TLS mit echtem Mailserver.

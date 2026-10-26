@@ -16,6 +16,7 @@ use crate::i18n::tr;
 use crate::mbus::master::MeterReading;
 
 pub mod auto;
+pub mod mail;
 mod stand;
 mod table;
 
@@ -42,6 +43,8 @@ pub struct Settings {
     pub decimal: String,
     /// nach Ende des Zeitraums selbst als Datei ablegen; ruht bei eigenem Zeitraum
     pub auto: bool,
+    /// abgelegte Dateien an diese Adressen senden (Komma oder Semikolon); leer = nur ablegen
+    pub mail_to: String,
 }
 
 impl Default for Settings {
@@ -56,6 +59,7 @@ impl Default for Settings {
             to: None,
             decimal: String::new(),
             auto: false,
+            mail_to: String::new(),
         }
     }
 }
@@ -73,6 +77,7 @@ impl Settings {
                 "Decimal separator: comma or point"
             ));
         }
+        crate::mail::recipients(&self.mail_to)?;
         Ok(())
     }
 

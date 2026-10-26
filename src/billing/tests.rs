@@ -389,3 +389,75 @@ fn auto_export_switched_on_again_only_last_period() {
         [(day("2026-09-01"), day("2026-09-30"))]
     );
 }
+
+/// E-Mail (Teil C): neue Datei geht an die Empfänger, fehlgeschlagene wird erneut versucht, ins
+/// Protokoll nur erster Fehler, geänderter Grund und Erfolg
+#[test]
+fn auto_export_mails_file_and_retries() {
+    let (mut db, line, _, r) = with_readings(&[("2026-09-30 12:00:00", 100.0)]);
+    db.record(
+        line,
+        &Target::Primary(1),
+        Ok(&at(&r, "2026-10-01 00:05:00", 110.0)),
+        false,
+    )
+    .unwrap();
+    let s = Settings {
+        auto: true,
+        mail_to: "a@example.org, b@example.org".into(),
+        ..Default::default()
+    };
+    db.set_billing_settings(1, &s).unwrap();
+    let dir = std::env::temp_dir().join(format!("mbusio-billing-mail-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let now = chrono::NaiveDateTime::parse_from_str("2026-10-01 00:10", "%Y-%m-%d %H:%M").unwrap();
+    db.billing_auto(&dir, now).unwrap();
+
+    // ohne Mailserver: Fehler an der Datei, einmal gemeldet
+    let (out, notes) = db.billing_mail_pending(&dir, now).unwrap();
+    assert!(out.is_empty());
+    assert_eq!(notes.len(), 1);
+    assert!(
+        notes[0].get().contains("E-Mail-Server fehlt"),
+        "{}",
+        notes[0].get()
+    );
+    assert_eq!(
+        db.billing_mail_pending(&dir, now).unwrap().1.len(),
+        0,
+        "derselbe Grund nicht nochmal"
+    );
+    let f = &db.billing_files(&dir, 1).unwrap()[0];
+    assert!(f.mail.as_ref().unwrap().error.is_some());
+
+    // mit Server: gesendet, danach nichts mehr offen
+    let (port, server) = crate::mail::tests::fake_server("PLAIN");
+    db.set_mail_config(&crate::mail::tests::config(port, "geheim"))
+        .unwrap();
+    let (out, _) = db.billing_mail_pending(&dir, now).unwrap();
+    assert_eq!(out.len(), 1);
+    let o = &out[0];
+    let result = crate::mail::send(&o.config, &o.message);
+    let note = db
+        .billing_mail_done(1, &o.name, result, now)
+        .unwrap()
+        .unwrap();
+    assert!(note.get().contains("E-Mail gesendet"));
+    let seen = server.join().unwrap();
+    assert!(seen.contains("RCPT TO:<b@example.org>"));
+    assert!(seen.contains("2026-09-01-2026-09-30.csv"));
+    assert!(db.billing_mail_pending(&dir, now).unwrap().0.is_empty());
+    assert!(db.billing_files(&dir, 1).unwrap()[0]
+        .mail
+        .as_ref()
+        .unwrap()
+        .sent
+        .is_some());
+
+    // Datei älter als 7 Tage (Zeit der Datei: jetzt): nicht mehr erneut versuchen
+    db.billing_mail_done(1, &o.name, Err(anyhow::anyhow!("weg")), now)
+        .unwrap();
+    let later = chrono::Local::now().naive_local() + Duration::days(30);
+    assert!(db.billing_mail_pending(&dir, later).unwrap().0.is_empty());
+    std::fs::remove_dir_all(&dir).unwrap();
+}

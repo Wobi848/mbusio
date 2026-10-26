@@ -31,6 +31,7 @@ mod api;
 mod billing;
 mod bus;
 mod datapoints;
+mod mail;
 mod meters;
 mod nodered;
 mod outputs;
@@ -45,8 +46,8 @@ use self::api::*;
 pub use self::state::{AppState, JobStatus, Shared};
 pub use self::tools::parse_hex;
 use self::{
-    billing::*, bus::*, datapoints::*, meters::*, nodered::*, outputs::*, projects::*, scan::*,
-    schedule::*, simulator::*, tools::*,
+    billing::*, bus::*, datapoints::*, mail::*, meters::*, nodered::*, outputs::*, projects::*,
+    scan::*, schedule::*, simulator::*, tools::*,
 };
 
 #[derive(RustEmbed)]
@@ -103,6 +104,12 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/projects/{id}/billing/csv", get(billing_csv))
         .route("/api/projects/{id}/billing/files/{name}", get(billing_file))
+        .route(
+            "/api/projects/{id}/billing/files/{name}/send",
+            post(billing_file_send),
+        )
+        .route("/api/mail", get(mail_get).put(mail_put))
+        .route("/api/mail/test", post(mail_test))
         .route("/api/projects/{id}/clear", post(project_clear))
         .route(
             "/api/projects/{id}/changes",

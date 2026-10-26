@@ -73,7 +73,8 @@ pub(super) fn thin(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Fällige Abrechnungen als Datei ablegen (Konzept Export 3.5), alle 15 Minuten
+/// Fällige Abrechnungen als Datei ablegen (Konzept Export 3.5) und an die Empfänger senden
+/// (Teil C), alle 15 Minuten. Gesendet wird ohne die Datenbank zu sperren.
 pub(super) fn export_billing(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
     {
         let mut last = st.planner.last_export.lock().unwrap();
@@ -86,9 +87,16 @@ pub(super) fn export_billing(st: &AppState, now: NaiveDateTime) -> anyhow::Resul
     let Some(dir) = db.path().and_then(|p| p.parent()).map(|p| p.to_path_buf()) else {
         return Ok(());
     };
-    let done = db.billing_auto(&dir, now)?;
+    let mut notes = db.billing_auto(&dir, now)?;
+    let (outgoing, problems) = db.billing_mail_pending(&dir, now)?;
     drop(db);
-    for msg in done {
+    notes.extend(problems);
+    for o in outgoing {
+        let result = crate::mail::send(&o.config, &o.message);
+        let db = st.db.lock().unwrap();
+        notes.extend(db.billing_mail_done(o.project_id, &o.name, result, now)?);
+    }
+    for msg in notes {
         note(st, msg);
     }
     Ok(())

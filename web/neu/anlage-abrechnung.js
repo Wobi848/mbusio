@@ -1,27 +1,34 @@
 // Bereich Anlage: Abrechnung exportieren (Konzept Export, Teil B). Feld im Detailbereich: Zeitraum,
 // Form, Werte, Dezimaltrennzeichen; jede Änderung wird gleich je Projekt gespeichert und die
-// Vorschau neu gerechnet. Herunterladen nimmt die gespeicherten Einstellungen.
+// Vorschau neu gerechnet. Herunterladen nimmt die gespeicherten Einstellungen. Automatisch
+// abgelegte Dateien gehen an die Empfänger des Projekts (Teil C, Bausteine in anlage-mail.js).
 
-import { html } from "./view.js";
+import { html, toast } from "./view.js";
 import { report } from "./data.js";
+import { mailServerHtml, mailFormValues, mailStateHtml, securityChanged } from "./anlage-mail.js";
 
 const PERIODS = ["prev_month", "prev_year", "custom"];
 
 let box = null;
 let projectId = null;
 let data = null; // Antwort von /api/projects/{id}/billing
+let mail = null; // Antwort von /api/mail (ohne Passwort)
 
 /// Feld in `container` öffnen; `close` führt zurück zu den Details des Projekts
 export async function openBilling(container, id, close) {
   box = container;
   projectId = id;
-  box.onclick = (ev) => ev.target.closest("[data-billing-back], [data-billing-close]") && close();
+  box.onclick = (ev) => {
+    if (ev.target.closest("[data-billing-back], [data-billing-close]")) return close();
+    onClick(ev);
+  };
   box.onchange = onChange;
+  box.onsubmit = onSubmit;
   box.classList.add("open");
   box._html = null;
   box.innerHTML = `<p class="sub">…</p>`;
   try {
-    data = await request(`projects/${id}/billing`);
+    [data, mail] = await Promise.all([request(`projects/${id}/billing`), request("mail")]);
     render();
   } catch (e) {
     report(e);
@@ -32,6 +39,7 @@ export function closeBilling() {
   if (!box) return;
   box.onclick = null;
   box.onchange = null;
+  box.onsubmit = null;
   box = null;
 }
 
@@ -55,12 +63,60 @@ function onChange(ev) {
   if (el.matches("[data-b-main]")) return save({ main: el.checked });
   if (el.matches("[data-b-decimal]")) return save({ decimal: el.value });
   if (el.matches("[data-b-auto]")) return save({ auto: el.checked });
+  if (el.matches("[data-b-mail-to]")) return save({ mail_to: el.value.trim() });
+  if (el.matches("[data-mail-form] [name=security]")) return securityChanged(el);
   if (el.matches("[data-b-key]")) {
     const keys = new Set(s.keys);
     if (el.checked) keys.add(el.dataset.bKey);
     else keys.delete(el.dataset.bKey);
     return save({ keys: [...keys] });
   }
+}
+
+/// Knopf während der Arbeit sperren; Fehler als Meldung, Erfolg als kurze Bestätigung
+async function busy(button, work, done) {
+  button.disabled = true;
+  try {
+    await work();
+    toast(done);
+  } catch (e) {
+    report(e);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function onClick(ev) {
+  const send = ev.target.closest("[data-b-send]");
+  if (send)
+    return busy(
+      send,
+      async () => {
+        try {
+          data = await request(`projects/${projectId}/billing/files/${encodeURIComponent(send.dataset.bSend)}/send`, { method: "POST" });
+        } finally {
+          // auch beim Fehler: der Grund steht jetzt an der Datei
+          data = await request(`projects/${projectId}/billing`);
+          render();
+        }
+      },
+      t("an_m_sent_now")
+    );
+  const test = ev.target.closest("[data-mail-test]");
+  if (test) return busy(test, () => request("mail/test", { method: "POST", body: { to: data.settings.mail_to } }), t("an_m_test_ok"));
+}
+
+async function onSubmit(ev) {
+  if (!ev.target.matches("[data-mail-form]")) return;
+  ev.preventDefault();
+  await busy(
+    ev.submitter || ev.target.querySelector("[type=submit]"),
+    async () => {
+      await request("mail", { method: "PUT", body: mailFormValues(ev.target) });
+      mail = await request("mail");
+    },
+    t("an_m_saved")
+  );
 }
 
 const opt = (value, label, current) => `<option value="${esc(value)}"${value === current ? " selected" : ""}>${esc(label)}</option>`;
@@ -115,19 +171,29 @@ function render() {
 function auto(s) {
   const custom = s.period === "custom";
   const hint = custom ? t("an_b_auto_custom") : t("an_b_auto_" + s.period);
+  const active = s.auto && !custom;
   const files = data.files.length
     ? `<div class="vals">${data.files
         .map(
           (f) =>
-            `<a class="vrow" data-b-file href="${apiHref(`projects/${projectId}/billing/files/${encodeURIComponent(f.name)}`)}" download><span>${esc(f.name)}</span><span class="sub">${esc(slotText(f.time))}</span><span class="sub">${esc(Math.max(1, Math.round(f.size / 1024)))} KB</span></a>`
+            `<div class="vrow bfile"><a data-b-file href="${apiHref(`projects/${projectId}/billing/files/${encodeURIComponent(f.name)}`)}" download title="${esc(t("an_b_file_title", Math.max(1, Math.round(f.size / 1024))))}">${esc(f.name)}</a><span class="sub">${esc(slotText(f.time))}</span>${mailStateHtml(f, !!s.mail_to)}</div>`
         )
         .join("")}</div>`
     : `<p class="sub">${esc(t("an_b_files_none"))}</p>`;
+  // warum die neueste Datei nicht ging: sichtbar, nicht nur im Tooltip
+  const why = data.files[0]?.mail?.error;
+  const problem = why ? `<p class="chip warn wide">${esc(t("an_m_why", why))}</p>` : "";
   return `<h3>${esc(t("an_b_auto"))}</h3>
     <div class="vals">
-      <label class="vrow"><span>${esc(t("an_b_auto_label"))}</span><span class="sub">${esc(hint)}</span><input type="checkbox" data-b-auto${s.auto && !custom ? " checked" : ""}${custom ? " disabled" : ""}></label>
+      <label class="vrow"><span>${esc(t("an_b_auto_label"))}</span><span class="sub">${esc(hint)}</span><input type="checkbox" data-b-auto${active ? " checked" : ""}${custom ? " disabled" : ""}></label>
     </div>
-    ${s.auto || data.files.length ? files : ""}`;
+    ${
+      active
+        ? `<div class="fields bmail"><label><span>${esc(t("an_m_to"))}</span><input type="text" data-b-mail-to value="${esc(s.mail_to)}" placeholder="${esc(t("an_m_to_ph"))}"></label><p class="sub hint">${esc(t("an_m_to_hint"))}</p></div>`
+        : ""
+    }
+    ${s.auto || data.files.length ? files + problem : ""}
+    ${active && s.mail_to ? mailServerHtml(mail, s.mail_to) : ""}`;
 }
 
 /// Spalten der Vorschau (der Detailbereich ist schmal): was man prüfen will; die Datei hat alle
