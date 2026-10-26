@@ -15,6 +15,7 @@ use crate::db::{main_value, Db, Meter};
 use crate::i18n::tr;
 use crate::mbus::master::MeterReading;
 
+pub mod auto;
 mod stand;
 mod table;
 
@@ -39,6 +40,8 @@ pub struct Settings {
     pub to: Option<String>,
     /// "," oder "."; leer = nach Sprache (Deutsch Komma, Englisch Punkt)
     pub decimal: String,
+    /// nach Ende des Zeitraums selbst als Datei ablegen; ruht bei eigenem Zeitraum
+    pub auto: bool,
 }
 
 impl Default for Settings {
@@ -52,6 +55,7 @@ impl Default for Settings {
             from: None,
             to: None,
             decimal: String::new(),
+            auto: false,
         }
     }
 }
@@ -135,6 +139,9 @@ impl Db {
     pub fn set_billing_settings(&mut self, project_id: i64, s: &Settings) -> Result<()> {
         s.check()?;
         self.project(project_id)?;
+        if s.auto && !self.billing_settings(project_id).auto {
+            self.billing_auto_restart(project_id)?;
+        }
         self.set_meta(&format!("billing:{project_id}"), &serde_json::to_string(s)?)
     }
 

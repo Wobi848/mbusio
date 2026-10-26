@@ -102,6 +102,7 @@ pub fn router(state: AppState) -> Router {
             get(billing_get).put(billing_put),
         )
         .route("/api/projects/{id}/billing/csv", get(billing_csv))
+        .route("/api/projects/{id}/billing/files/{name}", get(billing_file))
         .route("/api/projects/{id}/clear", post(project_clear))
         .route(
             "/api/projects/{id}/changes",

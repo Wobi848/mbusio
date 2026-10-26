@@ -307,3 +307,85 @@ fn notes_for_detected_swap_not_read_and_fault() {
     );
     assert_eq!((t.summary["not_read"], t.summary["missing"]), (1, 1));
 }
+
+/// Automatisch (Konzept Export 3.5): erst nach der ersten Auslesung des neuen Zeitraums, einmal je
+/// Zeitraum, verpasste Zeiträume nachholen; ruht bei eigenem Zeitraum
+#[test]
+fn auto_export_waits_for_reading_and_catches_up() {
+    let (mut db, line, _, r) = with_readings(&[("2026-09-30 12:00:00", 100.0)]);
+    let s = Settings {
+        auto: true,
+        ..Default::default()
+    };
+    db.set_billing_settings(1, &s).unwrap();
+    // eigener Zeitraum: ruht
+    let mut own = custom("2026-09-01", "2026-09-30");
+    own.auto = true;
+    db.set_billing_settings(1, &own).unwrap();
+    assert!(db.billing_auto_projects().unwrap().is_empty());
+    db.set_billing_settings(1, &s).unwrap();
+    let at_time = |t: &str| chrono::NaiveDateTime::parse_from_str(t, "%Y-%m-%d %H:%M").unwrap();
+    let dir = std::env::temp_dir().join(format!("mbusio-billing-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // 1.10. kurz nach Mitternacht, noch nicht gelesen: warten
+    assert!(db
+        .billing_auto(&dir, at_time("2026-10-01 00:01"))
+        .unwrap()
+        .is_empty());
+    db.record(
+        line,
+        &Target::Primary(1),
+        Ok(&at(&r, "2026-10-01 00:05:00", 110.0)),
+        false,
+    )
+    .unwrap();
+    let done = db.billing_auto(&dir, at_time("2026-10-01 00:10")).unwrap();
+    assert_eq!(done.len(), 1);
+    let files = auto::export_files(&dir, 1).unwrap();
+    assert_eq!(files.len(), 1);
+    assert!(
+        files[0].name.ends_with("-2026-09-01-2026-09-30.csv"),
+        "{}",
+        files[0].name
+    );
+    let text = std::fs::read_to_string(auto::export_dir(&dir, 1).join(&files[0].name)).unwrap();
+    assert!(text.starts_with('\u{feff}'));
+    // einmal je Zeitraum
+    assert!(db
+        .billing_auto(&dir, at_time("2026-10-05 00:00"))
+        .unwrap()
+        .is_empty());
+
+    // Gerät aus bis Mitte Januar: Oktober bis Dezember nachholen
+    assert_eq!(
+        db.billing_due(1, &s, at_time("2027-01-15 08:00")).unwrap(),
+        [
+            (day("2026-10-01"), day("2026-10-31")),
+            (day("2026-11-01"), day("2026-11-30")),
+            (day("2026-12-01"), day("2026-12-31")),
+        ]
+    );
+    db.billing_auto(&dir, at_time("2027-01-15 08:00")).unwrap();
+    assert_eq!(auto::export_files(&dir, 1).unwrap().len(), 4);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn auto_export_switched_on_again_only_last_period() {
+    let (mut db, ..) = with_readings(&[("2026-09-30 12:00:00", 100.0)]);
+    let on = Settings {
+        auto: true,
+        ..Default::default()
+    };
+    db.set_billing_settings(1, &on).unwrap();
+    db.set_meta("billing_done:1", "2026-01-31").unwrap();
+    let now = chrono::NaiveDateTime::parse_from_str("2026-10-26 08:00", "%Y-%m-%d %H:%M").unwrap();
+    assert_eq!(db.billing_due(1, &on, now).unwrap().len(), 8);
+    db.set_billing_settings(1, &Settings::default()).unwrap();
+    db.set_billing_settings(1, &on).unwrap();
+    assert_eq!(
+        db.billing_due(1, &on, now).unwrap(),
+        [(day("2026-09-01"), day("2026-09-30"))]
+    );
+}

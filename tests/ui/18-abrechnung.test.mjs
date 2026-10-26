@@ -23,9 +23,28 @@ export default {
     assert.equal(await page.inputValue("[data-b-period]"), "prev_month");
     assert.ok(await page.isChecked("[data-b-main]"));
 
+    // automatisch: Vormonat ist vorbei und schon gelesen → Datei liegt bald in der Liste
+    await page.check("[data-b-auto]");
+    for (let i = 0; !(await api("projects/1/billing")).files.length; i++) {
+      assert.ok(i < 30, "keine Datei nach 30 s");
+      await page.waitForTimeout(1000);
+    }
+    await page.click("[data-billing-close]");
+    await page.click("[data-billing]");
+    const file = await page.getAttribute("[data-b-file]", "href");
+    assert.match(file, /abrechnung-\d{4}-\d\d-01-\d{4}-\d\d-\d\d\.csv/);
+    assert.match(await page.evaluate(async (h) => (await fetch(h)).text(), file), /^Projekt;Linie;Name/);
+    assert.equal(await page.evaluate(async () => (await fetch("/api/projects/1/billing/files/..%2Fmbusio.db")).status), 404);
+    await page.uncheck("[data-b-auto]");
+    for (let i = 0; (await api("projects/1/billing")).settings.auto; i++) {
+      assert.ok(i < 10);
+      await page.waitForTimeout(200);
+    }
+
     // Zeitraum bis heute: beide Zähler mit Hauptwert (Energie, Volumen)
     const today = new Date().toISOString().slice(0, 10);
     await page.selectOption("[data-b-period]", "custom");
+    await page.waitForSelector("[data-b-auto]:disabled");
     await page.fill("[data-b-from]", today.slice(0, 8) + "01");
     await page.press("[data-b-from]", "Tab");
     await page.fill("[data-b-to]", today);

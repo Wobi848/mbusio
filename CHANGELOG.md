@@ -34,6 +34,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Batterie schwach), stehen am Zähler und zählen bei „Fehler“. Die Abrechnung nennt je Zeile auch
   „im Zeitraum nicht gelesen“, „antwortet nicht“, „gestört“ und Fehler des Zählers und zählt die
   Hinweise über der Vorschau zusammen.
+- **Abrechnung automatisch:** Schalter „Automatisch“ beim Export (Vormonat oder Vorjahr). Nach
+  Ende des Zeitraums und der ersten Auslesung danach (spätestens 2 Tage danach) legt mbusio die
+  CSV im Datenordner unter `exporte/<projekt-nr>/` ab, meldet sie im Protokoll und zeigt sie zum
+  Herunterladen. War das Gerät aus, werden verpasste Zeiträume nachgeholt (höchstens 12).
 - **Speicher-Vorschau:** im Zustand der Anlage, wie lange der Platz beim heutigen Plan reicht
   („81 % frei · reicht ca. 12 Jahre“, Zuwachs je Tag im Tooltip); unter 90 Tagen als Hinweis.
 - **Weitergabe-Protokoll:** was an MQTT ging, was wartet und was verworfen wurde (Broker zu

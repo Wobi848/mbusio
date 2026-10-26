@@ -54,6 +54,7 @@ function onChange(ev) {
   if (el.matches("[data-b-step]")) return save({ step: el.value });
   if (el.matches("[data-b-main]")) return save({ main: el.checked });
   if (el.matches("[data-b-decimal]")) return save({ decimal: el.value });
+  if (el.matches("[data-b-auto]")) return save({ auto: el.checked });
   if (el.matches("[data-b-key]")) {
     const keys = new Set(s.keys);
     if (el.checked) keys.add(el.dataset.bKey);
@@ -105,8 +106,28 @@ function render() {
     <div class="actions">
       ${p ? `<a class="button" data-b-download href="${apiHref(`projects/${projectId}/billing/csv`)}" download>${esc(t("an_b_download"))}</a>` : ""}
       <button type="button" class="quiet" data-billing-close>${esc(t("close"))}</button>
-    </div>`
+    </div>
+    ${auto(s)}`
   );
+}
+
+/// Automatisch ablegen (Konzept Export 3.5): Schalter und abgelegte Dateien
+function auto(s) {
+  const custom = s.period === "custom";
+  const hint = custom ? t("an_b_auto_custom") : t("an_b_auto_" + s.period);
+  const files = data.files.length
+    ? `<div class="vals">${data.files
+        .map(
+          (f) =>
+            `<a class="vrow" data-b-file href="${apiHref(`projects/${projectId}/billing/files/${encodeURIComponent(f.name)}`)}" download><span>${esc(f.name)}</span><span class="sub">${esc(slotText(f.time))}</span><span class="sub">${esc(Math.max(1, Math.round(f.size / 1024)))} KB</span></a>`
+        )
+        .join("")}</div>`
+    : `<p class="sub">${esc(t("an_b_files_none"))}</p>`;
+  return `<h3>${esc(t("an_b_auto"))}</h3>
+    <div class="vals">
+      <label class="vrow"><span>${esc(t("an_b_auto_label"))}</span><span class="sub">${esc(hint)}</span><input type="checkbox" data-b-auto${s.auto && !custom ? " checked" : ""}${custom ? " disabled" : ""}></label>
+    </div>
+    ${s.auto || data.files.length ? files : ""}`;
 }
 
 /// Spalten der Vorschau (der Detailbereich ist schmal): was man prüfen will; die Datei hat alle

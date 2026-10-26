@@ -99,10 +99,7 @@ pub(super) async fn blocking<T: Send + 'static>(
 
 /// CSV für Excel (mit BOM für die Umlaute) als `mbusio-<was>-<name>.csv`
 pub(super) fn csv_download(csv: String, what: &str, name: &str) -> Response {
-    let name: String = name
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect();
+    let name = crate::export::file_part(name);
     download(
         format!("\u{feff}{csv}"),
         "text/csv; charset=utf-8",

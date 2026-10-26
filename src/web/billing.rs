@@ -6,7 +6,15 @@ use crate::billing::{self, Settings};
 /// Zeilen der Vorschau
 const PREVIEW: usize = 30;
 
-/// Einstellungen, Werte zur Auswahl und Vorschau; ein unvollständiger Zeitraum ist kein Fehler,
+/// Dateien des automatischen Exports (Datenbank im Speicher: keine)
+fn files(db: &Db, id: i64) -> Result<Vec<billing::auto::ExportFile>, ApiError> {
+    match db.path().and_then(|p| p.parent()) {
+        Some(dir) => Ok(billing::auto::export_files(dir, id)?),
+        None => Ok(Vec::new()),
+    }
+}
+
+/// Einstellungen, Werte zur Auswahl, Vorschau und abgelegte Dateien; ein unvollständiger Zeitraum ist kein Fehler,
 /// sondern ein Hinweis an der Vorschau (beim Tippen)
 fn billing_view(db: &Db, id: i64) -> Result<serde_json::Value, ApiError> {
     let s = db.billing_settings(id);
@@ -19,6 +27,7 @@ fn billing_view(db: &Db, id: i64) -> Result<serde_json::Value, ApiError> {
         "kinds": db.billing_kinds(id)?,
         "preview": preview,
         "error": error,
+        "files": files(db, id)?,
     }))
 }
 
@@ -38,6 +47,9 @@ pub(super) async fn billing_put(
 ) -> ApiResult<serde_json::Value> {
     let mut db = st.db.lock().unwrap();
     db.set_billing_settings(id, &s).map_err(bad_request)?;
+    if s.auto {
+        st.planner.export_soon();
+    }
     Ok(Json(billing_view(&db, id)?))
 }
 
@@ -58,4 +70,24 @@ pub(super) async fn billing_csv(
     };
     let name = format!("{}-{}-{}", db.project(id)?.name, t.from, t.to);
     Ok(csv_download(billing::csv(&t), &what, &name))
+}
+
+/// Datei des automatischen Exports; nur Namen aus der Liste, sonst nicht gefunden
+pub(super) async fn billing_file(
+    State(st): State<AppState>,
+    Path((id, name)): Path<(i64, String)>,
+) -> Result<Response, ApiError> {
+    let db = st.db.lock().unwrap();
+    let dir = db.path().and_then(|p| p.parent()).map(|p| p.to_path_buf());
+    let known = files(&db, id)?.iter().any(|f| f.name == name);
+    drop(db);
+    let (Some(dir), true) = (dir, known) else {
+        return Err(ApiError(
+            StatusCode::NOT_FOUND,
+            tr("Datei nicht gefunden", "File not found"),
+        ));
+    };
+    let body = std::fs::read_to_string(billing::auto::export_dir(&dir, id).join(&name))
+        .map_err(anyhow::Error::from)?;
+    Ok(download(body, "text/csv; charset=utf-8", &name))
 }

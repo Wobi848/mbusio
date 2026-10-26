@@ -279,4 +279,13 @@ Batterie schwach. Export: Hinweisarten je Zeile, `summary` in der Tabelle, Fehle
 Quelle (Zeitreihe). Tests: Rust `swap_is_detected_…`, `list_id_mismatch_is_no_swap`,
 `meter_fault_is_kept`, `notes_for_detected_swap_not_read_and_fault`, Browser `19-tausch`.
 
-**Nächster Schritt:** automatisch (3.5).
+**Schritt 4 umgesetzt (26.10.2026), 3.5:** `Settings.auto`, `billing/auto.rs` (fällige
+Zeiträume aus `meta` `billing_done:<projekt>`, Datei schreiben, Liste), Zeitplan alle 15 Minuten
+(`export_billing` in `scheduler/upkeep.rs`), Speichern mit `auto` prüft beim nächsten Durchlauf.
+Abweichend: Ordner `exporte/<projekt-nr>/` statt Name (Umbenennen trennt die Dateien nicht), der
+Name steht in der Datei. Der letzte Zeitraum wartet auf eine Auslesung danach, höchstens 2 Tage
+(Zähler ohne Plan blockieren nicht). Nachholen höchstens 12 Zeiträume; wieder eingeschaltet nur
+der letzte. Bei eigenem Zeitraum ruht der Schalter, statt das Speichern abzulehnen. Dateien werden
+nicht aufgeräumt (wenige KB je Monat). Tests: Rust `auto_export_*` (2), Browser `18-abrechnung`.
+
+**Nächster Schritt:** E-Mail (Teil C).

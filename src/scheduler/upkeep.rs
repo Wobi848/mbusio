@@ -73,6 +73,27 @@ pub(super) fn thin(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Fällige Abrechnungen als Datei ablegen (Konzept Export 3.5), alle 15 Minuten
+pub(super) fn export_billing(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
+    {
+        let mut last = st.planner.last_export.lock().unwrap();
+        if last.is_some_and(|t| (now - t).num_minutes().abs() < 15) {
+            return Ok(());
+        }
+        *last = Some(now);
+    }
+    let db = st.db.lock().unwrap();
+    let Some(dir) = db.path().and_then(|p| p.parent()).map(|p| p.to_path_buf()) else {
+        return Ok(());
+    };
+    let done = db.billing_auto(&dir, now)?;
+    drop(db);
+    for msg in done {
+        note(st, msg);
+    }
+    Ok(())
+}
+
 /// Zeitquelle prüfen und Sprünge der Uhr erkennen
 pub(super) fn check_clock(st: &AppState, now: NaiveDateTime) {
     let p = &st.planner;

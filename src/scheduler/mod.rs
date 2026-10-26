@@ -70,6 +70,8 @@ pub struct Planner {
     disk: Mutex<DiskState>,
     /// wann zuletzt ausgedünnt wurde
     last_thin: Mutex<Option<NaiveDateTime>>,
+    /// wann zuletzt nach fälligen Exporten geschaut wurde
+    last_export: Mutex<Option<NaiveDateTime>>,
 }
 
 impl Default for Planner {
@@ -91,7 +93,13 @@ impl Planner {
             last_clock_check: Mutex::default(),
             disk: Mutex::default(),
             last_thin: Mutex::default(),
+            last_export: Mutex::default(),
         }
+    }
+
+    /// Fällige Exporte beim nächsten Durchlauf prüfen, nicht erst nach 15 Minuten
+    pub fn export_soon(&self) {
+        *self.last_export.lock().unwrap() = None;
     }
 
     pub fn disk(&self) -> DiskState {
@@ -166,6 +174,7 @@ pub fn tick(st: &AppState) -> anyhow::Result<()> {
     let now = (st.planner.now)();
     check_clock(st, now);
     thin(st, now)?;
+    export_billing(st, now)?;
     let lines = st.db.lock().unwrap().planned()?;
     let mut planned = HashSet::new();
     for pl in lines {

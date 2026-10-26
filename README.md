@@ -201,7 +201,10 @@ Mehrfachauswahl. Werte wählt man im Bereich Zähler beim Zähler an.
   die letzte Auslesung davor; die Quelle steht daneben, Fehlendes und unsichere Uhrzeit als Hinweis.
   Ein Zählertausch im Zeitraum wird verrechnet. Hinweise auch für erkannten, nicht bestätigten
   Tausch, im Zeitraum nicht gelesen, antwortet nicht, gestört und Fehler des Zählers; über der
-  Vorschau zusammengezählt („2 × antwortet nicht · 1 × Zählertausch“)
+  Vorschau zusammengezählt („2 × antwortet nicht · 1 × Zählertausch“). **Automatisch:** nach Ende
+  des Zeitraums (am Monatsanfang bzw. im Januar, nach der ersten Auslesung) legt mbusio die Datei
+  im Datenordner unter `exporte/<projekt-nr>/` ab; verpasste Zeiträume (Gerät aus) werden
+  nachgeholt, die Dateien stehen zum Herunterladen beim Export
 - Export der Messwerte als CSV (Semikolon, Excel) oder JSON; Projekte als Datei sichern
   („Projekt sichern“) und importieren (z.B. vom PC auf den Raspberry Pi)
 - Telegramm-Log; jede TX/RX-Zeile anklicken erklärt das Telegramm Byte für Byte

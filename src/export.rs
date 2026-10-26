@@ -52,6 +52,13 @@ pub fn description(quantity: &str, notes: &[String], lang: Lang) -> String {
     s
 }
 
+/// Teil eines Dateinamens: alles ausser Buchstaben und Ziffern wird zu „-“
+pub fn file_part(name: &str) -> String {
+    name.chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect()
+}
+
 /// Ein CSV-Feld (Semikolon, Excel): Anführungszeichen, wo nötig
 pub fn field(s: &str) -> String {
     if s.contains([';', '"', '\n', '\r']) {
