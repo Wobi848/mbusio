@@ -13,6 +13,19 @@ Zwei Wünsche aus dem Betrieb:
 Verwandt: [konzept-ausgaenge.md](konzept-ausgaenge.md) (Ausgänge, Warteschlange),
 [konzept-dauerbetrieb.md](konzept-dauerbetrieb.md) (Plan, Speicherung, Ausdünnen).
 
+**Grundsatz (26.10.2026):** mbusio funktioniert allein, ohne andere Software (kein
+Datenbankserver, kein Home Assistant, keine InfluxDB). Die Werte bleiben in SQLite im Datenordner;
+Langzeitspeicher, Export und Sicherung gehören deshalb in mbusio selbst. MQTT und Modbus sind
+Angebote an andere Systeme, keine Voraussetzung.
+
+**Langzeitspeicher** (gemessen: ~340 Byte je Auslesung eines Zählers samt Index, ~70 Byte je Wert
+eines Datenpunkts; 100 Zähler stündlich ≈ 360 MB im Jahr):
+
+1. **Vorschau** im Zustand der Anlage: wie lange der Speicher beim heutigen Plan reicht.
+2. **Jahresarchive** `archiv-JJJJ.db` (gleiches Format) für grosse Anlagen: ältere Auslesungen
+   wandern dorthin, Verlauf und Export lesen über alle; erst bauen, wenn eine Anlage es braucht.
+3. **Sicherung vom Gerät weg** über den automatischen Export (Teil B, später E-Mail).
+
 ---
 
 ## 1. Heutiger Stand
