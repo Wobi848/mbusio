@@ -24,6 +24,9 @@ export default {
     assert.match(await row(page, "Haus A").textContent(), /SIMULATOR/);
     assert.ok(await page.isChecked("[data-area=anlage] [data-list] [data-op='1']"));
     assert.ok(await page.isVisible("[data-area=anlage] [data-plant]"));
+    // Speicher-Vorschau: wie lange der Platz beim heutigen Plan reicht, Zuwachs im Tooltip
+    assert.match(await page.textContent("[data-area=anlage] [data-plant]"), /% frei · reicht/);
+    assert.match(await page.getAttribute("[data-area=anlage] [data-plant] [title*=wächst]", "title"), /pro Tag/);
 
     // Gateway anlegen: Feld an Ort und Stelle, Enter
     await page.click("[data-area=anlage] [data-add-gateway]");

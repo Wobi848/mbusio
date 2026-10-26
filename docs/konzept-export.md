@@ -22,6 +22,9 @@ Angebote an andere Systeme, keine Voraussetzung.
 eines Datenpunkts; 100 Zähler stündlich ≈ 360 MB im Jahr):
 
 1. **Vorschau** im Zustand der Anlage: wie lange der Speicher beim heutigen Plan reicht.
+   *Umgesetzt (26.10.2026):* `Db::growth_per_day` aus Plan, Datenpunkten und Ausgängen der Linien
+   im Dauerbetrieb, `DiskState::with_growth` im Status (frisch bei jeder Abfrage, der Platz wird
+   jede Minute gemessen); unter 90 Tagen als Hinweis.
 2. **Jahresarchive** `archiv-JJJJ.db` (gleiches Format) für grosse Anlagen: ältere Auslesungen
    wandern dorthin, Verlauf und Export lesen über alle; erst bauen, wenn eine Anlage es braucht.
 3. **Sicherung vom Gerät weg** über den automatischen Export (Teil B, später E-Mail).

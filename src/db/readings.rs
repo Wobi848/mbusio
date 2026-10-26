@@ -166,6 +166,40 @@ impl Db {
         len(p) + len(&p.with_extension("db-wal"))
     }
 
+    /// Erwarteter Zuwachs je Tag beim heutigen Plan, nur Linien im Dauerbetrieb: je Termin eine
+    /// Auslesung, je aktivem Datenpunkt ein Wert, je eingeschaltetem Ausgang ein Eintrag im
+    /// Protokoll der Weitergabe (Grössen gemessen, Konzept Export „Langzeitspeicher“)
+    pub fn growth_per_day(&self) -> Result<u64> {
+        const READING: f64 = 340.0;
+        const VALUE: f64 = 70.0;
+        const LOGGED: f64 = 200.0;
+        let mut st = self.conn.prepare(
+            "SELECT d.meter_id, COUNT(DISTINCT d.id),
+                    (SELECT COUNT(*) FROM dp_outputs o JOIN datapoints x ON x.id = o.dp
+                     WHERE x.meter_id = d.meter_id AND x.active = 1 AND o.enabled = 1)
+             FROM datapoints d WHERE d.active = 1 GROUP BY d.meter_id",
+        )?;
+        let per_meter: std::collections::HashMap<i64, (f64, f64)> = st
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    (r.get::<_, f64>(1)?, r.get::<_, f64>(2)?),
+                ))
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        let mut bytes = 0.0;
+        for pl in self.planned()?.iter().filter(|pl| pl.line.operation) {
+            for (m, plan) in &pl.meters {
+                let Some(every) = plan.interval_s() else {
+                    continue;
+                };
+                let (values, logged) = per_meter.get(&m.id).copied().unwrap_or_default();
+                bytes += 86400.0 / every * (READING + values * VALUE + logged * LOGGED);
+            }
+        }
+        Ok(bytes as u64)
+    }
+
     /// Ergebnis eines Scans merken; ein vollständiger Scan wird zusätzlich je Art (und Bereich,
     /// `scope`) für den Vergleich mit dem nächsten Scan gemerkt
     pub fn set_last_scan(&mut self, line_id: i64, scan: &Value, complete: bool) -> Result<()> {

@@ -33,7 +33,9 @@ pub(super) async fn status(State(st): State<AppState>) -> ApiResult<serde_json::
         "plan_active": st.planner.any_planned(),
         "held": st.planner.is_held(active.line.id),
         "time": clock::state(),
-        "disk": st.planner.disk(),
+        // Vorschau aus dem Plan, wie er jetzt ist (der Platz wird jede Minute gemessen); lässt
+        // sie sich nicht berechnen, steht keine da
+        "disk": st.planner.disk().with_growth(db.growth_per_day().unwrap_or(0)),
         "mqtt": mqtt_status(&st, &db),
         "modbus": modbus_status(&st),
         // alle Ausgänge: Schlüssel, Name, eingeschaltet

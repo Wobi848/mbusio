@@ -44,6 +44,7 @@ export default {
     await page.waitForFunction((sel) => !document.querySelectorAll(sel).length, rows);
     assert.match(await page.textContent(`${sec} [data-log-empty]`), /Keine Einträge/);
     await page.click(`[data-log-result=""]`);
+    await page.waitForFunction((sel) => document.querySelectorAll(sel).length >= 4, rows);
 
     // CSV mit denselben Filtern
     assert.match(await page.getAttribute("[data-log-csv]", "href"), /out-log\?.*format=csv/);

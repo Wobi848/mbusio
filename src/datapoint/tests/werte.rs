@@ -322,3 +322,22 @@ fn meter_clock_offset_is_noted_from_five_minutes() {
     db.record(line, &Target::Primary(1), Ok(&u), false).unwrap();
     assert_eq!(off(&db), None);
 }
+
+/// Speicher-Vorschau: Zuwachs je Tag nur aus Linien im Dauerbetrieb, je Termin Auslesung und Werte
+#[test]
+fn growth_per_day_follows_plan_and_operation() {
+    let (mut db, line, mid, _) = setup();
+    db.dp_select(mid, &[ENERGY.to_string()], &[], Lang::De)
+        .unwrap();
+    db.set_line_plan(line, Some("hourly")).unwrap();
+    assert_eq!(
+        db.growth_per_day().unwrap(),
+        0,
+        "ohne Dauerbetrieb liest niemand"
+    );
+    db.operation_on(line);
+    assert_eq!(db.growth_per_day().unwrap(), 24 * (340 + 70));
+    // Zähler aus dem Plan: nichts
+    db.set_meter_plan(mid, Some("off")).unwrap();
+    assert_eq!(db.growth_per_day().unwrap(), 0);
+}

@@ -5,6 +5,27 @@ import { outputWord, opPossible } from "./view.js";
 
 const README = "https://github.com/Wobi848/mbusio";
 
+/// Bytes lesbar (kB, MB, GB)
+const size = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : `${Math.max(1, Math.round(b / 1e3))} kB`);
+
+/// Wie lange der Platz beim heutigen Plan reicht, als Satzteil in passender Einheit
+function lasts(days) {
+  if (days >= 36500) return t("an_disk_century");
+  if (days >= 730) return t("an_disk_lasts", t("an_disk_years", Math.floor(days / 365)));
+  if (days >= 60) return t("an_disk_lasts", t("an_disk_months", Math.floor(days / 30)));
+  return t("an_disk_lasts", t("an_disk_days", days));
+}
+
+/// Speicher: frei, wie lange er reicht (unter 90 Tagen als Hinweis); Zuwachs im Tooltip
+function diskHtml(d, chip) {
+  const pct = Math.round(d.free_pct);
+  if (d.level !== "ok") return chip("warn", t(d.level === "full" ? "disk_full" : "disk_low", pct));
+  const title = d.per_day ? t("an_disk_title", size(d.per_day), size(d.db_bytes)) : "";
+  const free = esc(t("ps_disk_free", pct));
+  if (d.days_left == null) return free;
+  return d.days_left < 90 ? `${free} ${chip("warn", lasts(d.days_left), title)}` : `<span title="${esc(title)}">${free} · ${esc(lasts(d.days_left))}</span>`;
+}
+
 export const allLines = (p) => p.gateways.flatMap((g) => g.lines);
 export const sum = (lines, f) => lines.reduce((n, l) => n + (f(l) || 0), 0);
 
@@ -83,10 +104,7 @@ export function plantHtml(p, s) {
           : `${chip("warn", t("time_unsure"))} <button type="button" class="tonal" data-take-time>${esc(t("ps_time_take"))}</button>`
       )
     );
-  if (s.disk) {
-    const pct = Math.round(s.disk.free_pct);
-    cells.push(cell(t("ps_disk"), s.disk.level === "ok" ? esc(t("ps_disk_free", pct)) : chip("warn", t(s.disk.level === "full" ? "disk_full" : "disk_low", pct))));
-  }
+  if (s.disk) cells.push(cell(t("ps_disk"), diskHtml(s.disk, chip)));
   for (const o of (s.outputs || []).filter((o) => o.on)) {
     const [cls, word] = outputWord(s[o.key]?.state);
     cells.push(cell(o.label, `${chip(cls, word, s[o.key]?.error || "")} <a href="#/weitergabe">${esc(t("ps_open_transfer"))}</a>`));

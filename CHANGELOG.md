@@ -20,6 +20,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   (Zeitplan, MQTT, Modbus, Uhrzeit, Linie getrennt) waren immer deutsch; jetzt folgen sie der
   Sprache der Oberfläche, Einträge im Protokoll auch nach einem Sprachwechsel. Die Sprache bleibt
   über einen Neustart gespeichert.
+- **Speicher-Vorschau:** im Zustand der Anlage, wie lange der Platz beim heutigen Plan reicht
+  („81 % frei · reicht ca. 12 Jahre“, Zuwachs je Tag im Tooltip); unter 90 Tagen als Hinweis.
 - **Weitergabe-Protokoll:** was an MQTT ging, was wartet und was verworfen wurde (Broker zu
   lange weg, Warteschlange voll), je Wert mit Zeit, Topic und Qualität; Filter nach Zeitraum,
   Ergebnis, Datenpunkt und Suche; CSV; 30 Tage. Modbus: welches Leitsystem zuletzt abgefragt hat.

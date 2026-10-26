@@ -28,6 +28,12 @@ texts(
     an_lines_meters: (lines, meters, dp) => `${lines} · ${meters} Zähler · ${dp} Datenpunkte`,
     an_meters_dp: (meters, dp) => `${meters} Zähler · ${dp} Datenpunkte`,
     an_svc_how: "Anleitung",
+    an_disk_lasts: (x) => `reicht ca. ${x}`,
+    an_disk_days: (n) => `${n} Tage`,
+    an_disk_months: (n) => `${n} Monate`,
+    an_disk_years: (n) => `${n} Jahre`,
+    an_disk_century: "reicht über 100 Jahre",
+    an_disk_title: (day, db) => `Beim heutigen Plan wächst die Datenbank um ca. ${day} pro Tag (jetzt ${db}).`,
   },
   {
     an_col_name: "Name",
@@ -54,5 +60,11 @@ texts(
     an_lines_meters: (lines, meters, dp) => `${lines} · ${meters} meters · ${dp} datapoints`,
     an_meters_dp: (meters, dp) => `${meters} meters · ${dp} datapoints`,
     an_svc_how: "Guide",
+    an_disk_lasts: (x) => `lasts about ${x}`,
+    an_disk_days: (n) => `${n} days`,
+    an_disk_months: (n) => `${n} months`,
+    an_disk_years: (n) => `${n} years`,
+    an_disk_century: "lasts over 100 years",
+    an_disk_title: (day, db) => `With today's plan the database grows by about ${day} per day (now ${db}).`,
   }
 );
