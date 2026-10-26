@@ -220,7 +220,7 @@ der CSV stehen die Hinweise je Zeile.
 **Grenze:** Bekommt ein neuer Zähler dieselbe ID wie der alte (praktisch nie), bleibt nur der
 gesunkene Stand als Hinweis.
 
-## 4. Teil C: E-Mail (umgesetzt, siehe 7)
+## 4. Teil C: E-Mail (umgesetzt, siehe 7; Ort und Ausbau neu in [konzept-weitergabe-email.md](konzept-weitergabe-email.md))
 
 Die Datei aus 3.5 geht als Anhang an die Empfänger des Projekts.
 
