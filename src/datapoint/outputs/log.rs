@@ -21,9 +21,9 @@ pub struct LogRow {
     pub address: String,
     pub value: String,
     pub quality: String,
-    /// sent · dropped · waiting
+    /// sent · dropped · waiting · failed (E-Mail)
     pub result: String,
-    /// bei dropped: too_old · too_many
+    /// bei dropped: too_old · too_many; bei failed: der Grund als Text
     pub reason: String,
 }
 
@@ -69,6 +69,8 @@ pub fn sample_of(payload: &str) -> (String, String) {
 pub struct Entry<'a> {
     pub output: &'a str,
     pub dp: Option<i64>,
+    /// Name, wo es kein Datenpunkt ist (z.B. Betreff einer E-Mail)
+    pub name: Option<&'a str>,
     pub address: &'a str,
     pub value: &'a str,
     pub quality: &'a str,
@@ -84,7 +86,7 @@ impl Db {
         }
         self.conn.execute(
             "INSERT INTO out_log (utc, time, output, dp, name, address, value, quality, result, reason)
-             VALUES (?1, ?2, ?3, ?4, COALESCE((SELECT name FROM datapoints WHERE id = ?4), ''), ?5, ?6, ?7, ?8, ?9)",
+             VALUES (?1, ?2, ?3, ?4, COALESCE(?10, (SELECT name FROM datapoints WHERE id = ?4), ''), ?5, ?6, ?7, ?8, ?9)",
             params![
                 crate::clock::utc_secs(),
                 crate::clock::stamp(),
@@ -94,7 +96,8 @@ impl Db {
                 e.value,
                 e.quality,
                 e.result,
-                e.reason
+                e.reason,
+                e.name
             ],
         )?;
         Ok(())

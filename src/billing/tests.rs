@@ -413,6 +413,17 @@ fn auto_export_mails_file_and_retries() {
     let now = chrono::NaiveDateTime::parse_from_str("2026-10-01 00:10", "%Y-%m-%d %H:%M").unwrap();
     db.billing_auto(&dir, now).unwrap();
 
+    // E-Mail ausgeschaltet: nichts versuchen, kein Fehler an der Datei
+    db.set_mail_config(&crate::mail::MailConfig {
+        enabled: false,
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(db.billing_mail_pending(&dir, now).unwrap().0.is_empty());
+    assert!(db.billing_files(&dir, 1).unwrap()[0].mail.is_none());
+    db.set_mail_config(&crate::mail::MailConfig::default())
+        .unwrap();
+
     // ohne Mailserver: Fehler an der Datei, einmal gemeldet
     let (out, notes) = db.billing_mail_pending(&dir, now).unwrap();
     assert!(out.is_empty());

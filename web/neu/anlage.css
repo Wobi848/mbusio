@@ -90,4 +90,3 @@
 [data-area=anlage] .vrow.bfile { grid-template-columns: minmax(0, 1fr) auto auto auto; }
 [data-area=anlage] .vrow.bfile a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-area=anlage] .bmail { margin: 8px 0; }
-[data-area=anlage] [data-mail-form] label.check input { justify-self: start; width: 16px; height: 16px; }

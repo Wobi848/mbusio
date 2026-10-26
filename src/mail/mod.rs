@@ -16,6 +16,10 @@ pub use smtp::send;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MailConfig {
+    /// aus = es geht keine Mail raus (Dateien werden trotzdem abgelegt); Testmail geht immer
+    pub enabled: bool,
+    /// unterscheidet mehrere Geräte im Posteingang (`{geraet}`); leer = Name des Rechners
+    pub device: String,
     pub host: String,
     pub port: u16,
     /// "starttls" (587), "tls" (465) oder "none" (25)
@@ -32,6 +36,8 @@ pub struct MailConfig {
 impl Default for MailConfig {
     fn default() -> Self {
         MailConfig {
+            enabled: true,
+            device: String::new(),
             host: String::new(),
             port: 587,
             security: "starttls".into(),
@@ -55,6 +61,30 @@ impl MailConfig {
             ));
         }
         Ok(())
+    }
+
+    /// Gerätename für Betreff und Text: eingestellt oder der Name des Rechners
+    pub fn device_name(&self) -> String {
+        if !self.device.trim().is_empty() {
+            return self.device.trim().to_string();
+        }
+        std::env::var("COMPUTERNAME")
+            .ok()
+            .or_else(|| std::fs::read_to_string("/etc/hostname").ok())
+            .map(|h| h.trim().to_string())
+            .filter(|h| !h.is_empty())
+            .unwrap_or_else(|| "mbusio".into())
+    }
+
+    /// Bereit zum Senden (eingeschaltet, Server und Absender da); sonst warum nicht
+    pub fn ready(&self) -> Result<String> {
+        if !self.enabled {
+            bail!(tr(
+                "E-Mail ist ausgeschaltet (Weitergabe → E-Mail)",
+                "E-mail is switched off (Pass on → E-mail)"
+            ));
+        }
+        self.sender()
     }
 
     /// Absender: eigener oder der Benutzer, wenn er eine Adresse ist
@@ -106,9 +136,48 @@ pub fn recipients(field: &str) -> Result<Vec<String>> {
     Ok(out)
 }
 
+/// Letzter Versand, für die Karte des Ausgangs
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct LastMail {
+    pub time: String,
+    pub subject: String,
+    /// None = gesendet
+    pub error: Option<String>,
+}
+
 impl Db {
     pub fn mail_config(&self) -> MailConfig {
         self.meta_json("mail")
+    }
+
+    pub fn mail_last(&self) -> Option<LastMail> {
+        self.meta("mail_last")
+            .ok()
+            .flatten()
+            .and_then(|v| serde_json::from_str(&v).ok())
+    }
+
+    /// Ergebnis eines Versands festhalten: im Protokoll der Weitergabe (Ausgang `email`) und als
+    /// letzter Versand für die Karte. Jede Mail geht hier durch, egal wer sie schickt.
+    pub fn mail_record(&mut self, m: &Message, result: &Result<()>) -> Result<()> {
+        let error = result.as_ref().err().map(|e| format!("{e:#}"));
+        let files: Vec<&str> = m.attachments.iter().map(|a| a.name.as_str()).collect();
+        self.out_log(&crate::datapoint::OutLogEntry {
+            output: "email",
+            dp: None,
+            name: Some(&m.subject),
+            address: &m.to.join(", "),
+            value: &files.join(", "),
+            quality: "",
+            result: if error.is_some() { "failed" } else { "sent" },
+            reason: error.as_deref().unwrap_or(""),
+        })?;
+        let last = LastMail {
+            time: crate::clock::stamp(),
+            subject: m.subject.clone(),
+            error,
+        };
+        self.set_meta("mail_last", &serde_json::to_string(&last)?)
     }
 
     pub fn set_mail_config(&mut self, c: &MailConfig) -> Result<()> {

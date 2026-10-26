@@ -110,9 +110,14 @@ pub(super) async fn billing_file_send(
         let dir = known_file(&db, id, &name)?;
         db.billing_outgoing(&dir, id, &name).map_err(bad_request)?
     };
-    let result = blocking(move || crate::mail::send(&outgoing.config, &outgoing.message)).await?;
+    let (outgoing, result) = blocking(move || {
+        let r = crate::mail::send(&outgoing.config, &outgoing.message);
+        (outgoing, r)
+    })
+    .await?;
     let error = result.as_ref().err().map(|e| format!("{e:#}"));
-    let db = st.db.lock().unwrap();
+    let mut db = st.db.lock().unwrap();
+    db.mail_record(&outgoing.message, &result)?;
     if let Some(msg) = db.billing_mail_done(id, &name, result, clock::now())? {
         st.log.push("INFO", msg);
     }

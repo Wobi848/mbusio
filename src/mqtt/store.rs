@@ -102,6 +102,7 @@ impl Db {
         self.out_log(&OutLogEntry {
             output: "mqtt",
             dp,
+            name: None,
             address: topic,
             value: &value,
             quality: &quality,

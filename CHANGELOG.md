@@ -38,8 +38,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Ende des Zeitraums und der ersten Auslesung danach (spätestens 2 Tage danach) legt mbusio die
   CSV im Datenordner unter `exporte/<projekt-nr>/` ab, meldet sie im Protokoll und zeigt sie zum
   Herunterladen. War das Gerät aus, werden verpasste Zeiträume nachgeholt (höchstens 12).
-- **Abrechnung per E-Mail:** Empfänger je Projekt („E-Mail an“), Mailserver einmal je Gerät
-  (STARTTLS, TLS oder ohne; Passwort bleibt auf dem Gerät) mit „Testmail senden“. Jede neue Datei
+- **Abrechnung per E-Mail:** Empfänger je Projekt („E-Mail an“), Mailserver als Ausgang
+  **Weitergabe → E-Mail** neben MQTT und Modbus: Schalter, Zustand (nicht eingerichtet, bereit,
+  Fehler), Einstellungen (STARTTLS, TLS oder ohne; Passwort bleibt auf dem Gerät; Gerätename für
+  den Betreff) und Testmail. Jede Mail steht im Weitergabe-Protokoll. Jede neue Datei
   geht als Anhang raus; je Datei steht „gesendet“ oder „nicht gesendet“ mit Grund und „Senden“.
   Fehlgeschlagene werden 7 Tage lang alle 15 Minuten erneut versucht, ins Protokoll kommt nur der
   erste Fehler, ein neuer Grund und der Erfolg.

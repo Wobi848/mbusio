@@ -186,3 +186,44 @@ fn smtp_wrong_password_says_so_without_password() {
     );
     drop(server);
 }
+
+/// Jede Mail steht im Protokoll der Weitergabe (Ausgang email) und als letzter Versand
+#[test]
+fn record_goes_to_log_and_card() {
+    let mut db = Db::memory().unwrap();
+    let m = message();
+    db.mail_record(&m, &Ok(())).unwrap();
+    assert_eq!(db.mail_last().unwrap().error, None);
+    db.mail_record(&m, &Err(anyhow::anyhow!("Server lehnt ab")))
+        .unwrap();
+    assert_eq!(
+        db.mail_last().unwrap().error.as_deref(),
+        Some("Server lehnt ab")
+    );
+    let f = crate::datapoint::LogFilter {
+        output: "email".into(),
+        ..Default::default()
+    };
+    let page = db.out_log_page(&f, Vec::new()).unwrap();
+    assert_eq!((page.counts["sent"], page.counts["failed"]), (1, 1));
+    let r = &page.rows[0];
+    assert_eq!(
+        (r.name.as_str(), r.address.as_str(), r.value.as_str()),
+        (
+            "Abrechnung Müllerstrasse",
+            "a@example.org, b@example.org",
+            "Müller-abrechnung.csv"
+        )
+    );
+    assert_eq!(
+        (r.result.as_str(), r.reason.as_str()),
+        ("failed", "Server lehnt ab")
+    );
+    // ausgeschaltet: nicht bereit, mit Hinweis wo
+    let off = MailConfig {
+        enabled: false,
+        ..config(25, "x")
+    };
+    assert!(format!("{:#}", off.ready().unwrap_err()).contains("ausgeschaltet"));
+    assert_eq!(config(25, "x").ready().unwrap(), "mbusio@example.org");
+}

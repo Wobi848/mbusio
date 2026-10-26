@@ -5,14 +5,14 @@
 
 import { html, toast } from "./view.js";
 import { report } from "./data.js";
-import { mailServerHtml, mailFormValues, mailStateHtml, securityChanged } from "./anlage-mail.js";
+import { mailStateHtml } from "./anlage-mail.js";
 
 const PERIODS = ["prev_month", "prev_year", "custom"];
 
 let box = null;
 let projectId = null;
 let data = null; // Antwort von /api/projects/{id}/billing
-let mail = null; // Antwort von /api/mail (ohne Passwort)
+let mail = null; // Antwort von /api/mail (ohne Passwort): ist ein Server eingerichtet?
 
 /// Feld in `container` öffnen; `close` führt zurück zu den Details des Projekts
 export async function openBilling(container, id, close) {
@@ -23,7 +23,6 @@ export async function openBilling(container, id, close) {
     onClick(ev);
   };
   box.onchange = onChange;
-  box.onsubmit = onSubmit;
   box.classList.add("open");
   box._html = null;
   box.innerHTML = `<p class="sub">…</p>`;
@@ -39,7 +38,6 @@ export function closeBilling() {
   if (!box) return;
   box.onclick = null;
   box.onchange = null;
-  box.onsubmit = null;
   box = null;
 }
 
@@ -64,7 +62,6 @@ function onChange(ev) {
   if (el.matches("[data-b-decimal]")) return save({ decimal: el.value });
   if (el.matches("[data-b-auto]")) return save({ auto: el.checked });
   if (el.matches("[data-b-mail-to]")) return save({ mail_to: el.value.trim() });
-  if (el.matches("[data-mail-form] [name=security]")) return securityChanged(el);
   if (el.matches("[data-b-line]")) {
     const lines = chosenLines(el);
     if (lines) return save({ lines });
@@ -108,21 +105,13 @@ function onClick(ev) {
       },
       t("an_m_sent_now")
     );
-  const test = ev.target.closest("[data-mail-test]");
-  if (test) return busy(test, () => request("mail/test", { method: "POST", body: { to: data.settings.mail_to } }), t("an_m_test_ok"));
 }
 
-async function onSubmit(ev) {
-  if (!ev.target.matches("[data-mail-form]")) return;
-  ev.preventDefault();
-  await busy(
-    ev.submitter || ev.target.querySelector("[type=submit]"),
-    async () => {
-      await request("mail", { method: "PUT", body: mailFormValues(ev.target) });
-      mail = await request("mail");
-    },
-    t("an_m_saved")
-  );
+/// Der Mailserver gehört zur Weitergabe (Ausgang E-Mail): hier nur sagen, wenn er fehlt oder aus ist
+function mailHint() {
+  const c = mail.config;
+  const why = !c.host ? t("an_m_no_server") : !c.enabled ? t("an_m_mail_off") : "";
+  return why ? `<p class="chip warn wide">${esc(why)} <a href="#/weitergabe/email">${esc(t("an_m_setup"))} →</a></p>` : "";
 }
 
 /// Gewählte Linien nach einem Häkchen; alle gewählt = [] (auch künftige Linien), keine = null
@@ -225,7 +214,7 @@ function auto(s) {
         : ""
     }
     ${s.auto || data.files.length ? files + problem : ""}
-    ${active && s.mail_to ? mailServerHtml(mail, s.mail_to) : ""}`;
+    ${active && s.mail_to ? mailHint() : ""}`;
 }
 
 /// Spalten der Vorschau (der Detailbereich ist schmal): was man prüfen will; die Datei hat alle

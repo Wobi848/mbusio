@@ -74,7 +74,7 @@ impl Db {
         let project = self.project(project_id)?.name;
         let data = std::fs::read(export_dir(data_dir, project_id).join(name))?;
         let message = Message {
-            from: config.sender()?,
+            from: config.ready()?,
             to,
             subject: format!("mbusio: {} {project}", tr("Abrechnung", "Billing")),
             text: format!(
@@ -112,6 +112,10 @@ impl Db {
             .to_string();
         let mut out = Vec::new();
         let mut notes = Vec::new();
+        // ausgeschaltet: nichts versuchen, die Dateien warten (bis zu den Tagen für erneute Versuche)
+        if !self.mail_config().enabled {
+            return Ok((out, notes));
+        }
         for (id, s) in self.billing_auto_projects()? {
             if s.mail_to.trim().is_empty() {
                 continue;

@@ -59,3 +59,4 @@
   [data-area=weitergabe] .logwrap .row > :nth-child(5) { grid-area: value; justify-self: end; }
   [data-area=weitergabe] .logwrap .row > :nth-child(7) { display: block; grid-area: result; justify-self: end; }
 }
+[data-area=weitergabe] .detail .fields label { grid-template-columns: 120px minmax(0, 1fr); }

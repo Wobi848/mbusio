@@ -8,7 +8,10 @@ pub(super) async fn mail_get(State(st): State<AppState>) -> ApiResult<serde_json
     let mut c = st.db.lock().unwrap().mail_config();
     let has_password = !c.password.is_empty();
     c.password.clear();
-    Ok(Json(json!({ "config": c, "has_password": has_password })))
+    let last = st.db.lock().unwrap().mail_last();
+    Ok(Json(
+        json!({ "config": c, "has_password": has_password, "last": last, "device": c.device_name() }),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -28,6 +31,7 @@ pub(super) async fn mail_put(
     c.password = r.password.unwrap_or_else(|| db.mail_config().password);
     c.host = c.host.trim().to_string();
     c.from = c.from.trim().to_string();
+    c.device = c.device.trim().to_string();
     db.set_mail_config(&c).map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
@@ -53,15 +57,23 @@ pub(super) async fn mail_test(
     let message = Message {
         from: config.sender().map_err(bad_request)?,
         to,
-        subject: format!("mbusio: {}", tr("Testmail", "test e-mail")),
+        subject: format!(
+            "mbusio {}: {}",
+            config.device_name(),
+            tr("Testmail", "test e-mail")
+        ),
         text: tr(
             "So kommen die Abrechnungen an.",
             "This is how the billing exports will arrive.",
         ),
         attachments: Vec::new(),
     };
-    blocking(move || mail::send(&config, &message))
-        .await?
-        .map_err(bad_request)?;
+    let (message, result) = blocking(move || {
+        let r = mail::send(&config, &message);
+        (message, r)
+    })
+    .await?;
+    st.db.lock().unwrap().mail_record(&message, &result)?;
+    result.map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }

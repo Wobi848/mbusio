@@ -1,5 +1,5 @@
-// Bereich Weitergabe: Ausgänge (MQTT, Modbus) als Zeilen mit Schalter und Zustand, Formular mit
-// den Einstellungen. Reine Bausteine; geschaltet und gespeichert wird in weitergabe.js.
+// Bereich Weitergabe: Ausgänge (MQTT, Modbus, E-Mail) als Karten mit Schalter und Zustand, Formular
+// mit den Einstellungen. Reine Bausteine; geschaltet und gespeichert wird in weitergabe.js.
 
 import { outputWord } from "./view.js";
 
@@ -19,32 +19,62 @@ function outputState(s) {
   return [cls, word, info];
 }
 
+/// Zustand der E-Mail aus /api/mail: [farbe, wort, satz]
+function emailState(m) {
+  const c = m.config;
+  if (!c.enabled) return ["", t("wg_m_off"), ""];
+  if (!c.host) return ["warn", t("wg_m_unset"), t("wg_m_unset_info")];
+  if (m.last?.error) return ["err", t("wg_m_failed"), `${slotText(m.last.time)}: ${m.last.error}`];
+  return ["ok", t("wg_m_ready"), m.last ? t("wg_m_info", c.host, slotText(m.last.time)) : c.host];
+}
+
+function card(key, label, on, [cls, word, info], active) {
+  // Einstellungen gleich beim Zustand: gehört zu diesem Ausgang, nicht an den Rand
+  return `<div class="out${active === key ? " active" : ""}">
+    <label class="out-switch"><input type="checkbox" class="switch" data-out-toggle="${key}"${on ? " checked" : ""}><b>${esc(label)}</b></label>
+    <span class="chip ${cls}">${esc(word)}</span>
+    <button type="button" class="quiet" data-out-settings="${key}">${esc(t("wg_settings"))}</button>
+    <span class="sub cut" title="${esc(info)}">${esc(info)}</span>
+  </div>`;
+}
+
 /// Karten der Ausgänge: Schalter, Name, Zustand, Einstellungen, Info. Alles Weitere (Listen für den
-/// Integrator, Adressen nach Muster) steht in den Einstellungen, damit die Leiste ruhig bleibt.
-/// `ctx`: { status, active (offenes Formular) }
-export function outputsHtml(outs, { status, active }) {
+/// Integrator, Adressen nach Muster, Testmail) steht in den Einstellungen, damit die Leiste ruhig
+/// bleibt. `ctx`: { status, active (offenes Formular), mail (/api/mail) }
+export function outputsHtml(outs, { status, active, mail }) {
   // eine Zeile: Überschrift, je Ausgang eine Karte, Protokoll am Ende
   return (
     `<span class="eyebrow mark">${esc(t("wg_outputs"))}</span>` +
     outs
-        .map((o) => {
-          const [cls, word, info] = outputState(status?.[o.key]);
-          const on = !!o.on;
-          // Einstellungen gleich beim Zustand: gehört zu diesem Ausgang, nicht an den Rand
-          return `<div class="out${active === o.key ? " active" : ""}">
-          <label class="out-switch"><input type="checkbox" class="switch" data-out-toggle="${o.key}"${on ? " checked" : ""}><b>${esc(o.label)}</b></label>
-          <span class="chip ${cls}">${esc(word)}</span>
-          <button type="button" class="quiet" data-out-settings="${o.key}">${esc(t("wg_settings"))}</button>
-          <span class="sub cut" title="${esc(info)}">${esc(info)}</span>
-        </div>`;
-        })
+        .map((o) => card(o.key, o.label, !!o.on, outputState(status?.[o.key]), active))
         .join("") +
+    (mail ? card("email", t("wg_email"), mail.config.enabled, emailState(mail), active) : "") +
     `<button type="button" class="quiet outlog" data-open-log title="${esc(t("wg_log_title"))}">${esc(t("wg_log"))} →</button>`
   );
 }
 
+/// Verschlüsselung der E-Mail und ihr üblicher Port
+const SECURITY = { starttls: 587, tls: 465, none: 25 };
+
+/// Andere Verschlüsselung: üblichen Port eintragen, ausser es steht ein eigener drin
+export function securityChanged(select) {
+  const port = select.form.elements.port;
+  if (Object.values(SECURITY).includes(Number(port.value))) port.value = SECURITY[select.value];
+}
+
 /// Felder eines Ausgangs: [name, beschriftung, art, extra]
 function outputFields(key, cfg) {
+  if (key === "email")
+    return [
+      ["host", t("wg_m_host"), "text", { ph: "smtp.example.org", mono: true }],
+      ["port", t("wg_m_port"), "number", { mono: true }],
+      ["security", t("wg_m_security"), "select", { options: Object.keys(SECURITY).map((v) => [v, t("wg_m_sec_" + v)]) }],
+      ["insecure", t("wg_m_insecure"), "check"],
+      ["username", t("wg_m_user"), "text"],
+      ["password", t("wg_m_password"), "password", { ph: cfg.email.has_password ? t("mqtt_pass_saved") : "" }],
+      ["from", t("wg_m_from"), "text", { ph: cfg.email.config.username || "mbusio@example.org", mono: true, hint: t("wg_m_from_hint") }],
+      ["device", t("wg_m_device"), "text", { ph: cfg.email.device, hint: t("wg_m_device_hint") }],
+    ];
   if (key === "mqtt") {
     const base = (cfg.mqtt.config.base || "mbusio").replace(/\/+$/, "");
     return [
@@ -97,16 +127,25 @@ function integratorHtml(o, projectId, has) {
     </div>`;
 }
 
+/// Testmail mit den gespeicherten Einstellungen; vorbelegt mit dem Absender
+function testMailHtml(cfg) {
+  const c = cfg.email.config;
+  return `<h3>${esc(t("wg_m_test"))}</h3>
+    <div class="fields"><label><span>${esc(t("wg_m_test_to"))}</span><input type="text" class="mono" data-mail-test-to value="${esc(c.from || c.username || "")}"></label></div>
+    <p class="sub hint">${esc(t("wg_m_test_hint"))}</p>
+    <div class="actions"><button type="button" class="tonal" data-mail-test>${esc(t("wg_m_test_send"))}</button></div>`;
+}
+
 /// Formular mit den Einstellungen eines Ausgangs; `o`, `projectId`, `has` (Datenpunkte mit
 /// Adresse an diesem Ausgang) für die Teile für den Integrator
 export function outputFormHtml(key, cfg, label_, o, projectId, has) {
-  const c = key === "mqtt" ? cfg.mqtt.config : cfg.modbus.config;
+  const c = cfg[key].config;
   return `<button type="button" class="quiet back" data-back>← ${esc(t("tab_transfer"))}</button>
     <header class="dhead"><b>${esc(label_)} · ${esc(t("wg_settings"))}</b></header>
     <form class="fields" data-out-form="${key}">${outputFields(key, cfg).map((f) => fieldHtml(f, c[f[0]])).join("")}
       <div class="actions"><button type="submit">${esc(t("wg_save"))}</button><button type="button" class="quiet" data-back>${esc(t("cancel"))}</button></div>
     </form>
-    ${integratorHtml(o, projectId, has)}`;
+    ${key === "email" ? testMailHtml(cfg) : integratorHtml(o, projectId, has)}`;
 }
 
 /// Werte aus dem Formular, nach Art des Felds (Häkchen, Zahl, Text)

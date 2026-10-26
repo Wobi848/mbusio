@@ -133,9 +133,9 @@ leer = noch nicht festgelegt), `baud`, `timeout_ms`, `addressing` (`secondary`/`
 | `GET /api/projects/{id}/billing/csv` | Ganze Tabelle nach den gespeicherten Einstellungen als CSV (Datei). |
 | `GET /api/projects/{id}/billing/files/{name}` | Abgelegte Datei herunterladen (nur Namen aus `files`). |
 | `POST /api/projects/{id}/billing/files/{name}/send` | Datei jetzt an `mail_to` senden → wie `GET …/billing`; Fehler mit Grund (steht danach auch an der Datei). |
-| `GET /api/mail` | E-Mail-Server (einmal je Gerät): `{config: {host, port, security (starttls, tls, none), insecure, username, password (immer leer), from}, has_password}`. |
+| `GET /api/mail` | Ausgang E-Mail (einmal je Gerät): `{config: {enabled, device, host, port, security (starttls, tls, none), insecure, username, password (immer leer), from}, has_password, device (Gerätename wie verwendet), last: {time, subject, error} oder null}`. |
 | `PUT /api/mail` | Speichern: `{config, password?}` (`password` weglassen = behalten, `""` = löschen). |
-| `POST /api/mail/test` | Testmail mit den gespeicherten Einstellungen: `{to}` → `{ok}` oder Fehler mit Grund. |
+| `POST /api/mail/test` | Testmail mit den gespeicherten Einstellungen (auch wenn ausgeschaltet): `{to}` → `{ok}` oder Fehler mit Grund. Jede Mail steht im Protokoll (`GET /api/out-log`, Ausgang `email`, Ergebnis `sent` oder `failed` mit Grund). |
 | `DELETE /api/projects/{id}/changes` | Änderungsprotokoll leeren → `{ok, removed}`. |
 | `POST /api/projects/{id}/gateways` | Gateway anlegen: `Gateway` → `Gateway`. `PUT`/`DELETE /api/gateways/{id}`. |
 | `POST /api/gateways/{id}/move` · `/api/lines/{id}/move` | Reihenfolge: `{dir: -1|1}`. |

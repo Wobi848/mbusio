@@ -7,8 +7,8 @@ import { report } from "./data.js";
 
 const EVERY = 3000;
 const DAYS = [1, 7, 30];
-const RESULTS = ["", "sent", "waiting", "dropped"];
-const RESULT_CHIP = { sent: "ok", waiting: "", dropped: "err" };
+const RESULTS = ["", "sent", "waiting", "dropped", "failed"];
+const RESULT_CHIP = { sent: "ok", waiting: "", dropped: "err", failed: "err" };
 
 let box = null;
 let filter = null; // { dp, dpName, days, result, q }
@@ -86,12 +86,12 @@ function render(page) {
     q("[data-log-days]"),
     DAYS.map((d) => `<button type="button" data-log-day="${d}" aria-pressed="${filter.days === d}">${esc(d === 1 ? t("wg_log_today") : t("wg_log_days", d))}</button>`).join("")
   );
-  const n = (k) => (k ? page.counts[k] || 0 : (page.counts.sent || 0) + (page.counts.waiting || 0) + (page.counts.dropped || 0));
+  const n = (k) => (k ? page.counts[k] || 0 : Object.values(page.counts).reduce((a, b) => a + b, 0));
   html(
     q("[data-log-results]"),
     RESULTS.map(
       (r) =>
-        `<button type="button" data-log-result="${r}" aria-pressed="${filter.result === r}">${esc(t("wg_res_" + (r || "all")))} <span class="n${r === "dropped" && n(r) ? " err" : ""}">${n(r)}</span></button>`
+        `<button type="button" data-log-result="${r}" aria-pressed="${filter.result === r}">${esc(t("wg_res_" + (r || "all")))} <span class="n${RESULT_CHIP[r] === "err" && n(r) ? " err" : ""}">${n(r)}</span></button>`
     ).join("")
   );
   q("[data-log-csv]").href = apiHref(`${query()}&format=csv`);
@@ -103,11 +103,13 @@ function render(page) {
 
 function row(r) {
   const result = esc(t("wg_res_" + r.result));
-  const reason = r.reason ? t("wg_why_" + r.reason) : "";
+  // E-Mail: Grund als Text vom Server, Betreff als Name
+  const mail = r.output === "email";
+  const reason = !r.reason ? "" : mail ? r.reason : t("wg_why_" + r.reason);
   return `<div class="row">
     <span class="mono sub">${esc(r.time)}</span>
-    <span>${esc(r.output.toUpperCase())}</span>
-    <span class="cut">${r.dp != null ? esc(r.name) : `<span class="sub">${esc(t("wg_log_other"))}</span>`}</span>
+    <span>${esc(mail ? t("wg_email") : r.output.toUpperCase())}</span>
+    <span class="cut">${r.dp != null || mail ? esc(r.name) : `<span class="sub">${esc(t("wg_log_other"))}</span>`}</span>
     <span class="cut mono sub" title="${esc(r.address)}">${esc(r.address)}</span>
     <span class="mono">${esc(r.value)}</span>
     <span>${r.quality ? `<span class="sub">${esc(t("q_" + r.quality))}</span>` : ""}</span>

@@ -6,7 +6,7 @@ import { html, text, list, ask, toast, styles, previewApply, menu } from "./view
 import { onEscape } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
-import { outputsHtml, outputFormHtml, formValues } from "./weitergabe-ausgaenge.js";
+import { outputsHtml, outputFormHtml, formValues, securityChanged } from "./weitergabe-ausgaenge.js";
 import { openLog } from "./weitergabe-protokoll.js";
 
 
@@ -15,7 +15,7 @@ const QUALITY = { good: "ok", stale: "warn", disturbed: "err", invalid: "err", n
 
 let root = null;
 let data = null; // /api/datapoints: { meters (mit datapoints), templates, outputs }
-let cfg = { mqtt: null, modbus: null }; // Einstellungen der Ausgänge
+let cfg = { mqtt: null, modbus: null, email: null }; // Einstellungen der Ausgänge
 const view = { scope: storageGet("wg_scope") || "line", search: "", problems: false, active: null, output: null, selected: new Set(), preview: false, enableOnSave: false };
 let releaseEscape = null;
 const q = (sel) => root.querySelector(sel);
@@ -66,16 +66,25 @@ async function onLine() {
 
 async function load() {
   try {
-    const [d, mq, mb] = await Promise.all([request(`datapoints?scope=${view.scope}`), request("mqtt"), request("modbus")]);
+    const [d, mq, mb, em] = await Promise.all([request(`datapoints?scope=${view.scope}`), request("mqtt"), request("modbus"), request("mail")]);
     data = d;
-    cfg = { mqtt: mq, modbus: mb };
+    cfg = { mqtt: mq, modbus: mb, email: em };
     const ids = new Set(points().map((p) => p.id));
     for (const id of [...view.selected]) if (!ids.has(id)) view.selected.delete(id);
   } catch (e) {
     report(e);
   }
   render();
+  fromAddress();
 }
+
+/// #/weitergabe/email (z.B. aus der Abrechnung): gleich die Einstellungen der E-Mail öffnen
+function fromAddress() {
+  if (!data || !/^#\/weitergabe\/email\b/.test(location.hash)) return;
+  history.replaceState(null, "", "#/weitergabe");
+  openOutput("email");
+}
+addEventListener("hashchange", fromAddress);
 
 const points = () => (data ? data.meters.flatMap((m) => m.datapoints) : []);
 const byId = (id) => points().find((p) => p.id === id);
@@ -96,15 +105,16 @@ async function toggleOutput(input) {
   const key = input.dataset.outToggle;
   const on = input.checked;
   input.checked = !on;
-  const label = data.outputs.find((o) => o.key === key)?.label || key;
-  if (on && key === "mqtt" && !cfg.mqtt.config.host) {
-    toast(t("wg_need_host"));
+  const label = key === "email" ? t("wg_email") : data.outputs.find((o) => o.key === key)?.label || key;
+  if (on && ((key === "mqtt" && !cfg.mqtt.config.host) || (key === "email" && !cfg.email.config.host))) {
+    toast(t(key === "email" ? "wg_m_need_host" : "wg_need_host"));
     // man hat „ein“ gedrückt: nach dem Speichern ist der Ausgang ein
     return openOutput(key, true);
   }
   if (!on && !(await ask(input, t("wg_off_q", label), t("n_switch_off")))) return;
   try {
     if (key === "mqtt") await request("mqtt", { method: "PUT", body: { config: { ...cfg.mqtt.config, enabled: on }, password: null } });
+    else if (key === "email") await request("mail", { method: "PUT", body: { config: { ...cfg.email.config, enabled: on } } });
     else await request("modbus", { method: "PUT", body: { ...cfg.modbus.config, enabled: on } });
     await load();
   } catch (e) {
@@ -127,14 +137,35 @@ async function saveOutput(form) {
     if (key === "mqtt") {
       const { password, ...rest } = values;
       await request("mqtt", { method: "PUT", body: { config: { ...cfg.mqtt.config, ...rest }, password: password || null } });
+    } else if (key === "email") {
+      // leeres Passwort = gespeichertes behalten
+      const { password, ...rest } = values;
+      await request("mail", { method: "PUT", body: { config: { ...cfg.email.config, ...rest }, password: password || undefined } });
     } else {
       await request("modbus", { method: "PUT", body: { ...cfg.modbus.config, ...values, project: Number(values.project), swap_words: values.swap_words === "true" } });
     }
-    toast(t(key === "mqtt" ? "mqtt_saved" : "modbus_saved"));
+    toast(t(key === "mqtt" ? "mqtt_saved" : key === "email" ? "wg_m_saved" : "modbus_saved"));
     view.output = null;
     await load();
   } catch (e) {
     report(e);
+  }
+}
+
+/// Testmail an die Adresse im Feld, mit den gespeicherten Einstellungen; die Karte zeigt danach
+/// auch das Ergebnis
+async function testMail(button) {
+  const to = q("[data-mail-test-to]").value.trim();
+  button.disabled = true;
+  try {
+    await request("mail/test", { method: "POST", body: { to } });
+    toast(t("wg_m_test_ok", to));
+  } catch (e) {
+    report(e);
+  } finally {
+    button.disabled = false;
+    cfg.email = await request("mail").catch(() => cfg.email);
+    render();
   }
 }
 
@@ -144,7 +175,7 @@ function render() {
   if (!root || !data) return;
   html(
     q("[data-outputs]"),
-    outputsHtml(data.outputs || [], { status: state.status, active: view.output })
+    outputsHtml(data.outputs || [], { status: state.status, active: view.output, mail: cfg.email })
   );
   html(q("[data-scope]"), ["line", "project"].map((s) => `<button type="button" data-scope-set="${s}" aria-pressed="${view.scope === s}">${esc(t("tr_scope_" + s))}</button>`).join(""));
   const bad = points().filter((p) => p.quality !== "good" && p.quality !== "none").length;
@@ -196,7 +227,8 @@ function renderDetail() {
   if (view.output) {
     const o = data.outputs.find((x) => x.key === view.output);
     const has = points().some((p) => p.outputs[view.output]?.address);
-    return html(box, outputFormHtml(view.output, cfg, o?.label || view.output, o, projectId(), has));
+    const label = view.output === "email" ? t("wg_email") : o?.label || view.output;
+    return html(box, outputFormHtml(view.output, cfg, label, o, projectId(), has));
   }
   const p = byId(view.active);
   if (!p) return html(box, `<p class="sub">${esc(t("wg_pick"))}</p>`);
@@ -366,6 +398,7 @@ function wire() {
     if (b("[data-out-settings]")) return openOutput(b("[data-out-settings]").dataset.outSettings);
 
     if (b("[data-readdress]")) return readdress(b("[data-readdress]").dataset.readdress);
+    if (b("[data-mail-test]")) return testMail(b("[data-mail-test]"));
     if (b("[data-back]")) {
       view.output = null;
       view.active = null;
@@ -398,6 +431,7 @@ function wire() {
   root.addEventListener("change", async (ev) => {
     const el = ev.target;
     if (el.matches("[data-out-toggle]")) return toggleOutput(el);
+    if (el.matches("[data-out-form=email] [name=security]")) return securityChanged(el);
     if (el.matches("[data-import]") && el.files[0]) {
       const f = el.files[0];
       el.value = "";

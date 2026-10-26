@@ -182,6 +182,14 @@ Linien, Dezimalzeichen, automatisch, E-Mail an), dazu neu: **warten auf Auslesun
 
 ## 10. Umsetzung in Schritten
 
+**Schritt 1 umgesetzt (26.10.2026):** `MailConfig.enabled`, `device`; `Db::mail_record` (jede Mail
+ins `out_log` mit `name` = Betreff, Ergebnis `failed` mit Grund; `meta` `mail_last` für die
+Karte); Karte und Einstellungen in `weitergabe-ausgaenge.js`, Testmail dort, `#/weitergabe/email`;
+in der Abrechnung nur noch Hinweis mit Sprung. Ausgeschaltet: automatische Dateien warten (kein
+Fehler an der Datei), Testmail geht. Tests: Rust `record_goes_to_log_and_card`, Browser
+`20-email`. Noch nicht: `retry_days` einstellbar (Schritt 2 mit der Abrechnung).
+
+
 1. **Ausgang E-Mail** (Karte, Einstellungen, Testmail, Schalter, Protokoll); Mailserver aus der
    Abrechnung entfernen. Tests: Browser (Karte, Einstellungen, Testmail, Protokoll), Rust.
 2. **Abrechnung in der Weitergabe** (Ansicht, Adressen, Versand sichtbar, Per E-Mail senden,

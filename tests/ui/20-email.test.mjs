@@ -1,8 +1,10 @@
 import net from "node:net";
 import { assert, simLine } from "./helpers.mjs";
 
-// Abrechnung per E-Mail (Konzept Export, Teil C): Empfänger, Mailserver mit Passwort (bleibt auf
-// dem Gerät), Testmail, abgelegte Datei senden; kleiner SMTP-Server im Test
+// E-Mail als Ausgang der Weitergabe (Konzept Weitergabe/E-Mail, Schritt 1): Hinweis in der
+// Abrechnung führt zu den Einstellungen, Passwort bleibt auf dem Gerät, Port folgt der
+// Verschlüsselung, Testmail, Zustand der Karte, Protokoll; dann abgelegte Datei senden.
+// Kleiner SMTP-Server im Test.
 
 const sec = "section[data-area=anlage]";
 
@@ -41,7 +43,7 @@ function smtp() {
 }
 
 export default {
-  name: "Abrechnung per E-Mail (Empfänger, Server, Testmail, Datei senden)",
+  name: "E-Mail (Ausgang, Einstellungen, Testmail, Protokoll, Abrechnung senden)",
   async setup(api) {
     await simLine(api, "SIMULATOR:praxis");
     const m = await api("meters", "POST", { address: "1", name: "Whg 1" });
@@ -49,46 +51,68 @@ export default {
   },
   async run({ page, base, api }) {
     const { port, mails, server } = await smtp();
+    const wg = "section[data-area=weitergabe]";
     try {
+      // Abrechnung: Empfänger; ohne Server ein Hinweis mit Sprung zur Weitergabe
       await page.goto(base + "/#/anlage");
       await page.locator(`${sec} [data-list] [role=option]`).first().click();
       await page.click("[data-billing]");
       await page.check("[data-b-auto]");
-
-      // Empfänger: falsche Adresse wird abgelehnt, richtige gespeichert
       await page.fill("[data-b-mail-to]", "a@example.org, kaputt");
       await page.press("[data-b-mail-to]", "Tab");
       await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("keine E-Mail-Adresse"));
       await page.fill("[data-b-mail-to]", "a@example.org");
       await page.press("[data-b-mail-to]", "Tab");
-      // Mailserver: offen, weil noch keiner eingetragen ist
-      await page.waitForSelector("details[data-mail][open]");
-      await page.fill("[data-mail-form] [name=host]", "127.0.0.1");
-      await page.selectOption("[data-mail-form] [name=security]", "tls");
-      assert.equal(await page.inputValue("[data-mail-form] [name=port]"), "465", "üblicher Port zur Verschlüsselung");
-      await page.selectOption("[data-mail-form] [name=security]", "none");
-      await page.fill("[data-mail-form] [name=port]", String(port));
-      await page.fill("[data-mail-form] [name=username]", "anna");
-      await page.fill("[data-mail-form] [name=password]", "geheim");
-      await page.fill("[data-mail-form] [name=from]", "mbusio@example.org");
-      await page.click("[data-mail-form] [type=submit]");
-      await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("gespeichert"));
+      await page.click("text=Weitergabe → E-Mail");
+
+      // Weitergabe: Einstellungen der E-Mail offen, Karte „nicht eingerichtet“
+      await page.waitForSelector(`${wg} [data-out-form=email]`);
+      assert.match(await page.textContent(`${wg} [data-outputs]`), /E-Mail\s*nicht eingerichtet/);
+      const f = (n) => `${wg} [data-out-form=email] [name=${n}]`;
+      await page.fill(f("host"), "127.0.0.1");
+      await page.selectOption(f("security"), "tls");
+      assert.equal(await page.inputValue(f("port")), "465", "üblicher Port zur Verschlüsselung");
+      await page.selectOption(f("security"), "none");
+      await page.fill(f("port"), String(port));
+      await page.fill(f("username"), "anna");
+      await page.fill(f("password"), "geheim");
+      await page.fill(f("from"), "mbusio@example.org");
+      await page.fill(f("device"), "Keller-Pi");
+      await page.click(`${wg} [data-out-form=email] [type=submit]`);
+      await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("E-Mail-Einstellungen gespeichert"));
       const m = await api("mail");
       assert.equal(m.has_password, true);
       assert.equal(m.config.password, "", "Passwort nie an den Browser");
 
-      await page.click("[data-mail-test]");
-      await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("Testmail gesendet"));
-      assert.match(mails[0], /To: a@example.org/);
+      // Testmail aus den Einstellungen; Karte „bereit“, Eintrag im Protokoll
+      await page.click(`${wg} [data-out-settings=email]`);
+      await page.fill(`${wg} [data-mail-test-to]`, "a@example.org");
+      await page.click(`${wg} [data-mail-test]`);
+      await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("Testmail an a@example.org gesendet"));
+      assert.match(mails[0], /Subject: mbusio Keller-Pi: Testmail/);
+      await page.waitForFunction(() => /E-Mail\s*bereit/.test(document.querySelector("section[data-area=weitergabe] [data-outputs]").textContent));
+      await page.click(`${wg} [data-open-log]`);
+      await page.waitForFunction(() => /E-Mail[\s\S]*Testmail[\s\S]*a@example.org/.test(document.querySelector("[data-log-rows]")?.textContent));
+      await page.click("[data-log-back]");
+
+      // E-Mail aus: Karte sagt es, Abrechnung weist darauf hin
+      await page.click(`${wg} [data-out-toggle=email]`);
+      await page.click(".ask button.danger");
+      await page.waitForFunction(async () => /E-Mail\s*aus/.test(document.querySelector("section[data-area=weitergabe] [data-outputs]").textContent));
+      assert.equal((await api("mail")).config.enabled, false);
+      await page.click(`${wg} [data-out-toggle=email]`);
+      await page.waitForFunction(() => /E-Mail\s*bereit/.test(document.querySelector("section[data-area=weitergabe] [data-outputs]").textContent));
 
       // abgelegte Datei (Vormonat; der Zeitplan schickt sie selbst oder man drückt „Senden“)
       for (let i = 0; !(await api("projects/1/billing")).files.length; i++) {
         assert.ok(i < 30, "keine Datei nach 30 s");
         await page.waitForTimeout(1000);
       }
-      await page.click("[data-billing-close]");
+      await page.goto(base + "/#/anlage");
+      await page.locator(`${sec} [data-list] [role=option]`).first().click();
       await page.click("[data-billing]");
       await page.waitForSelector("[data-b-send]");
+      assert.equal(await page.locator(`${sec} .chip.warn.wide a[href="#/weitergabe/email"]`).count(), 0, "Server da: kein Hinweis");
       if (!(await api("projects/1/billing")).files[0].mail?.sent) await page.click("[data-b-send]");
       await page.waitForFunction(() => document.querySelector(".bfile .chip.ok")?.textContent === "gesendet");
       const sent = mails.find((x) => x.includes("Content-Disposition: attachment"));

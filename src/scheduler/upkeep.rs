@@ -94,7 +94,8 @@ pub(super) fn export_billing(st: &AppState, now: NaiveDateTime) -> anyhow::Resul
     notes.extend(problems);
     for o in outgoing {
         let result = crate::mail::send(&o.config, &o.message);
-        let db = st.db.lock().unwrap();
+        let mut db = st.db.lock().unwrap();
+        db.mail_record(&o.message, &result)?;
         notes.extend(db.billing_mail_done(o.project_id, &o.name, result, now)?);
     }
     for msg in notes {
