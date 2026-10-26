@@ -22,9 +22,10 @@ function outputState(s) {
 /// Zeilen der Ausgänge: Schalter, Zustand, Einstellungen, Info, Listen für den Integrator.
 /// `ctx`: { status, active (offenes Formular), hasAddress(key), projectId }
 export function outputsHtml(outs, { status, active, hasAddress, projectId }) {
+  // eine Zeile: Überschrift, je Ausgang eine Karte, Protokoll am Ende
   return (
-    `<div class="outhead"><span class="eyebrow">${esc(t("wg_outputs"))}</span><button type="button" class="quiet" data-open-log title="${esc(t("wg_log_title"))}">${esc(t("wg_log"))} →</button></div>` +
-      outs
+    `<span class="eyebrow">${esc(t("wg_outputs"))}</span>` +
+    outs
         .map((o) => {
           const [cls, word, info] = outputState(status?.[o.key]);
           const on = !!o.on;
@@ -40,7 +41,8 @@ export function outputsHtml(outs, { status, active, hasAddress, projectId }) {
             <a class="quiet" href="${apiHref(`projects/${projectId}/outputs/${o.key}/list?format=json`)}" title="${esc(t("out_list", o.address_label))}">JSON</a></span>` : ""}
         </div>`;
         })
-        .join("")
+        .join("") +
+    `<button type="button" class="quiet outlog" data-open-log title="${esc(t("wg_log_title"))}">${esc(t("wg_log"))} →</button>`
   );
 }
 

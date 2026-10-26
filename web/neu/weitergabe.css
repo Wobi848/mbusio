@@ -3,9 +3,8 @@
 .pane[data-area=weitergabe] { grid-template-rows: auto auto 1fr auto; }
 
 /* Ausgänge nebeneinander, je Ausgang: Schalter, Zustand, Einstellungen, Info, Listen */
-[data-area=weitergabe] .outputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 0 32px; padding: 6px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
-[data-area=weitergabe] .outputs .outhead { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 0 2px; }
-[data-area=weitergabe] .outputs .eyebrow { padding: 2px 0 4px; }
+[data-area=weitergabe] .outputs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+[data-area=weitergabe] .outputs .eyebrow { padding: 0; margin-right: 4px; }
 
 /* Protokoll: ersetzt Werkzeugleiste und Liste der Datenpunkte */
 .pane[data-area=weitergabe].showlog { grid-template-rows: auto 1fr; }
@@ -14,12 +13,13 @@
 [data-area=weitergabe] .logview[hidden] { display: none; }
 [data-area=weitergabe] .logwrap { border-right: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
 [data-area=weitergabe] .logwrap .row:not(.vrow) { grid-template-columns: 150px 64px minmax(120px, 1.4fr) minmax(120px, 1.6fr) minmax(90px, .8fr) 80px minmax(110px, 1fr); }
-[data-area=weitergabe] .out { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; min-height: 36px; min-width: 0; padding: 3px 0; border-top: 1px solid var(--line); }
+[data-area=weitergabe] .out { display: inline-flex; align-items: center; gap: 4px 10px; min-width: 0; max-width: 100%; min-height: 36px; padding: 3px 6px 3px 10px; border: 1px solid var(--line); border-radius: 8px; }
 [data-area=weitergabe] .out > .chip { flex: none; white-space: nowrap; }
-[data-area=weitergabe] .out.active { background: var(--accent-soft); margin: 0 -12px; padding: 0 12px; }
-[data-area=weitergabe] .out-switch { display: inline-flex; align-items: center; gap: 8px; min-width: 96px; cursor: pointer; }
-[data-area=weitergabe] .out .cut { flex: 1 1 140px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-area=weitergabe] .out-more { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: auto; }
+[data-area=weitergabe] .out.active { background: var(--accent-soft); border-color: var(--accent); }
+[data-area=weitergabe] .outlog { margin-left: auto; }
+[data-area=weitergabe] .out-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+[data-area=weitergabe] .out .cut { flex: 0 1 auto; max-width: 420px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-area=weitergabe] .out-more { display: inline-flex; align-items: center; gap: 2px; flex: none; }
 [data-area=weitergabe] .out .cut:empty { display: none; }
 
 [data-area=weitergabe] .seg-like { height: 28px; background: transparent; border: 1px solid var(--line-strong); color: var(--muted); }
@@ -40,8 +40,7 @@
 [data-area=weitergabe] .cs-warn { color: var(--warn); }
 
 @media (max-width: 999px) {
-  [data-area=weitergabe] .outputs { grid-template-columns: minmax(0, 1fr); }
-  [data-area=weitergabe] .out { flex-wrap: wrap; padding: 6px 0; }
+  [data-area=weitergabe] .out { width: 100%; flex-wrap: wrap; padding: 6px 10px; }
   [data-area=weitergabe] .out .cut { flex-basis: 100%; order: 5; }
   [data-area=weitergabe] .out-more { order: 6; }
   [data-area=weitergabe] .row:not(.vrow) { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "box name quality" "box value outs"; padding: 6px 12px; row-gap: 2px; }
