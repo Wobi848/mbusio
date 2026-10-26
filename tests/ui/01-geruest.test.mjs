@@ -21,6 +21,13 @@ export default {
     // Linie wechseln ohne Neuladen: Merker im Fenster bleibt, Bereich bleibt
     await page.evaluate(() => (window.__kept = true));
     await page.click("#line");
+    // die Liste ist wirklich sichtbar (nicht abgeschnitten), die Kopfzeile bleibt stehen
+    const seen = await page.evaluate(() => {
+      const item = document.querySelector("#line-menu [role=menuitem]");
+      const r = item.getBoundingClientRect();
+      return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)?.closest("[role=menuitem]") === item && document.getElementById("project").getBoundingClientRect().y >= 0;
+    });
+    assert.ok(seen, "Liste der Linien verdeckt oder Kopfzeile verschoben");
     await page.click("#line-menu [role=menuitem]:has-text('Haus B')");
     await page.waitForFunction(() => document.querySelector("#line b")?.textContent === "Haus B");
     assert.ok(await page.evaluate(() => window.__kept), "Seite wurde neu geladen");

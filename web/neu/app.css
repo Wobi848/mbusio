@@ -137,7 +137,8 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .op.on { background: var(--ok-soft); }
 .op.on #op-text { color: var(--ok); }
 .top > .op, .top > .conn { flex: 0 1 auto; min-width: 0; }
-#op-text, #conn-state, .path, .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* .path nicht abschneiden: darin klappt die Liste der Linien auf; Auswahl und Linienknopf kürzen sich selbst */
+#op-text, #conn-state, .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 #conn-state > *, #line > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #line { max-width: 260px; }
 /* Chips (Auffälligkeiten, Ausgänge) haben Vorrang; eine lange Meldung am Bus kürzt sich */
