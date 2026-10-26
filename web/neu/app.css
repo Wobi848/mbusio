@@ -177,7 +177,7 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .menu .group.warn { color: var(--warn); text-transform: none; letter-spacing: 0; font-size: 12px; }
 .menu.form { display: grid; gap: 8px; padding: 10px; min-width: 320px; }
 .menu .row { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 8px; }
-.menu .row.end { display: flex; justify-content: flex-end; }
+.menu .row.end { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 
 .ask {
   position: fixed; z-index: 40; display: flex; align-items: center; gap: 8px; max-width: 520px;

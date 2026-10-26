@@ -61,5 +61,12 @@ export default {
     await scanDone(page);
     await page.waitForSelector("[data-merge]");
     assert.ok(!(await page.$("[data-fix]")), "nach dem Beheben noch etwas zu beheben");
+
+    // Baudraten prüfen: während der Prüfung sichtbar (läuft, Sekunden), Knopf gesperrt
+    await page.click("[data-baud-btn]");
+    await page.click("[data-baud-check]");
+    assert.ok(await page.isDisabled("[data-baud-check]"));
+    assert.match(await page.textContent("[data-baud-result]"), /Prüft alle Baudraten/);
+    await page.waitForFunction(() => /Antworten auf/.test(document.querySelector("[data-baud-result]")?.textContent), null, { timeout: 60000 });
   },
 };

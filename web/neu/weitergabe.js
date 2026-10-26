@@ -176,14 +176,15 @@ function renderOutputs() {
           const [cls, word, info] = outputState(o.key);
           const on = !!o.on;
           const has = points().some((p) => p.outputs[o.key]?.address);
+          // Einstellungen gleich beim Zustand: gehört zu diesem Ausgang, nicht an den Rand
           return `<div class="out${view.output === o.key ? " active" : ""}">
           <label class="out-switch"><input type="checkbox" class="switch" data-out-toggle="${o.key}"${on ? " checked" : ""}><b>${esc(o.label)}</b></label>
-          <span class="chip ${cls}">${esc(word)}</span><span class="sub cut" title="${esc(info)}">${esc(info)}</span>
-          <span class="grow"></span>
-          ${has && projectId() ? `<button type="button" class="quiet" data-readdress="${o.key}">${esc(t("out_readdress", o.address_label))}</button>
+          <span class="chip ${cls}">${esc(word)}</span>
+          <button type="button" class="quiet" data-out-settings="${o.key}">${esc(t("wg_settings"))}</button>
+          <span class="sub cut" title="${esc(info)}">${esc(info)}</span>
+          ${has && projectId() ? `<span class="out-more"><button type="button" class="quiet" data-readdress="${o.key}">${esc(t("out_readdress", o.address_label))}</button>
             <a class="quiet" href="${apiHref(`projects/${projectId()}/outputs/${o.key}/list?format=csv`)}" title="${esc(t("out_list", o.address_label))}">CSV</a>
-            <a class="quiet" href="${apiHref(`projects/${projectId()}/outputs/${o.key}/list?format=json`)}" title="${esc(t("out_list", o.address_label))}">JSON</a>` : ""}
-          <button type="button" class="tonal" data-out-settings="${o.key}">${esc(t("wg_settings"))}</button>
+            <a class="quiet" href="${apiHref(`projects/${projectId()}/outputs/${o.key}/list?format=json`)}" title="${esc(t("out_list", o.address_label))}">JSON</a></span>` : ""}
         </div>`;
         })
         .join("")

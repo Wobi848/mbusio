@@ -24,6 +24,7 @@ texts(
     sc_pick: "Treffer in der Liste wählen (↑↓): hier stehen Ursache, Abhilfe und Werte.",
     sc_baud_menu: (b) => `Baudrate ${b}`,
     sc_baud_check: "Prüfen, welche antworten",
+    sc_baud_checking: (s, est) => `Prüft alle Baudraten … ${s} s von etwa ${est} s`,
     sc_baud_found: (list) => (list.length ? `Antworten auf ${list.join(", ")} Bd` : "Auf keiner Baudrate kommt eine Antwort"),
     sc_from_to: "Adressen",
     sc_running: (d, n, k) => `${d}/${n} · ${k} gefunden`,
@@ -55,6 +56,7 @@ texts(
     sc_pick: "Pick a hit in the list (↑↓) to see cause, remedy and values here.",
     sc_baud_menu: (b) => `Baud rate ${b}`,
     sc_baud_check: "Check which respond",
+    sc_baud_checking: (s, est) => `Checking all baud rates … ${s} s of about ${est} s`,
     sc_baud_found: (list) => (list.length ? `Answers on ${list.join(", ")} Bd` : "No answer on any baud rate"),
     sc_from_to: "Addresses",
     sc_running: (d, n, k) => `${d}/${n} · ${k} found`,
@@ -513,21 +515,41 @@ function fillBaudMenu() {
   html(
     m,
     `<div class="bauds">${BAUDS.map((b) => `<label class="baud"><input type="checkbox" data-baud value="${b}"${on.has(b) ? " checked" : ""}>${b}</label>`).join("")}</div>
-    <div class="row end"><span class="sub" data-baud-result>${view.baudCheck ? esc(t("sc_baud_found", view.baudCheck)) : ""}</span><button type="button" class="tonal" data-baud-check>${esc(t("sc_baud_check"))}</button></div>`
+    <div class="row end"><span class="sub" data-baud-result></span><button type="button" class="tonal" data-baud-check>${esc(t("sc_baud_check"))}</button></div>`
   );
+  showBaudCheck();
+}
+
+let baudChecking = null; // { start, est } während der Prüfung
+
+/// Zustand der Prüfung im Menü: läuft (Punkt, Sekunden von geschätzten), sonst das Ergebnis
+function showBaudCheck() {
+  const out = q("[data-baud-result]");
+  const go = q("[data-baud-check]");
+  if (!out) return;
+  go.disabled = !!baudChecking;
+  if (!baudChecking) return text(out, view.baudCheck ? t("sc_baud_found", view.baudCheck) : "");
+  const s = Math.round((Date.now() - baudChecking.start) / 1000);
+  html(out, `<span class="dot busy"></span> ${esc(t("sc_baud_checking", s, baudChecking.est))}`);
 }
 
 /// Welche Baudraten antworten? Ergebnis gleich als Auswahl übernehmen
 async function checkBauds() {
-  const out = q("[data-baud-result]");
-  text(out, "…");
+  // je Baudrate zwei Abfragen (Antwort auf Adresse 254, Selektion mit Platzhalter)
+  const est = Math.max(1, Math.round(scanLogic.duration({ from: 0, to: 1, retries: 0, bauds: BAUDS, conn: state.status.connection })));
+  baudChecking = { start: Date.now(), est };
+  showBaudCheck();
+  const tick = setInterval(showBaudCheck, 1000);
   try {
     const r = await request("bus-bauds", { method: "POST", body: { bauds: [] } });
     view.baudCheck = r.bauds;
     if (r.bauds.length) view.bauds = r.bauds;
-    fillBaudMenu();
   } catch (e) {
     report(e);
+  } finally {
+    clearInterval(tick);
+    baudChecking = null;
   }
+  fillBaudMenu();
   render();
 }
