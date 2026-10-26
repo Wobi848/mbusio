@@ -39,6 +39,7 @@ function projectDetail(p) {
     </div>
     <p class="sub">${esc(t("thin_hint"))}</p>
     <div class="actions">
+      <button type="button" class="tonal" data-billing>${esc(t("an_billing"))} …</button>
       <span class="grow"></span>
       <button type="button" class="quiet danger-text" data-clear>${esc(t("project_clear"))}</button>
       <button type="button" class="quiet danger-text" data-delete="project">${esc(t("project_delete"))}</button>

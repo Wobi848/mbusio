@@ -97,6 +97,52 @@ impl Db {
         Ok(self.query_readings("meter", meter_id, 1)?.pop())
     }
 
+    /// Auslesungen eines Zählers vor `time` (Ortszeit wie `timestamp`), neueste zuerst
+    pub fn meter_readings_before(
+        &self,
+        meter_id: i64,
+        time: &str,
+        limit: usize,
+    ) -> Result<Vec<MeterReading>> {
+        self.meter_readings_where(
+            "timestamp < ?2 ORDER BY timestamp DESC",
+            meter_id,
+            time,
+            limit,
+        )
+    }
+
+    /// Auslesungen eines Zählers ab `time`, älteste zuerst
+    pub fn meter_readings_from(
+        &self,
+        meter_id: i64,
+        time: &str,
+        limit: usize,
+    ) -> Result<Vec<MeterReading>> {
+        self.meter_readings_where("timestamp >= ?2 ORDER BY timestamp", meter_id, time, limit)
+    }
+
+    fn meter_readings_where(
+        &self,
+        cond: &str,
+        meter_id: i64,
+        time: &str,
+        limit: usize,
+    ) -> Result<Vec<MeterReading>> {
+        let mut st = self.conn.prepare(&format!(
+            "SELECT id, data, raw, timestamp, utc, target, time_unsure FROM readings
+             WHERE meter = ?1 AND {cond} LIMIT ?3"
+        ))?;
+        let rows = st.query_map(params![meter_id, time, limit as i64], reading_row)?;
+        let mut out = Vec::new();
+        for row in rows {
+            if let Some(r) = row?.into_reading() {
+                out.push(r);
+            }
+        }
+        Ok(out)
+    }
+
     /// Mehrere Änderungen ganz oder gar nicht (auch bei Stromausfall)
     pub fn tx<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
         self.conn.execute_batch("BEGIN IMMEDIATE")?;
@@ -170,7 +216,7 @@ impl Db {
     /// Auslesung, je aktivem Datenpunkt ein Wert, je eingeschaltetem Ausgang ein Eintrag im
     /// Protokoll der Weitergabe (Grössen gemessen, Konzept Export „Langzeitspeicher“)
     pub fn growth_per_day(&self) -> Result<u64> {
-        const READING: f64 = 340.0;
+        const READING: f64 = 370.0;
         const VALUE: f64 = 70.0;
         const LOGGED: f64 = 200.0;
         let mut st = self.conn.prepare(

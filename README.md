@@ -187,8 +187,16 @@ Mehrfachauswahl. Werte wählt man im Bereich Zähler beim Zähler an.
 - Bericht je Projekt mit Kunde, Objekt, Bearbeiter, allen Linien und Zählern, optional mit allen
   Messwerten, offenen Auffälligkeiten (ausblendbar) und durchgeführten Änderungen; drucken oder
   als PDF speichern
-- Export der Messwerte als CSV (Semikolon, Excel) oder JSON; Projekte als Datei exportieren und
-  importieren (z.B. vom PC auf den Raspberry Pi)
+- **Abrechnung exportieren** (Anlage → Projekt): Zählerstände zum Stichtag je Zähler als CSV für
+  Excel, eine Zeile je Zähler und Wert mit Stand Anfang, Stand Ende und Verbrauch, oder als
+  Zeitreihe (Stand je Tag oder Monatsende). Vorgaben: Vormonat, Hauptwert je Zähler; Zeitraum,
+  weitere Werte und Dezimalzeichen einstellbar, je Projekt gespeichert, mit Vorschau. Die Werte
+  kommen aus den gespeicherten Auslesungen, also auch rückwirkend für Werte, die nie als Datenpunkt
+  gewählt waren. Stand am Stichtag: der Stichtagswert, den der Zähler selbst gespeichert hat, sonst
+  die letzte Auslesung davor; die Quelle steht daneben, Fehlendes und unsichere Uhrzeit als Hinweis.
+  Ein Zählertausch im Zeitraum wird verrechnet
+- Export der Messwerte als CSV (Semikolon, Excel) oder JSON; Projekte als Datei sichern
+  („Projekt sichern“) und importieren (z.B. vom PC auf den Raspberry Pi)
 - Telegramm-Log; jede TX/RX-Zeile anklicken erklärt das Telegramm Byte für Byte
 
 ### Allgemein
@@ -293,7 +301,7 @@ Dann im Handy- oder Laptop-Browser `http://<IP des Pi>:8080` öffnen.
 
 Alle Projekte, Zählerlisten, Auslesungen (mit Verlauf), letzten Scans und Änderungen liegen in
 **einer Datei** `mbusio.db` (SQLite). Zum Sichern mbusio beenden und die Datei kopieren, oder ein
-Projekt über „Exportieren“ als JSON-Datei sichern. Eine `meters.json` aus Version 0.3 wird beim
+Projekt über „Projekt sichern“ als JSON-Datei sichern. Eine `meters.json` aus Version 0.3 wird beim
 ersten Start ins Projekt „Standard“ übernommen.
 
 ### Kommandozeile

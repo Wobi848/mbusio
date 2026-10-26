@@ -20,6 +20,12 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   (Zeitplan, MQTT, Modbus, Uhrzeit, Linie getrennt) waren immer deutsch; jetzt folgen sie der
   Sprache der Oberfläche, Einträge im Protokoll auch nach einem Sprachwechsel. Die Sprache bleibt
   über einen Neustart gespeichert.
+- **Abrechnung exportieren** (Anlage → Projekt): Zählerstände zum Stichtag je Zähler und Wert als
+  CSV für Excel (Anfang, Ende, Verbrauch) oder als Zeitreihe; Vorgaben Vormonat und Hauptwert,
+  Zeitraum, weitere Werte und Dezimalzeichen einstellbar und je Projekt gespeichert, mit Vorschau.
+  Rückwirkend aus den gespeicherten Auslesungen; Stichtagswert des Zählers vor der letzten
+  Auslesung; Quelle, Fehlendes und unsichere Uhrzeit stehen dabei; Zählertausch verrechnet.
+  Der bisherige Knopf „Exportieren“ (Projekt als Datei) heisst „Projekt sichern“.
 - **Speicher-Vorschau:** im Zustand der Anlage, wie lange der Platz beim heutigen Plan reicht
   („81 % frei · reicht ca. 12 Jahre“, Zuwachs je Tag im Tooltip); unter 90 Tagen als Hinweis.
 - **Weitergabe-Protokoll:** was an MQTT ging, was wartet und was verworfen wurde (Broker zu

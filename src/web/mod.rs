@@ -28,6 +28,7 @@ use crate::mbus::master::{
 use crate::scheduler::Planner;
 
 mod api;
+mod billing;
 mod bus;
 mod datapoints;
 mod meters;
@@ -44,8 +45,8 @@ use self::api::*;
 pub use self::state::{AppState, JobStatus, Shared};
 pub use self::tools::parse_hex;
 use self::{
-    bus::*, datapoints::*, meters::*, nodered::*, outputs::*, projects::*, scan::*, schedule::*,
-    simulator::*, tools::*,
+    billing::*, bus::*, datapoints::*, meters::*, nodered::*, outputs::*, projects::*, scan::*,
+    schedule::*, simulator::*, tools::*,
 };
 
 #[derive(RustEmbed)]
@@ -95,6 +96,11 @@ pub fn router(state: AppState) -> Router {
             put(project_update).delete(project_delete),
         )
         .route("/api/projects/{id}/export", get(project_export))
+        .route(
+            "/api/projects/{id}/billing",
+            get(billing_get).put(billing_put),
+        )
+        .route("/api/projects/{id}/billing/csv", get(billing_csv))
         .route("/api/projects/{id}/clear", post(project_clear))
         .route(
             "/api/projects/{id}/changes",

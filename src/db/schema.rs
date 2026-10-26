@@ -153,6 +153,10 @@ impl Db {
             )?;
         }
         self.conn.execute_batch(crate::datapoint::SCHEMA)?;
+        // Stand eines Zählers zu einem Zeitpunkt (Export für die Abrechnung)
+        self.conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS readings_meter_time ON readings(meter, timestamp)",
+        )?;
         if has(&self.conn, "mqtt_queue", "id")? && !has(&self.conn, "mqtt_queue", "abs")? {
             // Home Assistant: Topics ausserhalb des Basis-Topics
             self.conn.execute_batch(

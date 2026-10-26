@@ -29,14 +29,15 @@ a { color: var(--accent); }
 
 /* ---------------------------------------------------------------- Bedienelemente */
 
-button, select, input, .field {
+button, select, input, .field, a.button {
   font: inherit;
   height: 28px;
   border-radius: 6px;
   color: inherit;
 }
 
-button, a.quiet {
+/* a.button: ein Link (Download), der wie der Hauptknopf aussieht */
+button, a.quiet, a.button {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 0 10px;
   border: 1px solid var(--accent);

@@ -203,4 +203,15 @@ der Warteschlange, „wartet“ aus der Warteschlange; Modbus je Leitsystem letz
 Datenpunkt aus vorgefiltert. Tests: Rust `out_log_shows_waiting_sent_and_dropped`, Browser
 `17-protokoll`, Modbus und MQTT ergänzt.
 
-**Nächster Schritt:** Export von Hand (3.1–3.4).
+**Schritt 2 umgesetzt (26.10.2026):** `src/billing/` (mod: Einstellungen je Projekt in
+`meta`, Zeitraum, Werte zur Auswahl; stand: Stand am Ende eines Tages und Zählertausch; table:
+Abrechnung und Zeitreihe als Tabelle, daraus CSV und Vorschau), Index `readings(meter, timestamp)`,
+`GET/PUT /api/projects/{id}/billing`, `…/billing/csv`, Anlage → Projekt → „Abrechnung exportieren“
+(`anlage-abrechnung.js`), „Exportieren“ heisst „Projekt sichern“. Abweichend von 3.2: fehlt eine
+Auslesung vor dem Anfang, gilt die erste im Zeitraum (Quelle „erste Auslesung danach“), damit
+neu aufgenommene Zähler nicht leer bleiben. Dezimalzeichen einstellbar, weil Excel in Deutschland
+ein Komma, in der Schweiz einen Punkt erwartet. Zählertausch: alt und neu über die ID im Telegramm,
+weil der neue Zähler vor dem Eintrag des Tauschs gelesen wird. Noch nicht: einzelne Linien wählen,
+Hinweis „gestört im Zeitraum“. Tests: Rust `billing::tests` (5), Browser `18-abrechnung`.
+
+**Nächster Schritt:** automatisch (3.5).

@@ -1,3 +1,4 @@
+mod billing;
 mod changeset;
 mod cli;
 mod clock;

@@ -56,6 +56,9 @@ const MORE = {
     await step("[data-log-back]");
   },
   anlage: async (page, step) => {
+    await step("section[data-area=anlage] [role=option] >> nth=0");
+    await step("[data-billing]");
+    await step("[data-billing-close]");
     for (const i of [1, 2]) await step(`section[data-area=anlage] [role=option] >> nth=${i}`);
   },
 };

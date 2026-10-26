@@ -336,7 +336,7 @@ fn growth_per_day_follows_plan_and_operation() {
         "ohne Dauerbetrieb liest niemand"
     );
     db.operation_on(line);
-    assert_eq!(db.growth_per_day().unwrap(), 24 * (340 + 70));
+    assert_eq!(db.growth_per_day().unwrap(), 24 * (370 + 70));
     // Zähler aus dem Plan: nichts
     db.set_meter_plan(mid, Some("off")).unwrap();
     assert_eq!(db.growth_per_day().unwrap(), 0);
