@@ -161,6 +161,21 @@ Werte“ bei der Abrechnung, der erste offen):
 | | Häufigkeit, Uhrzeit, Wochentag | täglich, 07:00, Montag |
 | | Teile: Auslesung, Weitergabe, Probleme, Abrechnung, Speicher | alle |
 
+**Betreff** je Art der Mail einstellbar, mit Platzhaltern; leer = Vorgabe; unter dem Feld eine
+Vorschau („→ Abrechnung Müllerstrasse 09/2026“):
+
+| Mail | wo | Vorgabe |
+|---|---|---|
+| Abrechnung | je Projekt (Abrechnung → Versand) | `Abrechnung {projekt} {zeitraum}` |
+| Warnung | Ausgang E-Mail → Warnungen | `mbusio {geraet}: {anzahl} neue Probleme` |
+| Bericht | Ausgang E-Mail → Bericht | `mbusio {geraet}: Bericht {datum}` |
+| Testmail | fest | `mbusio: Testmail` |
+
+Platzhalter: `{projekt}`, `{zeitraum}` (09/2026, Q3/2026, H2/2026, 2026 oder von–bis), `{von}`,
+`{bis}`, `{geraet}`, `{anzahl}`, `{datum}`. **Gerätename** (Abschnitt Server, Vorgabe: Name des
+Rechners) unterscheidet mehrere Geräte im Posteingang. Unbekannte Platzhalter bleiben stehen,
+damit man den Tippfehler sieht. Zeilenumbrüche werden entfernt (Kopfzeile).
+
 Bei der **Abrechnung** (je Projekt) bleibt einstellbar, was es heute gibt (Zeitraum, Form, Werte,
 Linien, Dezimalzeichen, automatisch, E-Mail an), dazu neu: **warten auf Auslesung höchstens**
 (Vorgabe 2 Tage, heute fest).
