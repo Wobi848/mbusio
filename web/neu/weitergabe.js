@@ -2,70 +2,12 @@
 // Datenpunkte als Liste, Details rechts (Konzept neue Oberfläche §3.2, Schritt 4).
 
 import { state, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, texts, previewApply, menu, outputWord } from "./view.js";
+import { html, text, list, ask, toast, styles, previewApply, menu } from "./view.js";
 import { onEscape } from "./keys.js";
 import { loadTree, report } from "./data.js";
+import "./weitergabe-texte.js";
+import { outputsHtml, outputFormHtml, formValues } from "./weitergabe-ausgaenge.js";
 
-texts(
-  {
-    wg_outputs: "Ausgänge",
-    wg_mqtt_info: (broker, sent, queued) => `${broker} · ${sent} gesendet · ${queued} wartend`,
-    wg_modbus_info: (listen, clients) => `hört auf ${listen} · ${clients} Leitsystem${clients === 1 ? "" : "e"}`,
-    wg_settings: "Einstellungen",
-    wg_save: "Speichern",
-    wg_need_host: "Zuerst die Broker-Adresse eintragen",
-    wg_off_q: (o) => `${o} ausschalten? Es wird dann nichts mehr an das Leitsystem weitergegeben.`,
-    wg_col_no: "Nr",
-    wg_col_name: "Datenpunkt",
-    wg_col_quality: "Qualität",
-    wg_col_out: "Ausgänge",
-    wg_col_send: "Senden",
-    wg_none: "Noch keine Datenpunkte. Werte wählt man bei den Zählern (Kästchen „als Datenpunkt“).",
-    wg_to_meters: "Zu den Zählern",
-    wg_problems: "Probleme",
-    wg_pick: "Datenpunkt in der Liste wählen (↑↓) oder einen Ausgang einstellen.",
-    wg_factor: "Faktor",
-    wg_shift: "Verschiebung",
-    wg_active: "aktiv",
-    wg_inactive: "inaktiv",
-    wg_import: "CSV importieren",
-    wg_templates: (n) => `Vorlagen (${n})`,
-    wg_tpl_del_q: (x) => `Vorlage „${x}“ löschen? Bestehende Datenpunkte bleiben.`,
-    wg_delete_q: (n) => `${n} Datenpunkt${n === 1 ? "" : "e"} löschen? Ihre Werte werden nicht mehr weitergegeben.`,
-    wg_out_on: (o) => `${o} ein`,
-    wg_out_off: (o) => `${o} aus`,
-    wg_send_set: "Senden …",
-  },
-  {
-    wg_outputs: "Outputs",
-    wg_mqtt_info: (broker, sent, queued) => `${broker} · ${sent} sent · ${queued} waiting`,
-    wg_modbus_info: (listen, clients) => `listening on ${listen} · ${clients} control system${clients === 1 ? "" : "s"}`,
-    wg_settings: "Settings",
-    wg_save: "Save",
-    wg_need_host: "Enter the broker address first",
-    wg_off_q: (o) => `Switch off ${o}? Nothing is passed on to the control system any more.`,
-    wg_col_no: "No",
-    wg_col_name: "Datapoint",
-    wg_col_quality: "Quality",
-    wg_col_out: "Outputs",
-    wg_col_send: "Send",
-    wg_none: "No datapoints yet. Values are chosen at the meters (box “as datapoint”).",
-    wg_to_meters: "Go to meters",
-    wg_problems: "Problems",
-    wg_pick: "Pick a datapoint in the list (↑↓) or set up an output.",
-    wg_factor: "Factor",
-    wg_shift: "Offset",
-    wg_active: "active",
-    wg_inactive: "inactive",
-    wg_import: "Import CSV",
-    wg_templates: (n) => `Templates (${n})`,
-    wg_tpl_del_q: (x) => `Delete template “${x}”? Existing datapoints stay.`,
-    wg_delete_q: (n) => `Delete ${n} datapoint${n === 1 ? "" : "s"}? Their values are no longer passed on.`,
-    wg_out_on: (o) => `${o} on`,
-    wg_out_off: (o) => `${o} off`,
-    wg_send_set: "Send …",
-  }
-);
 
 const SEND = ["every", "change", "daily"];
 const QUALITY = { good: "ok", stale: "warn", disturbed: "err", invalid: "err", none: "" };
@@ -145,47 +87,7 @@ function shown() {
 
 // ------------------------------------------------------------ Ausgänge
 
-/// Zustand eines Ausgangs aus /api/status: [farbe, wort, satz]
-function outputState(key) {
-  const s = state.status?.[key];
-  const [cls, word] = outputWord(s?.state);
-  const info =
-    !s || s.state === "off"
-      ? ""
-      : s.state === "connected"
-        ? t("wg_mqtt_info", s.broker, s.sent, s.queued)
-        : s.state === "listening"
-          ? t("wg_modbus_info", s.listen, s.clients)
-          : s.state === "connecting"
-            ? s.broker || ""
-            : s.error || "";
-  return [cls, word, info];
-}
-
-function renderOutputs() {
-  const outs = data?.outputs || [];
-  html(
-    q("[data-outputs]"),
-    `<span class="eyebrow">${esc(t("wg_outputs"))}</span>` +
-      outs
-        .map((o) => {
-          const [cls, word, info] = outputState(o.key);
-          const on = !!o.on;
-          const has = points().some((p) => p.outputs[o.key]?.address);
-          // Einstellungen gleich beim Zustand: gehört zu diesem Ausgang, nicht an den Rand
-          return `<div class="out${view.output === o.key ? " active" : ""}">
-          <label class="out-switch"><input type="checkbox" class="switch" data-out-toggle="${o.key}"${on ? " checked" : ""}><b>${esc(o.label)}</b></label>
-          <span class="chip ${cls}">${esc(word)}</span>
-          <button type="button" class="quiet" data-out-settings="${o.key}">${esc(t("wg_settings"))}</button>
-          <span class="sub cut" title="${esc(info)}">${esc(info)}</span>
-          ${has && projectId() ? `<span class="out-more"><button type="button" class="quiet" data-readdress="${o.key}">${esc(t("out_readdress", o.address_label))}</button>
-            <a class="quiet" href="${apiHref(`projects/${projectId()}/outputs/${o.key}/list?format=csv`)}" title="${esc(t("out_list", o.address_label))}">CSV</a>
-            <a class="quiet" href="${apiHref(`projects/${projectId()}/outputs/${o.key}/list?format=json`)}" title="${esc(t("out_list", o.address_label))}">JSON</a></span>` : ""}
-        </div>`;
-        })
-        .join("")
-  );
-}
+// ------------------------------------------------------------ Ausgänge
 
 async function toggleOutput(input) {
   const key = input.dataset.outToggle;
@@ -215,65 +117,9 @@ function openOutput(key, enable = false) {
   render();
 }
 
-/// Felder eines Ausgangs: [name, beschriftung, art, extra]
-function outputFields(key) {
-  if (key === "mqtt") {
-    const base = (cfg.mqtt.config.base || "mbusio").replace(/\/+$/, "");
-    return [
-      ["host", t("mqtt_host"), "text", { ph: "192.168.1.10", mono: true }],
-      ["port", t("mqtt_port"), "number", { mono: true }],
-      ["tls", "TLS", "check"],
-      ["insecure", t("mqtt_insecure"), "check"],
-      ["username", t("mqtt_user"), "text"],
-      ["password", t("mqtt_password"), "password", { ph: cfg.mqtt.has_password ? t("mqtt_pass_saved") : "" }],
-      ["client_id", t("mqtt_client"), "text", { ph: "mbusio-…", mono: true }],
-      ["base", t("mqtt_base"), "text", { ph: "mbusio", mono: true }],
-      ["topic", t("mqtt_topic"), "text", { ph: "{projekt}/{gateway}-{linie}/{zaehler}/{wert}", mono: true, hint: t("mqtt_topic_hint") }],
-      ["time_sync", t("mqtt_time", base + "/time"), "check"],
-      ["ca", t("mqtt_ca"), "textarea", { ph: "-----BEGIN CERTIFICATE-----", mono: true }],
-      ["ha", t("mqtt_ha"), "check"],
-      ["ha_prefix", t("mqtt_ha_prefix"), "text", { ph: "homeassistant", mono: true, hint: t("mqtt_ha_hint") }],
-    ];
-  }
-  return [
-    ["bind", t("modbus_bind"), "text", { ph: "0.0.0.0", mono: true, hint: t("modbus_bind_hint") }],
-    ["port", t("modbus_port"), "number", { mono: true, hint: t("modbus_port_hint") }],
-    ["project", t("modbus_project"), "select", { options: [[0, t("modbus_project_active")], ...cfg.modbus.projects.map((p) => [p.id, p.name])] }],
-    ["swap_words", t("modbus_words"), "select", { options: [[false, t("modbus_words_abcd")], [true, t("modbus_words_cdab")]] }],
-  ];
-}
-
-function fieldHtml([name, label_, kind, x = {}], value) {
-  const cls = x.mono ? ' class="mono"' : "";
-  const ph = x.ph ? ` placeholder="${esc(x.ph)}"` : "";
-  const input =
-    kind === "check"
-      ? `<input type="checkbox" name="${name}"${value ? " checked" : ""}>`
-      : kind === "select"
-        ? `<select name="${name}">${x.options.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(value) ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`
-        : kind === "textarea"
-          ? `<textarea name="${name}" rows="3"${cls}${ph}>${esc(value ?? "")}</textarea>`
-          : `<input type="${kind}" name="${name}" value="${kind === "password" ? "" : esc(value ?? "")}"${cls}${ph}>`;
-  return `<label${kind === "check" ? ' class="check"' : ""}><span>${esc(label_)}</span>${input}</label>${x.hint ? `<p class="sub hint">${esc(x.hint)}</p>` : ""}`;
-}
-
-function outputForm(key) {
-  const c = key === "mqtt" ? cfg.mqtt.config : cfg.modbus.config;
-  const label_ = data.outputs.find((o) => o.key === key)?.label || key;
-  return `<button type="button" class="quiet back" data-back>← ${esc(t("tab_transfer"))}</button>
-    <header class="dhead"><b>${esc(label_)} · ${esc(t("wg_settings"))}</b></header>
-    <form class="fields" data-out-form="${key}">${outputFields(key).map((f) => fieldHtml(f, c[f[0]])).join("")}
-      <div class="actions"><button type="submit">${esc(t("wg_save"))}</button><button type="button" class="quiet" data-back>${esc(t("cancel"))}</button></div>
-    </form>`;
-}
-
 async function saveOutput(form) {
   const key = form.dataset.outForm;
-  const values = view.enableOnSave ? { enabled: true } : {};
-  for (const [name, , kind] of outputFields(key)) {
-    const el = form.elements[name];
-    values[name] = kind === "check" ? el.checked : kind === "number" ? Number(el.value) || 0 : el.value;
-  }
+  const values = { ...formValues(key, cfg, form), ...(view.enableOnSave ? { enabled: true } : {}) };
   try {
     if (key === "mqtt") {
       const { password, ...rest } = values;
@@ -293,7 +139,10 @@ async function saveOutput(form) {
 
 function render() {
   if (!root || !data) return;
-  renderOutputs();
+  html(
+    q("[data-outputs]"),
+    outputsHtml(data.outputs || [], { status: state.status, active: view.output, hasAddress: (k) => points().some((p) => p.outputs[k]?.address), projectId: projectId() })
+  );
   html(q("[data-scope]"), ["line", "project"].map((s) => `<button type="button" data-scope-set="${s}" aria-pressed="${view.scope === s}">${esc(t("tr_scope_" + s))}</button>`).join(""));
   const bad = points().filter((p) => p.quality !== "good" && p.quality !== "none").length;
   const pb = q("[data-problems]");
@@ -341,7 +190,7 @@ function renderDetail() {
   if (typing && box.dataset.shown === key) return;
   box.dataset.shown = key;
   box.classList.toggle("open", !!(view.output || view.active));
-  if (view.output) return html(box, outputForm(view.output));
+  if (view.output) return html(box, outputFormHtml(view.output, cfg, data.outputs.find((o) => o.key === view.output)?.label || view.output));
   const p = byId(view.active);
   if (!p) return html(box, `<p class="sub">${esc(t("wg_pick"))}</p>`);
   html(
