@@ -418,10 +418,12 @@ Aufbau:
   Protokoll entstehen mit `both` in beiden Sprachen und erscheinen in der Sprache, die fragt; alle
   Texte der Oberfläche und des Berichts in `web/js/texts.js` bzw. beim Bereich
 - `web/index.html` und `web/neu/`: Oberfläche als ES-Module ohne Build-Schritt (Konzept
-  `docs/konzept-oberflaeche-neu.md`): `app.js` (Kopfzeile, Laschen, Statusleiste, Nächster Schritt),
-  `store.js` (Zustand), `view.js` (Bausteine: Liste mit Schlüssel, Rückfrage am Ort, Rückgängig,
-  Vorschau → Übernehmen), `keys.js` (Tastatur), `data.js` (Laden), dann je Bereich `<bereich>.js` mit
-  `<bereich>.css` (scan, zaehler, weitergabe, anlage, werkzeuge, simulator), Texte des Bereichs bei sich
+  `docs/konzept-oberflaeche-neu.md`): `app.js` (Start, Laschen, Einstellungen),
+  `app-kopf.js` und `app-statusleiste.js`, `store.js` (Zustand), `view.js` (Bausteine: Liste mit
+  Schlüssel, Rückfrage am Ort, Rückgängig, Vorschau → Übernehmen), `keys.js` (Tastatur), `data.js`
+  (Laden), `buslog.js` (Protokoll), dann je Bereich `<bereich>.js` mit `<bereich>.css` (scan,
+  zaehler, weitergabe, anlage, werkzeuge, simulator), daneben `<bereich>-texte.js` und abgegrenzte
+  Teile (z.B. `zaehler-verlauf.js`)
 - `web/js/`: gemeinsam für Oberfläche und Bericht (`report.html`): `base.js` (Speicher, Sprache, API,
   Zugriffsschlüssel), `texts.js`, `icons.js`, `theme.js`, `scanlogic.js`, `listlogic.js`, `plot.js`;
   `web/css/`: `tokens.css` (Farben, Schrift), `meter.css`, `plot.css`
