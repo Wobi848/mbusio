@@ -3,7 +3,7 @@
 // Gemeinsam mit dem Bericht: js/texts.js (t, UI) und js/base.js (request, esc, …).
 
 import { state, set, watch, activeLine } from "./store.js";
-import { text, menu, closeMenu } from "./view.js";
+import { text, menu, closeMenu, toast } from "./view.js";
 import { bind, keyList, onEscape } from "./keys.js";
 import { loadStatus, loadTree, reload, report } from "./data.js";
 import { startKopf } from "./app-kopf.js";
@@ -33,7 +33,31 @@ menu($("settings"), $("settings-menu"), {
   onOpen: () => {
     $("lang").value = lang;
     $("theme").value = themeChoice;
+    loadStorage();
   },
+});
+
+/// Speicherschutz (Gerät): beim Öffnen laden, jede Änderung gleich speichern
+async function loadStorage() {
+  const box = $("storage");
+  try {
+    const s = await request("storage");
+    box.elements.protect.checked = s.protect;
+    box.elements.first_days.value = s.first_days;
+    box.elements.second_days.value = s.second_days;
+  } catch (e) {
+    report(e);
+  }
+}
+$("storage").addEventListener("change", async () => {
+  const f = $("storage").elements;
+  try {
+    await request("storage", { method: "PUT", body: { protect: f.protect.checked, first_days: Number(f.first_days.value), second_days: Number(f.second_days.value) } });
+    toast(t("st_saved"));
+  } catch (e) {
+    report(e);
+    loadStorage();
+  }
 });
 $("lang").addEventListener("change", (ev) => {
   lang = ev.target.value;

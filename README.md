@@ -94,9 +94,11 @@ Schritt ist immer genau ein Knopf (siehe [docs/konzept-oberflaeche-neu.md](docs/
 - **Speicherung:** geplante Auslesungen nur als Rohtelegramm (rund 100–250 Byte statt ~2 KB),
   decodiert wird beim Anzeigen; Zeitstempel zusätzlich in UTC. Messwerte werden nie von selbst
   gelöscht; optional je Projekt „Verlauf: nach 30/90/365 Tagen nur 1 Wert pro Tag“
-- **Speicherschutz:** wird der Platz knapp, warnt der Zustand der Anlage; ist er fast voll, werden keine
-  neuen Auslesungen mehr gespeichert (Zählerliste und Anzeige laufen weiter), damit Datenbank und
-  Gerät bedienbar bleiben
+- **Speicherschutz** (Einstellungen ⚙, Vorgabe an): wird der Platz knapp, dünnt mbusio selbst aus,
+  zuerst Auslesungen älter als 365 Tage, wenn nötig älter als 90 Tage, auf eine je Zähler und Tag
+  (die letzte, also der Stand am Tagesende, den die Abrechnung braucht), und gibt den Platz der
+  Datenbank frei. Ist er trotzdem fast voll, werden keine neuen Auslesungen mehr gespeichert
+  (Zählerliste und Anzeige laufen weiter), damit Datenbank und Gerät intakt bleiben
 - Die Datenbank übersteht Absturz und Stromausfall (SQLite WAL, Transaktionen); nach dem Neustart
   geht es von selbst weiter
 - Konzept und nächste Schritte (MQTT, Modbus):

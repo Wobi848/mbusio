@@ -43,6 +43,13 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   geht als Anhang raus; je Datei steht „gesendet“ oder „nicht gesendet“ mit Grund und „Senden“.
   Fehlgeschlagene werden 7 Tage lang alle 15 Minuten erneut versucht, ins Protokoll kommt nur der
   erste Fehler, ein neuer Grund und der Erfolg.
+- **Speicherschutz dünnt selbst aus:** wird der Speicher knapp, behält mbusio von Auslesungen
+  älter als 365 Tage (reicht das nicht: 90 Tage) nur die letzte je Zähler und Tag und gibt den
+  Platz der Datenbank frei (neue Datenbanken mit `auto_vacuum`, bestehende werden einmal
+  umgestellt, wenn genug Platz frei ist). Einstellbar unter Einstellungen ⚙. Bisher wurde bei
+  fast vollem Speicher nur nicht mehr gespeichert.
+- **Fehler behoben:** Verlauf ausdünnen behielt je Tag die erste Auslesung; jetzt die letzte. Die
+  erste verfälschte den Stand am Tagesende (Abrechnung) um den Verbrauch des Tages.
 - **Abrechnung: gestört im Zeitraum und Linien wählen.** mbusio hält fest, von wann bis wann ein
   Zähler gestört war; die Abrechnung nennt das („gestört 05.09.2026 08:00 – 07.09.2026 09:00“),
   auch wenn er heute wieder antwortet. Bisher stand nur „zurzeit gestört“. Bei Projekten mit

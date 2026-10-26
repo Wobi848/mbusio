@@ -154,7 +154,8 @@ siehe `plan.rs`). Antworten mit `warnings` (z.B. Buslast zu hoch).
 | `PUT /api/projects/{id}/plan` | `{plan}` → `{ok, warnings}`. |
 | `PUT /api/lines/{id}/plan` | `{plan}` (`null` = wie Projekt) → `{ok, warnings}`. |
 | `PUT /api/lines/{id}/operation` | Dauerbetrieb `{on}`; braucht Anschluss und wirksamen Plan (sonst 400 mit Grund). |
-| `PUT /api/projects/{id}/thin` | Verlauf ausdünnen: `{days}` (`null` = alles behalten). |
+| `PUT /api/projects/{id}/thin` | Verlauf ausdünnen: `{days}` (`null` = alles behalten); behalten wird je Zähler und Tag die letzte Auslesung. |
+| `GET/PUT /api/storage` | Speicherschutz des Geräts: `{protect, first_days, second_days}` (Vorgabe `true`, 365, 90; erste ≥ zweite ≥ 30). |
 
 ## 8. Datenpunkte und Weitergabe
 

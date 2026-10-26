@@ -134,6 +134,22 @@ pub(super) async fn project_thin(
     Ok(Json(json!({ "ok": true })))
 }
 
+/// Speicherschutz (einmal je Gerät)
+pub(super) async fn storage_get(
+    State(st): State<AppState>,
+) -> ApiResult<crate::db::StorageSettings> {
+    Ok(Json(st.db.lock().unwrap().storage_settings()))
+}
+
+pub(super) async fn storage_put(
+    State(st): State<AppState>,
+    Json(s): Json<crate::db::StorageSettings>,
+) -> ApiResult<crate::db::StorageSettings> {
+    let mut db = st.db.lock().unwrap();
+    db.set_storage_settings(&s).map_err(bad_request)?;
+    Ok(Json(db.storage_settings()))
+}
+
 #[derive(Deserialize)]
 pub(super) struct TimeReq {
     /// Uhrzeit des Browsers, Millisekunden seit 1970 (UTC)

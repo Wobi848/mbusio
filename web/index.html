@@ -44,6 +44,12 @@
     <div id="settings-menu" class="menu end form" hidden>
       <label class="row"><span data-t="language"></span><select id="lang"><option value="de">Deutsch</option><option value="en">English</option></select></label>
       <label class="row"><span data-t="theme"></span><select id="theme"><option value="auto" data-t="theme_auto_short"></option><option value="light" data-t="theme_light_short"></option><option value="dark" data-t="theme_dark_short"></option></select></label>
+      <fieldset id="storage" class="storage">
+        <label class="row"><span data-t="st_protect"></span><input type="checkbox" name="protect"></label>
+        <label class="row"><span data-t="st_first"></span><span><input type="number" name="first_days" min="30" class="mono"> <span data-t="st_days"></span></span></label>
+        <label class="row"><span data-t="st_second"></span><span><input type="number" name="second_days" min="30" class="mono"> <span data-t="st_days"></span></span></label>
+        <p class="sub" data-t="st_hint"></p>
+      </fieldset>
       <button id="keys-help" type="button" class="quiet" data-t="n_keys"></button>
     </div>
   </div>

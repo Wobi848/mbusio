@@ -130,6 +130,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/report", get(report))
         .route("/api/projects/{id}/plan", put(project_plan))
         .route("/api/projects/{id}/thin", put(project_thin))
+        .route("/api/storage", get(storage_get).put(storage_put))
         .route("/api/mqtt", get(mqtt_get).put(mqtt_put))
         .route("/api/modbus", get(modbus_get).put(modbus_put))
         .route("/api/out-log", get(out_log))

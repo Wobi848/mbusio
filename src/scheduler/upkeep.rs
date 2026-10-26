@@ -57,6 +57,7 @@ pub(super) fn thin(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
     }
     // Protokoll der Weitergabe: 30 Tage, Grenze an Zeilen
     st.db.lock().unwrap().out_log_trim()?;
+    protect_storage(st, now)?;
     let n = st.db.lock().unwrap().thin_readings(now)?;
     if n > 0 {
         note(
@@ -99,6 +100,40 @@ pub(super) fn export_billing(st: &AppState, now: NaiveDateTime) -> anyhow::Resul
     for msg in notes {
         note(st, msg);
     }
+    Ok(())
+}
+
+/// Speicher knapp: selbst ausdünnen und verkleinern (Konzept Dauerbetrieb 4.5), danach neu messen
+fn protect_storage(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
+    let disk = st.planner.disk();
+    if disk.level == Level::Ok {
+        return Ok(());
+    }
+    let done = {
+        let mut db = st.db.lock().unwrap();
+        let s = db.storage_settings();
+        db.protect_storage(now, &s, disk.free_bytes)?
+    };
+    let Some(p) = done else { return Ok(()) };
+    let day = (now - chrono::Duration::days(p.days))
+        .format("%d.%m.%Y")
+        .to_string();
+    let mb = p.freed / 1_000_000;
+    note(
+        st,
+        both(|| {
+            format!(
+                "{}: {} {day} {} ({} {}, {mb} MB {})",
+                tr("Speicher knapp", "Storage low"),
+                tr("Auslesungen vor dem", "readings before"),
+                tr("auf eine je Tag ausgedünnt", "thinned to one per day"),
+                p.deleted,
+                tr("gelöscht", "deleted"),
+                tr("frei geworden", "freed")
+            )
+        }),
+    );
+    check_disk(st);
     Ok(())
 }
 

@@ -297,7 +297,10 @@ fn thinning_keeps_one_reading_per_day() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(first, "2026-10-01 00:00:00");
+    assert_eq!(
+        first, "2026-10-01 18:00:00",
+        "die letzte je Tag (Stand am Tagesende)"
+    );
 }
 
 #[test]
@@ -327,5 +330,83 @@ fn imports_old_meter_list() {
     let db = Db::open(&dir).unwrap();
     assert_eq!(db.meters(line).unwrap().len(), 1);
     drop(db);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// Speicherschutz: erste Stufe (älter als 365 Tage), sonst zweite (90), je Tag die letzte; danach
+/// verkleinern; alte Datenbank ohne auto_vacuum nur mit genug Platz umstellen
+#[test]
+fn storage_protection_thins_in_steps_and_compacts() {
+    let dir = std::env::temp_dir().join(format!("mbusio-protect-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    // „alte“ Datenbank: schon eine Tabelle, bevor mbusio auto_vacuum setzen kann
+    rusqlite::Connection::open(dir.join("mbusio.db"))
+        .unwrap()
+        .execute_batch("CREATE TABLE alt (x INTEGER)")
+        .unwrap();
+    let mut db = Db::open(&dir).unwrap();
+    let mode = |db: &Db| -> i64 {
+        db.conn
+            .query_row("PRAGMA auto_vacuum", [], |r| r.get(0))
+            .unwrap()
+    };
+    assert_eq!(mode(&db), 0);
+    let line = db.active_line().unwrap().id;
+    let m = db.add_meter(line, meter("1")).unwrap();
+    let big = "x".repeat(4000);
+    let add = |db: &Db, day: &str| {
+        for hour in [0, 12, 18] {
+            db.conn
+                .execute(
+                    "INSERT INTO readings (line_id, meter, timestamp, data) VALUES (?1, ?2, ?3, ?4)",
+                    params![line, m.id, format!("{day} {hour:02}:00:00"), big],
+                )
+                .unwrap();
+        }
+    };
+    for d in 1..=28 {
+        add(&db, &format!("2025-02-{d:02}")); // gut 1 1/2 Jahre alt
+        add(&db, &format!("2026-06-{d:02}")); // gut 4 Monate alt
+    }
+    let now = chrono::NaiveDateTime::parse_from_str("2026-10-26 12:00", "%Y-%m-%d %H:%M").unwrap();
+    let s = StorageSettings::default();
+    assert!(db
+        .set_storage_settings(&StorageSettings {
+            second_days: 10,
+            ..s.clone()
+        })
+        .is_err());
+
+    // wenig Platz: ausdünnen, aber nicht umstellen
+    let p = db.protect_storage(now, &s, 0).unwrap().unwrap();
+    assert_eq!((p.days, p.deleted, p.freed), (365, 56, 0));
+    assert_eq!(mode(&db), 0);
+    let last: String = db
+        .conn
+        .query_row(
+            "SELECT MAX(timestamp) FROM readings WHERE timestamp LIKE '2025-02-01%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(last, "2025-02-01 18:00:00");
+    // erste Stufe hat nichts mehr: zweite; mit Platz umstellen und verkleinern
+    let p = db.protect_storage(now, &s, u64::MAX).unwrap().unwrap();
+    assert_eq!((p.days, p.deleted), (90, 56));
+    assert!(p.freed > 100_000, "{}", p.freed);
+    assert_eq!(mode(&db), 2);
+    // nichts mehr zu tun; ausgeschaltet tut er nichts
+    assert_eq!(db.protect_storage(now, &s, u64::MAX).unwrap(), None);
+    let off = StorageSettings {
+        protect: false,
+        ..s
+    };
+    assert_eq!(db.protect_storage(now, &off, u64::MAX).unwrap(), None);
+    drop(db);
+    // neue Datenbank: gleich mit auto_vacuum
+    std::fs::remove_dir_all(&dir).unwrap();
+    std::fs::create_dir_all(&dir).unwrap();
+    assert_eq!(mode(&Db::open(&dir).unwrap()), 2);
     std::fs::remove_dir_all(&dir).unwrap();
 }

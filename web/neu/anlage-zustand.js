@@ -104,7 +104,8 @@ export function plantHtml(p, s) {
           : `${chip("warn", t("time_unsure"))} <button type="button" class="tonal" data-take-time>${esc(t("ps_time_take"))}</button>`
       )
     );
-  if (s.disk) cells.push(cell(t("ps_disk"), diskHtml(s.disk, chip)));
+  // Speicherschutz ist eine Einstellung des Geräts: im Menü Einstellungen
+  if (s.disk) cells.push(cell(t("ps_disk"), `${diskHtml(s.disk, chip)} <button type="button" class="quiet" data-open-settings>${esc(t("st_protect"))} …</button>`));
   for (const o of (s.outputs || []).filter((o) => o.on)) {
     const [cls, word] = outputWord(s[o.key]?.state);
     cells.push(cell(o.label, `${chip(cls, word, s[o.key]?.error || "")} <a href="#/weitergabe">${esc(t("ps_open_transfer"))}</a>`));

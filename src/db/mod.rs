@@ -86,7 +86,10 @@ mod readings;
 mod report;
 mod schedule;
 mod schema;
+mod thinning;
 mod types;
+
+pub use thinning::StorageSettings;
 
 pub use self::types::*;
 use self::types::{default_plan, gateway_of, line_of, meter_of, project_of, valid_plan};

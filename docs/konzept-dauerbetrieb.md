@@ -199,7 +199,8 @@ Heute wird jede Auslesung vollständig als JSON abgelegt. Für den Dauerbetrieb:
   Warnung in Oberfläche und Statusleiste. Unter 5 % frei: keine neuen Rohdaten mehr speichern
   (Werte werden weiter gelesen, angezeigt und weitergegeben), Auffälligkeit „Speicher voll“.
   So bleibt die Datenbank intakt und das Gerät bedienbar, statt abzustürzen.
-- **Speicherschutz (26.10.2026, ersetzt „nie automatisch“):** Droht der Speicher voll zu laufen,
+- **Speicherschutz (26.10.2026, ersetzt „nie automatisch“; umgesetzt in `db/thinning.rs`,
+  stündlich in `scheduler/upkeep.rs`, Einstellungen ⚙):** Droht der Speicher voll zu laufen,
   dünnt mbusio selbst aus, statt nur das Speichern einzustellen. Einstellbar, Vorgaben:
   - eingeschaltet;
   - Stufe „knapp“ (Warnung): Auslesungen und Werte **älter als 365 Tage** auf **eine je Zähler

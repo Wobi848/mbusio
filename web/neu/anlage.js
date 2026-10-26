@@ -370,6 +370,8 @@ function wire() {
     if (hit("[data-import]")) return q("[data-import-file]").click();
     if (hit("[data-report]")) return window.open(`report.html?project=${project().id}`, "_blank", "noopener");
     if (hit("[data-take-time]")) return takeTime();
+    // nach diesem Klick öffnen, sonst schliesst ihn der Klick gleich wieder
+    if (hit("[data-open-settings]")) return setTimeout(() => document.getElementById("settings").click());
     if (hit("[data-use]")) return use(Number(hit("[data-use]").dataset.use));
     if (hit("[data-move]")) return move(hit("[data-move]"));
     if (hit("[data-toggle]")) return toggleGateway(Number(hit("[data-toggle]").dataset.toggle));

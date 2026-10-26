@@ -213,6 +213,12 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .menu.form { display: grid; gap: 8px; padding: 10px; min-width: 320px; }
 .menu .row { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 8px; }
 .menu .row.end { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+/* Speicherschutz im Einstellungsmenü: Zahlenfelder schmal, Satz dahinter */
+.menu.form .storage { display: grid; gap: 6px; margin: 4px 0 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); }
+.menu.form .storage .row { grid-template-columns: 1fr auto; border: 0; padding: 0; }
+.menu.form .storage input[type=number] { width: 70px; }
+.menu.form .storage input[type=checkbox] { justify-self: start; width: 16px; height: 16px; }
+.menu.form .storage .sub { margin: 0; max-width: 360px; }
 
 .ask {
   position: fixed; z-index: 40; display: flex; align-items: center; gap: 8px; max-width: 520px;

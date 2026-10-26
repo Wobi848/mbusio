@@ -1,4 +1,4 @@
-//! Auslesungen (vollständig oder kompakt), Ausdünnen, letzter Scan, Änderungen
+//! Auslesungen (vollständig oder kompakt), letzter Scan, Änderungen
 
 use super::*;
 
@@ -183,53 +183,6 @@ impl Db {
                 Err(e)
             }
         }
-    }
-
-    /// Verlauf ausdünnen, wo im Projekt eingeschaltet: Auslesungen älter als `thin_days` bis auf
-    /// die erste je Zähler und Tag löschen. Liefert die Anzahl gelöschter Auslesungen.
-    pub fn thin_readings(&mut self, now: chrono::NaiveDateTime) -> Result<usize> {
-        let projects: Vec<(i64, i64)> = self
-            .conn
-            .prepare("SELECT id, thin_days FROM projects WHERE thin_days > 0")?
-            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-            .collect::<rusqlite::Result<_>>()?;
-        let mut n = 0;
-        for (project, days) in projects {
-            let cutoff = (now - chrono::Duration::days(days))
-                .format("%Y-%m-%d 00:00:00")
-                .to_string();
-            n += self.conn.execute(
-                "DELETE FROM readings WHERE timestamp < ?2 AND meter IN (
-                   SELECT meters.id FROM meters JOIN lines ON lines.id = meters.line_id
-                   JOIN gateways ON gateways.id = lines.gateway_id WHERE gateways.project_id = ?1)
-                 AND id NOT IN (
-                   SELECT MIN(id) FROM readings WHERE timestamp < ?2 AND meter IS NOT NULL
-                   GROUP BY meter, substr(timestamp, 1, 10))",
-                params![project, cutoff],
-            )?;
-            // Werte der Datenpunkte genauso: erster Wert je Datenpunkt und Tag
-            self.conn.execute(
-                "DELETE FROM dp_values WHERE time < ?2 AND dp IN (
-                   SELECT datapoints.id FROM datapoints JOIN meters ON meters.id = datapoints.meter_id
-                   JOIN lines ON lines.id = meters.line_id JOIN gateways ON gateways.id = lines.gateway_id
-                   WHERE gateways.project_id = ?1)
-                 AND rowid NOT IN (SELECT MIN(rowid) FROM dp_values WHERE time < ?2 GROUP BY dp, substr(time, 1, 10))",
-                params![project, cutoff],
-            )?;
-        }
-        Ok(n)
-    }
-
-    pub fn set_thin_days(&mut self, project_id: i64, days: Option<i64>) -> Result<()> {
-        let days = days.filter(|d| *d > 0);
-        if self.conn.execute(
-            "UPDATE projects SET thin_days = ?2 WHERE id = ?1",
-            params![project_id, days],
-        )? == 0
-        {
-            return Err(not_found(&tr("Projekt", "Project"), project_id));
-        }
-        Ok(())
     }
 
     /// Grösse der Datenbank in Byte (mit WAL)

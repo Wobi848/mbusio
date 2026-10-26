@@ -77,7 +77,10 @@ impl Db {
         self.conn.execute_batch(
             // WAL mit synchronous=NORMAL: nach Stromausfall bleibt die Datenbank intakt
             // (höchstens die letzten Sekunden fehlen), viel weniger Schreibzugriffe auf die SD-Karte
-            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
+            // auto_vacuum wirkt nur bei einer neuen Datenbank (vor der ersten Tabelle): gelöschte
+            // Auslesungen geben ihren Platz dann zurück (Speicherschutz, thinning.rs)
+            "PRAGMA auto_vacuum = INCREMENTAL;
+                 PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;
                  PRAGMA busy_timeout = 5000;",
         )?;
         self.conn.execute_batch(SCHEMA)?;
