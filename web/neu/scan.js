@@ -3,80 +3,12 @@
 // Auswertung (Auffälligkeiten, Merken, Beheben, Vergleich) gemeinsam: js/scanlogic.js.
 
 import { state, watch, activeLine } from "./store.js";
-import { html, text, list, ask, toast, styles, texts, menu } from "./view.js";
+import { html, text, list, ask, toast, styles, menu } from "./view.js";
 import { bind } from "./keys.js";
 import { loadMeters, loadTree, loadStatus, report } from "./data.js";
+import "./scan-texte.js";
+import { fillBaudMenu, checkBauds } from "./scan-baudraten.js";
 
-texts(
-  {
-    sc_never: "Auf dieser Linie wurde noch nicht gesucht.",
-    sc_telegram: "Telegramm",
-    sc_none_found: "Nichts gefunden. Baudrate und Verkabelung prüfen, oder einen Sekundärscan versuchen.",
-    sc_in_list: "✓ in Liste",
-    sc_new: "neu",
-    sc_not_unique: "nicht eindeutig",
-    sc_same_id: "ID doppelt",
-    sc_all_listed: "✓ Alle gefundenen Zähler stehen in der Zählerliste",
-    sc_to_meters: "Zur Zählerliste",
-    sc_merge_n: (n) => `${n} neue merken`,
-    sc_fix_n: (n) => `${n} beheben`,
-    sc_resolve_n: (n) => `${n} doppelte PA auflösen`,
-    sc_resolve_title: "Mehrere Zähler auf derselben Primäradresse: ein Sekundärscan findet sie einzeln, danach lassen sie sich mit einem Klick umadressieren",
-    sc_check: "Zur Kontrolle neu scannen",
-    sc_pick: "Treffer in der Liste wählen (↑↓): hier stehen Ursache, Abhilfe und Werte.",
-    sc_baud_menu: (b) => `Baudrate ${b}`,
-    sc_baud_check: "Prüfen, welche antworten",
-    sc_baud_checking: (s) => `Prüft alle Baudraten … ${s} s`,
-    sc_baud_found: (list) => (list.length ? `Antworten auf ${list.join(", ")} Bd` : "Auf keiner Baudrate kommt eine Antwort"),
-    sc_from_to: "Adressen",
-    sc_running: (d, n, k) => `${d}/${n} · ${k} gefunden`,
-    sc_fix_free: "Freie PA geben",
-    sc_fix_baud: (b) => `Auf ${b} Bd umstellen`,
-    sc_free_pa: (pa) => `Freie Primäradresse: ${pa}`,
-    sc_q_pa: (name, from, to) => `${name}: Primäradresse am Zähler von ${from} auf ${to} ändern?`,
-    sc_q_baud: (name, from, to) => `${name}: Baudrate am Zähler von ${from} auf ${to} Bd umstellen?`,
-    sc_change: "Ändern",
-    sc_plan_head: "Beheben",
-    sc_plan_manual: "Von Hand:",
-    sc_key_scan: "Scan starten",
-    sc_key_merge: "Neue merken",
-    sc_mode_q: (mode, n) => `Zähler künftig über ${mode} merken? ${n} Zähler der Liste werden umgestellt, wo das eindeutig geht.`,
-  },
-  {
-    sc_never: "No scan on this line yet.",
-    sc_telegram: "Telegram",
-    sc_none_found: "Nothing found. Check baud rate and wiring, or try a secondary scan.",
-    sc_in_list: "✓ in list",
-    sc_new: "new",
-    sc_not_unique: "not unique",
-    sc_same_id: "ID twice",
-    sc_all_listed: "✓ All meters found are in the meter list",
-    sc_to_meters: "Go to meter list",
-    sc_merge_n: (n) => `Keep ${n} new`,
-    sc_fix_n: (n) => `Fix ${n}`,
-    sc_resolve_n: (n) => `Resolve ${n} duplicate PA`,
-    sc_resolve_title: "Several meters on the same primary address: a secondary scan finds them one by one, then one click gives them new addresses",
-    sc_check: "Scan again to check",
-    sc_pick: "Pick a hit in the list (↑↓) to see cause, remedy and values here.",
-    sc_baud_menu: (b) => `Baud rate ${b}`,
-    sc_baud_check: "Check which respond",
-    sc_baud_checking: (s) => `Checking all baud rates … ${s} s`,
-    sc_baud_found: (list) => (list.length ? `Answers on ${list.join(", ")} Bd` : "No answer on any baud rate"),
-    sc_from_to: "Addresses",
-    sc_running: (d, n, k) => `${d}/${n} · ${k} found`,
-    sc_fix_free: "Give a free PA",
-    sc_fix_baud: (b) => `Switch to ${b} Bd`,
-    sc_free_pa: (pa) => `Free primary address: ${pa}`,
-    sc_q_pa: (name, from, to) => `${name}: change the primary address on the meter from ${from} to ${to}?`,
-    sc_q_baud: (name, from, to) => `${name}: switch the meter's baud rate from ${from} to ${to} Bd?`,
-    sc_change: "Change",
-    sc_plan_head: "Fix",
-    sc_plan_manual: "By hand:",
-    sc_key_scan: "Start scan",
-    sc_key_merge: "Keep new",
-    sc_mode_q: (mode, n) => `Keep meters by ${mode} from now on? ${n} meters of the list are switched where that is unique.`,
-  }
-);
 
 const FILTERS = ["all", "unique", "attention"];
 
@@ -488,7 +420,7 @@ function wire() {
     if (b("[data-start]")) return start();
     if (b("[data-start-check]")) return start();
     if (b("[data-resume]")) return start({ bauds: bauds(), prefix: view.prefix, resume: job.resume });
-    if (b("[data-baud-check]")) return checkBauds();
+    if (b("[data-baud-check]")) return checkBauds(q("[data-baud-menu]"), view, ctx().busBaud).then(render);
     if (b("[data-merge]")) return mergeNew(newOnes(ctx()));
     if (b("[data-merge-one]")) return mergeNew([job.hits[view.active]]);
     if (b("[data-fix]")) return openPlan();
@@ -519,51 +451,7 @@ function wire() {
     const next = rows[Math.max(0, Math.min(rows.length - 1, k + (ev.key === "ArrowDown" ? 1 : -1)))];
     if (next) select(next.i, true);
   });
-  menu(q("[data-baud-btn]"), q("[data-baud-menu]"), { onOpen: fillBaudMenu });
+  menu(q("[data-baud-btn]"), q("[data-baud-menu]"), { onOpen: () => fillBaudMenu(q("[data-baud-menu]"), view, ctx().busBaud) });
   bind("s", () => !job?.running && start(), t("sc_key_scan"), open);
   bind("m", () => mergeNew(newOnes(ctx())), t("sc_key_merge"), open);
-}
-
-function fillBaudMenu() {
-  const m = q("[data-baud-menu]");
-  const on = new Set(bauds());
-  html(
-    m,
-    `<div class="bauds">${BAUDS.map((b) => `<label class="baud"><input type="checkbox" data-baud value="${b}"${on.has(b) ? " checked" : ""}>${b}</label>`).join("")}</div>
-    <div class="row end"><span class="sub" data-baud-result></span><button type="button" class="tonal" data-baud-check>${esc(t("sc_baud_check"))}</button></div>`
-  );
-  showBaudCheck();
-}
-
-let baudChecking = null; // Beginn der Prüfung (ms), solange sie läuft
-
-/// Zustand der Prüfung im Menü: läuft (Punkt, Sekunden seit Beginn), sonst das Ergebnis. Keine
-/// Schätzung: die Dauer hängt vom Wandler und vom Betriebssystem ab (gemessen 8 s bis 2 min)
-function showBaudCheck() {
-  const out = q("[data-baud-result]");
-  const go = q("[data-baud-check]");
-  if (!out) return;
-  go.disabled = !!baudChecking;
-  if (!baudChecking) return text(out, view.baudCheck ? t("sc_baud_found", view.baudCheck) : "");
-  const s = Math.round((Date.now() - baudChecking) / 1000);
-  html(out, `<span class="dot busy"></span> ${esc(t("sc_baud_checking", s))}`);
-}
-
-/// Welche Baudraten antworten? Ergebnis gleich als Auswahl übernehmen
-async function checkBauds() {
-  baudChecking = Date.now();
-  showBaudCheck();
-  const tick = setInterval(showBaudCheck, 1000);
-  try {
-    const r = await request("bus-bauds", { method: "POST", body: { bauds: [] } });
-    view.baudCheck = r.bauds;
-    if (r.bauds.length) view.bauds = r.bauds;
-  } catch (e) {
-    report(e);
-  } finally {
-    clearInterval(tick);
-    baudChecking = null;
-  }
-  fillBaudMenu();
-  render();
 }
