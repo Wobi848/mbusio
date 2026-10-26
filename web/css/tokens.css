@@ -14,6 +14,9 @@
   --accent-strong: #0b5c55;
   --accent-ink: #ffffff;
   --accent-soft: #e3f2ef;
+  /* Crimson: nur Struktur (Logo, aktive Lasche, Überschriften), nie Zustand; Fehler bleiben --err */
+  --brand: #b3123f;
+  --brand-soft: #fbe9ee;
   --ok: #15803d;
   --ok-soft: #e6f4ea;
   --warn: #a85000;
@@ -44,6 +47,8 @@
   --accent-strong: #52cbbe;
   --accent-ink: #04201d;
   --accent-soft: #12302c;
+  --brand: #e8456b;
+  --brand-soft: #2f1219;
   --ok: #4cc77a;
   --ok-soft: #11291b;
   --warn: #f0a548;

@@ -19,26 +19,23 @@ function outputState(s) {
   return [cls, word, info];
 }
 
-/// Zeilen der Ausgänge: Schalter, Zustand, Einstellungen, Info, Listen für den Integrator.
-/// `ctx`: { status, active (offenes Formular), hasAddress(key), projectId }
-export function outputsHtml(outs, { status, active, hasAddress, projectId }) {
+/// Karten der Ausgänge: Schalter, Name, Zustand, Einstellungen, Info. Alles Weitere (Listen für den
+/// Integrator, Adressen nach Muster) steht in den Einstellungen, damit die Leiste ruhig bleibt.
+/// `ctx`: { status, active (offenes Formular) }
+export function outputsHtml(outs, { status, active }) {
   // eine Zeile: Überschrift, je Ausgang eine Karte, Protokoll am Ende
   return (
-    `<span class="eyebrow">${esc(t("wg_outputs"))}</span>` +
+    `<span class="eyebrow mark">${esc(t("wg_outputs"))}</span>` +
     outs
         .map((o) => {
           const [cls, word, info] = outputState(status?.[o.key]);
           const on = !!o.on;
-          const has = hasAddress(o.key);
           // Einstellungen gleich beim Zustand: gehört zu diesem Ausgang, nicht an den Rand
           return `<div class="out${active === o.key ? " active" : ""}">
           <label class="out-switch"><input type="checkbox" class="switch" data-out-toggle="${o.key}"${on ? " checked" : ""}><b>${esc(o.label)}</b></label>
           <span class="chip ${cls}">${esc(word)}</span>
           <button type="button" class="quiet" data-out-settings="${o.key}">${esc(t("wg_settings"))}</button>
           <span class="sub cut" title="${esc(info)}">${esc(info)}</span>
-          ${has && projectId ? `<span class="out-more"><button type="button" class="quiet" data-readdress="${o.key}">${esc(t("out_readdress", o.address_label))}</button>
-            <a class="quiet" href="${apiHref(`projects/${projectId}/outputs/${o.key}/list?format=csv`)}" title="${esc(t("out_list", o.address_label))}">CSV</a>
-            <a class="quiet" href="${apiHref(`projects/${projectId}/outputs/${o.key}/list?format=json`)}" title="${esc(t("out_list", o.address_label))}">JSON</a></span>` : ""}
         </div>`;
         })
         .join("") +
@@ -88,14 +85,28 @@ function fieldHtml([name, label_, kind, x = {}], value) {
   return `<label${kind === "check" ? ' class="check"' : ""}><span>${esc(label_)}</span>${input}</label>${x.hint ? `<p class="sub hint">${esc(x.hint)}</p>` : ""}`;
 }
 
-/// Formular mit den Einstellungen eines Ausgangs
-export function outputFormHtml(key, cfg, label_) {
+/// Für den Integrator, unter den Einstellungen: Adressen nach Muster, Liste als CSV/JSON
+function integratorHtml(o, projectId, has) {
+  if (!o || !projectId || !has) return "";
+  const list = (f) => apiHref(`projects/${projectId}/outputs/${o.key}/list?format=${f}`);
+  return `<h3>${esc(t("wg_integrator"))}</h3>
+    <div class="actions">
+      <button type="button" class="tonal" data-readdress="${o.key}">${esc(t("out_readdress", o.address_label))}</button>
+      <a class="quiet" href="${list("csv")}" title="${esc(t("out_list", o.address_label))}">${esc(t("wg_list"))} CSV</a>
+      <a class="quiet" href="${list("json")}" title="${esc(t("out_list", o.address_label))}">JSON</a>
+    </div>`;
+}
+
+/// Formular mit den Einstellungen eines Ausgangs; `o`, `projectId`, `has` (Datenpunkte mit
+/// Adresse an diesem Ausgang) für die Teile für den Integrator
+export function outputFormHtml(key, cfg, label_, o, projectId, has) {
   const c = key === "mqtt" ? cfg.mqtt.config : cfg.modbus.config;
   return `<button type="button" class="quiet back" data-back>← ${esc(t("tab_transfer"))}</button>
     <header class="dhead"><b>${esc(label_)} · ${esc(t("wg_settings"))}</b></header>
     <form class="fields" data-out-form="${key}">${outputFields(key, cfg).map((f) => fieldHtml(f, c[f[0]])).join("")}
       <div class="actions"><button type="submit">${esc(t("wg_save"))}</button><button type="button" class="quiet" data-back>${esc(t("cancel"))}</button></div>
-    </form>`;
+    </form>
+    ${integratorHtml(o, projectId, has)}`;
 }
 
 /// Werte aus dem Formular, nach Art des Felds (Häkchen, Zahl, Text)

@@ -51,7 +51,10 @@ export default {
     await page.waitForFunction(() => document.querySelectorAll("section[data-area=weitergabe] [data-list] .row.off").length === 3);
     await page.keyboard.press("Escape");
 
-    // Adressen nach Muster: Vorschau im Detailbereich, verwerfen
+    // Adressen nach Muster: in den Einstellungen des Ausgangs (Teil „Für den Integrator“),
+    // Vorschau im Detailbereich, verwerfen
+    await page.click("[data-out-settings=mqtt]");
+    assert.match(await page.textContent(detail), /Für den Integrator/);
     await page.click("[data-readdress=mqtt]");
     await page.waitForSelector(`${detail} [data-cs-close]`);
     await page.click(`${detail} [data-cs-close]`);

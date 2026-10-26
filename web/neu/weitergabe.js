@@ -34,7 +34,8 @@ export function mount(pane) {
       <button type="button" class="seg-like" data-problems></button>
       <span class="grow"></span>
       <div class="menu-host"><button type="button" class="quiet" data-tpl-btn hidden></button><div class="menu" data-tpl-menu hidden></div></div>
-      <a class="quiet" data-export>CSV</a>
+      <span class="sub">${esc(t("wg_points_csv"))}</span>
+      <a class="quiet" data-export>${esc(t("wg_export"))}</a>
       <label class="quiet filebtn">${esc(t("wg_import"))}<input type="file" accept=".csv,text/csv" data-import hidden></label>
     </div>
     <div class="split">
@@ -143,7 +144,7 @@ function render() {
   if (!root || !data) return;
   html(
     q("[data-outputs]"),
-    outputsHtml(data.outputs || [], { status: state.status, active: view.output, hasAddress: (k) => points().some((p) => p.outputs[k]?.address), projectId: projectId() })
+    outputsHtml(data.outputs || [], { status: state.status, active: view.output })
   );
   html(q("[data-scope]"), ["line", "project"].map((s) => `<button type="button" data-scope-set="${s}" aria-pressed="${view.scope === s}">${esc(t("tr_scope_" + s))}</button>`).join(""));
   const bad = points().filter((p) => p.quality !== "good" && p.quality !== "none").length;
@@ -192,7 +193,11 @@ function renderDetail() {
   if (typing && box.dataset.shown === key) return;
   box.dataset.shown = key;
   box.classList.toggle("open", !!(view.output || view.active));
-  if (view.output) return html(box, outputFormHtml(view.output, cfg, data.outputs.find((o) => o.key === view.output)?.label || view.output));
+  if (view.output) {
+    const o = data.outputs.find((x) => x.key === view.output);
+    const has = points().some((p) => p.outputs[view.output]?.address);
+    return html(box, outputFormHtml(view.output, cfg, o?.label || view.output, o, projectId(), has));
+  }
   const p = byId(view.active);
   if (!p) return html(box, `<p class="sub">${esc(t("wg_pick"))}</p>`);
   html(
