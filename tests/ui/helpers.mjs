@@ -2,9 +2,10 @@
 import assert from "node:assert/strict";
 export { assert };
 
-/// Linie 1 mit einer Simulation verbinden und aktiv machen
-export async function simLine(api, connection = "SIMULATOR", baud = 2400) {
-  await api("lines/1", "PUT", { name: "Haus A", connection, baud });
+/// Linie 1 mit einer Simulation verbinden und aktiv machen. `timeout_ms`: kurze Antwortzeit für
+/// lange Scans (der Simulator antwortet sofort; 0 = automatisch wie im Feld)
+export async function simLine(api, connection = "SIMULATOR", baud = 2400, timeout_ms = 0) {
+  await api("lines/1", "PUT", { name: "Haus A", connection, baud, timeout_ms });
   await api("lines/1/activate", "POST");
 }
 

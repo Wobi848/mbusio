@@ -40,6 +40,9 @@ export default {
     assert.match(await rows(page).nth(1).textContent(), /in Liste/);
 
     // auflösen: Sekundärscan findet die Zähler einzeln, dann mit einem Klick umadressieren
+    // (kurze Antwortzeit: der Sekundärscan dauert sonst fast 3 Minuten)
+    await simLine(api, "SIMULATOR:praxis", 2400, 40);
+    await page.waitForFunction(() => document.querySelector("#bus .dot.on"));
     await page.click("[data-main] [data-secondary]");
     await scanDone(page, 300000);
     await page.waitForSelector("[data-main] [data-fix]");
@@ -53,8 +56,7 @@ export default {
     assert.match(await page.textContent("section[data-area=scan] [data-detail]"), /3 von 3/);
 
     // Beheben: Zähler mit anderer Baudrate auf die Bus-Baudrate umstellen
-    await api("lines/1", "PUT", { name: "Haus A", connection: "SIMULATOR:bauds", baud: 2400 });
-    await api("lines/1/activate", "POST");
+    await simLine(api, "SIMULATOR:bauds", 2400, 40);
     await page.goto(base + "/#/scan");
     // die Art merkt sich der Scan je Linie: zuletzt war es der Sekundärscan
     await page.click("[data-kind=primary]");

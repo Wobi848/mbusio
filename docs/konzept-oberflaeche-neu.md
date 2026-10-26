@@ -139,19 +139,22 @@ vom leeren Projekt bis zum Bericht, nur indem er dem einen Hauptknopf folgt.
 ### 5.1 Dateien
 
 ```
-web/neu/index.html      Gerüst: Kopfzeile, Laschen, Arbeitsfläche, Statusleiste
-web/neu/app.js          Start, Bereiche umschalten, Adresse (#/zaehler/15) ↔ Zustand
-web/neu/store.js        Zustand und Benachrichtigung (ein Objekt, kleine Abonnements)
-web/neu/api.js          fetch, Zugriffsschlüssel, Sprache, Fehler; Abfragen und Strom
-web/neu/view.js         Bausteine: Liste mit Schlüssel, Auswahl, Rückfrage, Rückgängig, Felder
+web/index.html          Gerüst: Kopfzeile, Laschen, Arbeitsfläche, Bus-Konsole, Statusleiste
+web/neu/index.html      leitet alte Lesezeichen /neu/ auf / weiter
+web/neu/app.js          Start, Bereiche umschalten, Kopfzeile, Statusleiste, Nächster Schritt, Konsole
+web/neu/store.js        Zustand und Benachrichtigung; activeLine, faulty (Regel „gestört“)
+web/neu/data.js         Laden vom Server, Linie wechseln, Dauerbetrieb schalten, Fehler melden
+web/neu/view.js         Bausteine: Liste mit Schlüssel, Menü, Rückfrage am Ort, Meldung mit
+                        Rückgängig, Vorschau → Übernehmen; outputWord, opText, opPossible
 web/neu/keys.js         Tastatur: eine Stelle für alle Kürzel
-web/neu/<bereich>.js    scan.js, meters.js, transfer.js, plant.js, tools.js, sim.js
-web/neu/app.css         Gerüst und Bausteine; Farben aus den gemeinsamen Variablen
+web/neu/buslog.js       Protokoll des Busses für Werkzeuge und Bus-Konsole
+web/neu/<bereich>.js    anlage, scan, zaehler, weitergabe, werkzeuge, simulator; je mit .css
+web/neu/app.css         Gerüst und Bausteine; Farben aus web/css/tokens.css
 ```
 
-Gemeinsam mit der heutigen Oberfläche (nichts doppelt): `web/js/texts.js` (Texte DE/EN, wird
-erweitert), `web/js/base.js` (`t`, `label`, `esc`, `portText`, …) und die Farbvariablen. Diese
-kommen aus `base.css` in eine eigene `web/css/tokens.css`, die beide Oberflächen laden.
+Gemeinsam mit dem Bericht (`report.html`): `web/js/texts.js` (Texte DE/EN), `web/js/base.js`
+(`t`, `esc`, `request`, Zugriffsschlüssel, `time24`, `BAUDS`, …), `icons.js`, `scanlogic.js`,
+`listlogic.js`, `plot.js`, `theme.js`, `web/css/tokens.css`.
 
 ### 5.2 Zustand und Neuzeichnen
 
@@ -417,3 +420,31 @@ Schritt bis zum Bericht und Ausgang. Dabei dazugekommen: Zugriffsschlüssel in e
 Seite statt Browser-Fenster (`askToken` in `base.js`, gilt auch für den Bericht), Kurzformen der
 Uhrzeit im Plan (`time24`), „fehlt“ im Scan zeigt im Tooltip welche, Zähler ohne Plan zeigen
 „aus“, Werkzeuge → Simulator. Jeder Browser-Dialog lässt einen Test fehlschlagen (`run.mjs`).
+
+**Nach dem Umschalten (26.10.2026), entschieden:**
+- **Laschen in Gruppen:** Anlage (einrichten) │ Scan, Zähler, Weitergabe (Arbeitsablauf, in dieser
+  Reihenfolge) │ Werkzeuge, Simulator (Hilfsmittel). Strich zwischen den Gruppen; schmal brechen
+  nur ganze Gruppen um. Tasten 1–6 folgen dieser Reihenfolge.
+- **Statusleiste zum Anklicken:** der Bus öffnet die **Bus-Konsole** (eigene Zeile über der
+  Statusleiste, die Arbeitsfläche wird kürzer statt verdeckt; Telegramme live, ein Telegramm
+  anklicken erklärt es in Werkzeuge); die Auffälligkeiten führen in den Scan (Filter „Auffällig“,
+  die erste gewählt).
+- **Eine Zahl, eine Regel:** was an mehreren Stellen steht, kommt aus einer Funktion.
+  Auffälligkeiten = betroffene Treffer (`scanLogic.attention`; Statusleiste, Anlage, Filter;
+  nach jedem Beheben neu gespeichert), gestört = `faulty`, Zustand eines Ausgangs = `outputWord`,
+  Dauerbetrieb = `opText`/`opPossible`/`switchOperation`. Neue Anzeigen nehmen diese, statt
+  selbst zu rechnen.
+- **Doppelte PA:** im Primärscan als Kollision sichtbar; Hauptknopf „N doppelte PA auflösen“
+  startet den Sekundärscan, danach „N beheben“. Ausführen erst, wenn alle freien Adressen
+  gefunden sind.
+- **Meldungen des Servers** (Protokoll, Hintergrund) in der Sprache der Oberfläche: Protokoll
+  speichert beide Sprachen (`i18n::both`), Arbeit im Hintergrund folgt der zuletzt gemeldeten
+  Sprache (`X-Lang`, gespeichert in `meta.ui_lang`).
+- **Windows:** Browser auf `127.0.0.1` statt `localhost`; von Windows gesperrter Port → der
+  nächste freie. Felder mit Textfarbe aus dem Design (sonst Systemfarbe im dunklen Design).
+- **Tests sehen, was der Benutzer sieht:** Playwright klickt auch verdeckte Elemente; wo etwas
+  aufklappt, prüft der Test mit `elementFromPoint`, dass es sichtbar ist (Gerüst-Test, Liste der
+  Linien).
+
+**Noch offen:** Test mit echten Zählern; danach Dateien über ~400 Zeilen teilen (anlage, zaehler,
+weitergabe, scan, werkzeuge), ohne Verhaltensänderung.

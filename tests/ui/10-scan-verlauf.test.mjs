@@ -17,7 +17,7 @@ export default {
   name: "Scan-Vergleich, Sekundärscan mit Weitersuchen, Projekt leeren",
   async setup(api) {
     const r = await api("sim", "POST", { name: "Vergleich", from: "ok10" });
-    await simLine(api, `SIMULATOR:${r.key}`);
+    await simLine(api, `SIMULATOR:${r.key}`, 2400, 40);
   },
   async run({ page, base, api }) {
     const key = (await api("projects")).active.line.connection.split(":")[1];
