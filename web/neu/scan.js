@@ -24,7 +24,7 @@ texts(
     sc_pick: "Treffer in der Liste wählen (↑↓): hier stehen Ursache, Abhilfe und Werte.",
     sc_baud_menu: (b) => `Baudrate ${b}`,
     sc_baud_check: "Prüfen, welche antworten",
-    sc_baud_checking: (s, est) => `Prüft alle Baudraten … ${s} s von etwa ${est} s`,
+    sc_baud_checking: (s) => `Prüft alle Baudraten … ${s} s`,
     sc_baud_found: (list) => (list.length ? `Antworten auf ${list.join(", ")} Bd` : "Auf keiner Baudrate kommt eine Antwort"),
     sc_from_to: "Adressen",
     sc_running: (d, n, k) => `${d}/${n} · ${k} gefunden`,
@@ -56,7 +56,7 @@ texts(
     sc_pick: "Pick a hit in the list (↑↓) to see cause, remedy and values here.",
     sc_baud_menu: (b) => `Baud rate ${b}`,
     sc_baud_check: "Check which respond",
-    sc_baud_checking: (s, est) => `Checking all baud rates … ${s} s of about ${est} s`,
+    sc_baud_checking: (s) => `Checking all baud rates … ${s} s`,
     sc_baud_found: (list) => (list.length ? `Answers on ${list.join(", ")} Bd` : "No answer on any baud rate"),
     sc_from_to: "Addresses",
     sc_running: (d, n, k) => `${d}/${n} · ${k} found`,
@@ -520,24 +520,23 @@ function fillBaudMenu() {
   showBaudCheck();
 }
 
-let baudChecking = null; // { start, est } während der Prüfung
+let baudChecking = null; // Beginn der Prüfung (ms), solange sie läuft
 
-/// Zustand der Prüfung im Menü: läuft (Punkt, Sekunden von geschätzten), sonst das Ergebnis
+/// Zustand der Prüfung im Menü: läuft (Punkt, Sekunden seit Beginn), sonst das Ergebnis. Keine
+/// Schätzung: die Dauer hängt vom Wandler und vom Betriebssystem ab (gemessen 8 s bis 2 min)
 function showBaudCheck() {
   const out = q("[data-baud-result]");
   const go = q("[data-baud-check]");
   if (!out) return;
   go.disabled = !!baudChecking;
   if (!baudChecking) return text(out, view.baudCheck ? t("sc_baud_found", view.baudCheck) : "");
-  const s = Math.round((Date.now() - baudChecking.start) / 1000);
-  html(out, `<span class="dot busy"></span> ${esc(t("sc_baud_checking", s, baudChecking.est))}`);
+  const s = Math.round((Date.now() - baudChecking) / 1000);
+  html(out, `<span class="dot busy"></span> ${esc(t("sc_baud_checking", s))}`);
 }
 
 /// Welche Baudraten antworten? Ergebnis gleich als Auswahl übernehmen
 async function checkBauds() {
-  // je Baudrate zwei Abfragen (Antwort auf Adresse 254, Selektion mit Platzhalter)
-  const est = Math.max(1, Math.round(scanLogic.duration({ from: 0, to: 1, retries: 0, bauds: BAUDS, conn: state.status.connection })));
-  baudChecking = { start: Date.now(), est };
+  baudChecking = Date.now();
   showBaudCheck();
   const tick = setInterval(showBaudCheck, 1000);
   try {

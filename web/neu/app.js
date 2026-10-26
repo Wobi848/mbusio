@@ -122,7 +122,8 @@ async function renderConnForm() {
   const current = s.connection?.port || s.active.line.connection || "";
   const baud = s.connection?.baud || s.active.line.baud || 2400;
   const box = $("conn-form");
-  box.innerHTML = `<p class="sub">${esc(t("connection"))}</p>`;
+  // die Suche nach COM-Ports kann unter Windows Sekunden dauern: zeigen, dass gesucht wird
+  if (!state.ports) box.innerHTML = `<p class="sub"><span class="dot busy"></span> ${esc(t("n_ports_searching"))}</p>`;
   const ports = state.ports || (await request("ports").catch(() => []));
   set({ ports });
   const known = ports.some((p) => p.port === current);
@@ -131,7 +132,7 @@ async function renderConnForm() {
       .map((p) => `<option value="${esc(p.port)}"${p.port === current ? " selected" : ""}>${esc(p.label ? `${p.dev || portText(p.port)} · ${p.label}` : p.port)}</option>`)
       .join("")}</select></label>
     <label class="row"><span>${esc(t("port_manual"))}</span><input name="manual" class="mono" value="${known ? "" : esc(current)}" placeholder="COM3, /dev/ttyUSB0, tcp://…"></label>
-    <label class="row"><span>${esc(t("baud"))}</span><select name="baud">${[300, 600, 1200, 2400, 4800, 9600, 19200, 38400]
+    <label class="row"><span>${esc(t("baud"))}</span><select name="baud">${BAUDS
       .map((b) => `<option${b === baud ? " selected" : ""}>${b}</option>`)
       .join("")}</select></label>
     <div class="row end">${s.connected ? `<button type="button" class="quiet" data-disconnect>${esc(t("disconnect"))}</button>` : ""}<button type="submit" data-connect>${esc(t("connect"))}</button></div>`;

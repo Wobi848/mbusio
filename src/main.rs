@@ -103,6 +103,12 @@ fn open_browser(url: &str) {
     }
 }
 
+/// Adresse der Oberfläche auf diesem Gerät. IPv4 statt `localhost`: mbusio hört nur auf IPv4, und
+/// Windows versucht bei `localhost` zuerst IPv6 und braucht für die Abweisung spürbar lange.
+pub fn local_url(port: u16) -> String {
+    format!("http://127.0.0.1:{port}")
+}
+
 /// Wie viele Ports nach dem gewünschten probiert werden, wenn Windows ihn sperrt
 const PORT_TRIES: u16 = 10;
 
@@ -115,7 +121,7 @@ async fn listen(host: &str, port: u16, no_browser: bool) -> anyhow::Result<Optio
         match TcpListener::bind((host, p)).await {
             Ok(l) => return Ok(Some(l)),
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !no_browser => {
-                let url = format!("http://localhost:{p}");
+                let url = local_url(p);
                 println!("Port {p} belegt, mbusio läuft vermutlich schon / already running: {url}");
                 open_browser(&url);
                 return Ok(None);
@@ -242,7 +248,7 @@ async fn serve(
         .spawn(move || mqtt::run(st))?;
     tokio::spawn(modbus::run(state.clone()));
     let port = listener.local_addr()?.port();
-    let url = format!("http://localhost:{port}");
+    let url = local_url(port);
     println!("mbusio {}: {url}", env!("CARGO_PKG_VERSION"));
     println!("Daten / data: {}", data_dir.join("mbusio.db").display());
     if args.lan {

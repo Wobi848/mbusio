@@ -278,7 +278,7 @@ pub fn install(args: &crate::Args) -> Result<()> {
     firewall(&target, args.lan.then_some(args.http_port));
     service.start::<&str>(&[])?;
     let running = wait_for(&service, ServiceState::Running, Duration::from_secs(20));
-    let url = format!("http://localhost:{}", args.http_port);
+    let url = crate::local_url(args.http_port);
     println!(
         "{}",
         tr(
