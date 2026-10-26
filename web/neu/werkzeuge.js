@@ -15,6 +15,8 @@ texts(
     wz_no_target: "Kein Ziel · Zähler wählen oder Adresse eingeben",
     wz_no_match: "Kein Zähler passt · PA (0–250), ID (8 Ziffern) oder Sekundäradresse (16 Hex) eingeben",
     wz_clear_target: "Ziel lösen",
+    wz_sim: "Simulator",
+    wz_sim_title: "Virtuelle Anlage ohne Hardware: üben, testen, vorführen",
     wz_locked_target: "gesperrt: kein Ziel",
     wz_locked_conn: "gesperrt: nicht verbunden",
     wz_read_what: "Werte und Rohtelegramme",
@@ -36,6 +38,8 @@ texts(
     wz_no_target: "No target · pick a meter or enter an address",
     wz_no_match: "No meter matches · enter PA (0–250), ID (8 digits) or secondary address (16 hex)",
     wz_clear_target: "Clear target",
+    wz_sim: "Simulator",
+    wz_sim_title: "Virtual plant without hardware: practise, test, demonstrate",
     wz_locked_target: "locked: no target",
     wz_locked_conn: "locked: not connected",
     wz_read_what: "Values and raw telegrams",
@@ -85,6 +89,8 @@ export function mount(pane) {
       </div>
       <span class="tstate" data-tstate></span>
       <button type="button" class="icon" data-clear title="${esc(t("wz_clear_target"))}" aria-label="${esc(t("wz_clear_target"))}">×</button>
+      <span class="grow"></span>
+      <a class="quiet" href="#/simulator" data-sim-link title="${esc(t("wz_sim_title"))}">${esc(t("wz_sim"))} →</a>
     </div>
     <div class="tools">
       <fieldset class="tool" data-tool>

@@ -1,7 +1,6 @@
 "use strict";
 
-// Auswertung der Scan-Treffer, gemeinsam für die bisherige und die neue Oberfläche. Ohne
-// Seitenbezug: alles, was von der Linie abhängt, kommt als Kontext
+// Auswertung der Scan-Treffer. Ohne Seitenbezug: alles, was von der Linie abhängt, kommt als Kontext
 // ctx = { hits (alle Treffer des Scans), busBaud (Baudrate des Busses), mode ("primary" | "secondary": Merken über PA/SA) }
 
 const scanLogic = {

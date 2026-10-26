@@ -1,11 +1,7 @@
 "use strict";
 
-// Verlauf als Diagramm (SVG), gemeinsam für die bisherige und die neue Oberfläche.
+// Verlauf als Diagramm (SVG).
 // Stile: css/plot.css. Eingabe: Punkte aus /api/meters/{id}/history.
-
-function formatNum(x, maxDigits = 3) {
-  return new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-GB", { maximumFractionDigits: maxDigits }).format(x);
-}
 
 /// Name einer Reihe: Grösse, Tarif, Untereinheit (z.B. Impulseingang), Einheit
 function seriesName(v) {

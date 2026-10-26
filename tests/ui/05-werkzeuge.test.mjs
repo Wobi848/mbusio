@@ -1,22 +1,17 @@
 import { assert, simLine } from "./helpers.mjs";
 
-// Neue Oberfläche, Schritt 5: Bereich Werkzeuge (ein Ziel für alle Werkzeuge, Auslesen,
+// Bereich Werkzeuge (ein Ziel für alle Werkzeuge, Auslesen,
 // Primäradresse mit Rückfrage am Ort, Telegramm analysieren)
 
 const area = "[data-area=werkzeuge]";
 
 export default {
-  name: "Neue Oberfläche: Werkzeuge (Ziel wählen, Auslesen, Adresse ändern, Analyse)",
+  name: "Werkzeuge (Ziel wählen, Auslesen, Adresse ändern, Analyse)",
   async setup(api) {
     await simLine(api, "SIMULATOR:ok10");
     await api("meters", "POST", { address: "1", name: "Whg 1" });
   },
   async run({ page, base, api }) {
-    let dialogs = 0;
-    page.on("dialog", (d) => {
-      dialogs++;
-      d.dismiss();
-    });
     await page.goto(base + "/#/werkzeuge");
     await page.waitForSelector(`${area} [data-read]`);
 
@@ -48,6 +43,8 @@ export default {
     await page.waitForSelector(`${area} [data-analysis]:not([hidden])`);
     assert.ok((await page.textContent(`${area} [data-analysis]`)).length > 10);
 
-    assert.equal(dialogs, 0, "keine Browser-Dialoge");
+    // Simulator auch ohne simulierte Linie erreichbar
+    await page.click(`${area} [data-sim-link]`);
+    await page.waitForSelector(".tabs [data-area=simulator][aria-current=page]");
   },
 };

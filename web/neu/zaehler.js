@@ -159,7 +159,9 @@ function row(m) {
           ? `<span class="chip warn" title="${esc(t("meter_clock_title", m.clock_off))}">${esc(t("meter_clock", m.clock_off))}</span>`
           : m.plan_info?.effective && m.plan_info.effective !== "off"
             ? `<span class="sub">${esc(planText(m.plan_info.effective))}</span>`
-            : "";
+            : m.plan === "off"
+              ? `<span class="sub" title="${esc(t("plan"))}">${esc(planText("off"))}</span>`
+              : "";
   const value = m.last_value
     ? `<b class="mono">${esc(m.last_value)}</b> <span class="sub">${esc(slotText(m.last_read))}</span>`
     : `<span class="sub">${esc(t("n_never_read"))}</span>`;

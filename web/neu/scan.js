@@ -10,6 +10,7 @@ import { loadMeters, loadTree, loadStatus, report } from "./data.js";
 texts(
   {
     sc_never: "Auf dieser Linie wurde noch nicht gesucht.",
+    sc_telegram: "Telegramm",
     sc_none_found: "Nichts gefunden. Baudrate und Verkabelung prüfen, oder einen Sekundärscan versuchen.",
     sc_in_list: "✓ in Liste",
     sc_new: "neu",
@@ -40,6 +41,7 @@ texts(
   },
   {
     sc_never: "No scan on this line yet.",
+    sc_telegram: "Telegram",
     sc_none_found: "Nothing found. Check baud rate and wiring, or try a secondary scan.",
     sc_in_list: "✓ in list",
     sc_new: "new",
@@ -246,7 +248,7 @@ function render() {
     html(
       q("[data-changes]"),
       chg && n("new") + n("changed") + chg.missing.length
-        ? [n("new") && `<span class="chip">${esc(t("chg_n_new", n("new")))}</span>`, chg.missing.length && `<span class="chip warn">${esc(t("chg_n_missing", chg.missing.length))}</span>`, n("changed") && `<span class="chip">${esc(t("chg_n_changed", n("changed")))}</span>`].filter(Boolean).join(" ")
+        ? [n("new") && `<span class="chip">${esc(t("chg_n_new", n("new")))}</span>`, chg.missing.length && `<span class="chip warn" data-missing title="${esc(chg.missing.map(hitLabel).join("\n"))}">${esc(t("chg_n_missing", chg.missing.length))}</span>`, n("changed") && `<span class="chip">${esc(t("chg_n_changed", n("changed")))}</span>`].filter(Boolean).join(" ")
         : ""
     );
     const att = job.hits.filter((h, i) => attention(h, i, a)).length;
@@ -272,6 +274,9 @@ function mainAction(c, a) {
   const ok = c.hits.some((h) => h.status === "ok");
   return ok ? `<span class="ok-text">${esc(t("sc_all_listed"))}</span> <a href="#/zaehler">${esc(t("sc_to_meters"))} →</a>` : "";
 }
+
+/// Treffer kurz: PA und ID, z.B. für „fehlt seit dem letzten Scan“
+const hitLabel = (h) => [h.primary_address != null ? `PA ${h.primary_address}` : "", h.id ? `ID ${h.id}` : ""].filter(Boolean).join(" · ");
 
 const newOnes = (c) => scanLogic.rememberable(c.hits, c).filter((h) => !scanLogic.listed(h, state.meters || [], c));
 
@@ -315,7 +320,7 @@ function renderDetail(c, a) {
     <div class="actions">${actions.join("")}</div>
     ${h.secondary_address ? `<p class="sub mono">SA ${esc(h.secondary_address)}</p>` : ""}
     ${vals ? `<div class="vals">${vals.map((v) => `<div class="vrow"><span>${esc(label(v.quantity))}${v.storage ? ` · ${v.storage}` : ""}</span><span class="mono">${esc(v.value_text)} ${esc(v.unit)}</span><span></span></div>`).join("")}</div>` : ""}
-    ${h.raw ? `<details><summary class="sub">Telegramm</summary><p class="mono raw">${esc(h.raw)}</p></details>` : ""}`
+    ${h.raw ? `<details><summary class="sub">${esc(t("sc_telegram"))}</summary><p class="mono raw">${esc(h.raw)}</p></details>` : ""}`
   );
 }
 

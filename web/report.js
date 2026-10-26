@@ -77,7 +77,7 @@ function renderTable() {
           // Zähler wie in der App (Symbol, Name, ID · PA · Hersteller), Ort und Notiz darunter
           return `<tr>
             <td class="num">${n}</td>
-            <td>${ui.meter({ ...meterBlock(m), info: "" })}<span class="small">${esc([m.location, m.note].filter(Boolean).join(" · "))}</span></td>
+            <td>${meterHtml(meterBlock(m))}<span class="small">${esc([m.location, m.note].filter(Boolean).join(" · "))}</span></td>
             <td class="num mono">${m.baud ?? l.line.baud}</td>
             <td class="num">${esc(m.last_value ?? "")}<span class="small">${esc(m.last_value ? label(m.last_quantity) : "")}</span></td>
             <td class="mono">${esc(m.last_read ?? "")}${
@@ -174,6 +174,25 @@ function renderDps() {
 }
 
 /// Änderungen am Bus (PA, Baudrate), vom Server je Linie protokolliert
+/// Zähler wie in der App: Symbol, Name (fehlt: „ohne Namen“), darunter ID · PA · Hersteller
+function meterHtml(m) {
+  const info = [m.ident ? `ID ${m.ident}` : "", m.pa != null && m.pa !== "" ? `PA ${m.pa}` : "", m.man].filter(Boolean).join(" · ");
+  const name = m.name ? `<span class="mtr-name">${esc(m.name)}</span>` : `<span class="mtr-name none">${esc(t("meter_unnamed"))}</span>`;
+  return `<div class="mtr">${mediumIcon(m.medium)}<span class="mtr-text">${name}<span class="mtr-info">${esc(info)}</span></span></div>`;
+}
+
+/// Rückfrage am Knopf statt Browser-Fenster: erster Klick fragt, zweiter innert 4 s führt aus
+function confirmed(button) {
+  if (button.dataset.asking) return true;
+  button.dataset.asking = "1";
+  button.textContent = t("confirm_clear_changes");
+  setTimeout(() => {
+    delete button.dataset.asking;
+    button.textContent = t("clear_changes");
+  }, 4000);
+  return false;
+}
+
 function renderChanges() {
   const list = data.changes;
   $("clear-changes").hidden = list.length === 0;
@@ -226,8 +245,8 @@ async function main() {
   };
   $("print").onclick = () => window.print();
   $("close").onclick = () => window.close();
-  $("clear-changes").onclick = async () => {
-    if (!confirm(t("confirm_clear_changes"))) return;
+  $("clear-changes").onclick = async (ev) => {
+    if (!confirmed(ev.currentTarget)) return;
     await request(`projects/${data.project.id}/changes`, { method: "DELETE" });
     data.changes = [];
     render();

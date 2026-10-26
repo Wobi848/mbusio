@@ -1,6 +1,6 @@
 import { assert, simLine } from "./helpers.mjs";
 
-// Neue Oberfläche, Schritt 4: Weitergabe (Ausgänge mit Schalter und Zustand, Datenpunkte als
+// Weitergabe (Ausgänge mit Schalter und Zustand, Datenpunkte als
 // Liste mit Details, Mehrfachauswahl, Adressen nach Muster)
 
 const ENERGY = "instantaneous|0|0|0|energy|kWh";
@@ -8,7 +8,7 @@ const rows = (page) => page.locator("section[data-area=weitergabe] [data-list] [
 const detail = "section[data-area=weitergabe] [data-detail]";
 
 export default {
-  name: "Neue Oberfläche: Weitergabe (Ausgänge, Datenpunkte, Auswahl, Muster)",
+  name: "Weitergabe (Ausgänge, Datenpunkte, Auswahl, Muster)",
   async setup(api) {
     await simLine(api, "SIMULATOR:ok10");
     for (const a of ["1", "2", "3"]) {
@@ -18,8 +18,6 @@ export default {
     }
   },
   async run({ page, base, api }) {
-    let dialogs = 0;
-    page.on("dialog", () => dialogs++);
     await page.goto(base + "/#/weitergabe");
     await page.waitForFunction(() => document.querySelectorAll("section[data-area=weitergabe] [data-list] [role=option]").length === 3);
     assert.match(await rows(page).nth(0).textContent(), /gut/);
@@ -63,6 +61,5 @@ export default {
     await page.click(".ask button.danger");
     await page.waitForFunction(async () => !document.querySelector("[data-out-toggle=mqtt]").checked);
     assert.equal((await api("mqtt")).config.enabled, false);
-    assert.equal(dialogs, 0, "Browser-Dialog benutzt");
   },
 };

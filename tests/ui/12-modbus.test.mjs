@@ -1,5 +1,8 @@
 import net from "node:net";
-import { assert, simLine, tab } from "./helpers.mjs";
+import { assert, simLine } from "./helpers.mjs";
+
+// Modbus-Server einrichten und einschalten, Datenpunkt weitergeben, Wert wie ein
+// Leitsystem lesen
 
 /// Register lesen wie ein Leitsystem (Funktion 04)
 function readRegisters(port, start, count) {
@@ -24,8 +27,10 @@ function readRegisters(port, start, count) {
   });
 }
 
+const detail = "section[data-area=weitergabe] [data-detail]";
+
 export default {
-  name: "Modbus: Server einrichten, Register vergeben, Wert über Modbus lesen",
+  name: "Modbus (einrichten, Datenpunkt weitergeben, Register lesen)",
   async setup(api) {
     await simLine(api);
     await api("meters", "POST", { address: "1", name: "Whg 1" });
@@ -35,20 +40,30 @@ export default {
     await api("projects/1/plan", "PUT", { plan: "daily 00:05" });
     await api("lines/1/operation", "PUT", { on: true });
   },
-  async run({ page, api }) {
+  async run({ page, base, api }) {
     const port = 16000 + (process.pid % 1000);
-    await tab(page, "transfer");
+    await page.goto(base + "/#/weitergabe");
     await page.click("[data-out-settings=modbus]");
-    const f = "[data-out-form=modbus]";
-    await page.check(`${f} [name=enabled]`);
-    await page.fill(`${f} [name=bind]`, "127.0.0.1");
-    await page.fill(`${f} [name=port]`, String(port));
-    await page.click(`${f} [type=submit]`);
-    await page.waitForFunction(() => document.querySelector("#tr-outputs")?.textContent.includes("Hört auf"), null, { timeout: 15000 });
-    // Häkchen: Register aus der Nummer des Datenpunkts (1 → 0), Block im Tooltip
-    await page.locator("[data-dp-out=modbus]").first().check();
-    await page.waitForFunction(() => [...document.querySelectorAll("#dp-table .out-addr")].some((x) => x.title === "Register 0–9"));
-    // wie ein Leitsystem lesen: Wert als float64, Qualität gut
+    await page.fill(`${detail} [name=bind]`, "127.0.0.1");
+    await page.fill(`${detail} [name=port]`, String(port));
+    await page.click(`${detail} [type=submit]`);
+    await page.waitForSelector(`${detail} [data-out-form]`, { state: "detached" });
+    await page.click("[data-out-toggle=modbus]");
+    await page.waitForFunction(() => document.querySelector("[data-outputs]")?.textContent.includes("127.0.0.1"), null, { timeout: 15000 });
+
+    // Datenpunkt an Modbus: Register aus der Nummer des Datenpunkts (1 → 0)
+    await page.focus("section[data-area=weitergabe] [data-list]");
+    await page.keyboard.press("Control+a");
+    await page.click("[data-bulk='out:modbus:on']");
+    let list = null;
+    for (let i = 0; i < 30 && !list?.datapoints.length; i++) {
+      list = await api("projects/1/outputs/modbus/list?format=json");
+      await page.waitForTimeout(100);
+    }
+    assert.equal(list.datapoints[0].address, "0");
+    assert.equal(list.modbus.word_order, "ABCD");
+
+    // wie ein Leitsystem lesen: Wert als float64, Qualität gut; Zustand ohne Störungen
     await api("meters/1/read", "POST");
     let regs = [];
     for (let i = 0; i < 30; i++) {
@@ -60,12 +75,6 @@ export default {
     regs.slice(0, 4).forEach((r, i) => b.writeUInt16BE(r, 2 * i));
     assert.ok(b.readDoubleBE(0) > 123456, `Wert ${b.readDoubleBE(0)}`);
     assert.equal(regs[8], 0, "Qualität gut");
-    // Zustand: Lebenszeichen, keine Störungen
-    const status = await readRegisters(port, 60000, 3);
-    assert.equal(status[1], 0);
-    // Liste für den Integrator mit Register
-    const list = await api("projects/1/outputs/modbus/list?format=json");
-    assert.equal(list.datapoints[0].address, "0");
-    assert.equal(list.modbus.word_order, "ABCD");
+    assert.equal((await readRegisters(port, 60000, 3))[1], 0);
   },
 };

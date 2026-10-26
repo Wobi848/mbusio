@@ -46,7 +46,8 @@ async function startServer(port, args = []) {
   const base = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 100; i++) {
     try {
-      if ((await fetch(base + "/api/status")).ok) break;
+      await fetch(base + "/api/status"); // jede Antwort, auch 401 mit Zugriffsschlüssel
+      break;
     } catch {
       /* noch nicht da */
     }
@@ -86,22 +87,21 @@ for (const t of tests.filter((t) => t.name.includes(filter) || t.file.includes(f
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  // Rückfragen (confirm/prompt) beantwortet der Test über page.answers, sonst OK
-  page.answers = [];
-  page.on("dialog", (d) => d.accept(d.type() === "prompt" ? page.answers.shift() : undefined));
+  // Rückfragen stehen am Knopf; ein Browser-Fenster (alert/confirm/prompt) ist ein Fehler
+  page.on("dialog", (d) => {
+    errors.push(`Browser-Dialog: ${d.message()}`);
+    d.dismiss();
+  });
   const t0 = Date.now();
   try {
     await page.addInitScript(() => localStorage.setItem("lang", "de"));
     if (t.setup) await t.setup(server.api);
-    // bisherige Oberfläche (alt.html); die Tests der neuen öffnen „/“ selbst
-    await page.goto(server.base + "/alt.html");
-    await page.waitForFunction(() => document.querySelector("#h-project")?.textContent);
     await t.run({ page, api: server.api, base: server.base, ctx });
-    if (errors.length) throw new Error("JavaScript-Fehler: " + errors.join(" | "));
+    if (errors.length) throw new Error("Fehler im Browser: " + errors.join(" | "));
     console.log(`✓ ${t.name} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
   } catch (e) {
     failed++;
-    console.log(`✗ ${t.name}\n    ${String(e.stack || e).split("\n").slice(0, 4).join("\n    ")}`);
+    console.log(`✗ ${t.name}\n    ${String(e.stack || e).split("\n").slice(0, 30).join("\n    ")}`);
     await page.screenshot({ path: path.join(os.tmpdir(), `mbusio-ui-${t.file}.png`) }).catch(() => {});
   } finally {
     await ctx.close();

@@ -1,12 +1,12 @@
 import { assert, simLine } from "./helpers.mjs";
 
-// Neue Oberfläche, Schritt 3: Bereich Anlage (Projektbaum mit festen Spalten, Details rechts,
+// Bereich Anlage (Projektbaum mit festen Spalten, Details rechts,
 // Anlegen ohne Browser-Dialog, Linie wechseln ohne Neuladen, Löschen mit Rückfrage am Ort)
 
 const row = (page, text) => page.locator("[data-area=anlage] [data-list] [role=option]", { hasText: text });
 
 export default {
-  name: "Neue Oberfläche: Anlage (Baum, Zustand, Anlegen, Bearbeiten, Linie wechseln, Löschen)",
+  name: "Anlage (Baum, Zustand, Anlegen, Bearbeiten, Linie wechseln, Löschen)",
   async setup(api) {
     await simLine(api);
     await api("meters", "POST", { address: "1", name: "Whg 1" });
@@ -15,11 +15,6 @@ export default {
     await api("lines/1/operation", "PUT", { on: true });
   },
   async run({ page, base, api }) {
-    let dialogs = 0;
-    page.on("dialog", (d) => {
-      dialogs++;
-      d.dismiss();
-    });
     await page.goto(base + "/#/anlage");
     await page.waitForSelector("[data-area=anlage] [role=option]");
     // ohne Neuladen: diese Markierung bleibt bis zum Ende
@@ -73,7 +68,6 @@ export default {
     const left = (await api("projects")).projects[0].gateways.find((g) => g.id === gw.id).lines.map((l) => l.name);
     assert.ok(!left.includes("Linie B1 neu"), `gelöscht: ${left}`);
 
-    assert.equal(dialogs, 0, "keine Browser-Dialoge");
     assert.ok(await page.evaluate(() => window.__nochDa), "Seite nie neu geladen");
   },
 };

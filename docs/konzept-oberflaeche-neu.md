@@ -406,11 +406,14 @@ Namen und langer Fehlermeldung.
 - Durchgang über alle Bereiche (Desktop, Handy, dunkel): kein seitliches Scrollen, keine Fehler im
   Browser; Anlage: Spalte „Zustand“ mit Mindestbreite.
 
-**Umgeschaltet (25.10.2026):** die neue Oberfläche ist `web/index.html` unter `/`; die bisherige ist
-`web/alt.html` (gleicher Ordner, damit ihre Pfade und Sprungmarken bleiben), `/neu/` leitet auf `/`
-weiter. Die Tests der bisherigen Oberfläche öffnen `alt.html`.
+**Umgeschaltet (25.10.2026):** die neue Oberfläche ist `web/index.html` unter `/`, `/neu/` leitet
+auf `/` weiter.
 
-**Noch offen:** die bisherige Oberfläche mit ihren Dateien (web/js: core, ui, scan, hits, fix,
-meters, …; web/css ausser tokens, meter, plot) und Tests (01–12, 16, 17) entfernen, wenn die neue
-eine Version lang im Einsatz war; dann fallen auch die doppelten Felderlisten (MQTT, Modbus) weg.
-Zugriffsschlüssel: `base.js` fragt bei 401 noch mit einem Browser-Fenster.
+**Bisherige Oberfläche entfernt (26.10.2026),** samt Dateien, Tests und 255 nur dort benutzten
+Texten. Ihre Tests, die etwas prüften, was die neuen nicht abdeckten, sind für die neue Oberfläche
+neu geschrieben: Sprachen (alle Bereiche, Englisch ohne Deutsch), Ausleseplan mit Uhrzeit,
+Scan-Vergleich und Sekundärscan mit Weitersuchen, Projekt leeren, Import, Modbus, MQTT, Nächster
+Schritt bis zum Bericht und Ausgang. Dabei dazugekommen: Zugriffsschlüssel in einem Feld über der
+Seite statt Browser-Fenster (`askToken` in `base.js`, gilt auch für den Bericht), Kurzformen der
+Uhrzeit im Plan (`time24`), „fehlt“ im Scan zeigt im Tooltip welche, Zähler ohne Plan zeigen
+„aus“, Werkzeuge → Simulator. Jeder Browser-Dialog lässt einen Test fehlschlagen (`run.mjs`).

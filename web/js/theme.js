@@ -2,7 +2,7 @@
 
 // Theme vor dem ersten Zeichnen setzen, sonst blitzt kurz das falsche auf. Gesetzt wird immer
 // hell oder dunkel, „auto“ folgt dem System; so stehen die dunklen Farben nur einmal im CSS.
-// Im <head> laden, gemeinsam für die heutige und die neue Oberfläche.
+// Im <head> laden.
 const darkQuery = matchMedia("(prefers-color-scheme: dark)");
 let themeChoice = "auto";
 try {

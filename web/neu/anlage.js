@@ -297,7 +297,7 @@ function renderPlant(p) {
   const lines = allLines(p).filter((l) => l.operation);
   box.hidden = !lines.length || !s;
   if (box.hidden) return;
-  const cell = (title, body) => `<div class="cell"><span class="eyebrow">${esc(title)}</span><span class="cut">${body}</span></div>`;
+  const cell = (title, body) => `<div class="cell"><span class="eyebrow">${esc(title)}</span><span class="body">${body}</span></div>`;
   const chip = (cls, txt, title = "") => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(txt)}</span>`;
   const cells = [];
   if (!s.background) {
@@ -484,8 +484,11 @@ async function savePlan(kind) {
   const sel = q(`[data-plan="${kind}"]`);
   const time = q(`[data-plan-time="${kind}"]`);
   time.hidden = !TIMED.includes(sel.value);
-  if (!time.hidden && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(time.value.trim())) return toast(t("an_time_bad"), { error: true });
-  const plan = !sel.value ? null : time.hidden ? sel.value : `${sel.value} ${time.value.trim().padStart(5, "0")}`;
+  const hhmm = time24(time.value);
+  time.classList.toggle("invalid", !time.hidden && !hhmm);
+  if (!time.hidden && !hhmm) return toast(t("an_time_bad"), { error: true });
+  if (hhmm) time.value = hhmm;
+  const plan = !sel.value ? null : time.hidden ? sel.value : `${sel.value} ${hhmm}`;
   const x = picked();
   try {
     const r = await request(kind === "project" ? `projects/${x.p.id}/plan` : `lines/${x.l.id}/plan`, { method: "PUT", body: { plan } });

@@ -1,7 +1,7 @@
 "use strict";
 
 // Zählerliste vom Kunden (CSV oder aus Excel kopiert): Überschrift erkennen, Spalten zuordnen.
-// Gemeinsam für die bisherige und die neue Oberfläche; zerlegt wird mit parseTable (base.js).
+// Zerlegt wird mit parseTable (base.js).
 
 const listLogic = {
   FIELDS: ["id", "name", "location", "note", "pa"],

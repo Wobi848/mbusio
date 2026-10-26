@@ -1,4 +1,4 @@
-/* Zähler-Baustein (ui.meter): in der App und im Bericht gleich */
+/* Zähler-Symbol (mediumIcon) und Zähler im Bericht (meterHtml) */
 
 /* Medium: Symbolfarbe und Fläche; dunkel: Fläche aus der Symbolfarbe, Symbol heller */
 .mid { --m: #59625e; --m-soft: #eef0ef; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; flex: none;
@@ -12,14 +12,9 @@
 .mid.m-power { --m: #a16207; --m-soft: #fdf4d6; }
 .mid.m-gas { --m: #6d28d9; --m-soft: #f0eaff; }
 :root[data-theme="dark"] .mid { background: color-mix(in srgb, var(--m) 18%, transparent); color: color-mix(in srgb, var(--m) 55%, #fff); }
-/* Störung: roter Punkt am Symbol */
-.mid.alert::after { content: ""; position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--err); border: 2px solid var(--surface); }
 
 .mtr { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .mtr-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
 .mtr-name { font-weight: 650; white-space: normal; }
 .mtr-name.none { font-weight: 500; font-style: italic; color: var(--muted); }
 .mtr-info { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
-.mtr > .chip { margin-left: auto; }
-.mtr-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; border-radius: 999px; background: var(--sunken);
-  font-size: 12.5px; font-weight: 600; white-space: nowrap; }

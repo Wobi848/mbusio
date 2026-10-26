@@ -53,7 +53,8 @@
   display: grid; gap: 3px; align-content: start; min-width: 0;
   padding: 8px 12px; background: var(--surface);
 }
-[data-area=anlage] .plant .cell > .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* umbrechen statt abschneiden: Hinweise und Knöpfe (Uhrzeit übernehmen) bleiben sichtbar */
+[data-area=anlage] .plant .cell > .body { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 
 /* Handy: Zeilen als zweizeilige Karten (Name und Zustand, darunter Anschluss und Dauerbetrieb) */
 @media (max-width: 999px) {

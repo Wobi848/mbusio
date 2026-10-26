@@ -1,5 +1,4 @@
-/* mbusio – Farben, Schrift, Bewegung als Variablen; gemeinsam für die heutige und die neue
-   Oberfläche (web/neu). Hell und dunkel; data-theme setzt js/theme.js vor dem ersten Zeichnen. */
+/* mbusio – Farben, Schrift, Bewegung als Variablen. Hell und dunkel; data-theme setzt js/theme.js vor dem ersten Zeichnen. */
 
 :root {
   /* Seitenbreite: ganze Fensterbreite nutzen (Tabellen mit vielen Spalten) */

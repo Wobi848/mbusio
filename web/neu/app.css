@@ -244,6 +244,7 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .fields label { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; }
 .fields label > span { color: var(--muted); }
 .fields input.saved { border-color: var(--ok); background: var(--ok-soft); }
+input.invalid { border-color: var(--err); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
 .detail h3 { margin: 14px 0 6px; font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
 .vals { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
@@ -259,8 +260,6 @@ button.danger-text:hover { background: var(--err-soft); }
 .selbar select { height: 28px; }
 
 .mid.s { width: 20px; height: 20px; border-radius: 5px; }
-.soon { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 16px 12px; color: var(--muted); }
-.soon b { color: var(--text); }
 
 /* Mittlere Breite: Gateway steht im Linien-Menü, der Port in der Statusleiste */
 @media (max-width: 1349px) {

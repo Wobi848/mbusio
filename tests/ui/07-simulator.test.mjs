@@ -1,18 +1,16 @@
 import { assert, simLine } from "./helpers.mjs";
 
-// Neue Oberfläche, Simulator: Vorlage ansehen, kopieren (Feld statt prompt), Zähler ändern,
+// Simulator: Vorlage ansehen, kopieren (Feld statt prompt), Zähler ändern,
 // speichern, mit der aktiven Linie verwenden, löschen mit Rückfrage am Ort
 
 const sec = "section[data-area=simulator]";
 
 export default {
-  name: "Neue Oberfläche: Simulator (Vorlage, kopieren, ändern, speichern, verwenden, löschen)",
+  name: "Simulator (Vorlage, kopieren, ändern, speichern, verwenden, löschen)",
   async setup(api) {
     await simLine(api, "SIMULATOR");
   },
   async run({ page, base, api }) {
-    let dialogs = 0;
-    page.on("dialog", () => dialogs++);
     await page.goto(base + "/#/simulator");
     await page.waitForSelector(`${sec} [data-list] [role=option]`);
     // Vorlage: nur ansehen
@@ -51,6 +49,5 @@ export default {
     await page.click(".ask button.danger");
     await page.waitForFunction(() => document.querySelector("section[data-area=simulator] [data-sim] option:checked")?.textContent !== "Meine Praxis");
     assert.ok(!(await api("sim")).scenarios.some((s) => s.name === "Meine Praxis"));
-    assert.equal(dialogs, 0, "Browser-Dialog benutzt");
   },
 };

@@ -26,9 +26,6 @@ Schritt ist immer genau ein Knopf (siehe [docs/konzept-oberflaeche-neu.md](docs/
   liest aus, `S` scannt, `?` zeigt alle Tasten. Keine Browser-Fenster für Rückfragen: sie stehen am
   Knopf.
 
-Die bisherige Oberfläche ist noch unter `http://<gerät>:8080/alt.html` erreichbar und fällt in einer
-der nächsten Versionen weg.
-
 ## Funktionen
 
 ### Verbindung und Suche
@@ -79,7 +76,7 @@ der nächsten Versionen weg.
 - **Ausleseplan** im Projekt, je Linie oder je Zähler: Aus, monatlich, täglich, stündlich, alle
   15 min. Linie und Zähler übernehmen den Plan von oben, solange sie keinen eigenen haben.
   **Standard ist überall Aus**; gelesen wird erst, wenn der **Dauerbetrieb der Linie** eingeschaltet
-  ist (Linien-Leiste)
+  ist (Schalter in der Kopfzeile oder in der Anlage)
 - Termine im Raster der Uhr; jede Linie hat ihre eigene Verbindung, Linien laufen gleichzeitig.
   Bedienung (Scan, Auslesen, Adresse ändern) hat immer Vorrang, kein „Bus belegt“
 - Verpasste Termine (mbusio aus, Linie getrennt) werden einmal nachgeholt, mit echtem Zeitstempel
@@ -87,12 +84,12 @@ der nächsten Versionen weg.
   Lehnt ein Zähler ab (beschäftigt, zu viele Auslesungen), wird er bis zum nächsten Tag ausgesetzt
 - Warnung, wenn die geplanten Auslesungen einer Linie nicht mehr in die Buszeit passen
 - **Uhrzeit:** ohne Zeitserver (NTP) oder Uhr-Modul gilt sie als unsicher; Werte werden dann als
-  „Zeit unsicher“ gekennzeichnet. „Uhrzeit nicht bestätigt“ unten in der Leiste übernimmt die
+  „Zeit unsicher“ gekennzeichnet. „Uhrzeit übernehmen“ im Zustand der Anlage übernimmt die
   Uhrzeit des Laptops oder Handys
 - **Speicherung:** geplante Auslesungen nur als Rohtelegramm (rund 100–250 Byte statt ~2 KB),
   decodiert wird beim Anzeigen; Zeitstempel zusätzlich in UTC. Messwerte werden nie von selbst
   gelöscht; optional je Projekt „Verlauf: nach 30/90/365 Tagen nur 1 Wert pro Tag“
-- **Speicherschutz:** wird der Platz knapp, warnt die Leiste unten; ist er fast voll, werden keine
+- **Speicherschutz:** wird der Platz knapp, warnt der Zustand der Anlage; ist er fast voll, werden keine
   neuen Auslesungen mehr gespeichert (Zählerliste und Anzeige laufen weiter), damit Datenbank und
   Gerät bedienbar bleiben
 - Die Datenbank übersteht Absturz und Stromausfall (SQLite WAL, Transaktionen); nach dem Neustart
@@ -106,8 +103,8 @@ der nächsten Versionen weg.
 ### Weitergabe: Datenpunkte und Ausgänge
 
 Alles im Reiter **Weitergabe**: oben die **Ausgänge** (heute MQTT) mit Zustand und Einstellungen,
-darunter die **Datenpunkte nach Zählern gruppiert** (aktive Linie oder ganzes Projekt). Aus der
-Zählerliste („Weitergabe“) und aus einer Auslesung führt ein Link direkt zum Zähler.
+darunter die **Datenpunkte** als Liste (aktive Linie oder ganzes Projekt) mit Details rechts und
+Mehrfachauswahl. Werte wählt man im Bereich Zähler beim Zähler an.
 
 - Je Zähler **„Werte wählen“**: alle Werte mit aktuellem Wert anhaken; der Hauptwert ist
   vorgeschlagen. Jeder gewählte Wert ist ein Datenpunkt; je Ausgang ein Häkchen. Name, Einheit und
@@ -167,7 +164,8 @@ Zählerliste („Weitergabe“) und aus einer Auslesung führt ein Link direkt z
 - Reiter Weitergabe → Ausgänge → Modbus → **Einstellungen**: einschalten, Adresse der
   Netzwerkschnittstelle (Modbus hat keine Zugangskontrolle), Port (502; unter Linux braucht ein
   Port unter 1024 Rechte, sonst z.B. 1502), Projekt, Wortreihenfolge (ABCD oder CDAB)
-- Je Datenpunkt das Häkchen **Modbus**; Startregister = (Nummer − 1) × 10, bleibt immer gleich
+- Je Datenpunkt das Häkchen **Modbus** (mehrere: auswählen → **Modbus ein**); Startregister =
+  (Nummer − 1) × 10, bleibt immer gleich
 - Je Datenpunkt 10 Register: Wert als float64 (+0), float32 (+4), int32 × 100 (+6), Qualität (+8:
   0 gut, 1 veraltet, 2 gestört, 3 ungültig, 4 kein Wert), Alter in Minuten (+9); ab 60000 der
   Zustand (Lebenszeichen, Anzahl gestört, Anzahl veraltet)
@@ -310,7 +308,7 @@ mbusio --port tcp://192.168.1.50:10001 raw "10 40 05 45 16"
 
 Im Reiter **Simulator** lassen sich virtuelle Anlagen zusammenstellen, ohne Hardware: zum Üben,
 Testen und Vorführen. Der Reiter erscheint nur, solange die aktive Linie eine Simulation benutzt;
-sonst öffnet man ihn unter **Werkzeuge → Simulator öffnen**. Eingebaute Vorlagen:
+sonst öffnet man ihn unter **Werkzeuge → Simulator**. Eingebaute Vorlagen:
 
 | Simulation | Anschluss | Inhalt |
 | --- | --- | --- |
@@ -412,14 +410,14 @@ Aufbau:
   nodered, simulator); `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
 - `src/i18n.rs`: Übersetzungen der Messgrössen, Sprache je Request; alle Texte der Oberfläche und
   des Berichts in `web/js/texts.js`
-- `web/js/`: Oberfläche, normale Skripte ohne Build-Schritt, Reihenfolge in `index.html`:
-  `base.js` (Speicher, Sprache, API; auch für den Bericht), `core.js`, `ui.js` (gemeinsame Bausteine:
-  Chip, Symbol-Knopf, Tabelle, Eingabefeld, Formular, Aufklapp-Bereich, Vorschau → Übernehmen,
-  CSV zerlegen), dann je Bereich eine Datei (busbar, connection, scan, hits, fix, tools, meters, chart, meterlist,
-  transfer, je Ausgang `out-<name>.js` (out-mqtt, out-modbus), sim, plan, project, linebar, guide);
-  `main.js` startet alles
-- `web/css/`: `base.css` (Farben, Elemente, Bausteine: Kopfzeile, Linien-Leiste, Laschen, Zähler-Baustein,
-  Tabellen-Leiste, Statusleiste), dann je Reiter eine Datei
+- `web/index.html` und `web/neu/`: Oberfläche als ES-Module ohne Build-Schritt (Konzept
+  `docs/konzept-oberflaeche-neu.md`): `app.js` (Kopfzeile, Laschen, Statusleiste, Nächster Schritt),
+  `store.js` (Zustand), `view.js` (Bausteine: Liste mit Schlüssel, Rückfrage am Ort, Rückgängig,
+  Vorschau → Übernehmen), `keys.js` (Tastatur), `data.js` (Laden), dann je Bereich `<bereich>.js` mit
+  `<bereich>.css` (scan, zaehler, weitergabe, anlage, werkzeuge, simulator), Texte des Bereichs bei sich
+- `web/js/`: gemeinsam für Oberfläche und Bericht (`report.html`): `base.js` (Speicher, Sprache, API,
+  Zugriffsschlüssel), `texts.js`, `icons.js`, `theme.js`, `scanlogic.js`, `listlogic.js`, `plot.js`;
+  `web/css/`: `tokens.css` (Farben, Schrift), `meter.css`, `plot.css`
 - `tests/ui/`: Browser-Tests der Oberfläche (siehe `tests/ui/README.md`)
 
 Der Decoder ist eine Eigenentwicklung und wird gegen das Referenztelegramm aus der

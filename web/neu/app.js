@@ -1,5 +1,5 @@
 // Neue Oberfläche: Start, Bereiche, Kopfzeile, Statusleiste (Konzept neue Oberfläche).
-// Gemeinsam mit der heutigen Oberfläche: js/texts.js (t, UI) und js/base.js (request, esc, …).
+// Gemeinsam mit dem Bericht: js/texts.js (t, UI) und js/base.js (request, esc, …).
 
 import { state, set, watch, activeLine, operatingLines } from "./store.js";
 import { html, text, menu, closeMenu, ask, toast } from "./view.js";
@@ -300,9 +300,8 @@ function renderTabs() {
 }
 
 /// Arbeitsfläche: jeder Bereich hat eine eigene Fläche, die beim Wechsel bleibt (Scroll, Auswahl,
-/// Filter). Ein Bereich ist die Datei neu/<bereich>.js mit `mount(fläche)`; fehlt sie noch
-/// (Konzept §8), führt die Fläche in die bisherige Oberfläche. So braucht ein neuer Bereich keine
-/// Änderung an app.js.
+/// Filter). Ein Bereich ist die Datei neu/<bereich>.js mit `mount(fläche)`, geladen beim ersten
+/// Öffnen.
 const panes = {};
 function renderWork() {
   for (const a of AREAS) {
@@ -311,21 +310,10 @@ function renderWork() {
       panes[a].className = "pane";
       panes[a].dataset.area = a;
       $("work").append(panes[a]);
-      mountArea(a, panes[a]);
+      import(`./${a}.js`).then((m) => m.mount(panes[a]));
     }
     if (panes[a]) panes[a].hidden = a !== state.area;
   }
-}
-
-async function mountArea(area, pane) {
-  let mod = null;
-  try {
-    mod = await import(`./${area}.js`);
-  } catch {
-    // Bereich noch nicht gebaut
-  }
-  if (mod?.mount) return mod.mount(pane);
-  pane.innerHTML = `<div class="soon"><b>${esc(t(AREA_TAB[area]))}</b><span>${esc(t("n_soon"))}</span><a href="alt.html">${esc(t("n_old_ui"))} →</a></div>`;
 }
 
 AREAS.forEach((a, i) =>

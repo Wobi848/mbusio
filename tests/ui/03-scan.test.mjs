@@ -1,23 +1,15 @@
-import { assert, simLine } from "./helpers.mjs";
+import { assert, scanDone, simLine } from "./helpers.mjs";
 
-// Neue Oberfläche, Schritt 2: Bereich Scan (Suchzeile, Treffer zeilenweise, Zustand am Treffer,
+// Bereich Scan (Suchzeile, Treffer zeilenweise, Zustand am Treffer,
 // ein Hauptknopf: beheben → merken → alle in Liste)
 
 const rows = (page) => page.locator("section[data-area=scan] [data-list] [role=option]");
-/// erst laufen, dann fertig (der Knopf zeigt kurz nach dem Klick noch „starten“)
-const done = async (page) => {
-  await page.waitForFunction(() => document.querySelector("[data-start]")?.textContent === "Abbrechen", null, { timeout: 10000 }).catch(() => {});
-  await page.waitForFunction(() => document.querySelector("[data-start]")?.textContent === "Primärscan starten", null, { timeout: 120000 });
-};
-
 export default {
-  name: "Neue Oberfläche: Scan (Treffer, Klick während des Scans, merken, beheben)",
+  name: "Scan (Treffer, Klick während des Scans, merken, beheben)",
   async setup(api) {
     await simLine(api, "SIMULATOR:praxis");
   },
   async run({ page, base, api }) {
-    let dialogs = 0;
-    page.on("dialog", () => dialogs++);
     // ohne Adresse und ohne Zähler beginnt die Oberfläche im Scan
     await page.goto(base + "/");
     await page.waitForFunction(() => location.hash === "#/scan");
@@ -30,7 +22,7 @@ export default {
     await page.waitForFunction(() => document.querySelectorAll("section[data-area=scan] [data-list] [role=option]").length >= 2);
     await rows(page).nth(1).click();
     await page.waitForSelector("section[data-area=scan] [role=option].active");
-    await done(page);
+    await scanDone(page);
     assert.equal(await rows(page).count(), 16);
     assert.ok(await page.isVisible("section[data-area=scan] [role=option].active"), "Auswahl während des Scans verloren");
 
@@ -57,7 +49,7 @@ export default {
     for (const b of ["300", "9600"]) await page.check(`[data-baud-menu] [data-baud][value="${b}"]`);
     await page.keyboard.press("Escape");
     await page.click("[data-start]");
-    await done(page);
+    await scanDone(page);
     await page.waitForSelector("[data-fix]");
     assert.match(await page.textContent("[data-fix]"), /4 beheben/);
     await page.click("[data-fix]");
@@ -66,9 +58,8 @@ export default {
     assert.match(await page.textContent("section[data-area=scan] [data-detail]"), /4 von 4/);
     // Kontrolle: alle jetzt auf 2400 Bd, nichts mehr zu beheben
     await page.click("[data-start-check]");
-    await done(page);
+    await scanDone(page);
     await page.waitForSelector("[data-merge]");
     assert.ok(!(await page.$("[data-fix]")), "nach dem Beheben noch etwas zu beheben");
-    assert.equal(dialogs, 0, "Browser-Dialog benutzt");
   },
 };

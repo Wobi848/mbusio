@@ -14,7 +14,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Scrollen), Zustand als Wort am Element, genau ein Hauptknopf und „Nächster Schritt“ in der
   Statusleiste, Mehrfachauswahl, Tastatur, Rückfragen am Knopf statt Browser-Fenster, Wechsel von
   Linie und Projekt ohne Neuladen, Zeilen werden während eines Scans nicht mehr ersetzt (keine
-  verlorenen Klicks). Die bisherige Oberfläche bleibt eine Version lang unter `/alt.html`.
+  verlorenen Klicks). Die bisherige Oberfläche ist entfernt; alte Lesezeichen auf `/neu/` führen
+  zur Startseite.
+- **Zugriffsschlüssel** (`--token`) wird in einem Feld auf der Seite abgefragt statt in einem
+  Browser-Fenster; ein falscher wird als falsch gemeldet.
 - **Schnelleres Neuladen:** die Dateien der Oberfläche kommen mit ETag; unverändert antwortet
   mbusio mit 304 (spürbar auf dem Raspberry Pi über WLAN).
 

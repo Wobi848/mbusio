@@ -1,11 +1,11 @@
 import { assert, simLine } from "./helpers.mjs";
 
-// Neue Oberfläche (web/neu), Schritt 0: Gerüst. Prüft die Vorgaben aus
+// Gerüst der Oberfläche. Prüft die Vorgaben aus
 // docs/konzept-oberflaeche-neu.md §2: kein Neuladen, kein Fokusverlust, keine Browser-Dialoge,
 // Escape, Tasten, Rückfrage am Ort, Liste mit Schlüssel.
 
 export default {
-  name: "Neue Oberfläche: Gerüst (Kopfzeile, Linie wechseln, Tastatur, Dauerbetrieb)",
+  name: "Gerüst (Kopfzeile, Linie wechseln, Tastatur, Dauerbetrieb)",
   async setup(api) {
     await simLine(api, "SIMULATOR:ok10");
     await api("gateways/1/lines", "POST", { name: "Haus B", connection: "SIMULATOR", baud: 2400 });
@@ -13,8 +13,6 @@ export default {
     await api("lines/1/plan", "PUT", { plan: "daily 00:05" });
   },
   async run({ page, base, api }) {
-    let dialogs = 0;
-    page.on("dialog", () => dialogs++);
     await page.goto(base + "/#/zaehler");
     await page.waitForFunction(() => document.querySelector("#line b")?.textContent === "Haus A");
     assert.match(await page.textContent("#conn-state"), /Verbunden/);
@@ -70,7 +68,6 @@ export default {
     await page.click("#op-switch");
     await page.click(".ask button.danger");
     await page.waitForSelector("#op:not(.on)");
-    assert.equal(dialogs, 0, "Browser-Dialog benutzt");
 
     // Liste mit Schlüssel: unveränderte Zeile bleibt dasselbe Element, geänderte wird ersetzt
     const same = await page.evaluate(async () => {

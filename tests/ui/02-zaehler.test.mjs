@@ -1,19 +1,17 @@
 import { assert, simLine } from "./helpers.mjs";
 
-// Neue Oberfläche, Schritt 1: Bereich Zähler (Liste links, Details rechts, Auswahl, Tastatur)
+// Bereich Zähler (Liste links, Details rechts, Auswahl, Tastatur)
 
 const rows = (page) => page.locator("[data-list] [role=option]");
 
 export default {
-  name: "Neue Oberfläche: Zähler (Liste, Details, Bearbeiten, Auswahl, Auslesen, Datenpunkt)",
+  name: "Zähler (Liste, Details, Bearbeiten, Auswahl, Auslesen, Datenpunkt)",
   async setup(api) {
     await simLine(api, "SIMULATOR:ok10");
     for (const a of ["1", "2", "3", "4"]) await api("meters", "POST", { address: a, name: a === "4" ? "" : "Whg " + a });
     await api("meters/1/read", "POST");
   },
   async run({ page, base, api }) {
-    let dialogs = 0;
-    page.on("dialog", () => dialogs++);
     await page.goto(base + "/#/zaehler");
     await page.waitForFunction(() => document.querySelectorAll("[data-list] [role=option]").length === 4);
 
@@ -111,6 +109,5 @@ export default {
     await page.click("[data-detail] [data-del]");
     await page.click(".ask button.danger");
     await page.waitForFunction(() => document.querySelectorAll("[data-list] [role=option]").length === 4);
-    assert.equal(dialogs, 0, "Browser-Dialog benutzt");
   },
 };
