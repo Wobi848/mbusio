@@ -1,7 +1,7 @@
 // Bereich Zähler: Liste links, Details rechts (Konzept neue Oberfläche §3, Schritt 1).
 // Zustand als Wort am Element, Bearbeiten direkt in den Feldern, Mehrfachauswahl, Tastatur.
 
-import { state, watch, activeLine } from "./store.js";
+import { state, watch, activeLine, faulty } from "./store.js";
 import { html, text, list, ask, toast, styles, texts, menu, closeMenu, previewApply } from "./view.js";
 import { bind, onEscape } from "./keys.js";
 import { loadMeters, loadTree, loadStatus, report } from "./data.js";
@@ -46,7 +46,7 @@ let releaseEscape = null;
 
 const FILTERS = {
   all: () => true,
-  err: (m) => !!(m.last_error || m.plan_info?.disturbed),
+  err: faulty,
   noname: (m) => !m.name,
 };
 const PLANS = ["off", "daily 00:05", "hourly", "15min", "monthly 00:05"];

@@ -2,17 +2,13 @@
 // Datenpunkte als Liste, Details rechts (Konzept neue Oberfläche §3.2, Schritt 4).
 
 import { state, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, texts, previewApply, menu } from "./view.js";
+import { html, text, list, ask, toast, styles, texts, previewApply, menu, outputWord } from "./view.js";
 import { onEscape } from "./keys.js";
 import { loadTree, report } from "./data.js";
 
 texts(
   {
     wg_outputs: "Ausgänge",
-    wg_running: "läuft",
-    wg_off: "aus",
-    wg_connecting: "verbindet …",
-    wg_error: "gestört",
     wg_mqtt_info: (broker, sent, queued) => `${broker} · ${sent} gesendet · ${queued} wartend`,
     wg_modbus_info: (listen, clients) => `hört auf ${listen} · ${clients} Leitsystem${clients === 1 ? "" : "e"}`,
     wg_settings: "Einstellungen",
@@ -42,10 +38,6 @@ texts(
   },
   {
     wg_outputs: "Outputs",
-    wg_running: "running",
-    wg_off: "off",
-    wg_connecting: "connecting …",
-    wg_error: "faulty",
     wg_mqtt_info: (broker, sent, queued) => `${broker} · ${sent} sent · ${queued} waiting`,
     wg_modbus_info: (listen, clients) => `listening on ${listen} · ${clients} control system${clients === 1 ? "" : "s"}`,
     wg_settings: "Settings",
@@ -156,14 +148,18 @@ function shown() {
 /// Zustand eines Ausgangs aus /api/status: [farbe, wort, satz]
 function outputState(key) {
   const s = state.status?.[key];
-  if (!s || s.state === "off") return ["", t("wg_off"), ""];
-  if (key === "mqtt") {
-    if (s.state === "connected") return ["ok", t("wg_running"), t("wg_mqtt_info", s.broker, s.sent, s.queued)];
-    if (s.state === "connecting") return ["", t("wg_connecting"), s.broker || ""];
-    return ["err", t("wg_error"), s.error || ""];
-  }
-  if (s.state === "listening") return ["ok", t("wg_running"), t("wg_modbus_info", s.listen, s.clients)];
-  return ["err", t("wg_error"), s.error || ""];
+  const [cls, word] = outputWord(s?.state);
+  const info =
+    !s || s.state === "off"
+      ? ""
+      : s.state === "connected"
+        ? t("wg_mqtt_info", s.broker, s.sent, s.queued)
+        : s.state === "listening"
+          ? t("wg_modbus_info", s.listen, s.clients)
+          : s.state === "connecting"
+            ? s.broker || ""
+            : s.error || "";
+  return [cls, word, info];
 }
 
 function renderOutputs() {

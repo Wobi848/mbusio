@@ -37,6 +37,10 @@ export function activeLine() {
   return null;
 }
 
+/// Gestört: antwortet nicht oder im Plan mehrmals nicht gelesen. Eine Regel für Filter „Gestört“,
+/// „Nächster Schritt“ und Anlage
+export const faulty = (m) => !!(m.last_error || m.plan_info?.disturbed);
+
 /// Alle Linien im Dauerbetrieb über alle Projekte: was dieses Gerät im Hintergrund tut
 export function operatingLines() {
   return (state.tree?.projects || []).flatMap((p) => p.gateways.flatMap((g) => g.lines.filter((l) => l.operation).map((l) => ({ p, g, l }))));

@@ -10,6 +10,27 @@ export function texts(de, en) {
   Object.assign(UI.en, en);
 }
 
+/// Zustand eines Ausgangs (`state` aus /api/status) als [Farbe, Wort]; gleich in Statusleiste und
+/// Weitergabe
+export function outputWord(st) {
+  if (!st || st === "off") return ["", t("n_out_off")];
+  if (st === "connected" || st === "listening") return ["ok", t("n_out_ok")];
+  if (st === "connecting") return ["", t("n_out_wait")];
+  return ["err", t("n_out_bad")];
+}
+
+/// Dauerbetrieb einer Linie ist möglich: Anschluss da und mindestens ein Zähler mit Plan
+export const opPossible = (l) => !!(l.connection && l.plan_info?.meters);
+
+/// Dauerbetrieb als Satz neben dem Schalter (Kopfzeile, Anlage): läuft, wartet, oder warum nicht
+export function opText(l) {
+  const p = l.plan_info;
+  const plan = p?.meters ? (p.effective !== "off" ? planText(p.effective) : t("plan_meters_own", p.meters)) : "";
+  if (l.operation) return `${t("op_running")} · ${plan}`;
+  if (!l.connection) return t("op_need_conn");
+  return plan ? t("op_plan_waiting", plan) : t("op_no_plan");
+}
+
 /// Eigene Stile eines Bereichs (neu/<bereich>.css) einmal laden
 export function styles(area) {
   if (document.querySelector(`link[data-area="${area}"]`)) return;

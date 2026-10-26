@@ -3,9 +3,9 @@
 // als Raster oben, nur wenn eine Linie des Projekts im Dauerbetrieb ist.
 
 import { state, set, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, texts } from "./view.js";
+import { html, text, list, ask, toast, styles, texts, outputWord, opPossible, opText } from "./view.js";
 import { bind } from "./keys.js";
-import { loadTree, loadMeters, loadStatus, reload, useLine, report } from "./data.js";
+import { loadTree, loadMeters, loadStatus, reload, useLine, report, switchOperation } from "./data.js";
 
 texts(
   {
@@ -24,7 +24,6 @@ texts(
     an_deleted: (x) => `„${x}“ gelöscht`,
     an_no_gateways: "Noch kein Gateway in diesem Projekt.",
     an_no_lines: "keine Linie",
-    an_no_conn: "kein Anschluss",
     an_line_down: "gestört",
     an_read_at: (x) => `gelesen ${x}`,
     an_use_title: "Diese Linie aktiv machen: Scan, Zähler und Werkzeuge arbeiten dann auf ihr (Enter)",
@@ -51,7 +50,6 @@ texts(
     an_deleted: (x) => `“${x}” deleted`,
     an_no_gateways: "No gateway in this project yet.",
     an_no_lines: "no line",
-    an_no_conn: "no connection",
     an_line_down: "faulty",
     an_read_at: (x) => `read ${x}`,
     an_use_title: "Make this line active: scan, meters and tools then work on it (Enter)",
@@ -227,7 +225,7 @@ function lineRow({ l, i, n }) {
   const current = l.id === activeLineId();
   return `<div ${rowAttrs(`l:${l.id}`, "ln" + (current ? " current" : ""))}>
     <span class="name">${esc(l.name)}${current ? ` <span class="chip ok">${esc(t("ln_active"))}</span>` : ""}</span>
-    <span class="cut mono">${l.connection ? esc(`${portText(l.connection)} · ${l.baud}`) : `<span class="warn">${esc(t("an_no_conn"))}</span>`}</span>
+    <span class="cut mono">${l.connection ? esc(`${portText(l.connection)} · ${l.baud}`) : `<span class="warn">${esc(t("ln_no_conn"))}</span>`}</span>
     <span class="num">${l.meters}</span>
     <span class="num">${l.datapoints?.count || ""}</span>
     <span class="op">${opSwitch(l)}<span class="cut ${l.operation ? "ok" : "sub"}">${esc(opText(l))}</span></span>
@@ -255,15 +253,13 @@ const moveButtons = (what, id, i, n) =>
         .join("");
 
 const planned = (l) => !!l.plan_info?.meters;
-const linePlan = (l) => (l.plan_info.effective !== "off" ? planText(l.plan_info.effective) : t("plan_meters_own", l.plan_info.meters));
 
 /// Schalter Dauerbetrieb: ohne Anschluss oder Plan gesperrt, der Grund steht daneben (opText)
 const opSwitch = (l, big = false) =>
   `<input type="checkbox" class="switch${big ? " big" : ""}" data-op="${l.id}"${l.operation ? " checked" : ""}${
-    !l.connection || !planned(l) ? " disabled" : ""
+    opPossible(l) ? "" : " disabled"
   } aria-label="${esc(`${t("op_chip")} ${l.name}`)}">`;
 
-const opText = (l) => (l.operation ? `${t("op_running")} · ${linePlan(l)}` : !l.connection ? t("an_no_conn") : !planned(l) ? t("op_no_plan") : t("op_plan_waiting", linePlan(l)));
 
 /// Zustand der Linie: Probleme als Wort und Farbe zuerst, sonst letzter bzw. nächster Termin
 function lineState(l) {
@@ -274,7 +270,7 @@ function lineState(l) {
   else if (l.service && !l.service.connected && l.service.error) chips.push(["warn", t("plan_offline"), l.service.error]);
   if (r?.line_down) chips.push(["warn", t("an_line_down"), r.error || t("plan_line_down")]);
   if (p.disturbed) chips.push(["warn", t("plan_disturbed", p.disturbed)]);
-  if (l.datapoints?.invalid) chips.push(["warn", t("ln_dp_invalid", l.datapoints.invalid), t("q_decreased_title")]);
+  if (l.datapoints?.invalid) chips.push(["warn", t("ln_dp_invalid", l.datapoints.invalid), t("ln_dp_invalid_title")]);
   if (l.issues?.count) chips.push(["warn", t("ln_issues", l.issues.count), l.issues.items.join("\n")]);
   if (p.paused) chips.push(["", t("plan_paused", p.paused)]);
   if (p.load_warn) chips.push(["warn", t("plan_load", Math.round(p.load * 100))]);
@@ -338,11 +334,8 @@ function renderPlant(p) {
     cells.push(cell(t("ps_disk"), s.disk.level === "ok" ? esc(t("ps_disk_free", pct)) : chip("warn", t(s.disk.level === "full" ? "disk_full" : "disk_low", pct))));
   }
   for (const o of (s.outputs || []).filter((o) => o.on)) {
-    const st = s[o.key]?.state || "off";
-    const good = st === "connected" || st === "listening";
-    cells.push(
-      cell(o.label, `${chip(good ? "ok" : st === "connecting" ? "" : "err", t("n_out_" + (good ? "ok" : st === "connecting" ? "wait" : "bad")), s[o.key]?.error || "")} <a href="#/weitergabe">${esc(t("ps_open_transfer"))}</a>`)
-    );
+    const [cls, word] = outputWord(s[o.key]?.state);
+    cells.push(cell(o.label, `${chip(cls, word, s[o.key]?.error || "")} <a href="#/weitergabe">${esc(t("ps_open_transfer"))}</a>`));
   }
   html(box, cells.join(""));
 }
@@ -509,21 +502,6 @@ async function saveThin(select_) {
   }
 }
 
-/// Dauerbetrieb einer Linie (Zeile oder Details); Ausschalten nur nach Rückfrage am Ort
-async function toggleOperation(sw) {
-  const l = allLines(project()).find((x) => x.id === Number(sw.dataset.op));
-  const on = sw.checked;
-  sw.checked = !on; // zeigt erst den echten Zustand, wenn der Server zugestimmt hat
-  if (!on && !(await ask(sw, t("n_op_off_q", l.name), t("n_switch_off")))) return;
-  try {
-    await request(`lines/${l.id}/operation`, { method: "PUT", body: { on } });
-    await loadTree();
-    toast(t(on ? "op_switched_on" : "op_switched_off", l.name));
-  } catch (e) {
-    report(e);
-  }
-}
-
 async function use(id) {
   const l = allLines(project()).find((x) => x.id === id);
   try {
@@ -684,7 +662,7 @@ function wire() {
   });
   root.addEventListener("change", (ev) => {
     const el = ev.target;
-    if (el.matches("[data-op]")) return toggleOperation(el);
+    if (el.matches("[data-op]")) return switchOperation(el, allLines(project()).find((x) => x.id === Number(el.dataset.op)));
     if (el.matches("[data-field]")) return saveField(el);
     if (el.matches("[data-plan]")) return savePlan(el.dataset.plan);
     if (el.matches("[data-plan-time]")) return savePlan(el.dataset.planTime);

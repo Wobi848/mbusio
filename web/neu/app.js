@@ -1,10 +1,10 @@
 // Neue Oberfläche: Start, Bereiche, Kopfzeile, Statusleiste (Konzept neue Oberfläche).
 // Gemeinsam mit dem Bericht: js/texts.js (t, UI) und js/base.js (request, esc, …).
 
-import { state, set, watch, activeLine, operatingLines } from "./store.js";
-import { html, text, menu, closeMenu, ask, toast } from "./view.js";
+import { state, set, watch, activeLine, operatingLines, faulty } from "./store.js";
+import { html, text, menu, closeMenu, outputWord, opPossible, opText } from "./view.js";
 import { bind, keyList, onEscape } from "./keys.js";
-import { loadStatus, loadTree, reload, useLine, report } from "./data.js";
+import { loadStatus, loadTree, reload, useLine, report, switchOperation } from "./data.js";
 import { follow, poll, logRow } from "./buslog.js";
 
 const $ = (id) => document.getElementById(id);
@@ -163,41 +163,17 @@ function renderOperation() {
   const l = activeLine();
   if (!l) return;
   const p = l.plan_info;
-  const planned = !!p?.meters;
   const sw = $("op-switch");
   sw.checked = !!l.operation;
-  sw.disabled = !planned || !l.connection;
-  const plan = planned ? (p.effective !== "off" ? planText(p.effective) : t("plan_meters_own", p.meters)) : "";
+  sw.disabled = !opPossible(l);
   const fg = l.operation && state.status && !state.status.background;
   $("op").classList.toggle("on", !!l.operation);
   // nächster Termin und „nicht als Dienst“ als Detail; sichtbar steht das an „N im Dauerbetrieb“
   $("op").title = [l.operation && p.next ? t("plan_next", slotText(p.next)) : "", fg ? t("ps_fg") : ""].filter(Boolean).join(" · ");
-  html(
-    $("op-text"),
-    l.operation
-      ? `${esc(t("op_running"))} · ${esc(plan)}`
-      : !l.connection
-        ? esc(t("op_need_conn"))
-        : planned
-          ? esc(t("op_plan_waiting", plan))
-          : esc(t("op_no_plan"))
-  );
+  text($("op-text"), opText(l));
 }
 
-$("op-switch").addEventListener("change", async (ev) => {
-  const sw = ev.target;
-  const l = activeLine();
-  const on = sw.checked;
-  sw.checked = !on; // zeigt erst den echten Zustand, wenn der Server zugestimmt hat
-  if (!on && !(await ask(sw, t("n_op_off_q", l.name), t("n_switch_off")))) return;
-  try {
-    await request(`lines/${l.id}/operation`, { method: "PUT", body: { on } });
-    await loadTree();
-    toast(t(on ? "op_switched_on" : "op_switched_off", l.name));
-  } catch (e) {
-    report(e);
-  }
-});
+$("op-switch").addEventListener("change", (ev) => switchOperation(ev.target, activeLine()));
 
 /// Kopfzeile rechts: was dieses Gerät im Hintergrund tut, über alle Projekte
 function renderOpAll() {
@@ -358,9 +334,8 @@ function renderStatus() {
     $("outputs"),
     outs
       .map((o) => {
-        const st = s[o.key]?.state || "off";
-        const good = st === "connected" || st === "listening";
-        return `<span class="chip ${good ? "ok" : st === "connecting" ? "" : "err"}" title="${esc(s[o.key]?.error || "")}">${esc(o.label)} · ${esc(t("n_out_" + (good ? "ok" : st === "connecting" ? "wait" : "bad")))}</span>`;
+        const [cls, word] = outputWord(s[o.key]?.state);
+        return `<span class="chip ${cls}" title="${esc(s[o.key]?.error || "")}">${esc(o.label)} · ${esc(word)}</span>`;
       })
       .join(" ")
   );
@@ -380,7 +355,7 @@ function nextStep() {
   if (!s.connected) return ["guide_connect", () => $("conn-action").click(), portText(l.connection)];
   if (!l.meters) return ["guide_scan", go("scan", "[data-start]")];
   if (!l.last_read) return ["guide_read", go("zaehler", "[data-read-all]"), l.meters];
-  const bad = (state.meters || []).filter((m) => m.last_error).length;
+  const bad = (state.meters || []).filter(faulty).length;
   if (bad) return ["guide_faulty_btn", go("zaehler", "[data-filter=err]"), bad];
   if (!l.operation) return ["guide_ready_btn", () => window.open("report.html", "_blank", "noopener")];
   if (!l.datapoints?.count) return ["guide_transfer", () => (location.hash = "#/zaehler")];

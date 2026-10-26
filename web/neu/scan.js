@@ -167,8 +167,9 @@ async function poll() {
 
 async function saveIssues() {
   if (!job || job.kind === "read_all") return;
-  const items = scanLogic.issues(ctx());
-  await request(`lines/${lineId}/issues`, { method: "PUT", body: { count: items.length, items } }).catch(() => {});
+  // Anzahl wie im Filter „Auffällig“ (betroffene Treffer); die Erklärungen fassen manche zusammen
+  const c = ctx();
+  await request(`lines/${lineId}/issues`, { method: "PUT", body: { count: scanLogic.attention(c).size, items: scanLogic.issues(c) } }).catch(() => {});
 }
 
 async function start(body = null) {
@@ -207,11 +208,9 @@ function hitState(h, a, i) {
   return r.address ? ["info", t("sc_new"), ""] : ["warn", t("sc_not_unique"), r.reason];
 }
 
-/// Auffällig: Problem, doppelte PA/ID oder andere Baudrate als der Bus
-const attention = (h, i, a) => h.status !== "ok" || a.rowDupPa.has(i) || a.rowDupIdSame.has(i) || (h.baud && h.baud !== ctx().busBaud);
-
 function shown(a) {
-  return (job?.hits || []).map((h, i) => ({ h, i })).filter(({ h, i }) => view.filter === "all" || (view.filter === "attention") === !!attention(h, i, a));
+  const att = scanLogic.attention(ctx(), a);
+  return (job?.hits || []).map((h, i) => ({ h, i })).filter(({ i }) => view.filter === "all" || (view.filter === "attention") === att.has(i));
 }
 
 function render() {
@@ -258,7 +257,7 @@ function render() {
         ? [n("new") && `<span class="chip">${esc(t("chg_n_new", n("new")))}</span>`, chg.missing.length && `<span class="chip warn" data-missing title="${esc(chg.missing.map(hitLabel).join("\n"))}">${esc(t("chg_n_missing", chg.missing.length))}</span>`, n("changed") && `<span class="chip">${esc(t("chg_n_changed", n("changed")))}</span>`].filter(Boolean).join(" ")
         : ""
     );
-    const att = job.hits.filter((h, i) => attention(h, i, a)).length;
+    const att = scanLogic.attention(c, a).size;
     const counts = { all: job.hits.length, attention: att, unique: job.hits.length - att };
     html(q("[data-filters]"), FILTERS.map((k) => `<button type="button" data-filter="${k}" aria-pressed="${view.filter === k}">${esc(t("hf_" + k))} <span class="n${k === "attention" && counts[k] ? " warn" : ""}">${counts[k]}</span></button>`).join(""));
     html(q("[data-modes]"), ["primary", "secondary"].map((m) => `<button type="button" data-mode="${m}" aria-pressed="${c.mode === m}" title="${esc(t(m === "primary" ? "mode_pa_title" : "mode_sa_title"))}">${m === "primary" ? "PA" : "ID"}</button>`).join(""));
@@ -413,6 +412,8 @@ async function runPlan() {
   job = await request("last-scan").catch(() => job);
   await loadMeters().catch(() => {});
   render();
+  await saveIssues();
+  loadTree().catch(() => {}); // Statusleiste und Anlage zeigen die neue Zahl
 }
 
 /// Einen Treffer beheben (freie PA bzw. Bus-Baudrate), mit Rückfrage am Knopf
@@ -433,6 +434,8 @@ async function fixOne(button, kind) {
     job = await request("last-scan").catch(() => job);
     await loadMeters().catch(() => {});
     render();
+    await saveIssues();
+    loadTree().catch(() => {}); // Statusleiste und Anlage zeigen die neue Zahl
   } catch (e) {
     report(e);
   }

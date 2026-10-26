@@ -51,6 +51,13 @@ const scanLogic = {
   },
 
   /// Auffälligkeiten als Sätze (bei der Linie gespeichert: Projektbaum, Bericht)
+  /// Zeilen (Index), die man anschauen muss: Problem, doppelte PA oder ID, fremde Baudrate. Ihre
+  /// Anzahl steht überall gleich: Filter „Auffällig“, Statusleiste, Anlage, Bericht
+  attention(ctx, a = scanLogic.analyze(ctx)) {
+    return new Set(ctx.hits.flatMap((h, i) => (h.status !== "ok" || a.rowDupPa.has(i) || a.rowDupIdSame.has(i) || (h.baud && h.baud !== ctx.busBaud) ? [i] : [])));
+  },
+
+  /// Erklärungen zu den Auffälligkeiten (Tooltip, Bericht); eine kann mehrere Treffer betreffen
   issues(ctx, a = scanLogic.analyze(ctx)) {
     const { hits, busBaud } = ctx;
     const items = [];

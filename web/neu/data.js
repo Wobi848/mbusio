@@ -1,10 +1,25 @@
 // Daten vom Server in den Zustand laden; von allen Bereichen benutzt
 
 import { set, activeLine } from "./store.js";
-import { toast } from "./view.js";
+import { toast, ask } from "./view.js";
 
 export async function loadStatus() {
   set({ status: await request("status") });
+}
+
+/// Dauerbetrieb einer Linie schalten (Schalter in Kopfzeile oder Anlage); aus nur nach Rückfrage
+/// am Ort. Der Schalter zeigt erst den echten Zustand, wenn der Server zugestimmt hat
+export async function switchOperation(sw, l) {
+  const on = sw.checked;
+  sw.checked = !on;
+  if (!on && !(await ask(sw, t("n_op_off_q", l.name), t("n_switch_off")))) return;
+  try {
+    await request(`lines/${l.id}/operation`, { method: "PUT", body: { on } });
+    await loadTree();
+    toast(t(on ? "op_switched_on" : "op_switched_off", l.name));
+  } catch (e) {
+    report(e);
+  }
 }
 
 export async function loadTree() {
