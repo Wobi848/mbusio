@@ -10,8 +10,13 @@ use super::*;
 use crate::i18n::{both, Text};
 use crate::mail::{self, Attachment, MailConfig, Message};
 
-/// Nicht gesendete Dateien so lange erneut versuchen
-const RETRY_DAYS: i64 = 7;
+/// Zeitraum aus dem Namen einer abgelegten Datei: …-JJJJ-MM-TT-JJJJ-MM-TT.csv
+fn period_of_name(name: &str) -> Option<(NaiveDate, NaiveDate)> {
+    let stem = name.strip_suffix(".csv")?;
+    let day = |s: &str| NaiveDate::parse_from_str(s, "%Y-%m-%d").ok();
+    let n = stem.len();
+    Some((day(stem.get(n - 21..n - 11)?)?, day(stem.get(n - 10..)?)?))
+}
 
 /// Wann eine Datei gesendet wurde oder warum nicht
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -58,33 +63,64 @@ impl Db {
             .collect())
     }
 
-    /// Eine abgelegte Datei als Nachricht an die Empfänger des Projekts
-    pub fn billing_outgoing(
+    /// Betreff nach den Einstellungen des Projekts (Platzhalter siehe Konzept E-Mail 9)
+    pub fn billing_subject(
         &self,
-        data_dir: &Path,
+        project_id: i64,
+        s: &Settings,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<String> {
+        let template = if s.mail_subject.trim().is_empty() {
+            default_subject()
+        } else {
+            s.mail_subject.clone()
+        };
+        let project = self.project(project_id)?.name;
+        let (von, bis) = (
+            from.format("%d.%m.%Y").to_string(),
+            to.format("%d.%m.%Y").to_string(),
+        );
+        Ok(mail::fill(
+            &template,
+            &[
+                ("projekt", &project),
+                ("zeitraum", &s.label(from, to)),
+                ("von", &von),
+                ("bis", &bis),
+                ("geraet", &self.mail_config().device_name()),
+            ],
+        ))
+    }
+
+    /// Nachricht mit einer Datei an die Empfänger des Projekts
+    fn billing_message(
+        &self,
         project_id: i64,
         name: &str,
+        data: Vec<u8>,
+        from: NaiveDate,
+        to: NaiveDate,
     ) -> Result<Outgoing> {
         let s = self.billing_settings(project_id);
-        let to = mail::recipients(&s.mail_to)?;
-        if to.is_empty() {
+        let recipients = mail::recipients(&s.mail_to)?;
+        if recipients.is_empty() {
             bail!(tr("Keine Empfänger eingetragen", "No recipients entered"));
         }
         let config = self.mail_config();
-        let project = self.project(project_id)?.name;
-        let data = std::fs::read(export_dir(data_dir, project_id).join(name))?;
         let message = Message {
             from: config.ready()?,
-            to,
-            subject: format!("mbusio: {} {project}", tr("Abrechnung", "Billing")),
+            to: recipients,
+            subject: self.billing_subject(project_id, &s, from, to)?,
             text: format!(
-                "{}: {name}\r\n{}\r\n\r\n{}",
+                "{}: {name}\r\n{}\r\n\r\n{} {}",
                 tr("Im Anhang", "Attached"),
                 tr(
                     "CSV für Excel, Spalten mit Semikolon getrennt.",
                     "CSV for Excel, columns separated by semicolons."
                 ),
-                tr("Gesendet von mbusio", "Sent by mbusio")
+                tr("Gesendet von mbusio", "Sent by mbusio"),
+                config.device_name()
             ),
             attachments: vec![Attachment {
                 name: name.to_string(),
@@ -100,6 +136,28 @@ impl Db {
         })
     }
 
+    /// Eine abgelegte Datei als Nachricht; der Zeitraum steht im Namen (…-von-bis.csv)
+    pub fn billing_outgoing(
+        &self,
+        data_dir: &Path,
+        project_id: i64,
+        name: &str,
+    ) -> Result<Outgoing> {
+        let data = std::fs::read(export_dir(data_dir, project_id).join(name))?;
+        let (from, to) = period_of_name(name).ok_or_else(|| {
+            anyhow::anyhow!("{}: {name}", tr("Zeitraum unklar", "unclear period"))
+        })?;
+        self.billing_message(project_id, name, data, from, to)
+    }
+
+    /// Die Abrechnung mit den gespeicherten Einstellungen jetzt als Nachricht (von Hand)
+    pub fn billing_mail_now(&self, project_id: i64, today: NaiveDate) -> Result<Outgoing> {
+        let s = self.billing_settings(project_id);
+        let (from, to) = s.range(today)?;
+        let (name, data) = self.billing_csv_file(project_id, &s, from, to)?;
+        self.billing_message(project_id, &name, data.into_bytes(), from, to)
+    }
+
     /// Zu sendende Dateien: automatischer Export mit Empfängern, Datei aus den letzten Tagen und
     /// noch nicht gesendet (neu oder fehlgeschlagen); dazu Meldungen, wo keine Nachricht entsteht
     pub fn billing_mail_pending(
@@ -107,7 +165,7 @@ impl Db {
         data_dir: &Path,
         now: NaiveDateTime,
     ) -> Result<(Vec<Outgoing>, Vec<Text>)> {
-        let since = (now - Duration::days(RETRY_DAYS))
+        let since = (now - Duration::days(self.mail_config().retry_days))
             .format("%Y-%m-%d %H:%M:%S")
             .to_string();
         let mut out = Vec::new();

@@ -52,13 +52,14 @@ const MORE = {
   weitergabe: async (page, step) => {
     await step("[data-out-settings=mqtt]");
     await step("[data-out-settings=modbus]");
+    await step("[data-out-settings=email]");
     await step("[data-open-log]");
     await step("[data-log-back]");
+    await step("[data-open-billing]");
+    await step("[data-b-auto]");
+    await step("[data-b-close]");
   },
   anlage: async (page, step) => {
-    await step("section[data-area=anlage] [role=option] >> nth=0");
-    await step("[data-billing]");
-    await step("[data-billing-close]");
     for (const i of [1, 2]) await step(`section[data-area=anlage] [role=option] >> nth=${i}`);
   },
 };

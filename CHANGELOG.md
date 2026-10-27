@@ -52,6 +52,14 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   fast vollem Speicher nur nicht mehr gespeichert.
 - **Fehler behoben:** Verlauf ausdünnen behielt je Tag die erste Auslesung; jetzt die letzte. Die
   erste verfälschte den Stand am Tagesende (Abrechnung) um den Verbrauch des Tages.
+- **Abrechnung zieht in die Weitergabe** (Weitergabe → Abrechnung →, eigene Ansicht mit
+  Einstellungen links, Vorschau und Dateien rechts, Projekt wählbar). Neu: Zeiträume
+  **Vorquartal** und **Vorhalbjahr** (auch automatisch), **Vorjahre zum Vergleich** (0–10,
+  Vorgabe 1; je Jahr eine Spalte „Verbrauch 09/2025“), **Betreff** mit Platzhaltern und Vorschau,
+  Knopf **Per E-Mail senden**, einstellbar wie lange auf eine Auslesung gewartet und wie lange
+  erneut gesendet wird. Anlage → Projekt zeigt nur noch eine Zeile („Abrechnung: Vormonat,
+  automatisch · an …“) mit Öffnen →. Die CSV hat dadurch standardmässig eine Spalte mehr
+  (Vorjahr) vor „Hinweis“.
 - **Abrechnung: gestört im Zeitraum und Linien wählen.** mbusio hält fest, von wann bis wann ein
   Zähler gestört war; die Abrechnung nennt das („gestört 05.09.2026 08:00 – 07.09.2026 09:00“),
   auch wenn er heute wieder antwortet. Bisher stand nur „zurzeit gestört“. Bei Projekten mit

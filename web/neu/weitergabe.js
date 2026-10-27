@@ -8,6 +8,7 @@ import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
 import { outputsHtml, outputFormHtml, formValues, securityChanged } from "./weitergabe-ausgaenge.js";
 import { openLog } from "./weitergabe-protokoll.js";
+import { openBilling, closeBilling } from "./weitergabe-abrechnung.js";
 
 
 const SEND = ["every", "change", "daily"];
@@ -28,6 +29,7 @@ export function mount(pane) {
   root.innerHTML = `
     <div class="outputs" data-outputs></div>
     <section class="logview" data-logview hidden></section>
+    <section class="billview" data-billview hidden></section>
     <div class="toolbar">
       <input type="search" data-search placeholder="${esc(t("n_search"))}" aria-label="${esc(t("n_search"))}">
       <div class="seg" role="group" data-scope></div>
@@ -78,11 +80,17 @@ async function load() {
   fromAddress();
 }
 
-/// #/weitergabe/email (z.B. aus der Abrechnung): gleich die Einstellungen der E-Mail öffnen
+/// Feste Adressen: #/weitergabe/email öffnet die Einstellungen der E-Mail,
+/// #/weitergabe/abrechnung?projekt=<id> die Abrechnung (z.B. aus der Anlage)
 function fromAddress() {
-  if (!data || !/^#\/weitergabe\/email\b/.test(location.hash)) return;
+  const m = data && location.hash.match(/^#\/weitergabe\/(email|abrechnung)(?:\?projekt=(\d+))?/);
+  if (!m) return;
   history.replaceState(null, "", "#/weitergabe");
-  openOutput("email");
+  if (m[1] === "email") {
+    closeBilling();
+    return openOutput("email");
+  }
+  showBilling(m[2] ? Number(m[2]) : null);
 }
 addEventListener("hashchange", fromAddress);
 
@@ -371,6 +379,12 @@ function toggle(id) {
 
 // ------------------------------------------------------------ Bedienung
 
+/// Abrechnung statt der Datenpunkte zeigen (Vorgabe: aktives Projekt)
+function showBilling(project = null) {
+  root.classList.add("showbill");
+  openBilling(q("[data-billview]"), { project, close: () => root.classList.remove("showbill") });
+}
+
 /// Protokoll statt der Datenpunkte zeigen; `p` filtert auf einen Datenpunkt
 function showLog(p = null) {
   root.classList.add("showlog");
@@ -385,6 +399,7 @@ function wire() {
   root.addEventListener("click", async (ev) => {
     const b = (sel) => ev.target.closest(sel);
     if (b("[data-open-log]")) return showLog();
+    if (b("[data-open-billing]")) return showBilling();
     if (b("[data-dp-log]")) return showLog(byId(view.active));
     if (b("[data-scope-set]")) {
       view.scope = b("[data-scope-set]").dataset.scopeSet;

@@ -16,9 +16,9 @@
 [data-area=weitergabe] .out { display: inline-flex; align-items: center; gap: 4px 10px; min-width: 0; max-width: 100%; min-height: 36px; padding: 3px 6px 3px 10px; border: 1px solid var(--line); border-radius: 8px; }
 [data-area=weitergabe] .out > .chip { flex: none; white-space: nowrap; }
 [data-area=weitergabe] .out.active { background: var(--accent-soft); border-color: var(--accent); }
-[data-area=weitergabe] .outlog { margin-left: auto; }
+[data-area=weitergabe] .outlog { margin-left: auto; display: inline-flex; gap: 2px; white-space: nowrap; }
 [data-area=weitergabe] .out-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
-[data-area=weitergabe] .out .cut { flex: 0 1 auto; max-width: 420px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-area=weitergabe] .out .cut { flex: 0 1 auto; max-width: 280px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-area=weitergabe] .out-more { display: inline-flex; align-items: center; gap: 2px; flex: none; }
 [data-area=weitergabe] .out .cut:empty { display: none; }
 
@@ -60,3 +60,28 @@
   [data-area=weitergabe] .logwrap .row > :nth-child(7) { display: block; grid-area: result; justify-self: end; }
 }
 [data-area=weitergabe] .detail .fields label { grid-template-columns: 120px minmax(0, 1fr); }
+
+/* Abrechnung: Ansicht statt der Datenpunkte (wie das Protokoll); links Einstellungen, rechts
+   Vorschau und Dateien */
+.pane[data-area=weitergabe].showbill > .toolbar, .pane[data-area=weitergabe].showbill > .split, .pane[data-area=weitergabe].showbill > .selbar { display: none; }
+[data-area=weitergabe] .billview { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+[data-area=weitergabe] .billview .toolbar label.inline { display: inline-flex; align-items: center; gap: 6px; }
+[data-area=weitergabe] .bview { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); min-height: 0; }
+[data-area=weitergabe] .bview > div { overflow: auto; padding: 4px 16px 16px; }
+[data-area=weitergabe] .bview .bset { border-right: 1px solid var(--line); }
+[data-area=weitergabe] .btable { overflow: auto; max-height: 60vh; border: 1px solid var(--line); border-radius: 6px; }
+[data-area=weitergabe] .btable table { border-collapse: collapse; font-size: 11.5px; white-space: nowrap; }
+[data-area=weitergabe] .btable th, [data-area=weitergabe] .btable td { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+[data-area=weitergabe] .btable th { position: sticky; top: 0; background: var(--sunken); font-weight: 650; }
+[data-area=weitergabe] .billview details.more { margin: 6px 0 10px; }
+[data-area=weitergabe] .billview details.more > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 4px 0; }
+/* Wert bzw. Schalter und Hinweis teilen sich die Breite (sonst bricht jedes Wort um) */
+[data-area=weitergabe] .billview .vrow:not(.bfile) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; }
+/* abgelegte Dateien: Name, Zeit, Zustand der E-Mail, Senden */
+[data-area=weitergabe] .vrow.bfile { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+[data-area=weitergabe] .vrow.bfile a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 900px) {
+  [data-area=weitergabe] .bview { grid-template-columns: minmax(0, 1fr); }
+  [data-area=weitergabe] .bview .bset { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+[data-area=weitergabe] .chip.wide a { margin-left: 6px; }

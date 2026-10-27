@@ -78,11 +78,13 @@ export default {
       await page.fill(f("password"), "geheim");
       await page.fill(f("from"), "mbusio@example.org");
       await page.fill(f("device"), "Keller-Pi");
+      await page.fill(f("retry_days"), "3");
       await page.click(`${wg} [data-out-form=email] [type=submit]`);
       await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("E-Mail-Einstellungen gespeichert"));
       const m = await api("mail");
       assert.equal(m.has_password, true);
       assert.equal(m.config.password, "", "Passwort nie an den Browser");
+      assert.equal(m.config.retry_days, 3);
 
       // Testmail aus den Einstellungen; Karte „bereit“, Eintrag im Protokoll
       await page.click(`${wg} [data-out-settings=email]`);
@@ -112,12 +114,26 @@ export default {
       await page.locator(`${sec} [data-list] [role=option]`).first().click();
       await page.click("[data-billing]");
       await page.waitForSelector("[data-b-send]");
-      assert.equal(await page.locator(`${sec} .chip.warn.wide a[href="#/weitergabe/email"]`).count(), 0, "Server da: kein Hinweis");
+      assert.equal(await page.locator(`section[data-area=weitergabe] .chip.warn.wide a[href="#/weitergabe/email"]`).count(), 0, "Server da: kein Hinweis");
       if (!(await api("projects/1/billing")).files[0].mail?.sent) await page.click("[data-b-send]");
       await page.waitForFunction(() => document.querySelector(".bfile .chip.ok")?.textContent === "gesendet");
       const sent = mails.find((x) => x.includes("Content-Disposition: attachment"));
       assert.ok(sent, "Anhang fehlt");
       assert.match(sent, /abrechnung-\d{4}-\d\d-01-/);
+
+      // von Hand: „Per E-Mail senden“ mit eigenem Betreff
+      await page.fill("[data-b-subject]", "{geraet} {zeitraum}");
+      await page.press("[data-b-subject]", "Tab");
+      await page.waitForFunction(() => /→ Keller-Pi \d\d\/\d{4}/.test(document.querySelector(".bset").textContent));
+      await page.click("[data-b-mail-now]");
+      await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("Abrechnung an a@example.org gesendet"));
+      assert.match(mails.at(-1), /Subject: Keller-Pi \d\d\/\d{4}/);
+      // Wartezeit nur bei „automatisch“, gespeichert
+      await page.selectOption("[data-b-wait]", "5");
+      for (let i = 0; (await api("projects/1/billing")).settings.wait_days !== 5; i++) {
+        assert.ok(i < 10);
+        await page.waitForTimeout(200);
+      }
     } finally {
       server.close();
     }

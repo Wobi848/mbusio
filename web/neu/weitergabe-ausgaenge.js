@@ -23,7 +23,7 @@ function outputState(s) {
 function emailState(m) {
   const c = m.config;
   if (!c.enabled) return ["", t("wg_m_off"), ""];
-  if (!c.host) return ["warn", t("wg_m_unset"), t("wg_m_unset_info")];
+  if (!c.host) return ["warn", t("wg_m_unset"), ""];
   if (m.last?.error) return ["err", t("wg_m_failed"), `${slotText(m.last.time)}: ${m.last.error}`];
   return ["ok", t("wg_m_ready"), m.last ? t("wg_m_info", c.host, slotText(m.last.time)) : c.host];
 }
@@ -49,7 +49,9 @@ export function outputsHtml(outs, { status, active, mail }) {
         .map((o) => card(o.key, o.label, !!o.on, outputState(status?.[o.key]), active))
         .join("") +
     (mail ? card("email", t("wg_email"), mail.config.enabled, emailState(mail), active) : "") +
-    `<button type="button" class="quiet outlog" data-open-log title="${esc(t("wg_log_title"))}">${esc(t("wg_log"))} →</button>`
+    // Ansichten statt der Datenpunkte, zusammen am Ende
+    `<span class="outlog"><button type="button" class="quiet" data-open-billing title="${esc(t("ab_hint"))}">${esc(t("ab_open"))} →</button>` +
+    `<button type="button" class="quiet" data-open-log title="${esc(t("wg_log_title"))}">${esc(t("wg_log"))} →</button></span>`
   );
 }
 
@@ -74,6 +76,7 @@ function outputFields(key, cfg) {
       ["password", t("wg_m_password"), "password", { ph: cfg.email.has_password ? t("mqtt_pass_saved") : "" }],
       ["from", t("wg_m_from"), "text", { ph: cfg.email.config.username || "mbusio@example.org", mono: true, hint: t("wg_m_from_hint") }],
       ["device", t("wg_m_device"), "text", { ph: cfg.email.device, hint: t("wg_m_device_hint") }],
+      ["retry_days", t("wg_m_retry"), "number", { mono: true, hint: t("wg_m_retry_hint") }],
     ];
   if (key === "mqtt") {
     const base = (cfg.mqtt.config.base || "mbusio").replace(/\/+$/, "");

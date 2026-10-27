@@ -31,6 +31,8 @@ pub struct MailConfig {
     pub password: String,
     /// Absender; leer = Benutzer
     pub from: String,
+    /// nicht gesendete Dateien so viele Tage erneut versuchen
+    pub retry_days: i64,
 }
 
 impl Default for MailConfig {
@@ -45,6 +47,7 @@ impl Default for MailConfig {
             username: String::new(),
             password: String::new(),
             from: String::new(),
+            retry_days: 7,
         }
     }
 }
@@ -53,6 +56,9 @@ impl MailConfig {
     pub fn check(&self) -> Result<()> {
         if !["starttls", "tls", "none"].contains(&self.security.as_str()) {
             bail!(tr("Verschlüsselung unbekannt", "Unknown encryption"));
+        }
+        if !(1..=60).contains(&self.retry_days) {
+            bail!(tr("Erneut versuchen: 1 bis 60 Tage", "Retry: 1 to 60 days"));
         }
         if !self.from.is_empty() && !is_address(&self.from) {
             bail!(tr(
@@ -115,6 +121,16 @@ pub fn is_address(s: &str) -> bool {
         && !domain.starts_with('.')
         && !domain.ends_with('.')
         && !s.contains(|c: char| c.is_whitespace() || "<>,;\"".contains(c))
+}
+
+/// Platzhalter `{name}` ersetzen; unbekannte bleiben stehen (man sieht den Tippfehler).
+/// Ohne Zeilenumbrüche, weil das Ergebnis in eine Kopfzeile kommt.
+pub fn fill(template: &str, vars: &[(&str, &str)]) -> String {
+    let mut out = template.to_string();
+    for (k, v) in vars {
+        out = out.replace(&format!("{{{k}}}"), v);
+    }
+    out.chars().filter(|c| !c.is_control()).collect()
 }
 
 /// Empfänger aus einem Feld „a@x.de, b@y.de“ (Komma oder Semikolon); falsche Adresse: Fehler

@@ -17,105 +17,15 @@ use crate::mbus::master::MeterReading;
 
 pub mod auto;
 pub mod mail;
+mod series;
+mod settings;
 mod stand;
 mod table;
+mod usage;
 
+pub use settings::{default_subject, years_back, Settings};
 pub use stand::{Source, Stand};
 pub use table::csv;
-
-/// Einstellungen eines Projekts; Vorgaben so, dass die meisten nichts ändern müssen
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Settings {
-    /// "billing" (eine Zeile je Zähler und Wert) oder "series" (Stand je Tag bzw. Monat)
-    pub form: String,
-    /// Zeitreihe: "day" oder "month"
-    pub step: String,
-    /// Hauptwert je Zähler (Energie, Volumen …)
-    pub main: bool,
-    /// weitere Werte (Kennungen), soweit ein Zähler sie hat
-    pub keys: Vec<String>,
-    /// "prev_month", "prev_year" oder "custom" (from, to als JJJJ-MM-TT)
-    pub period: String,
-    pub from: Option<String>,
-    pub to: Option<String>,
-    /// "," oder "."; leer = nach Sprache (Deutsch Komma, Englisch Punkt)
-    pub decimal: String,
-    /// nach Ende des Zeitraums selbst als Datei ablegen; ruht bei eigenem Zeitraum
-    pub auto: bool,
-    /// nur diese Linien (leer = alle des Projekts; gelöschte zählen nicht)
-    pub lines: Vec<i64>,
-    /// abgelegte Dateien an diese Adressen senden (Komma oder Semikolon); leer = nur ablegen
-    pub mail_to: String,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Settings {
-            form: "billing".into(),
-            step: "month".into(),
-            main: true,
-            keys: Vec::new(),
-            period: "prev_month".into(),
-            from: None,
-            to: None,
-            decimal: String::new(),
-            auto: false,
-            lines: Vec::new(),
-            mail_to: String::new(),
-        }
-    }
-}
-
-impl Settings {
-    fn check(&self) -> Result<()> {
-        if !["billing", "series"].contains(&self.form.as_str())
-            || !["day", "month"].contains(&self.step.as_str())
-        {
-            bail!(tr("Form des Exports unbekannt", "Unknown export form"));
-        }
-        if !["", ",", "."].contains(&self.decimal.as_str()) {
-            bail!(tr(
-                "Dezimaltrennzeichen: Komma oder Punkt",
-                "Decimal separator: comma or point"
-            ));
-        }
-        crate::mail::recipients(&self.mail_to)?;
-        Ok(())
-    }
-
-    /// Erster und letzter Tag des Zeitraums (beide eingeschlossen)
-    pub fn range(&self, today: NaiveDate) -> Result<(NaiveDate, NaiveDate)> {
-        let month_start = today.with_day(1).unwrap_or(today);
-        Ok(match self.period.as_str() {
-            "prev_month" => {
-                let end = month_start - Duration::days(1);
-                (end.with_day(1).unwrap_or(end), end)
-            }
-            "prev_year" => (
-                NaiveDate::from_ymd_opt(today.year() - 1, 1, 1).unwrap_or(today),
-                NaiveDate::from_ymd_opt(today.year() - 1, 12, 31).unwrap_or(today),
-            ),
-            "custom" => {
-                let day = |s: &Option<String>| {
-                    s.as_deref()
-                        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
-                };
-                match (day(&self.from), day(&self.to)) {
-                    (Some(f), Some(t)) if f <= t => (f, t),
-                    (Some(_), Some(_)) => {
-                        bail!(tr("„von“ liegt nach „bis“", "“from” is after “to”"))
-                    }
-                    _ => bail!(tr(
-                        "Zeitraum: „von“ und „bis“ angeben",
-                        "Period: give “from” and “to”"
-                    )),
-                }
-            }
-            _ => bail!(tr("Zeitraum unbekannt", "Unknown period")),
-        })
-    }
-}
 
 /// Ein Wert, den es im Projekt gibt, zur Auswahl
 #[derive(Debug, Serialize)]

@@ -8,7 +8,6 @@ import "./anlage-texte.js";
 import { allLines, sum, plantHtml } from "./anlage-zustand.js";
 import { rowHtml } from "./anlage-baum.js";
 import { detailHtml, TIMED } from "./anlage-details.js";
-import { openBilling, closeBilling } from "./anlage-abrechnung.js";
 import { bind } from "./keys.js";
 import { loadTree, loadMeters, loadStatus, reload, useLine, report, switchOperation } from "./data.js";
 
@@ -128,7 +127,6 @@ function renderToolbar(p) {
 
 function renderDetail() {
   const box = q("[data-detail]");
-  if (view.billing) return; // Abrechnung exportieren: eigener Inhalt, siehe anlage-abrechnung.js
   box.classList.toggle("open", view.detailOpen);
   // wer gerade in ein Feld tippt, verliert nichts: neu gezeichnet wird erst danach
   const typing = box.contains(document.activeElement) && document.activeElement.matches("input:not([type=checkbox]), select, textarea");
@@ -140,25 +138,8 @@ function renderDetail() {
 
 // ------------------------------------------------------------ Aktionen
 
-function openBillingPanel() {
-  view.billing = true;
-  view.detailOpen = true;
-  openBilling(q("[data-detail]"), project().id, () => {
-    closeBillingPanel();
-    render();
-  });
-}
-
-function closeBillingPanel() {
-  if (!view.billing) return;
-  view.billing = false;
-  closeBilling();
-  q("[data-detail]")._html = null;
-}
-
 function select(key, { focusRow = false, detail = false } = {}) {
   view.sel = key;
-  closeBillingPanel();
   if (detail) view.detailOpen = true;
   render();
   const el = root.querySelector(`#an-${key.replace(":", "-")}`);
@@ -377,7 +358,6 @@ function wire() {
     if (hit("[data-toggle]")) return toggleGateway(Number(hit("[data-toggle]").dataset.toggle));
     if (hit("[data-delete]")) return remove(hit("[data-delete]"));
     if (hit("[data-clear]")) return clearProject(hit("[data-clear]"));
-    if (hit("[data-billing]")) return openBillingPanel();
     if (hit("[data-back]")) {
       view.detailOpen = false;
       render();

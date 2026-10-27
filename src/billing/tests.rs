@@ -48,6 +48,11 @@ fn with_readings(list: &[(&str, f64)]) -> (Db, i64, i64, MeterReading) {
     (db, line, m.id, r)
 }
 
+/// Spalte „Hinweis“: immer die letzte (davor stehen je nach Einstellung die Vorjahre)
+fn note(row: &[String]) -> &str {
+    row.last().unwrap()
+}
+
 fn custom(from: &str, to: &str) -> Settings {
     Settings {
         period: "custom".into(),
@@ -156,8 +161,8 @@ fn billing_rows_with_consumption_scale_and_notes() {
     assert!(row[10].starts_with("Auslesung 31.07.2026 23:00"));
     assert_eq!(row[11], "1234,5", "Dezimalkomma auf Deutsch");
     assert_eq!(row[13], "334,5");
-    assert!(row[14].contains("Zeit unsicher"), "{}", row[14]);
-    assert_eq!(t.rows[1][14], "noch nie ausgelesen");
+    assert!(note(row).contains("Zeit unsicher"), "{}", note(row));
+    assert_eq!(note(&t.rows[1]), "noch nie ausgelesen");
     assert_eq!(t.notes, 2);
 
     // Punkt einstellbar; Faktor und Einheit des Datenpunkts
@@ -210,7 +215,7 @@ fn consumption_continues_over_meter_replacement() {
     // (150 − 100) alter Zähler + (30 − 10) neuer Zähler
     assert_eq!(row[13], "70", "{row:?}");
     assert!(row[10].starts_with("erste Auslesung danach"), "{}", row[10]);
-    assert!(row[14].contains("Zählertausch"), "{}", row[14]);
+    assert!(note(row).contains("Zählertausch"), "{}", note(row));
 }
 
 #[test]
@@ -263,11 +268,11 @@ fn notes_for_detected_swap_not_read_and_fault() {
         "(100 − 100) bis zum Tausch, (30 − 10) danach: {row:?}"
     );
     assert!(
-        row[14].contains("Zählertausch erkannt 20.08.2026 10:00 (nicht bestätigt)"),
+        note(row).contains("Zählertausch erkannt 20.08.2026 10:00 (nicht bestätigt)"),
         "{}",
-        row[14]
+        note(row)
     );
-    assert!(row[14].contains("meldet Fehler"), "{}", row[14]);
+    assert!(note(row).contains("meldet Fehler"), "{}", note(row));
     assert!(
         row[12].contains("meldet Fehler"),
         "Quelle Ende: {}",
@@ -286,9 +291,9 @@ fn notes_for_detected_swap_not_read_and_fault() {
         )
         .unwrap();
     assert!(
-        t.rows[0][14].starts_with("Zählertausch 20.08.2026"),
+        note(&t.rows[0]).starts_with("Zählertausch 20.08.2026"),
         "{}",
-        t.rows[0][14]
+        note(&t.rows[0])
     );
     assert!(!t.summary.contains_key("swap_open"));
     // Zeitraum ohne Auslesung
@@ -301,9 +306,9 @@ fn notes_for_detected_swap_not_read_and_fault() {
         )
         .unwrap();
     assert!(
-        t.rows[0][14].contains("im Zeitraum nicht gelesen"),
+        note(&t.rows[0]).contains("im Zeitraum nicht gelesen"),
         "{}",
-        t.rows[0][14]
+        note(&t.rows[0])
     );
     assert_eq!((t.summary["not_read"], t.summary["missing"]), (1, 1));
 }
@@ -489,14 +494,17 @@ fn disturbed_in_period_and_chosen_lines() {
     let period = custom(&(today - Duration::days(1)).to_string(), &today.to_string());
     let t = db.billing_table(1, &period, today, None).unwrap();
     assert!(
-        t.rows[0][14].contains("gestört ") && t.rows[0][14].contains(" – "),
+        note(&t.rows[0]).contains("gestört ") && note(&t.rows[0]).contains(" – "),
         "{}",
-        t.rows[0][14]
+        note(&t.rows[0])
     );
     assert_eq!(t.summary["disturbed"], 1);
     // vor der Störung: kein Hinweis
     let before = custom("2026-01-01", "2026-01-31");
-    assert!(!db.billing_table(1, &before, today, None).unwrap().rows[0][14].contains("gestört"));
+    assert!(!db.billing_table(1, &before, today, None).unwrap().rows[0]
+        .last()
+        .unwrap()
+        .contains("gestört"));
 
     // zweite Linie mit einem Zähler: alle, nur eine, gelöschte Wahl = alle
     let gw = db
@@ -535,4 +543,193 @@ fn disturbed_in_period_and_chosen_lines() {
     assert_eq!((t.total, t.rows[0][2].as_str()), (1, "Whg 7"));
     s.lines = vec![9999];
     assert_eq!(db.billing_table(1, &s, today, None).unwrap().total, 2);
+}
+
+/// Quartal, Halbjahr, Bezeichnungen, Jahre zurück (Konzept Export 3.7)
+#[test]
+fn quarter_half_labels_and_years_back() {
+    let with = |p: &str| Settings {
+        period: p.into(),
+        ..Default::default()
+    };
+    let cases = [
+        (
+            "prev_quarter",
+            "2026-10-26",
+            "2026-07-01",
+            "2026-09-30",
+            "Q3/2026",
+        ),
+        (
+            "prev_quarter",
+            "2026-02-10",
+            "2025-10-01",
+            "2025-12-31",
+            "Q4/2025",
+        ),
+        (
+            "prev_half",
+            "2026-10-26",
+            "2026-01-01",
+            "2026-06-30",
+            "H1/2026",
+        ),
+        (
+            "prev_half",
+            "2026-03-01",
+            "2025-07-01",
+            "2025-12-31",
+            "H2/2025",
+        ),
+        (
+            "prev_month",
+            "2026-03-15",
+            "2026-02-01",
+            "2026-02-28",
+            "02/2026",
+        ),
+        (
+            "prev_year",
+            "2026-03-15",
+            "2025-01-01",
+            "2025-12-31",
+            "2025",
+        ),
+    ];
+    for (p, today, from, to, label) in cases {
+        let s = with(p);
+        let (f, t) = s.range(day(today)).unwrap();
+        assert_eq!((f, t), (day(from), day(to)), "{p} {today}");
+        assert_eq!(s.label(f, t), label);
+    }
+    // Monatsende bleibt Monatsende, auch im Schaltjahr
+    assert_eq!(years_back(day("2025-02-28"), 1), day("2024-02-29"));
+    assert_eq!(years_back(day("2024-02-29"), 1), day("2023-02-28"));
+    assert_eq!(years_back(day("2026-09-15"), 2), day("2024-09-15"));
+    assert!(Settings {
+        compare_years: 11,
+        ..Default::default()
+    }
+    .check()
+    .is_err());
+}
+
+/// Vorjahre: je Jahr eine Spalte „Verbrauch <Zeitraum>“ vor dem Hinweis; fehlt ein Jahr, leer
+/// mit Hinweis
+#[test]
+fn previous_years_as_columns() {
+    let (db, ..) = with_readings(&[
+        ("2025-07-31 12:00:00", 100.0),
+        ("2025-08-31 12:00:00", 160.0),
+        ("2026-07-31 12:00:00", 500.0),
+        ("2026-08-31 12:00:00", 580.0),
+    ]);
+    let s = Settings {
+        compare_years: 2,
+        ..Default::default()
+    };
+    let t = db.billing_table(1, &s, day("2026-09-15"), None).unwrap();
+    let n = t.header.len();
+    assert_eq!(
+        &t.header[n - 4..],
+        [
+            "Verbrauch",
+            "Verbrauch 08/2025",
+            "Verbrauch 08/2024",
+            "Hinweis"
+        ]
+    );
+    let row = &t.rows[0];
+    assert_eq!(&row[n - 4..n - 1], ["80", "60", ""], "{row:?}");
+    assert!(
+        note(row).contains("Vorjahr unvollständig: 08/2024"),
+        "{}",
+        note(row)
+    );
+    assert_eq!(t.summary["prev_missing"], 1);
+    // ohne Vorjahre: Verbrauch direkt vor dem Hinweis
+    let t = db
+        .billing_table(
+            1,
+            &Settings {
+                compare_years: 0,
+                ..Default::default()
+            },
+            day("2026-09-15"),
+            None,
+        )
+        .unwrap();
+    assert_eq!(&t.header[t.header.len() - 2..], ["Verbrauch", "Hinweis"]);
+}
+
+/// Betreff mit Platzhaltern (unbekannte bleiben stehen), „jetzt senden“ mit Anhang
+#[test]
+fn subject_placeholders_and_mail_now() {
+    let (mut db, ..) = with_readings(&[("2026-09-30 12:00:00", 100.0)]);
+    db.set_mail_config(&crate::mail::MailConfig {
+        host: "smtp.example.org".into(),
+        from: "mbusio@example.org".into(),
+        device: "Keller-Pi".into(),
+        ..Default::default()
+    })
+    .unwrap();
+    let mut s = Settings {
+        period: "prev_quarter".into(),
+        mail_to: "a@example.org".into(),
+        ..Default::default()
+    };
+    db.set_billing_settings(1, &s).unwrap();
+    let (f, t) = s.range(day("2026-10-26")).unwrap();
+    assert_eq!(
+        db.billing_subject(1, &s, f, t).unwrap(),
+        format!("Abrechnung {} Q3/2026", db.project(1).unwrap().name)
+    );
+    s.mail_subject = "{geraet}: {von}–{bis} {tippfehler}\r\nBcc: x@y.de".into();
+    assert_eq!(
+        db.billing_subject(1, &s, f, t).unwrap(),
+        "Keller-Pi: 01.07.2026–30.09.2026 {tippfehler}Bcc: x@y.de",
+        "Zeilenumbruch weg (Kopfzeile)"
+    );
+    db.set_billing_settings(1, &s).unwrap();
+    let o = db.billing_mail_now(1, day("2026-10-26")).unwrap();
+    assert_eq!(o.message.to, ["a@example.org"]);
+    assert!(
+        o.name.ends_with("-abrechnung-2026-07-01-2026-09-30.csv"),
+        "{}",
+        o.name
+    );
+    assert!(String::from_utf8_lossy(&o.message.attachments[0].data).contains("Verbrauch Q3/2025"));
+    // ohne Empfänger: sagt es
+    s.mail_to.clear();
+    db.set_billing_settings(1, &s).unwrap();
+    assert!(format!(
+        "{:#}",
+        db.billing_mail_now(1, day("2026-10-26")).err().unwrap()
+    )
+    .contains("Keine Empfänger"));
+}
+
+/// Warten auf eine Auslesung nach dem Ende ist einstellbar
+#[test]
+fn auto_export_wait_days_setting() {
+    let (mut db, ..) = with_readings(&[("2026-09-30 12:00:00", 100.0)]);
+    let at = |t: &str| chrono::NaiveDateTime::parse_from_str(t, "%Y-%m-%d %H:%M").unwrap();
+    let mut s = Settings {
+        auto: true,
+        ..Default::default()
+    };
+    db.set_billing_settings(1, &s).unwrap();
+    assert!(
+        db.billing_due(1, &s, at("2026-10-01 08:00"))
+            .unwrap()
+            .is_empty(),
+        "Vorgabe 2 Tage"
+    );
+    s.wait_days = 0;
+    assert_eq!(
+        db.billing_due(1, &s, at("2026-10-01 00:10")).unwrap().len(),
+        1
+    );
+    s.wait_days = 40;
+    assert!(db.set_billing_settings(1, &s).is_err());
 }

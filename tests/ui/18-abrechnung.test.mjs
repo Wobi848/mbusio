@@ -1,6 +1,6 @@
 import { assert, simLine } from "./helpers.mjs";
 
-// Anlage → Projekt → Abrechnung exportieren: Vorgaben, Zeitraum, weitere Werte, Dezimalzeichen,
+// Anlage → Projekt → Abrechnung „Öffnen“ führt in die Weitergabe → Abrechnung: Vorgaben, Zeitraum, weitere Werte, Dezimalzeichen,
 // Zeitreihe, Vorschau, CSV mit denselben Einstellungen, je Projekt gespeichert
 
 const sec = "section[data-area=anlage]";
@@ -22,6 +22,22 @@ export default {
     // Vorgaben: Vormonat, Abrechnung, Hauptwert
     assert.equal(await page.inputValue("[data-b-period]"), "prev_month");
     assert.ok(await page.isChecked("[data-b-main]"));
+    // Vorgabe 1 Vorjahr: eigene Spalte in der Vorschau; ohne Empfänger kein Senden
+    await page.waitForFunction(() => /Verbrauch \d\d\/\d{4}/.test(document.querySelector(".btable thead")?.textContent));
+    assert.ok(await page.isDisabled("[data-b-mail-now]"), "ohne Empfänger gesperrt");
+
+    // Vorquartal: Bezeichnung in Spalte und Betreff
+    await page.selectOption("[data-b-period]", "prev_quarter");
+    await page.waitForFunction(() => /Verbrauch Q[1-4]\/\d{4}/.test(document.querySelector(".btable thead")?.textContent));
+    assert.match(await page.textContent(".bset"), /→ Abrechnung .+ Q[1-4]\/\d{4}/);
+    await page.fill("[data-b-subject]", "{projekt}: {zeitraum}");
+    await page.press("[data-b-subject]", "Tab");
+    await page.waitForFunction(() => /→ \S.*: Q[1-4]\/\d{4}/.test(document.querySelector(".bset").textContent));
+    // keine Vorjahre: Spalte weg
+    await page.selectOption("[data-b-compare]", "0");
+    await page.waitForFunction(() => !/Verbrauch Q/.test(document.querySelector(".btable thead")?.textContent));
+    await page.selectOption("[data-b-period]", "prev_month");
+    await page.waitForFunction(() => document.querySelector("[data-b-period]").value === "prev_month" && document.querySelector("[data-b-compare]")?.value === "0");
 
     // automatisch: Vormonat ist vorbei und schon gelesen → Datei liegt bald in der Liste
     await page.check("[data-b-auto]");
@@ -29,8 +45,8 @@ export default {
       assert.ok(i < 30, "keine Datei nach 30 s");
       await page.waitForTimeout(1000);
     }
-    await page.click("[data-billing-close]");
-    await page.click("[data-billing]");
+    await page.click("[data-b-close]");
+    await page.click("[data-open-billing]");
     const file = await page.getAttribute("[data-b-file]", "href");
     assert.match(file, /abrechnung-\d{4}-\d\d-01-\d{4}-\d\d-\d\d\.csv/);
     assert.match(await page.evaluate(async (h) => (await fetch(h)).text(), file), /^Projekt;Linie;Name/);
@@ -68,7 +84,7 @@ export default {
     assert.deepEqual(bom, [0xef, 0xbb, 0xbf]);
     const lines = text.trim().split("\r\n");
     assert.equal(lines.length, 4, text);
-    assert.match(lines[0], /^Projekt;Linie;Name;Ort;ID;PA;Medium;Wert;Einheit;Stand Anfang;Quelle Anfang;Stand Ende;Quelle Ende;Verbrauch;Hinweis$/);
+    assert.match(lines[0], /^Projekt;Linie;Name;Ort;ID;PA;Medium;Wert;Einheit;Stand Anfang;Quelle Anfang;Stand Ende;Quelle Ende;Verbrauch;Hinweis$/, "Vorjahre auf 0 gestellt");
     assert.match(text, /Whg 1 Wasser;.*;Volumen;m³;\d+,\d+;/);
 
     // Dezimalpunkt
@@ -95,8 +111,8 @@ export default {
     await api(`lines/${line.id}/activate`, "POST");
     await api("meters", "POST", { address: "5", name: "Whg 5" });
     await api("lines/1/activate", "POST");
-    await page.click("[data-billing-close]");
-    await page.click("[data-billing]");
+    await page.click("[data-b-close]");
+    await page.click("[data-open-billing]");
     await page.waitForSelector("[data-b-form]");
     await page.selectOption("[data-b-form]", "billing");
     await page.waitForFunction(() => !document.querySelector("[data-b-step]"));
@@ -112,7 +128,7 @@ export default {
     assert.ok(await page.isChecked(`[data-b-line="${line.id}"]`), "mindestens eine Linie");
 
     // schliessen: wieder die Details des Projekts
-    await page.click("[data-billing-close]");
-    await page.waitForSelector("[data-billing]");
+    await page.click("[data-b-close]");
+    await page.waitForSelector("section[data-area=weitergabe] [data-list]");
   },
 };

@@ -187,7 +187,18 @@ ins `out_log` mit `name` = Betreff, Ergebnis `failed` mit Grund; `meta` `mail_la
 Karte); Karte und Einstellungen in `weitergabe-ausgaenge.js`, Testmail dort, `#/weitergabe/email`;
 in der Abrechnung nur noch Hinweis mit Sprung. Ausgeschaltet: automatische Dateien warten (kein
 Fehler an der Datei), Testmail geht. Tests: Rust `record_goes_to_log_and_card`, Browser
-`20-email`. Noch nicht: `retry_days` einstellbar (Schritt 2 mit der Abrechnung).
+`20-email`.
+
+**Schritt 2 umgesetzt (27.10.2026):** `billing/settings.rs` (Zeiträume Quartal/Halbjahr,
+`label`, `years_back`, `compare_years`, `wait_days`, `mail_subject`), `billing/usage.rs`
+(Verbrauch eines Zeitraums, auch für Vorjahre), `billing/series.rs` (Zeitreihe), Tabelle mit
+`billing_table_for` (automatisch mit den Bezeichnungen des eingestellten Zeitraums),
+`billing_subject`, `billing_mail_now`, `POST /api/projects/{id}/billing/mail`, `retry_days` am
+Ausgang E-Mail. Oberfläche `weitergabe-abrechnung.js` (+ Texte), Adresse
+`#/weitergabe/abrechnung?projekt=<id>`, Anlage zeigt die Zeile (Kurzfassung im Projektbaum);
+`anlage-abrechnung.js` und `anlage-mail.js` entfallen; Namen der Zeiträume gemeinsam
+(`period_*`). Tests: Rust `quarter_half_labels_and_years_back`, `previous_years_as_columns`,
+`subject_placeholders_and_mail_now`, `auto_export_wait_days_setting`; Browser 18, 19, 20, 08.
 
 
 1. **Ausgang E-Mail** (Karte, Einstellungen, Testmail, Schalter, Protokoll); Mailserver aus der

@@ -1,5 +1,6 @@
 //! Tabelle des Exports, gemeinsam für CSV und Vorschau: Abrechnung (Anfang, Ende, Verbrauch je
-//! Zähler und Wert) oder Zeitreihe (Stand je Tag bzw. Monatsende).
+//! Zähler und Wert, dazu Vorjahre) hier, Zeitreihe in series.rs. Gemeinsame Teile: Hinweise,
+//! Zahlen, Quelle eines Stands, Spalten zum Zähler.
 
 use super::*;
 use crate::i18n::{label, Lang};
@@ -21,13 +22,13 @@ pub struct Table {
 
 /// Hinweise einer Zeile: Text für die CSV, Art für die Zusammenfassung
 #[derive(Default)]
-struct Notes {
+pub(super) struct Notes {
     texts: Vec<String>,
     kinds: Vec<&'static str>,
 }
 
 impl Notes {
-    fn add(&mut self, kind: &'static str, text: String) {
+    pub(super) fn add(&mut self, kind: &'static str, text: String) {
         if !self.kinds.contains(&kind) {
             self.kinds.push(kind);
             self.texts.push(text);
@@ -35,7 +36,7 @@ impl Notes {
     }
 
     /// Fehler, den der Zähler in einer Auslesung selbst meldet
-    fn fault(&mut self, st: &Stand) {
+    pub(super) fn fault(&mut self, st: &Stand) {
         match st.fault {
             Some("power_low") => self.add("power_low", tr("Batterie schwach", "battery low")),
             Some("error_flags") => self.add(
@@ -53,7 +54,7 @@ impl Notes {
 
 impl Table {
     /// Zeile mit ihren Hinweisen zählen
-    fn count(&mut self, n: &Notes) {
+    pub(super) fn count(&mut self, n: &Notes) {
         self.notes += usize::from(!n.kinds.is_empty());
         for k in &n.kinds {
             *self.summary.entry((*k).to_string()).or_default() += 1;
@@ -62,7 +63,7 @@ impl Table {
 }
 
 /// Zahl ohne Rundungsrauschen (höchstens 6 Stellen), mit dem gewählten Dezimaltrennzeichen
-fn num(x: f64, decimal: &str) -> String {
+pub(super) fn num(x: f64, decimal: &str) -> String {
     let s = format!("{x:.6}");
     let s = s.trim_end_matches('0').trim_end_matches('.');
     s.replace('.', decimal)
@@ -77,7 +78,7 @@ fn when(time: &str, lang: Lang) -> String {
     }
 }
 
-fn source(st: &Stand, lang: Lang) -> String {
+pub(super) fn source(st: &Stand, lang: Lang) -> String {
     let what = match st.source {
         Source::Meter => tr("Zähler (Stichtag)", "meter (due date)"),
         Source::Reading => format!("{} {}", tr("Auslesung", "reading"), when(&st.time, lang)),
@@ -119,18 +120,57 @@ fn disturbed_text(list: &[(String, Option<String>)], lang: Lang) -> Option<Strin
     ))
 }
 
-/// Monatsenden im Zeitraum, dazu das Ende des Zeitraums
-fn steps(from: NaiveDate, to: NaiveDate, step: &str) -> Vec<NaiveDate> {
-    let mut out = Vec::new();
-    let mut d = from;
-    while d <= to {
-        let next = d + Duration::days(1);
-        if step == "day" || next.day() == 1 || d == to {
-            out.push(d);
-        }
-        d = next;
+/// Was jede Zeile braucht: Sprache, Dezimalzeichen, Projekt, Grenze der Vorschau
+pub(super) struct Ctx {
+    pub lang: Lang,
+    pub decimal: &'static str,
+    pub project: String,
+    pub limit: Option<usize>,
+}
+
+impl Ctx {
+    pub fn full(&self, t: &Table) -> bool {
+        self.limit.is_some_and(|n| t.rows.len() >= n)
     }
-    out
+
+    /// Spalten zum Zähler: Projekt, Linie, Name, Ort, ID, PA, Medium
+    pub fn place(&self, it: &Item) -> Vec<String> {
+        let m = &it.meter;
+        vec![
+            self.project.clone(),
+            it.line.clone(),
+            m.name.clone(),
+            m.location.clone(),
+            crate::meterlist::meter_ident(m).unwrap_or_default(),
+            m.primary_address.map(|p| p.to_string()).unwrap_or_default(),
+            m.medium
+                .as_deref()
+                .map(|x| label(x, self.lang))
+                .unwrap_or_default(),
+        ]
+    }
+
+    pub fn number(&self, v: Option<f64>, factor: f64) -> String {
+        v.map(|v| num(v * factor, self.decimal)).unwrap_or_default()
+    }
+}
+
+/// Kopf zum Zähler und Wert (für beide Formen gleich)
+pub(super) fn head() -> Vec<String> {
+    [
+        ("Projekt", "Project"),
+        ("Linie", "Line"),
+        ("Name", "Name"),
+        ("Ort", "Location"),
+        ("ID", "ID"),
+        ("PA", "PA"),
+        ("Medium", "Medium"),
+        ("Wert", "Value"),
+        ("Einheit", "Unit"),
+    ]
+    .iter()
+    .map(|(de, en)| tr(de, en))
+    .collect()
 }
 
 impl Db {
@@ -143,165 +183,107 @@ impl Db {
         limit: Option<usize>,
     ) -> Result<Table> {
         let (from, to) = s.range(today)?;
+        self.billing_table_for(project_id, s, from, to, limit)
+    }
+
+    /// Tabelle für einen bestimmten Zeitraum (automatisch: ein vergangener, mit den Bezeichnungen
+    /// des eingestellten Zeitraums, z.B. „Verbrauch 09/2025“)
+    pub fn billing_table_for(
+        &self,
+        project_id: i64,
+        s: &Settings,
+        from: NaiveDate,
+        to: NaiveDate,
+        limit: Option<usize>,
+    ) -> Result<Table> {
         let lang = crate::i18n::current();
         let decimal = match s.decimal.as_str() {
             "" if lang == Lang::De => ",",
-            "" => ".",
-            d => d,
+            "," => ",",
+            _ => ".",
         };
-        let project = self.project(project_id)?.name;
+        let ctx = Ctx {
+            lang,
+            decimal,
+            project: self.project(project_id)?.name,
+            limit,
+        };
         let items = self.billing_items(project_id, s)?;
-        let dates = steps(from, to, &s.step);
-        let per = |it: &Item| it.keys.len().max(1);
-        let total: usize = items
-            .iter()
-            .map(|it| {
-                if s.form == "series" {
-                    per(it) * dates.len()
-                } else {
-                    per(it)
-                }
-            })
-            .sum();
         let mut t = Table {
             from: from.to_string(),
             to: to.to_string(),
             header: Vec::new(),
             rows: Vec::new(),
-            total,
+            total: 0,
             notes: 0,
             summary: BTreeMap::new(),
         };
-        let full = |t: &Table| limit.is_some_and(|n| t.rows.len() >= n);
-        let col = |de: &str, en: &str| tr(de, en);
-        let place = |it: &Item| {
-            let m = &it.meter;
-            vec![
-                project.clone(),
-                it.line.clone(),
-                m.name.clone(),
-                m.location.clone(),
-                crate::meterlist::meter_ident(m).unwrap_or_default(),
-                m.primary_address.map(|p| p.to_string()).unwrap_or_default(),
-                m.medium
-                    .as_deref()
-                    .map(|x| label(x, lang))
-                    .unwrap_or_default(),
-            ]
-        };
-        let head = [
-            col("Projekt", "Project"),
-            col("Linie", "Line"),
-            col("Name", "Name"),
-            col("Ort", "Location"),
-            col("ID", "ID"),
-            col("PA", "PA"),
-            col("Medium", "Medium"),
-            col("Wert", "Value"),
-            col("Einheit", "Unit"),
-        ];
         if s.form == "series" {
-            t.header = [
-                vec![col("Datum", "Date")],
-                head.to_vec(),
-                vec![col("Stand", "Reading"), col("Quelle", "Source")],
-            ]
-            .concat();
-            'all: for it in &items {
-                for key in &it.keys {
-                    let (factor, unit) = scale_of(it, key);
-                    for d in &dates {
-                        if full(&t) {
-                            break 'all;
-                        }
-                        let st = self.stand_at(it.meter.id, key, *d, None)?;
-                        let mut n = Notes::default();
-                        if st.value.is_none() {
-                            n.add("missing", String::new());
-                        }
-                        if st.unsure {
-                            n.add("unsure", String::new());
-                        }
-                        n.fault(&st);
-                        t.count(&n);
-                        let row = [
-                            vec![d.to_string()],
-                            place(it),
-                            vec![
-                                key_label(key, lang),
-                                unit.clone(),
-                                st.value
-                                    .map(|v| num(v * factor, decimal))
-                                    .unwrap_or_default(),
-                                source(&st, lang),
-                            ],
-                        ];
-                        t.rows.push(row.concat());
-                    }
-                }
-                if it.keys.is_empty() && !full(&t) {
-                    let mut n = Notes::default();
-                    n.add("never_read", String::new());
-                    t.count(&n);
-                    t.rows.push(
-                        [
-                            vec![String::new()],
-                            place(it),
-                            vec![
-                                String::new(),
-                                String::new(),
-                                String::new(),
-                                tr("noch nie ausgelesen", "never read"),
-                            ],
-                        ]
-                        .concat(),
-                    );
-                }
-            }
-            return Ok(t);
+            self.series_rows(&mut t, &ctx, &items, s, from, to)?;
+        } else {
+            self.billing_rows(&mut t, &ctx, &items, s, from, to)?;
         }
+        Ok(t)
+    }
+
+    /// Abrechnung: eine Zeile je Zähler und Wert mit Anfang, Ende, Verbrauch, Vorjahren, Hinweis
+    fn billing_rows(
+        &self,
+        t: &mut Table,
+        ctx: &Ctx,
+        items: &[Item],
+        s: &Settings,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<()> {
+        let lang = ctx.lang;
+        let years: Vec<(NaiveDate, NaiveDate)> = (1..=i32::from(s.compare_years))
+            .map(|k| (years_back(from, k), years_back(to, k)))
+            .collect();
+        t.total = items.iter().map(|it| it.keys.len().max(1)).sum();
         t.header = [
-            head.to_vec(),
+            head(),
             vec![
-                col("Stand Anfang", "Reading start"),
-                col("Quelle Anfang", "Source start"),
-                col("Stand Ende", "Reading end"),
-                col("Quelle Ende", "Source end"),
-                col("Verbrauch", "Consumption"),
-                col("Hinweis", "Note"),
+                tr("Stand Anfang", "Reading start"),
+                tr("Quelle Anfang", "Source start"),
+                tr("Stand Ende", "Reading end"),
+                tr("Quelle Ende", "Source end"),
+                tr("Verbrauch", "Consumption"),
             ],
+            years
+                .iter()
+                .map(|(f, e)| format!("{} {}", tr("Verbrauch", "Consumption"), s.label(*f, *e)))
+                .collect(),
+            vec![tr("Hinweis", "Note")],
         ]
         .concat();
-        let before = from - Duration::days(1);
-        let (start_ts, end_ts) = (stand::after_day(before), stand::after_day(to));
-        for it in &items {
-            if full(&t) {
+        let (start_ts, end_ts) = (
+            stand::after_day(from - Duration::days(1)),
+            stand::after_day(to),
+        );
+        for it in items {
+            if ctx.full(t) {
                 break;
             }
             if it.keys.is_empty() {
                 let mut n = Notes::default();
                 n.add("never_read", tr("noch nie ausgelesen", "never read"));
                 t.count(&n);
-                t.rows
-                    .push([place(it), vec![String::new(); 7], n.texts].concat());
+                let empty = vec![String::new(); 7 + years.len()];
+                t.rows.push([ctx.place(it), empty, n.texts].concat());
                 continue;
             }
             // je Zähler, für alle seine Werte gleich
             let read_in_period = self.meter_reading_count(it.meter.id, &start_ts, &end_ts)? > 0;
+            let disturbed = self.disturbances_between(it.meter.id, &start_ts, &end_ts)?;
             for key in &it.keys {
-                if full(&t) {
+                if ctx.full(t) {
                     break;
                 }
                 let (factor, unit) = scale_of(it, key);
-                let start = self.stand_at(it.meter.id, key, before, Some(to))?;
-                let end = self.stand_at(it.meter.id, key, to, None)?;
-                let swaps = self.exchanges_between(it.meter.id, key, &start_ts, &end_ts)?;
+                let u = self.usage(it.meter.id, key, from, to)?;
                 let mut n = Notes::default();
-                let mut used = match (start.value, end.value) {
-                    (Some(a), Some(b)) => Some(b - a),
-                    _ => None,
-                };
-                for sw in &swaps {
+                for sw in &u.swaps {
                     if sw.confirmed {
                         n.add(
                             "swap",
@@ -322,20 +304,16 @@ impl Db {
                             ),
                         );
                     }
-                    used = match (used, sw.old_end, sw.new_start) {
-                        (Some(u), Some(o), Some(new)) => Some(u + o - new),
-                        _ => None,
-                    };
                 }
-                if start.value.is_none() || end.value.is_none() {
+                if u.start.value.is_none() || u.end.value.is_none() {
                     n.add("missing", tr("Stand fehlt", "reading missing"));
-                } else if used.is_none() {
+                } else if u.used.is_none() {
                     n.add(
                         "swap_gap",
                         tr("Stand beim Tausch fehlt", "reading at replacement missing"),
                     );
                 }
-                if used.is_some_and(|u| u < 0.0) {
+                if u.used.is_some_and(|x| x < 0.0) {
                     n.add(
                         "decreased",
                         tr("Zählerstand gesunken", "meter reading decreased"),
@@ -353,45 +331,62 @@ impl Db {
                         tr("antwortet zurzeit nicht", "currently not answering"),
                     );
                 }
-                let disturbed = self.disturbances_between(it.meter.id, &start_ts, &end_ts)?;
                 if let Some(text) = disturbed_text(&disturbed, lang) {
                     n.add("disturbed", text);
                 } else if it.meter.plan_fails >= crate::db::DISTURBED_AFTER {
                     // gestört seit vor dem Festhalten der Störungen (älterer Stand)
                     n.add("disturbed", tr("zurzeit gestört", "currently disturbed"));
                 }
-                n.fault(&start);
-                n.fault(&end);
-                if start.unsure || end.unsure {
+                n.fault(&u.start);
+                n.fault(&u.end);
+                if u.start.unsure || u.end.unsure {
                     n.add("unsure", tr("Zeit unsicher", "time unsure"));
                 }
+                let mut previous = Vec::new();
+                let mut gaps = Vec::new();
+                for (f, e) in &years {
+                    let p = self.usage(it.meter.id, key, *f, *e)?;
+                    if p.used.is_none() {
+                        gaps.push(s.label(*f, *e));
+                    }
+                    previous.push(ctx.number(p.used, factor));
+                }
+                if !gaps.is_empty() {
+                    n.add(
+                        "prev_missing",
+                        format!(
+                            "{}: {}",
+                            tr("Vorjahr unvollständig", "previous year incomplete"),
+                            gaps.join(", ")
+                        ),
+                    );
+                }
                 t.count(&n);
-                let num_of =
-                    |v: Option<f64>| v.map(|v| num(v * factor, decimal)).unwrap_or_default();
                 t.rows.push(
                     [
-                        place(it),
+                        ctx.place(it),
                         vec![
                             key_label(key, lang),
                             unit,
-                            num_of(start.value),
-                            source(&start, lang),
-                            num_of(end.value),
-                            source(&end, lang),
-                            num_of(used),
-                            n.texts.join("; "),
+                            ctx.number(u.start.value, factor),
+                            source(&u.start, lang),
+                            ctx.number(u.end.value, factor),
+                            source(&u.end, lang),
+                            ctx.number(u.used, factor),
                         ],
+                        previous,
+                        vec![n.texts.join("; ")],
                     ]
                     .concat(),
                 );
             }
         }
-        Ok(t)
+        Ok(())
     }
 }
 
 /// Faktor und Einheit: wie beim Datenpunkt, sonst wie gelesen
-fn scale_of(it: &Item, key: &str) -> (f64, String) {
+pub(super) fn scale_of(it: &Item, key: &str) -> (f64, String) {
     it.scale
         .get(key)
         .cloned()

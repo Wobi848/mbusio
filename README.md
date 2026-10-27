@@ -194,7 +194,8 @@ Mehrfachauswahl. Werte wählt man im Bereich Zähler beim Zähler an.
 - Bericht je Projekt mit Kunde, Objekt, Bearbeiter, allen Linien und Zählern, optional mit allen
   Messwerten, offenen Auffälligkeiten (ausblendbar) und durchgeführten Änderungen; drucken oder
   als PDF speichern
-- **Abrechnung exportieren** (Anlage → Projekt): Zählerstände zum Stichtag je Zähler als CSV für
+- **Abrechnung exportieren** (Weitergabe → Abrechnung; Vormonat, Vorquartal, Vorhalbjahr,
+  Vorjahr oder von–bis, Vergleich mit bis zu 10 Vorjahren, von Hand oder per E-Mail): Zählerstände zum Stichtag je Zähler als CSV für
   Excel, eine Zeile je Zähler und Wert mit Stand Anfang, Stand Ende und Verbrauch, oder als
   Zeitreihe (Stand je Tag oder Monatsende). Vorgaben: Vormonat, Hauptwert je Zähler; Zeitraum,
   weitere Werte und Dezimalzeichen einstellbar, je Projekt gespeichert, mit Vorschau. Die Werte

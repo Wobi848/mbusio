@@ -19,10 +19,13 @@ pub(super) fn annotate_lines(st: &AppState, tree: &mut serde_json::Value) {
 pub(super) async fn tree(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     let (mut projects, active) = {
         let db = st.db.lock().unwrap();
-        (
-            serde_json::to_value(db.tree()?).unwrap_or_default(),
-            db.active()?,
-        )
+        let mut projects = serde_json::to_value(db.tree()?).unwrap_or_default();
+        // Kurzfassung der Abrechnung je Projekt für die Zeile in der Anlage
+        for p in projects.as_array_mut().into_iter().flatten() {
+            let s = db.billing_settings(p["id"].as_i64().unwrap_or_default());
+            p["billing"] = json!({ "period": s.period, "auto": s.auto, "mail_to": s.mail_to });
+        }
+        (projects, db.active()?)
     };
     annotate_lines(&st, &mut projects);
     Ok(Json(json!({ "projects": projects, "active": active })))

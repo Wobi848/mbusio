@@ -22,6 +22,14 @@ const field = (kind, name, label_, value, extra = "") =>
 
 const head = (eyebrow, name, sub = "") => `<header class="dhead"><div><span class="eyebrow">${esc(eyebrow)}</span><div><b>${esc(name)}</b></div>${sub ? `<div class="sub">${sub}</div>` : ""}</div></header>`;
 
+/// Abrechnung des Projekts in einer Zeile; eingestellt wird sie in der Weitergabe
+function billingLine(p) {
+  const b = p.billing || {};
+  const how = b.auto && b.period !== "custom" ? t("an_bill_auto", t("period_" + b.period)) : t("an_bill_manual");
+  return `<span class="bline"><span class="sub">${esc(t("an_bill"))}:</span> ${esc(how)}${b.mail_to ? ` · ${esc(t("an_bill_to", b.mail_to))}` : ""}
+    <a class="quiet" data-billing href="#/weitergabe/abrechnung?projekt=${p.id}">${esc(t("an_bill_open"))} →</a></span>`;
+}
+
 function projectDetail(p) {
   const lines = allLines(p);
   return `${head(t("project"), p.name, esc(t("an_lines_meters", t("ps_lines", lines.length), sum(lines, (l) => l.meters), sum(lines, (l) => l.datapoints?.count))))}
@@ -39,7 +47,7 @@ function projectDetail(p) {
     </div>
     <p class="sub">${esc(t("thin_hint"))}</p>
     <div class="actions">
-      <button type="button" class="tonal" data-billing>${esc(t("an_billing"))} …</button>
+      ${billingLine(p)}
       <span class="grow"></span>
       <button type="button" class="quiet danger-text" data-clear>${esc(t("project_clear"))}</button>
       <button type="button" class="quiet danger-text" data-delete="project">${esc(t("project_delete"))}</button>

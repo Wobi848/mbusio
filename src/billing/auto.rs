@@ -12,8 +12,6 @@ use crate::i18n::{both, Text};
 
 /// Höchstens so viele verpasste Zeiträume nachholen
 const CATCH_UP: usize = 12;
-/// Ohne Auslesung nach dem Ende des Zeitraums: so viele Tage danach trotzdem exportieren
-const WAIT_DAYS: i64 = 2;
 
 /// Eine Datei des automatischen Exports
 #[derive(Debug, Serialize)]
@@ -59,7 +57,7 @@ impl Db {
     }
 
     /// Fällige Zeiträume, ältester zuerst: fertig und noch nicht exportiert. Der letzte erst, wenn
-    /// danach schon gelesen wurde (Stand zum Ende vollständig) oder nach `WAIT_DAYS`.
+    /// danach schon gelesen wurde (Stand zum Ende vollständig) oder nach `wait_days`.
     pub(crate) fn billing_due(
         &self,
         project_id: i64,
@@ -85,7 +83,7 @@ impl Db {
         }
         out.reverse();
         if let Some(&(_, to)) = out.last() {
-            if now.date() < to + Duration::days(WAIT_DAYS) && !self.read_after(project_id, to)? {
+            if now.date() < to + Duration::days(s.wait_days) && !self.read_after(project_id, to)? {
                 out.pop();
             }
         }
@@ -122,6 +120,27 @@ impl Db {
         Ok(out)
     }
 
+    /// Datei für Excel: Name und Inhalt (UTF-8 mit BOM), wie abgelegt und gemailt
+    pub(super) fn billing_csv_file(
+        &self,
+        project_id: i64,
+        s: &Settings,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<(String, String)> {
+        let t = self.billing_table_for(project_id, s, from, to, None)?;
+        let what = if s.form == "series" {
+            tr("verlauf", "series")
+        } else {
+            tr("abrechnung", "billing")
+        };
+        let project = crate::export::file_part(&self.project(project_id)?.name);
+        Ok((
+            format!("{project}-{what}-{from}-{to}.csv"),
+            format!("\u{feff}{}", csv(&t)),
+        ))
+    }
+
     fn billing_write(
         &self,
         data_dir: &Path,
@@ -130,23 +149,11 @@ impl Db {
         from: NaiveDate,
         to: NaiveDate,
     ) -> Result<PathBuf> {
-        let period = Settings {
-            period: "custom".into(),
-            from: Some(from.to_string()),
-            to: Some(to.to_string()),
-            ..s.clone()
-        };
-        let t = self.billing_table(project_id, &period, to, None)?;
-        let what = if s.form == "series" {
-            tr("verlauf", "series")
-        } else {
-            tr("abrechnung", "billing")
-        };
-        let project = crate::export::file_part(&self.project(project_id)?.name);
+        let (name, data) = self.billing_csv_file(project_id, s, from, to)?;
         let dir = export_dir(data_dir, project_id);
         std::fs::create_dir_all(&dir)?;
-        let path = dir.join(format!("{project}-{what}-{from}-{to}.csv"));
-        std::fs::write(&path, format!("\u{feff}{}", csv(&t)))?;
+        let path = dir.join(name);
+        std::fs::write(&path, data)?;
         Ok(path)
     }
 }

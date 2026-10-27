@@ -75,18 +75,3 @@
   [data-area=anlage] .row.add { padding-left: 12px; flex-wrap: wrap; }
   [data-area=anlage] .plant { grid-template-columns: minmax(0, 1fr); }
 }
-
-/* Abrechnung exportieren: Vorschau als Tabelle, scrollt im Detailbereich seitlich */
-[data-area=anlage] .btable { overflow-x: auto; max-height: 320px; border: 1px solid var(--line); border-radius: 6px; }
-[data-area=anlage] .btable table { border-collapse: collapse; font-size: 11.5px; white-space: nowrap; }
-[data-area=anlage] .btable th, [data-area=anlage] .btable td { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: left; }
-[data-area=anlage] .btable th { position: sticky; top: 0; background: var(--sunken); font-weight: 650; }
-[data-area=anlage] details.more { margin: 6px 0 10px; }
-[data-area=anlage] details.more > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 4px 0; }
-
-/* Abrechnung: Wert bzw. Schalter und Hinweis teilen sich die Breite (sonst bricht jedes Wort um) */
-[data-area=anlage] .vrow:not(.bfile) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; }
-/* abgelegte Dateien: Name, Zeit, Zustand der E-Mail, Senden */
-[data-area=anlage] .vrow.bfile { grid-template-columns: minmax(0, 1fr) auto auto auto; }
-[data-area=anlage] .vrow.bfile a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-area=anlage] .bmail { margin: 8px 0; }

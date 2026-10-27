@@ -41,6 +41,6 @@ export default {
     await page.goto(base + "/#/anlage");
     await page.locator("section[data-area=anlage] [data-list] [role=option]").first().click();
     await page.click("[data-billing]");
-    await page.waitForFunction(() => /1 × Zählertausch/.test(document.querySelector("section[data-area=anlage] .chip.warn.wide")?.textContent));
+    await page.waitForFunction(() => /1 × Zählertausch/.test(document.querySelector("section[data-area=weitergabe] .chip.warn.wide")?.textContent));
   },
 };

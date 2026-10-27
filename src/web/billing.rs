@@ -34,9 +34,15 @@ fn known_file(db: &Db, id: i64, name: &str) -> Result<std::path::PathBuf, ApiErr
 /// sondern ein Hinweis an der Vorschau (beim Tippen)
 fn billing_view(db: &Db, id: i64) -> Result<serde_json::Value, ApiError> {
     let s = db.billing_settings(id);
-    let (preview, error) = match db.billing_table(id, &s, clock::now().date(), Some(PREVIEW)) {
+    let today = clock::now().date();
+    let (preview, error) = match db.billing_table(id, &s, today, Some(PREVIEW)) {
         Ok(t) => (Some(t), None),
         Err(e) => (None, Some(format!("{e:#}"))),
+    };
+    // Betreff, wie er für den gezeigten Zeitraum aussähe
+    let subject = match s.range(today) {
+        Ok((from, to)) => Some(db.billing_subject(id, &s, from, to)?),
+        Err(_) => None,
     };
     Ok(json!({
         "settings": s,
@@ -45,6 +51,8 @@ fn billing_view(db: &Db, id: i64) -> Result<serde_json::Value, ApiError> {
         "preview": preview,
         "error": error,
         "files": files(db, id)?,
+        "subject": subject,
+        "subject_default": billing::default_subject(),
     }))
 }
 
@@ -125,4 +133,30 @@ pub(super) async fn billing_file_send(
         Some(e) => Err(bad_request(e)),
         None => Ok(Json(billing_view(&db, id)?)),
     }
+}
+
+/// Abrechnung mit den gespeicherten Einstellungen jetzt an die Empfänger des Projekts
+pub(super) async fn billing_mail(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<serde_json::Value> {
+    let outgoing = st
+        .db
+        .lock()
+        .unwrap()
+        .billing_mail_now(id, clock::now().date())
+        .map_err(bad_request)?;
+    let (outgoing, result) = blocking(move || {
+        let r = crate::mail::send(&outgoing.config, &outgoing.message);
+        (outgoing, r)
+    })
+    .await?;
+    st.db
+        .lock()
+        .unwrap()
+        .mail_record(&outgoing.message, &result)?;
+    result.map_err(bad_request)?;
+    Ok(Json(
+        json!({ "ok": true, "to": outgoing.message.to, "file": outgoing.name }),
+    ))
 }
