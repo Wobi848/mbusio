@@ -59,6 +59,10 @@ export default {
     assert.deepEqual(await pas(page), [...asc].reverse(), "Sortierung bleibt");
     await page.click("[data-sort=pa]");
     assert.deepEqual(await pas(page), scanned, "wie gescannt");
+    // auch schmal (ohne Spalten) sortierbar
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.isVisible("[data-sort=pa]"), "Sortieren am Handy");
+    await page.setViewportSize({ width: 1250, height: 1000 });
 
     // Weitergabe: Abrechnung, Protokoll und Einstellungen eines Ausgangs sind nie gleichzeitig offen
     await page.goto(base + "/#/weitergabe");

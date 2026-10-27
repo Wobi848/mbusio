@@ -183,8 +183,13 @@ fn meter_with_quota_is_suspended_until_next_day() {
     assert_eq!(r.readings("19"), 2);
     let m = r.meter("19");
     assert_eq!(m.plan_pause.as_deref(), Some("2026-10-18 00:00:00"));
-    assert!(m.last_error.unwrap().contains("09"));
+    assert!(m.last_error.as_ref().unwrap().contains("09"));
     assert_eq!(m.plan_fails, 0, "Ablehnung ist kein Fehler des Zählers");
+    // die Zählerliste zeigt „ausgesetzt bis …“, ab Mitternacht nicht mehr
+    let info = Db::meter_plan_info(&m, None, "hourly", at("2026-10-17 13:30"));
+    assert_eq!(info["paused_until"], "2026-10-18 00:00:00");
+    let info = Db::meter_plan_info(&m, None, "hourly", at("2026-10-18 00:01"));
+    assert!(info["paused_until"].is_null());
     // bis Mitternacht wird er nicht mehr gefragt
     r.set_time("2026-10-17 14:00");
     r.tick();

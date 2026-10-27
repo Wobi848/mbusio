@@ -50,8 +50,8 @@ export default {
     // Aktionen des Zählers in einer Zeile, Häkchen der Vorlage normal gross
     await page.locator(`${zl} [data-list] [role=option]`).first().click();
     await page.waitForSelector(`${zl} [data-detail] [data-del]`);
-    const read = await box(page, `${zl} [data-detail] [data-read]`);
-    const del = await box(page, `${zl} [data-detail] [data-del]`);
+    // beide in einem Zug messen (die Details können zwischen zwei Abfragen neu gebaut werden)
+    const [read, del] = await page.evaluate((d) => ["[data-read]", "[data-del]"].map((s) => document.querySelector(`${d} ${s}`).getBoundingClientRect().toJSON()), `${zl} [data-detail]`);
     assert.ok(Math.abs(read.y - del.y) < 4, `Löschen in derselben Zeile wie Auslesen: ${JSON.stringify([read, del])}`);
 
     // Scan: Wiederholungen einstellbar, die Dauer folgt

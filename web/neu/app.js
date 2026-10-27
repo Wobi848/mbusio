@@ -146,7 +146,14 @@ function renderWork() {
       panes[a].className = "pane";
       panes[a].dataset.area = a;
       $("work").append(panes[a]);
-      import(`./${a}.js`).then((m) => m.mount(panes[a]));
+      // Laden fehlgeschlagen (z.B. WLAN weg): Meldung statt leerer Fläche; beim nächsten Öffnen neu
+      import(`./${a}.js`)
+        .then((m) => m.mount(panes[a]))
+        .catch((e) => {
+          panes[a].remove();
+          delete panes[a];
+          report(e);
+        });
     }
     if (panes[a]) panes[a].hidden = a !== state.area;
   }

@@ -11,6 +11,8 @@ node tests/ui/run.mjs liste      # nur Tests mit „liste“ im Namen oder Datei
 ```
 
 Schon installiertes Playwright woanders: `PLAYWRIGHT=/pfad/zu/node_modules/playwright`.
+Firefox oder Safari-Engine: `MBUSIO_TEST_BROWSER=firefox` bzw. `webkit` (vorher
+`npx playwright install firefox webkit`).
 Der MQTT-Test läuft nur mit einem Broker: `MBUSIO_TEST_BROKER=127.0.0.1:1883`. Einen kleinen
 Test-Broker startet `node tests/ui/broker.mjs 1883` (braucht `npm i -D aedes`).
 Bei einem Fehler liegt ein Bildschirmfoto im Temp-Ordner (`mbusio-ui-<datei>.png`).

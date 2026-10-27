@@ -53,7 +53,7 @@ export function mount(pane) {
       <b data-meta></b><span data-changes></span>
       <div class="seg" role="group" data-filters></div>
       <span class="grow"></span>
-      <span class="sub">${esc(t("remember_via"))}</span><div class="seg" role="group" data-modes></div>
+      <span class="modes"><span class="sub">${esc(t("remember_via"))}</span><div class="seg" role="group" data-modes></div></span>
       <span data-main></span>
     </div>
     <div class="split">

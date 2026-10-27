@@ -241,6 +241,10 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 - Abrechnung: Zwei Felder schnell hintereinander geändert (z.B. „Von“ und „Bis“) – die zweite
   Änderung konnte die erste mit dem alten Stand überschreiben. Und eine Antwort des Servers
   ersetzte das Feld, in dem man gerade tippte, samt dem Getippten. Beides behoben.
+- Lässt sich ein Bereich der Oberfläche nicht laden (z.B. WLAN kurz weg), kommt eine Meldung statt
+  einer leeren Fläche; beim nächsten Öffnen wird er neu geladen.
+- Handy: Scan-Treffer lassen sich auch schmal sortieren; „Merken über“ bleibt bei seinen Knöpfen;
+  die Statusleiste zeigt den Zustand des Busses in einer eigenen Zeile statt nur als Punkt.
 - Aussehen: Einstellungsmenü bündig, Abrechnung und Anlage nutzen die ganze Höhe, Hinweise der
   Abrechnung stehen unter dem Text statt daneben, „Keine Einträge“ steht oben in der Liste.
 - Abrechnung, Vorschau: Zähler ohne Namen zeigen ID und PA statt einer leeren Zelle; der Hinweis

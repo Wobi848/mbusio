@@ -5,6 +5,7 @@
 //
 // Braucht Playwright (`npm i -D playwright && npx playwright install chromium`) oder den Pfad zu
 // einem vorhandenen Paket in PLAYWRIGHT. MQTT-Test nur mit MBUSIO_TEST_BROKER=host:port.
+// Anderer Browser: MBUSIO_TEST_BROWSER=firefox oder webkit (Vorgabe chromium).
 
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
@@ -17,9 +18,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
 const bin = path.join(root, "target/debug/mbusio" + (process.platform === "win32" ? ".exe" : ""));
 const require = createRequire(import.meta.url);
-let chromium;
+const engine = process.env.MBUSIO_TEST_BROWSER || "chromium";
+let browserType;
 try {
-  ({ chromium } = require(process.env.PLAYWRIGHT || "playwright"));
+  browserType = require(process.env.PLAYWRIGHT || "playwright")[engine];
 } catch {
   console.error("Playwright fehlt: npm i -D playwright, oder PLAYWRIGHT=<pfad/zu/node_modules/playwright>");
   process.exit(2);
@@ -73,7 +75,11 @@ async function startServer(port, args = []) {
   };
 }
 
-const browser = await chromium.launch();
+if (!browserType) {
+  console.error(`Browser „${engine}“ unbekannt: chromium, firefox oder webkit`);
+  process.exit(2);
+}
+const browser = await browserType.launch();
 let failed = 0;
 // eigener Bereich mit MBUSIO_TEST_PORT, wenn mehrere Testläufe gleichzeitig laufen (z.B. in Arbeitsbäumen)
 let port = Number(process.env.MBUSIO_TEST_PORT) || 18300;
@@ -86,7 +92,12 @@ for (const t of tests.filter((t) => t.name.includes(filter) || t.file.includes(f
   const ctx = await browser.newContext({ viewport: { width: 1250, height: 1000 }, acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("pageerror", (e) => {
+    // WebKit meldet beim Seitenwechsel abgebrochene Anfragen als Fehler, auch wenn sie abgefangen
+    // sind (z.B. request(...).catch()); das ist kein Fehler der Oberfläche
+    if (engine === "webkit" && /Fetch API cannot load .* due to access control checks/.test(`${e.message} ${e.stack}`)) return;
+    errors.push(e.stack || e.message);
+  });
   // Rückfragen stehen am Knopf; ein Browser-Fenster (alert/confirm/prompt) ist ein Fehler
   page.on("dialog", (d) => {
     errors.push(`Browser-Dialog: ${d.message()}`);

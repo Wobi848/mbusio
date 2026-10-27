@@ -50,9 +50,11 @@ export default {
     assert.equal((await api("meters")).find((m) => m.address === "2").plan, "off");
 
     // ohne Zeitquelle: Anlage zeigt „Uhrzeit unsicher“ mit Knopf zum Übernehmen
+    // über die API eingeschaltet: neu laden statt auf die nächste Abfrage der Anlage (15 s) warten
     await api("lines/1/operation", "PUT", { on: true });
     await page.goto(base + "/#/anlage");
-    await page.waitForSelector("[data-take-time]", { timeout: 15000 });
+    await page.reload();
+    await page.waitForSelector("[data-take-time]");
     await page.click("[data-take-time]");
     await page.waitForSelector("[data-take-time]", { state: "detached", timeout: 10000 });
   },

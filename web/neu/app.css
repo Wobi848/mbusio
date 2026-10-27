@@ -353,6 +353,9 @@ button.danger-text:hover { background: var(--err-soft); }
   .tabs a { height: 32px; padding: 0 8px; white-space: nowrap; }
   button, select, input, .field { height: 36px; } /* Finger */
   .next-label { display: none; } /* Platz für den Zustand des Busses */
+  /* Zustand des Busses eine Zeile, Hinweise darunter (sonst bleibt vom Zustand nur der Punkt) */
+  .status { flex-wrap: wrap; row-gap: 2px; padding-block: 3px; }
+  .status #bus { flex: 1 1 100%; justify-content: flex-start; }
   /* Liste über die ganze Breite, Details als eigene Ansicht mit „←“ */
   .split { grid-template-columns: minmax(0, 1fr); }
   .detail { display: none; }

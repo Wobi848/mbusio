@@ -3,7 +3,7 @@
 .pane[data-area=scan] { grid-template-rows: auto auto 1fr; }
 [data-area=scan] .toolbar { flex-wrap: wrap; row-gap: 6px; }
 [data-area=scan] .resultbar { background: var(--sunken); }
-[data-area=scan] label.inline { display: inline-flex; align-items: center; gap: 6px; }
+[data-area=scan] label.inline, [data-area=scan] .modes { display: inline-flex; align-items: center; gap: 6px; }
 [data-area=scan] input[type=number] { width: 64px; }
 [data-area=scan] input[data-prefix] { width: 110px; }
 [data-area=scan] .bauds { display: grid; grid-template-columns: repeat(4, auto); gap: 6px 14px; }
@@ -27,4 +27,6 @@
   [data-area=scan] .row > :nth-child(3) { grid-area: name; }
   [data-area=scan] .row > :nth-child(4) { grid-area: ident; }
   [data-area=scan] .row > :nth-child(5) { grid-area: state; justify-self: end; }
+  /* schmal ohne Spalten: die Köpfe bleiben als Leiste zum Sortieren */
+  [data-area=scan] .row.head { display: flex; flex-wrap: wrap; gap: 4px 14px; min-height: 30px; padding: 0 12px; }
 }
