@@ -11,7 +11,7 @@ const CONSOLE_KEEP = 300; // Zeilen in der Bus-Konsole; alles in Werkzeuge
 /// Anzeigen an den Zustand hängen und das Protokoll abfragen, solange es jemand zeigt
 export function startStatusleiste() {
   watch(["tree", "status"], renderStatus);
-  watch(["tree", "status", "meters"], renderNext);
+  watch(["tree", "status", "meters", "scanNew"], renderNext);
   watch(["log"], () => renderConsole());
   follow(() => consoleOpen || state.area === "werkzeuge");
 }
@@ -66,7 +66,11 @@ function nextStep() {
   const go = (area, sel) => () => goTo(area, sel);
   if (!l.connection) return ["guide_conn_set", () => $("conn-action").click()];
   if (!s.connected) return ["guide_connect", () => $("conn-action").click(), portText(l.connection)];
-  if (!l.meters) return ["guide_scan", go("scan", "[data-start]")];
+  if (!l.meters) {
+    // gefunden heisst noch nicht gemerkt: erst „neue merken“ bringt sie in die Zählerliste
+    const fresh = state.scanNew?.line === l.id ? state.scanNew.n : 0;
+    return fresh ? ["guide_merge", go("scan", "[data-merge]"), fresh] : ["guide_scan", go("scan", "[data-start]")];
+  }
   if (!l.last_read) return ["guide_read", go("zaehler", "[data-read-all]"), l.meters];
   const bad = (state.meters || []).filter(faulty).length;
   if (bad) return ["guide_faulty_btn", go("zaehler", "[data-filter=err]"), bad];

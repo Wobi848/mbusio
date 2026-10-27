@@ -2,7 +2,7 @@
 // Treffer mit Ursache und Abhilfe rechts (Konzept neue Oberfläche §3.2, Schritt 2).
 // Auswertung (Auffälligkeiten, Merken, Beheben, Vergleich) gemeinsam: js/scanlogic.js.
 
-import { state, watch, activeLine } from "./store.js";
+import { state, set, watch, activeLine } from "./store.js";
 import { html, text, list, ask, toast, styles, menu } from "./view.js";
 import { bind } from "./keys.js";
 import { loadMeters, loadTree, loadStatus, report } from "./data.js";
@@ -200,6 +200,7 @@ function render() {
   empty.hidden = rows.length > 0;
   html(empty, !job ? esc(t("sc_never")) : running ? "" : job.hits.length ? esc(t("meters_none_match")) : esc(t("sc_none_found")));
   renderDetail(c, a);
+  set({ scanNew: { line: lineId, n: job && !running ? newOnes(c).length : 0 } });
 }
 
 /// Genau ein Hauptknopf für das Ergebnis: beheben, sonst neue merken, sonst „alle in Liste“

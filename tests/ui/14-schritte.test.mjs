@@ -1,7 +1,7 @@
 import { assert, scanDone, simLine } from "./helpers.mjs";
 
 // „Nächster Schritt“ in der Statusleiste führt von der leeren Linie bis zum Ausgang:
-// Anschluss, suchen, übernehmen, auslesen, Gestörte, Bericht, dann Dauerbetrieb, Werte, Ausgang
+// Anschluss, suchen, merken, auslesen, Gestörte, Bericht, dann Dauerbetrieb, Werte, Ausgang
 
 const next = (page) => page.textContent("#next");
 const waitNext = (page, text, timeout = 30000) =>
@@ -23,7 +23,9 @@ export default {
     await page.press("[data-to]", "Tab");
     await page.click("#next");
     await scanDone(page);
-    await page.click("[data-merge]");
+    // gefunden, aber noch nicht gemerkt: Schritt führt zum Merken, nicht wieder zum Suchen
+    await waitNext(page, "Gefundene merken");
+    await page.click("#next");
     await waitNext(page, "Zähler auslesen");
     await page.click("#next");
     await page.waitForSelector(".tabs [data-area=zaehler][aria-current=page]");
