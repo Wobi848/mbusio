@@ -134,7 +134,7 @@ function renderDetail() {
     html(box, `<p class="sub">${esc(t(state.meters.length ? "n_pick_meter" : "n_no_meters"))}</p>`);
     return;
   }
-  html(box, detailHtml(m, { vals: values?.id === m.id ? values.list : null, busy: busy.has(m.id), history: view.history, exchange: view.exchange, linePlan: activeLine()?.plan_info?.effective || "off" }));
+  html(box, detailHtml(m, { vals: values?.id === m.id ? values.list : null, template: values?.id === m.id ? values.template : null, busy: busy.has(m.id), history: view.history, exchange: view.exchange, linePlan: activeLine()?.plan_info?.effective || "off" }));
   if (values?.id !== m.id) loadValues(m.id);
   if (view.history) drawHistory(box, m, render);
 }
@@ -222,9 +222,9 @@ async function loadValues(id) {
   values = { id, list: null };
   try {
     const r = await request(`meters/${id}/values`);
-    if (values.id === id) values = { id, list: r.values };
+    if (values.id === id) values = { id, list: r.values, template: r.template };
   } catch (e) {
-    values = { id, list: [] };
+    values = { id, list: [], template: null };
     report(e);
   }
   render();
@@ -417,7 +417,7 @@ function wire() {
     if (el.matches("[data-field]")) return saveField(el);
     if (el.matches("[data-plan]")) return setPlan([view.active], el.value || null);
     if (el.matches("[data-sel-plan]") && el.value) return setPlan([...view.selected], el.value === "inherit" ? null : el.value);
-    if (el.matches("[data-dp]")) return setDatapoints();
+    if (el.matches("[data-dp], [data-tpl], [data-tpl-auto]")) return setDatapoints();
     if (el.matches("[data-hist-key]")) {
       setHistoryKey(el.value);
       q("[data-detail]")._html = null;
@@ -485,11 +485,21 @@ function selectRange(from, to) {
   select(to);
 }
 
+/// Auswahl speichern; mit „Gleiche Auswahl“ als Vorlage für alle Zähler des Mediums auf der Linie.
+/// Vorlage abgewählt: sie wird entfernt, die Datenpunkte der anderen Zähler bleiben.
 async function setDatapoints() {
   const m = byId(view.active);
-  const keys = [...q("[data-detail]").querySelectorAll("[data-dp]:checked")].map((c) => c.dataset.dp);
+  const box = q("[data-detail]");
+  const keys = [...box.querySelectorAll("[data-dp]:checked")].map((c) => c.dataset.dp);
+  const same = !!box.querySelector("[data-tpl]")?.checked;
+  const old = values?.template;
   try {
-    await request(`meters/${m.id}/datapoints`, { method: "PUT", body: { keys } });
+    const r = await request(`meters/${m.id}/datapoints`, {
+      method: "PUT",
+      body: { keys, template: same ? { auto: !!box.querySelector("[data-tpl-auto]")?.checked } : null },
+    });
+    if (!same && old) await request(`templates/${old.id}`, { method: "DELETE" });
+    if (r.others) toast(t("dp_saved", r.added, r.removed, r.others));
     values = null;
     loadTree().catch(() => {});
     render();

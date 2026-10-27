@@ -27,3 +27,7 @@
 
 /* erkannter Zählertausch: Satz und Knopf „Bestätigen“ im Hinweis */
 [data-area=zaehler] .chip.wide.swap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; height: auto; padding: 6px 8px; white-space: normal; }
+[data-area=zaehler] .tpl { display: grid; gap: 6px; margin-top: 10px; }
+[data-area=zaehler] .tpl label { display: flex; gap: 8px; align-items: center; }
+[data-area=zaehler] .tpl .sub-check { padding-left: 24px; }
+[data-area=zaehler] .tpl label:has(input:disabled) { color: var(--muted); }

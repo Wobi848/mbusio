@@ -63,6 +63,21 @@ export default {
     await page.locator("[data-detail] [data-dp]").first().check();
     await page.waitForFunction(() => document.querySelector(".tabs #n-dp")?.textContent === "1", null, { timeout: 20000 });
 
+    // gleiche Auswahl für alle gelesenen Wärmezähler der Linie, auch für spätere; abwählen
+    // entfernt nur die Vorlage, die Datenpunkte bleiben
+    await api("meters/2/read", "POST");
+    const tpl = "section[data-area=zaehler] [data-detail] [data-tpl]";
+    const auto = "section[data-area=zaehler] [data-detail] [data-tpl-auto]";
+    assert.ok(await page.isDisabled(auto));
+    await page.check(tpl);
+    await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("bei anderen Zählern"), null, { timeout: 20000 });
+    assert.equal((await api("meters/2/values")).values.filter((v) => v.selected).length, 1);
+    await page.check(auto);
+    await page.waitForFunction(async () => (await (await fetch("/api/meters/1/values")).json()).template?.auto === true);
+    await page.uncheck(tpl);
+    await page.waitForFunction(async () => (await (await fetch("/api/meters/1/values")).json()).template === null);
+    assert.equal((await api("meters/2/values")).values.filter((v) => v.selected).length, 1, "Datenpunkte bleiben");
+
     // Verlauf: zweimal gelesen → Diagramm im Detailbereich (Taste V)
     await page.focus("[data-list]");
     await page.keyboard.press("r");

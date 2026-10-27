@@ -42,7 +42,7 @@ export function rowHtml(m, { active, selected, busy }) {
 
 /// Details: Felder, Plan, Aktionen, Tausch, Verlauf, Werte der letzten Auslesung (`vals` null =
 /// noch am Laden)
-export function detailHtml(m, { vals, busy, history, exchange, linePlan }) {
+export function detailHtml(m, { vals, template, busy, history, exchange, linePlan }) {
   const b = meterBlock(m);
   const plans = [["", t("plan_inherit_line", planText(linePlan))], ...PLANS.map((p) => [p, planText(p)])];
   if (m.plan && !PLANS.includes(m.plan)) plans.push([m.plan, planText(m.plan)]);
@@ -92,10 +92,18 @@ export function detailHtml(m, { vals, busy, history, exchange, linePlan }) {
                     v.key
                   )}"${v.selected ? " checked" : ""}></label>`
               )
-              .join("")}</div>`
+              .join("")}</div>${m.medium ? templateHtml(m.medium, template) : ""}`
           : `<p class="sub">${esc(t("history_none"))}</p>`
         : `<p class="sub">…</p>`
     }`;
+}
+
+/// Gleiche Auswahl für alle Zähler dieses Mediums auf der Linie, auf Wunsch auch für spätere
+function templateHtml(medium, template) {
+  return `<div class="tpl">
+      <label><input type="checkbox" data-tpl${template ? " checked" : ""}> ${esc(t("dp_tpl", label(medium)))}</label>
+      <label class="sub-check"><input type="checkbox" data-tpl-auto${template?.auto ? " checked" : ""}${template ? "" : " disabled"}> ${esc(t("dp_tpl_auto"))}</label>
+    </div>`;
 }
 
 const field = (name, label_, value, ph) =>

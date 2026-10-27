@@ -221,6 +221,12 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- **Gleiche Auswahl für alle Zähler eines Mediums** fehlte in der neuen Oberfläche: beim Zähler unter
+  „Letzte Auslesung“ wieder „Gleiche Auswahl für alle Zähler „Wärme“ dieser Linie“, auf Wunsch
+  auch für Zähler, die später dazukommen. Abwählen entfernt die Vorlage, Datenpunkte bleiben.
+- **Nächster Schritt nach dem Scan:** Gefundene, aber noch nicht gemerkte Zähler führten wieder zu
+  „Zähler suchen“; jetzt heisst der Schritt „Gefundene merken“ und führt zum Knopf.
+
 - Weitergabe → Einstellungen eines Ausgangs: aufgeklappte Abschnitte (Warnungen, Bericht) klappten
   nach ein paar Sekunden wieder zu, weil das Formular bei jeder Statusabfrage neu gebaut wurde.
 

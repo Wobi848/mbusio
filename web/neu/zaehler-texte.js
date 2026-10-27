@@ -20,6 +20,9 @@ texts(
     zl_names_scope: (n) => (n ? `für die ${n} ausgewählten Zähler` : "für alle Zähler der Linie"),
     zl_close: "Schliessen",
     zl_key_history: "Verlauf zeigen",
+    dp_tpl: (medium) => `Gleiche Auswahl für alle Zähler „${medium}“ dieser Linie`,
+    dp_tpl_auto: "auch für Zähler, die später dazukommen",
+    dp_saved: (a, r, o) => `Gespeichert: ${a} neu, ${r} entfernt` + (o ? `, ${o} bei anderen Zählern` : ""),
   },
   {
     zl_more: "List ▾",
@@ -38,5 +41,8 @@ texts(
     zl_names_scope: (n) => (n ? `for the ${n} selected meters` : "for all meters of the line"),
     zl_close: "Close",
     zl_key_history: "Show history",
+    dp_tpl: (medium) => `Same choice for all “${medium}” meters on this line`,
+    dp_tpl_auto: "also for meters added later",
+    dp_saved: (a, r, o) => `Saved: ${a} new, ${r} removed` + (o ? `, ${o} on other meters` : ""),
   }
 );
