@@ -295,6 +295,8 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .fields label { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; }
 .fields label > span { color: var(--muted); }
 .fields input.saved { border-color: var(--ok); background: var(--ok-soft); }
+/* Häkchen in Formularen so gross wie in Listen, links in der Spalte */
+.fields input[type=checkbox]:not(.switch) { justify-self: start; width: 16px; height: 16px; margin: 0; }
 input.invalid { border-color: var(--err); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
 .detail h3 { margin: 14px 0 6px; font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
@@ -303,9 +305,9 @@ input.invalid { border-color: var(--err); }
 /* Überschrift einer Leiste (z.B. AUSGÄNGE) */
 .eyebrow.mark { color: var(--brand); }
 .vals { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-.vrow { display: grid; grid-template-columns: 1fr auto 90px; gap: 10px; align-items: center; min-height: 28px; padding: 0 8px; border-bottom: 1px solid var(--line); }
+.vrow { display: grid; grid-template-columns: 1fr auto 110px; gap: 10px; align-items: center; min-height: 28px; padding: 0 8px; border-bottom: 1px solid var(--line); }
 .vrow:last-child { border-bottom: 0; }
-.vrow.head { font-size: 11px; color: var(--muted); background: var(--sunken); text-transform: uppercase; letter-spacing: .04em; }
+.vrow.head { white-space: nowrap; font-size: 11px; color: var(--muted); background: var(--sunken); text-transform: uppercase; letter-spacing: .04em; }
 .vrow input { justify-self: center; width: 16px; height: 16px; }
 .vrow.main { font-weight: 650; }
 button.danger-text { color: var(--err); }
@@ -335,10 +337,11 @@ button.danger-text:hover { background: var(--err-soft); }
   .path .menu-host { flex: 1; min-width: 0; }
   #line { width: 100%; }
   .conn .mono { max-width: 150px; }
-  /* schmal: Gruppen umbrechen als Ganzes, Abstand statt Strich trennt sie */
-  .tabs { flex-wrap: wrap; column-gap: 16px; }
+  /* schmal: eine Zeile, die seitlich läuft, statt Umbrüche; Abstand statt Strich trennt Gruppen */
+  .tabs { flex-wrap: nowrap; overflow-x: auto; column-gap: 10px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
   .tabs .tab-sep { display: none; }
-  .tabs a { height: 32px; padding: 0 10px; }
+  .tabs a { height: 32px; padding: 0 8px; white-space: nowrap; }
   button, select, input, .field { height: 36px; } /* Finger */
   .next-label { display: none; } /* Platz für den Zustand des Busses */
   /* Liste über die ganze Breite, Details als eigene Ansicht mit „←“ */

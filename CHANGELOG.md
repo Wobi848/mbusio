@@ -221,6 +221,22 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
 
 ### Behoben
 
+- **Funktionen der bisherigen Oberfläche, die gefehlt haben**, sind zurück:
+  - Zähler → „Liste ▾“: **Benennen in der Liste** (Name und Ort direkt in den Zeilen, Enter zum
+    nächsten Zähler, „↓“ übernimmt den Ort von oben), **Messwerte als CSV oder JSON** (alle
+    Auslesungen) und **Alle Auslesungen löschen**.
+  - Scan: **Wiederholungen** je Adresse einstellbar (0–3, Vorgabe 1); die geschätzte Dauer folgt.
+  - Anlage → Linie: **Timeout ms** (0 = automatisch nach Baudrate).
+- **Verbinden über die Kopfzeile setzte den Timeout der Linie auf 0 zurück**; jetzt bleibt er.
+- Abrechnung, Vorschau: Zähler ohne Namen zeigen ID und PA statt einer leeren Zelle; der Hinweis
+  bricht um statt abgeschnitten zu werden.
+- Weitergabe: In Abrechnung und Protokoll ist keine Ausgangskarte mehr als gewählt markiert. Die
+  E-Mail zeigt ohne Server den Schalter aus (vorher ein, mit „nicht eingerichtet“).
+- Aussehen: Häkchen in Formularen so gross wie in Listen und links; am Handy die Reiter in einer
+  seitlich laufenden Zeile statt drei; beim Zähler „Löschen“ in derselben Zeile wie „Auslesen“
+  („Zähler getauscht …“ heisst jetzt „Getauscht …“); Simulator „+ mehrere“ vor Anzahl und Medium;
+  Werkzeuge → Baudrate steht auf der des Busses statt 300; Ausleseplan in der Anlage so breit wie
+  die anderen Felder.
 - **Gleiche Auswahl für alle Zähler eines Mediums** fehlte in der neuen Oberfläche: beim Zähler unter
   „Letzte Auslesung“ wieder „Gleiche Auswahl für alle Zähler „Wärme“ dieser Linie“, auf Wunsch
   auch für Zähler, die später dazukommen. Abwählen entfernt die Vorlage, Datenpunkte bleiben.

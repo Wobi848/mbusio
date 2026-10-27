@@ -115,8 +115,12 @@ addEventListener("hashchange", readHash);
 function renderTabs() {
   for (const a of document.querySelectorAll(".tabs [data-area]")) {
     a.title = `${t(AREA_TAB[a.dataset.area])} (${AREAS.indexOf(a.dataset.area) + 1})`;
-    if (a.dataset.area === state.area) a.setAttribute("aria-current", "page");
-    else a.removeAttribute("aria-current");
+    if (a.dataset.area !== state.area) a.removeAttribute("aria-current");
+    else if (!a.hasAttribute("aria-current")) {
+      a.setAttribute("aria-current", "page");
+      // schmal laufen die Reiter seitlich: den gewählten zeigen
+      a.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
   }
   const l = activeLine();
   text($("n-meters"), l?.meters ? String(l.meters) : "");

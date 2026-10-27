@@ -75,3 +75,8 @@
   [data-area=anlage] .row.add { padding-left: 12px; flex-wrap: wrap; }
   [data-area=anlage] .plant { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Ausleseplan so breit wie die anderen Felder; die Uhrzeit steht daneben */
+[data-area=anlage] .planfield { display: flex; gap: 6px; min-width: 0; }
+[data-area=anlage] .planfield select { flex: 1; min-width: 0; }
+[data-area=anlage] .planfield input { width: 72px; flex: none; }

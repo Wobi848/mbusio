@@ -149,9 +149,12 @@ function render() {
   html(
     q("[data-editbar]"),
     (s.builtin ? `<span class="sub">${esc(t("sim_builtin_note"))}</span>` : `<button type="button" class="tonal" data-add>${esc(t("sim_add"))}</button>
-      <input type="number" min="1" max="100" value="10" data-n aria-label="${esc(t("sim_add_n"))}"><select data-n-medium aria-label="${esc(t("sim_col_medium"))}">${sim.media
+      <span class="tab-sep" aria-hidden="true"></span>
+      <button type="button" class="quiet" data-add-many>${esc(t("sim_add_many"))}</button><input type="number" min="1" max="100" value="10" data-n aria-label="${esc(
+        t("sim_add_n")
+      )}"><select data-n-medium aria-label="${esc(t("sim_col_medium"))}">${sim.media
         .map((m) => `<option value="${m}"${m === "water" ? " selected" : ""}>${esc(t("sim_m_" + m))}</option>`)
-        .join("")}</select><button type="button" class="quiet" data-add-many>${esc(t("sim_add_many"))}</button>`) +
+        .join("")}</select>`) +
       // Hinweise sind oft gewollt (Vorlage mit Fehlern): ein Chip, die Liste im Tooltip
       `<span class="grow"></span>${warn.length ? `<span class="chip warn" title="${esc(warn.join("\n"))}">⚠ ${esc(t("si_hints", warn.length))}</span>` : ""}` +
       (dirty ? ` <span class="sub">${esc(t("si_dirty"))}</span><button type="button" class="quiet" data-discard>${esc(t("si_discard"))}</button><button type="button" data-save>${esc(t("sim_save"))}</button>` : "")

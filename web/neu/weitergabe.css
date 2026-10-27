@@ -72,6 +72,8 @@
 [data-area=weitergabe] .btable { overflow: auto; max-height: 60vh; border: 1px solid var(--line); border-radius: 6px; }
 [data-area=weitergabe] .btable table { border-collapse: collapse; font-size: 11.5px; white-space: nowrap; }
 [data-area=weitergabe] .btable th, [data-area=weitergabe] .btable td { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+/* Hinweis umbrechen statt die Tabelle zu verbreitern */
+[data-area=weitergabe] .btable td:last-child { white-space: normal; min-width: 240px; }
 [data-area=weitergabe] .btable th { position: sticky; top: 0; background: var(--sunken); font-weight: 650; }
 [data-area=weitergabe] .billview details.more { margin: 6px 0 10px; }
 [data-area=weitergabe] .billview details.more > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 4px 0; }

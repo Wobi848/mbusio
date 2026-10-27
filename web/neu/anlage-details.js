@@ -80,6 +80,7 @@ function lineDetail(l, g, { p, activeId, ports: known }) {
       ${field("line", "connection", t("f_connection"), l.connection, ` class="mono" list="an-ports" placeholder="${esc(t("f_connection_ph"))}"`)}
       <datalist id="an-ports">${ports}</datalist>
       <label><span>${esc(t("baud"))}</span><select data-kind="line" data-field="baud">${BAUDS.map((b) => `<option${b === l.baud ? " selected" : ""}>${b}</option>`).join("")}</select></label>
+      ${field("line", "timeout_ms", t("an_timeout"), l.timeout_ms, ` type="number" min="0" max="10000" step="50" class="mono" title="${esc(t("an_timeout_title"))}" placeholder="0"`)}
       ${planField("line", l.plan ?? null, t("plan_inherit_project", planText(p.plan || "off")))}
     </div>
     <label class="opline${l.operation ? " on" : ""}">${opSwitch(l, true)}<b>${esc(t("op_chip"))}</b><span class="${l.operation ? "ok" : "sub"}">${esc(opText(l))}</span></label>

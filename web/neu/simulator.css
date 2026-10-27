@@ -20,3 +20,5 @@
   [data-area=simulator] .row > :nth-child(5) { grid-area: baud; justify-self: end; }
   [data-area=simulator] .row > :nth-child(6) { grid-area: fault; justify-self: end; }
 }
+/* „+ mehrere“ steht vor Anzahl und Medium, abgesetzt von „+ Zähler“ */
+[data-area=simulator] .toolbar .tab-sep { width: 1px; height: 18px; margin: 0 6px; background: var(--line-strong); }

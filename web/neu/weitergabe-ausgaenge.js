@@ -48,7 +48,8 @@ export function outputsHtml(outs, { status, active, mail }) {
     outs
         .map((o) => card(o.key, o.label, !!o.on, outputState(status?.[o.key]), active))
         .join("") +
-    (mail ? card("email", t("wg_email"), mail.config.enabled, emailState(mail), active) : "") +
+    // ohne Server ist die E-Mail nicht ein, auch wenn sie eingeschaltet gespeichert ist (Vorgabe)
+    (mail ? card("email", t("wg_email"), mail.config.enabled && !!mail.config.host, emailState(mail), active) : "") +
     // Ansichten statt der Datenpunkte, zusammen am Ende
     `<span class="outlog"><button type="button" class="quiet" data-open-billing title="${esc(t("ab_hint"))}">${esc(t("ab_open"))} →</button>` +
     `<button type="button" class="quiet" data-open-log title="${esc(t("wg_log_title"))}">${esc(t("wg_log"))} →</button></span>`

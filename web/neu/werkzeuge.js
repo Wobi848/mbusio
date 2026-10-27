@@ -213,6 +213,9 @@ function render() {
   if (!view) return;
   renderTarget();
   const reason = !view.target ? t("wz_locked_target") : !state.status?.connected ? t("wz_locked_conn") : "";
+  // neue Baudrate: Vorgabe die des Busses, bis man selbst eine wählt
+  const newBaud = q("[data-new-baud]");
+  if (!newBaud.dataset.picked) newBaud.value = String(busBaud());
   for (const f of root.querySelectorAll("[data-tool]")) f.disabled = !!reason;
   const now = (key, value) => {
     const el = q(`[data-now=${key}]`);
@@ -458,6 +461,7 @@ function wire() {
     if (on("[data-hex]") && !on("input")) return analyze(on("[data-hex]").dataset.hex);
   });
   q("[data-new-pa]").addEventListener("keydown", (ev) => ev.key === "Enter" && setPa(q("[data-set-pa]")));
+  q("[data-new-baud]").addEventListener("change", (ev) => (ev.target.dataset.picked = "1"));
   q("[data-hex]").addEventListener("keydown", (ev) => ev.key === "Enter" && analyze(ev.target.value.trim()));
   addEventListener("hashchange", () => view && targetFromHash());
   bind("r", () => readTarget(q("[data-read]")), t("wz_key_read"), open);

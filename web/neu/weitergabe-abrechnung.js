@@ -295,8 +295,10 @@ function preview(p) {
   const notes = p.notes ? `<p class="chip warn wide">${esc(t("ab_notes", p.notes))}${kinds ? `: ${esc(kinds)}` : ""}</p>` : "";
   if (!p.rows.length) return head + `<p class="sub">${esc(t("ab_empty"))}</p>`;
   const cols = previewCols(p.header);
-  const pick = (r) => cols.map((i) => r[i] ?? "");
-  return `${head}${notes}<div class="btable"><table><thead><tr>${pick(p.header).map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${p.rows
+  // Zähler ohne Namen: ID oder PA zeigen, sonst weiss man nicht, welche Zeile wozu gehört
+  const cell = (r, i) => (i === 2 && data.settings.form !== "series" && !r[2] ? [r[4] && `ID ${r[4]}`, r[5] && `PA ${r[5]}`].filter(Boolean).join(" · ") : r[i] ?? "");
+  const pick = (r) => cols.map((i) => cell(r, i));
+  return `${head}${notes}<div class="btable"><table><thead><tr>${cols.map((i) => `<th>${esc(p.header[i] ?? "")}</th>`).join("")}</tr></thead><tbody>${p.rows
     .map((r) => `<tr>${pick(r).map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
     .join("")}</tbody></table></div>${p.total > p.rows.length ? `<p class="sub">${esc(t("ab_more", p.total - p.rows.length))}</p>` : ""}`;
 }

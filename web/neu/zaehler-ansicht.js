@@ -2,11 +2,12 @@
 // Bausteine; gespeichert und gelesen wird in zaehler.js.
 
 import { historyHtml } from "./zaehler-verlauf.js";
+import { namingCells } from "./zaehler-benennen.js";
 
 /// Pläne zur Auswahl je Zähler (dazu „wie Linie“)
 export const PLANS = ["off", "daily 00:05", "hourly", "15min", "monthly 00:05"];
 
-export function rowHtml(m, { active, selected, busy }) {
+export function rowHtml(m, { active, selected, busy, naming }) {
   const sel = selected.has(m.id);
   const b = meterBlock(m);
   const ident = [b.ident, b.pa != null && b.pa !== "" ? `PA ${b.pa}` : ""].filter(Boolean).join(" · ");
@@ -32,9 +33,9 @@ export function rowHtml(m, { active, selected, busy }) {
     : `<span class="sub">${esc(t("n_never_read"))}</span>`;
   return `<div class="row${m.id === active ? " active" : ""}" role="option" id="meter-${m.id}" aria-selected="${sel}">
     <span class="box" data-box aria-hidden="true">${sel ? "✓" : ""}</span>
-    <span class="name">${mediumIcon(m.medium, true)}${m.name ? esc(m.name) : `<span class="sub">${esc(t("meter_unnamed"))}</span>`}</span>
+    <span class="name">${mediumIcon(m.medium, true)}${naming ? namingCells(m).name : m.name ? esc(m.name) : `<span class="sub">${esc(t("meter_unnamed"))}</span>`}</span>
     <span class="mono sub">${esc(ident)}</span>
-    <span class="cut">${esc(m.location)}</span>
+    <span class="cut">${naming ? namingCells(m).location : esc(m.location)}</span>
     <span class="cut">${value}</span>
     <span>${state_}</span>
   </div>`;
@@ -69,7 +70,7 @@ export function detailHtml(m, { vals, template, busy, history, exchange, linePla
     <div class="actions">
       <button type="button" data-read title="${esc(t("read"))} (R)">${esc(busy ? t("reading_busy") : t("read"))}</button>
       <button type="button" class="${history ? "tonal" : "quiet"}" data-history aria-pressed="${history}" title="${esc(t("zl_history"))} (V)">${esc(t("zl_history"))}</button>
-      <button type="button" class="quiet" data-exchange aria-pressed="${exchange}">${esc(t("zl_exchange"))}</button>
+      <button type="button" class="quiet" data-exchange aria-pressed="${exchange}" title="${esc(t("zl_exchange_title"))}">${esc(t("zl_exchange"))}</button>
       <span class="grow"></span>
       <button type="button" class="quiet danger-text" data-del>${esc(t("delete"))}</button>
     </div>

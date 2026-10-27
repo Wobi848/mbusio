@@ -149,7 +149,7 @@ function select(key, { focusRow = false, detail = false } = {}) {
 
 /// Feld beim Verlassen speichern; Escape setzt es auf den gespeicherten Wert zurück
 async function saveField(input) {
-  const value = input.dataset.field === "baud" ? Number(input.value) : input.value.trim();
+  const value = ["baud", "timeout_ms"].includes(input.dataset.field) ? Number(input.value) || 0 : input.value.trim();
   if (String(value) === input.dataset.saved) return;
   const x = picked();
   try {

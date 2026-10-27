@@ -131,6 +131,8 @@ async function toggleOutput(input) {
 }
 
 function openOutput(key, enable = false) {
+  // Einstellungen eines Ausgangs ersetzen Abrechnung und Protokoll
+  root.classList.remove("showbill", "showlog");
   view.output = key;
   view.enableOnSave = enable;
   view.active = null;
@@ -415,13 +417,21 @@ function toggle(id) {
 // ------------------------------------------------------------ Bedienung
 
 /// Abrechnung statt der Datenpunkte zeigen (Vorgabe: aktives Projekt)
+/// Abrechnung oder Protokoll statt der Datenpunkte: kein Ausgang ist dann gewählt
+function leaveOutput() {
+  view.output = null;
+  renderCards();
+}
+
 function showBilling(project = null) {
+  leaveOutput();
   root.classList.add("showbill");
   openBilling(q("[data-billview]"), { project, close: () => root.classList.remove("showbill") });
 }
 
 /// Protokoll statt der Datenpunkte zeigen; `p` filtert auf einen Datenpunkt
 function showLog(p = null) {
+  leaveOutput();
   root.classList.add("showlog");
   openLog(q("[data-logview]"), { dp: p?.id ?? null, dpName: p?.name || "", close: () => root.classList.remove("showlog") });
 }

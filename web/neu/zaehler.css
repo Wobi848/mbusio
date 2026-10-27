@@ -31,3 +31,13 @@
 [data-area=zaehler] .tpl label { display: flex; gap: 8px; align-items: center; }
 [data-area=zaehler] .tpl .sub-check { padding-left: 24px; }
 [data-area=zaehler] .tpl label:has(input:disabled) { color: var(--muted); }
+
+/* Benennen in der Liste: Felder statt Text, „wie oben“ neben dem Ort */
+[data-area=zaehler] input.quick { width: 100%; height: 26px; padding: 0 6px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: inherit; font: inherit; }
+[data-area=zaehler] input.quick.saved { border-color: var(--ok); background: var(--ok-soft); }
+[data-area=zaehler] .row > .name:has(input.quick) { display: flex; align-items: center; gap: 6px; }
+[data-area=zaehler] .quick-loc { display: flex; align-items: center; gap: 2px; }
+
+/* Aktionen des Zählers in einer Zeile, auch „Löschen“ */
+[data-area=zaehler] .detail .actions { gap: 2px; }
+[data-area=zaehler] .detail .actions button { padding: 0 8px; }

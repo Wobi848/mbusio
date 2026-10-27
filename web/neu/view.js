@@ -63,7 +63,8 @@ export function list(container, items, key, row) {
     const k = String(key(item));
     const markup = row(item);
     let el = old.get(k);
-    if (el && el._html !== markup) {
+    // eine Zeile, in der gerade getippt wird, erst nach dem Verlassen neu bauen
+    if (el && el._html !== markup && !el.contains(document.activeElement)) {
       const fresh = build(markup, k);
       el.replaceWith(fresh);
       if (at === el) at = fresh;

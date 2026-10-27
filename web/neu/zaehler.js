@@ -9,6 +9,7 @@ import "./zaehler-texte.js";
 import { drawHistory, setHistoryKey, historyCsv, forgetHistory } from "./zaehler-verlauf.js";
 import { PLANS, rowHtml, detailHtml, addFormHtml } from "./zaehler-ansicht.js";
 import { panelHtml, listLoad, listChange, listCheck, namesPreview } from "./zaehler-listen.js";
+import { locationsHtml, saveQuick, sameAsAbove, quickEnter } from "./zaehler-benennen.js";
 
 
 /// Einstellungen je Linie: Suche, Filter, gewählter Zähler, Auswahl (bleiben beim Wechsel)
@@ -38,9 +39,15 @@ export function mount(pane) {
       <span class="sub" data-sum></span>
       <div class="menu-host"><button type="button" class="quiet" data-more>${esc(t("zl_more"))}</button><div class="menu end" role="menu" data-more-menu hidden>
         <button type="button" role="menuitem" data-panel="import">${esc(t("list_import"))} …</button>
+        <button type="button" role="menuitem" data-naming>${esc(t("zl_naming"))}</button>
         <button type="button" role="menuitem" data-panel="names">${esc(t("quick_names"))}</button>
         <a role="menuitem" class="quiet" data-csv>${esc(t("zl_csv"))}</a>
+        <a role="menuitem" class="quiet" data-readings="csv">${esc(t("zl_readings_csv"))}</a>
+        <a role="menuitem" class="quiet" data-readings="json">${esc(t("zl_readings_json"))}</a>
+        <button type="button" role="menuitem" class="danger-text" data-readings-clear>${esc(t("zl_readings_clear"))} …</button>
       </div></div>
+      <button type="button" data-naming-done hidden>${esc(t("zl_naming_done"))}</button>
+      <datalist id="zl-locations" data-locations></datalist>
       <button type="button" class="tonal" data-add>${esc(t("meter_add"))}</button>
       <button type="button" data-read-all></button>
     </div>
@@ -107,7 +114,9 @@ function render() {
   const rows = shown();
   if (view.active != null && !byId(view.active)) view.active = null;
   for (const id of [...view.selected]) if (!byId(id)) view.selected.delete(id);
-  list(q("[data-list]"), rows, (m) => m.id, (m) => rowHtml(m, { active: view.active, selected: view.selected, busy }));
+  list(q("[data-list]"), rows, (m) => m.id, (m) => rowHtml(m, { active: view.active, selected: view.selected, busy, naming: view.naming }));
+  q("[data-naming-done]").hidden = !view.naming;
+  if (view.naming) html(q("[data-locations]"), locationsHtml(all));
   const empty = q("[data-empty]");
   empty.hidden = rows.length > 0;
   html(
@@ -314,6 +323,34 @@ async function saveField(input) {
   }
 }
 
+function startNaming() {
+  view.naming = true;
+  render();
+  q("[data-list] input[data-q=name]")?.focus();
+}
+
+/// Benennen beenden: Liste neu laden, damit Filter und Zähler stimmen
+async function stopNaming() {
+  view.naming = false;
+  await loadMeters().catch(report);
+  loadTree().catch(() => {});
+  render();
+}
+
+/// Alle Auslesungen der Linie löschen (Zählerliste und Datenpunkte bleiben)
+async function clearReadings() {
+  if (!(await ask(q("[data-more]"), t("zl_readings_clear_q"), t("delete")))) return;
+  try {
+    await request("readings", { method: "DELETE" });
+    values = null;
+    await loadMeters();
+    loadTree().catch(() => {});
+    toast(t("zl_readings_cleared"));
+  } catch (e) {
+    report(e);
+  }
+}
+
 async function setPlan(ids, plan) {
   try {
     for (const id of ids) await request(`meters/${id}/plan`, { method: "PUT", body: { plan } });
@@ -385,6 +422,11 @@ function wire() {
     if (el.closest("[data-save-new]")) return saveNew();
     if (el.closest("[data-read-all]")) return readAll();
     if (el.closest("[data-panel]")) return openPanel(el.closest("[data-panel]").dataset.panel);
+    if (el.closest("[data-naming]")) return startNaming();
+    if (el.closest("[data-naming-done]")) return stopNaming();
+    if (el.closest("[data-q-same]")) return sameAsAbove(el.closest("[data-q-same]"), shown(), state.meters);
+    if (el.matches("input[data-q]")) return;
+    if (el.closest("[data-readings-clear]")) return clearReadings();
     if (el.closest("[data-close-panel]")) return closePanel();
     if (el.closest("[data-list-check]")) return listCheck(q("[data-detail]"), panelDone);
     if (el.closest("[data-names-preview]")) return namesPreview(q("[data-detail]"), [...view.selected], panelDone);
@@ -415,6 +457,7 @@ function wire() {
   root.addEventListener("change", (ev) => {
     const el = ev.target;
     if (el.matches("[data-field]")) return saveField(el);
+    if (el.matches("input[data-q]")) return saveQuick(el, state.meters);
     if (el.matches("[data-plan]")) return setPlan([view.active], el.value || null);
     if (el.matches("[data-sel-plan]") && el.value) return setPlan([...view.selected], el.value === "inherit" ? null : el.value);
     if (el.matches("[data-dp], [data-tpl], [data-tpl-auto]")) return setDatapoints();
@@ -434,6 +477,8 @@ function wire() {
     }
     if (el.matches("[data-field]") && ev.key === "Enter") el.blur();
     if (el.matches("[data-new]") && ev.key === "Enter") saveNew();
+    if (el.matches("input[data-q]") && ev.key === "Enter") return quickEnter(ev, q("[data-list]"), state.meters);
+    if (el.matches("input[data-q]")) ev.stopPropagation();
   });
   listEl.addEventListener("keydown", (ev) => {
     const rows = shown();
@@ -462,7 +507,12 @@ function wire() {
   root.addEventListener("input", (ev) => {
     if (ev.target.matches("[data-paste]")) listLoad(ev.target.value, q("[data-detail]"));
   });
-  menu(q("[data-more]"), q("[data-more-menu]"), { onOpen: () => (q("[data-csv]").href = apiHref("meters/csv")) });
+  menu(q("[data-more]"), q("[data-more-menu]"), {
+    onOpen: () => {
+      q("[data-csv]").href = apiHref("meters/csv");
+      for (const a of root.querySelectorAll("[data-readings]")) a.href = apiHref(`export?format=${a.dataset.readings}`);
+    },
+  });
   listEl.addEventListener("focus", () => {
     if (view.active == null && shown()[0]) select(shown()[0].id);
   });

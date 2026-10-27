@@ -17,6 +17,8 @@ const perLine = new Map();
 let root = null;
 let view = null;
 let lineId = null;
+/// Wiederholungen je Adresse im Primärscan (der Server nimmt höchstens 5)
+const RETRIES = [0, 1, 2, 3];
 let job = null; // Scan der Linie (laufend oder letzter), wie /api/job bzw. /api/last-scan
 let polling = false;
 const open = () => state.area === "scan";
@@ -62,7 +64,7 @@ async function onLine() {
   const id = state.status?.active?.line?.id;
   if (!id || id === lineId) return;
   lineId = id;
-  if (!perLine.has(id)) perLine.set(id, { kind: "primary", from: 0, to: 250, prefix: "", bauds: null, filter: "all", active: null, plan: null, baudCheck: null });
+  if (!perLine.has(id)) perLine.set(id, { kind: "primary", from: 0, to: 250, retries: 1, prefix: "", bauds: null, filter: "all", active: null, plan: null, baudCheck: null });
   view = perLine.get(id);
   job = null;
   const running = await request("job").catch(() => null);
@@ -111,7 +113,7 @@ async function start(body = null) {
   try {
     job =
       view.kind === "primary"
-        ? await request("scan/primary", { method: "POST", body: body || { from: view.from, to: view.to, retries: 1, bauds: bauds() } })
+        ? await request("scan/primary", { method: "POST", body: body || { from: view.from, to: view.to, retries: view.retries, bauds: bauds() } })
         : await request("scan/secondary", { method: "POST", body: body || { bauds: bauds(), prefix: view.prefix } });
     // Statusleiste gleich auf „Bus arbeitet“, nicht erst bei der nächsten Abfrage
     loadStatus().catch(() => {});
@@ -157,13 +159,14 @@ function render() {
   html(
     q("[data-range]"),
     view.kind === "primary"
-      ? `<label class="inline"><span class="sub">${esc(t("sc_from_to"))}</span><input type="number" min="0" max="250" data-from value="${view.from}"><span class="sub">–</span><input type="number" min="0" max="250" data-to value="${view.to}"></label>`
+      ? `<label class="inline"><span class="sub">${esc(t("sc_from_to"))}</span><input type="number" min="0" max="250" data-from value="${view.from}"><span class="sub">–</span><input type="number" min="0" max="250" data-to value="${view.to}"></label>
+        <label class="inline" title="${esc(t("sc_retries_title"))}"><span class="sub">${esc(t("sc_retries"))}</span><select data-retries>${RETRIES.map((n) => `<option value="${n}"${n === view.retries ? " selected" : ""}>${n}</option>`).join("")}</select></label>`
       : `<label class="inline"><span class="sub">${esc(t("scan_prefix"))}</span><input data-prefix class="mono" maxlength="7" value="${esc(view.prefix)}" placeholder="${esc(t("scan_prefix_ph"))}"></label>`
   );
   text(q("[data-baud-btn]"), t("sc_baud_menu", bauds().join(", ")));
   text(
     q("[data-estimate]"),
-    view.kind === "primary" && state.status?.connection ? t("estimate", t("duration", scanLogic.duration({ from: view.from, to: view.to, retries: 1, bauds: bauds(), conn: state.status.connection }))) : ""
+    view.kind === "primary" && state.status?.connection ? t("estimate", t("duration", scanLogic.duration({ from: view.from, to: view.to, retries: view.retries, bauds: bauds(), conn: state.status.connection }))) : ""
   );
   const go = q("[data-start]");
   text(go, running ? t("cancel") : t(view.kind === "primary" ? "scan_primary_start" : "scan_secondary_start"));
@@ -439,6 +442,7 @@ function wire() {
     const el = ev.target;
     if (el.matches("[data-from]")) view.from = Math.max(0, Math.min(250, Number(el.value) || 0));
     if (el.matches("[data-to]")) view.to = Math.max(0, Math.min(250, Number(el.value) || 250));
+    if (el.matches("[data-retries]")) view.retries = Number(el.value);
     if (el.matches("[data-prefix]")) view.prefix = el.value.replace(/\D/g, "").slice(0, 7);
     if (el.matches("[data-baud]")) view.bauds = [...q("[data-baud-menu]").querySelectorAll("[data-baud]:checked")].map((x) => Number(x.value));
     if (el.matches("[data-step]")) view.plan.steps[Number(el.dataset.step)].skip = !el.checked;

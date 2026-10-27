@@ -53,8 +53,9 @@ pub(super) async fn status(State(st): State<AppState>) -> ApiResult<serde_json::
 pub(super) struct ConnectReq {
     port: String,
     baud: u32,
+    /// fehlt = Timeout der Linie behalten (die Kopfzeile kennt ihn nicht)
     #[serde(default)]
-    timeout_ms: u64,
+    timeout_ms: Option<u64>,
 }
 
 pub(super) async fn connect(
@@ -65,10 +66,14 @@ pub(super) async fn connect(
         return Err(busy());
     }
     let line = st.line_id()?;
+    let timeout_ms = match req.timeout_ms {
+        Some(t) => t,
+        None => st.db.lock().unwrap().line(line)?.timeout_ms,
+    };
     let conf = LineConf {
         connection: req.port.clone(),
         baud: req.baud,
-        timeout_ms: req.timeout_ms,
+        timeout_ms,
     };
     let s = st.clone();
     blocking(move || s.connect_line(line, conf))
@@ -78,7 +83,7 @@ pub(super) async fn connect(
     st.db
         .lock()
         .unwrap()
-        .set_line_connection(line, &req.port, req.baud, req.timeout_ms)?;
+        .set_line_connection(line, &req.port, req.baud, timeout_ms)?;
     Ok(Json(json!({ "ok": true, "connection": st.conn_info() })))
 }
 
