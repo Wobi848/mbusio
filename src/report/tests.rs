@@ -58,6 +58,17 @@ fn weekly_failed_and_switched_off() {
     assert_eq!(r.due(&s, at("2026-10-28 10:00")), (false, None));
 }
 
+#[test]
+fn by_hand_since_last_report_or_one_period() {
+    let mut s = settings();
+    let mut r = ReportState::default();
+    assert_eq!(r.since(&s, at("2026-10-27 10:00")), at("2026-10-26 10:00"));
+    s.frequency = "weekly".into();
+    assert_eq!(r.since(&s, at("2026-10-27 10:00")), at("2026-10-20 10:00"));
+    r.done(true, at("2026-10-27 09:00"));
+    assert_eq!(r.since(&s, at("2026-10-27 10:00")), at("2026-10-27 09:00"));
+}
+
 fn data() -> ReportData {
     ReportData {
         reading: vec![ReadLine {

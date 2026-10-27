@@ -29,6 +29,7 @@ mod upkeep;
 mod warn;
 
 use self::reading::*;
+pub(crate) use self::report::message as report_message;
 use self::upkeep::*;
 
 /// So oft wird geprüft, ob etwas fällig ist

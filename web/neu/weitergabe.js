@@ -6,7 +6,7 @@ import { html, text, list, ask, toast, styles, previewApply, menu } from "./view
 import { onEscape } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
-import { outputsHtml, outputFormHtml, formValues, securityChanged, warnValues, reportValues } from "./weitergabe-ausgaenge.js";
+import { outputsHtml, outputFormHtml, formValues, securityChanged, warnValues, reportValues, subjectPreview } from "./weitergabe-ausgaenge.js";
 import { openLog } from "./weitergabe-protokoll.js";
 import { openBilling, closeBilling } from "./weitergabe-abrechnung.js";
 
@@ -19,6 +19,8 @@ let data = null; // /api/datapoints: { meters (mit datapoints), templates, outpu
 let cfg = { mqtt: null, modbus: null, email: null }; // Einstellungen der Ausgänge
 const view = { scope: storageGet("wg_scope") || "line", search: "", problems: false, active: null, output: null, selected: new Set(), preview: false, enableOnSave: false };
 let releaseEscape = null;
+/// `cfg`, aus dem das gezeigte Formular eines Ausgangs gebaut ist (`load` legt ein neues an)
+let shownCfg = null;
 const q = (sel) => root.querySelector(sel);
 /// Erklärung einer Qualität (nur wo es etwas zu erklären gibt)
 const qualityTitle = (p) => (["stale", "disturbed"].includes(p.quality) ? t(`q_${p.quality}_title`) : p.quality === "invalid" ? t(p.invalid === "status" ? "q_status_title" : p.invalid === "error_value" ? "q_error_value_title" : "q_decreased_title") : "");
@@ -107,8 +109,6 @@ function shown() {
 
 // ------------------------------------------------------------ Ausgänge
 
-// ------------------------------------------------------------ Ausgänge
-
 async function toggleOutput(input) {
   const key = input.dataset.outToggle;
   const on = input.checked;
@@ -171,6 +171,21 @@ async function saveMailPart(part, values, saved) {
   }
 }
 
+/// Bericht jetzt mit den gespeicherten Einstellungen; Ergebnis wie bei der Testmail
+async function reportNow(button) {
+  button.disabled = true;
+  try {
+    const r = await request("mail/report", { method: "POST" });
+    toast(t("wg_r_now_ok", r.to));
+  } catch (e) {
+    report(e);
+  } finally {
+    button.disabled = false;
+    cfg.email = await request("mail").catch(() => cfg.email);
+    renderCards();
+  }
+}
+
 /// Testmail an die Adresse im Feld, mit den gespeicherten Einstellungen; die Karte zeigt danach
 /// auch das Ergebnis
 async function testMail(button) {
@@ -190,12 +205,17 @@ async function testMail(button) {
 
 // ------------------------------------------------------------ Datenpunkte
 
-function render() {
-  if (!root || !data) return;
+/// Karten der Ausgänge (Zustand, zuletzt gesendet)
+function renderCards() {
   html(
     q("[data-outputs]"),
     outputsHtml(data.outputs || [], { status: state.status, active: view.output, mail: cfg.email })
   );
+}
+
+function render() {
+  if (!root || !data) return;
+  renderCards();
   html(q("[data-scope]"), ["line", "project"].map((s) => `<button type="button" data-scope-set="${s}" aria-pressed="${view.scope === s}">${esc(t("tr_scope_" + s))}</button>`).join(""));
   const bad = points().filter((p) => p.quality !== "good" && p.quality !== "none").length;
   const pb = q("[data-problems]");
@@ -241,7 +261,11 @@ function renderDetail() {
   const typing = box.contains(document.activeElement) && document.activeElement.matches("input:not([type=checkbox]), select, textarea");
   const key = view.output ? "out:" + view.output : "dp:" + view.active;
   if (typing && box.dataset.shown === key) return;
+  // Einstellungen eines Ausgangs hängen nur an `cfg`: nicht bei jeder Statusabfrage neu bauen,
+  // sonst klappen offene Abschnitte (Warnungen, Bericht) alle paar Sekunden zu
+  if (view.output && box.dataset.shown === key && shownCfg === cfg) return;
   box.dataset.shown = key;
+  shownCfg = cfg;
   box.classList.toggle("open", !!(view.output || view.active));
   if (view.output) {
     const o = data.outputs.find((x) => x.key === view.output);
@@ -403,6 +427,10 @@ function showLog(p = null) {
 }
 
 function wire() {
+  root.addEventListener("input", (ev) => {
+    const form = ev.target.closest("[data-warn-form], [data-report-form]");
+    if (form && ev.target.name === "subject") form.querySelector("[data-subject-preview]").textContent = subjectPreview(cfg, form.matches("[data-warn-form]") ? "warn" : "report", ev.target.value);
+  });
   q("[data-search]").addEventListener("input", (ev) => {
     view.search = ev.target.value;
     render();
@@ -425,6 +453,7 @@ function wire() {
 
     if (b("[data-readdress]")) return readdress(b("[data-readdress]").dataset.readdress);
     if (b("[data-mail-test]")) return testMail(b("[data-mail-test]"));
+    if (b("[data-report-now]")) return reportNow(b("[data-report-now]"));
     if (b("[data-back]")) {
       view.output = null;
       view.active = null;

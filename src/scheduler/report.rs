@@ -21,20 +21,31 @@ pub(super) fn report(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
         }
         return Ok(());
     };
-    let data = gather(st, &config, since, now)?;
-    let (subject, text) = report::mail(&config.report, &data, &config.device_name(), since, now);
-    let message = Message {
-        from,
-        to: mail::recipients(&config.report.to)?,
-        subject,
-        text,
-        attachments: Vec::new(),
-    };
+    let message = message(st, &config, from, since, now)?;
     let result = mail::send(&config, &message);
     state.done(result.is_ok(), now);
     let mut db = st.db.lock().unwrap();
     db.mail_record(&message, &result)?;
     db.set_report_state(&state)
+}
+
+/// Der Bericht als Nachricht (Zeitplan und „Bericht jetzt senden“)
+pub(crate) fn message(
+    st: &AppState,
+    config: &MailConfig,
+    from: String,
+    since: NaiveDateTime,
+    now: NaiveDateTime,
+) -> anyhow::Result<Message> {
+    let data = gather(st, config, since, now)?;
+    let (subject, text) = report::mail(&config.report, &data, &config.device_name(), since, now);
+    Ok(Message {
+        from,
+        to: mail::recipients(&config.report.to)?,
+        subject,
+        text,
+        attachments: Vec::new(),
+    })
 }
 
 fn gather(

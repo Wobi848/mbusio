@@ -79,3 +79,35 @@ pub(super) async fn mail_test(
     result.map_err(bad_request)?;
     Ok(Json(json!({ "ok": true })))
 }
+
+/// Bericht jetzt mit den gespeicherten Einstellungen (Zeitraum seit dem letzten Bericht); der
+/// Zeitplan bleibt, wie er ist. Der Fehler kommt sofort zurück.
+pub(super) async fn mail_report(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let (config, state) = {
+        let db = st.db.lock().unwrap();
+        (db.mail_config(), db.report_state())
+    };
+    let from = config.sender().map_err(bad_request)?;
+    if mail::recipients(&config.report.to)
+        .map_err(bad_request)?
+        .is_empty()
+    {
+        return Err(bad_request(tr(
+            "Kein Empfänger bei „Bericht an“",
+            "No recipient in “Report to”",
+        )));
+    }
+    let now = st.planner.now();
+    let since = state.since(&config.report, now);
+    let st2 = st.clone();
+    let (message, result) = blocking(move || -> anyhow::Result<_> {
+        let message = crate::scheduler::report_message(&st2, &config, from, since, now)?;
+        let r = mail::send(&config, &message);
+        Ok((message, r))
+    })
+    .await?
+    .map_err(bad_request)?;
+    st.db.lock().unwrap().mail_record(&message, &result)?;
+    result.map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "to": message.to.join(", ") })))
+}

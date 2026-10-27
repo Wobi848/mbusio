@@ -149,6 +149,16 @@ impl ReportState {
         (false, (slot > last && !retry).then_some(last))
     }
 
+    /// Beginn des Zeitraums für einen Bericht von Hand: seit dem letzten Bericht, sonst ein Tag
+    /// (wöchentlich: eine Woche)
+    pub fn since(&self, s: &ReportSettings, now: NaiveDateTime) -> NaiveDateTime {
+        let days = if s.frequency == "weekly" { 7 } else { 1 };
+        self.last
+            .as_deref()
+            .and_then(parse)
+            .unwrap_or(now - Duration::days(days))
+    }
+
     pub fn done(&mut self, sent: bool, now: NaiveDateTime) {
         if sent {
             self.last = Some(stamp(now));

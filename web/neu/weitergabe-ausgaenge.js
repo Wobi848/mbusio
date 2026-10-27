@@ -115,7 +115,8 @@ function fieldHtml([name, label_, kind, x = {}], value) {
         : kind === "textarea"
           ? `<textarea name="${name}" rows="3"${cls}${ph}>${esc(value ?? "")}</textarea>`
           : `<input type="${kind}" name="${name}" value="${kind === "password" ? "" : esc(value ?? "")}"${cls}${ph}>`;
-  return `<label${kind === "check" ? ' class="check"' : ""}><span>${esc(label_)}</span>${input}</label>${x.hint ? `<p class="sub hint">${esc(x.hint)}</p>` : ""}`;
+  const preview = x.preview ? `<b data-subject-preview>${esc(x.preview)}</b><br>` : "";
+  return `<label${kind === "check" ? ' class="check"' : ""}><span>${esc(label_)}</span>${input}</label>${x.hint ? `<p class="sub hint">${preview}${esc(x.hint)}</p>` : ""}`;
 }
 
 /// Für den Integrator, unter den Einstellungen: Adressen nach Muster, Liste als CSV/JSON
@@ -134,9 +135,20 @@ function integratorHtml(o, projectId, has) {
 function testMailHtml(cfg) {
   const c = cfg.email.config;
   return `<h3>${esc(t("wg_m_test"))}</h3>
-    <div class="fields"><label><span>${esc(t("wg_m_test_to"))}</span><input type="text" class="mono" data-mail-test-to value="${esc(c.from || c.username || "")}"></label></div>
+    <div class="fields"><label><span>${esc(t("wg_m_test_to"))}</span><input type="text" class="mono" data-mail-test-to value="${esc(c.warn.to || c.from || c.username || "")}"></label></div>
     <p class="sub hint">${esc(t("wg_m_test_hint"))}</p>
     <div class="actions"><button type="button" class="tonal" data-mail-test>${esc(t("wg_m_test_send"))}</button></div>`;
+}
+
+/// Betreff wie ihn der Server füllt (`mail::fill`): bekannte Platzhalter ersetzt, unbekannte
+/// bleiben stehen, damit man den Tippfehler sieht; leer = Vorgabe
+export function subjectPreview(cfg, form, value) {
+  const now = new Date();
+  const two = (n) => String(n).padStart(2, "0");
+  const known = { geraet: cfg.email.device, anzahl: "2", datum: `${two(now.getDate())}.${two(now.getMonth() + 1)}.${now.getFullYear()}` };
+  const names = form === "warn" ? ["geraet", "anzahl"] : ["geraet", "datum"];
+  const template = value.trim() || cfg.email[`${form}_subject_default`];
+  return "→ " + template.replace(/\{(\w+)\}/g, (m, k) => (names.includes(k) ? known[k] : m));
 }
 
 /// Arten von Problemen und wählbare Abstände in Minuten (wie `warn::KINDS`, `warn::INTERVALS`)
@@ -146,7 +158,7 @@ const WARN_INTERVALS = [0, 15, 60, 240, 1440];
 function warnFields(cfg) {
   return [
     ["to", t("wg_w_to"), "text", { ph: "hv@example.org", mono: true, hint: t("wg_w_to_hint") }],
-    ["subject", t("wg_w_subject"), "text", { ph: cfg.email.warn_subject_default, hint: t("wg_w_subject_hint") }],
+    ["subject", t("wg_w_subject"), "text", { ph: cfg.email.warn_subject_default, hint: t("wg_w_subject_hint"), preview: subjectPreview(cfg, "warn", cfg.email.config.warn.subject) }],
     ["interval_minutes", t("wg_w_interval"), "select", { options: WARN_INTERVALS.map((m) => [m, t("wg_w_every_" + m)]), hint: t("wg_w_interval_hint") }],
     ["line_minutes", t("wg_w_line"), "number", { mono: true }],
     ["mqtt_minutes", t("wg_w_mqtt"), "number", { mono: true, hint: t("wg_w_wait_hint") }],
@@ -178,7 +190,7 @@ const REPORT_PARTS = ["reading", "outputs", "problems", "billing", "disk"];
 function reportFields(cfg) {
   return [
     ["to", t("wg_r_to"), "text", { ph: "hv@example.org", mono: true, hint: t("wg_r_to_hint") }],
-    ["subject", t("wg_w_subject"), "text", { ph: cfg.email.report_subject_default, hint: t("wg_r_subject_hint") }],
+    ["subject", t("wg_w_subject"), "text", { ph: cfg.email.report_subject_default, hint: t("wg_r_subject_hint"), preview: subjectPreview(cfg, "report", cfg.email.config.report.subject) }],
     ["frequency", t("wg_r_frequency"), "select", { options: REPORT_FREQUENCIES.map((f) => [f, t("wg_r_freq_" + f)]) }],
     ["time", t("wg_r_time"), "text", { ph: "HH:MM", mono: true }],
     ["weekday", t("wg_r_weekday"), "select", { options: [0, 1, 2, 3, 4, 5, 6].map((d) => [d, t("wg_r_day_" + d)]), hint: t("wg_r_weekday_hint") }],
@@ -193,7 +205,8 @@ function reportHtml(cfg) {
     <form class="fields" data-report-form>${reportFields(cfg).map((f) => fieldHtml(f, r[f[0]])).join("")}
       <p class="sub">${esc(t("wg_r_parts"))}</p>
       <div class="opts">${REPORT_PARTS.map((k) => opt(`part_${k}`, t("wg_r_part_" + k), !r.off.includes(k))).join("")}</div>
-      <div class="actions"><button type="submit">${esc(t("wg_save"))}</button></div>
+      <div class="actions"><button type="submit">${esc(t("wg_save"))}</button><button type="button" class="tonal" data-report-now>${esc(t("wg_r_now"))}</button></div>
+      <p class="sub hint">${esc(t("wg_r_now_hint"))}</p>
     </form></details>`;
 }
 

@@ -74,7 +74,11 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Vorgabe täglich 07:00; Häufigkeit (aus, täglich, wöchentlich), Uhrzeit, Wochentag, Betreff und
   jeder Teil einstellbar. Geht nur raus, wenn „Bericht an“ ausgefüllt ist; der erste kommt am
   nächsten Termin, nicht sofort. War das Gerät aus, kommt danach einer, nicht mehrere. Klappt der
-  Versand nicht, versucht mbusio es jede Stunde neu.
+  Versand nicht, versucht mbusio es jede Stunde neu. **Bericht jetzt senden** schickt ihn sofort
+  (seit dem letzten Bericht, sonst seit gestern), ohne den Zeitplan zu ändern.
+- **Betreff mit Vorschau** bei Warnungen und Bericht („→ mbusio Keller-Pi: Bericht 27.10.2026“),
+  wie bei der Abrechnung. Die Testmail ist mit „Warnungen an“ vorbelegt.
+- **Ausgewählte Zeile** in den Listen mit Crimson-Strich links, auch beim Arbeiten mit der Tastatur.
 - **Abrechnung: gestört im Zeitraum und Linien wählen.** mbusio hält fest, von wann bis wann ein
   Zähler gestört war; die Abrechnung nennt das („gestört 05.09.2026 08:00 – 07.09.2026 09:00“),
   auch wenn er heute wieder antwortet. Bisher stand nur „zurzeit gestört“. Bei Projekten mit
@@ -216,6 +220,9 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Zähler).
 
 ### Behoben
+
+- Weitergabe → Einstellungen eines Ausgangs: aufgeklappte Abschnitte (Warnungen, Bericht) klappten
+  nach ein paar Sekunden wieder zu, weil das Formular bei jeder Statusabfrage neu gebaut wurde.
 
 - **Verlauf:** Werte desselben Zählers an verschiedenen Untereinheiten (z.B. Volumen am Zähler und an
   Impulseingang 1 und 2) waren im Diagramm zu einer Linie vermischt; jetzt eigene Reihen.

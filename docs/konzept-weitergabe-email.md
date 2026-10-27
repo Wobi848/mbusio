@@ -228,6 +228,10 @@ bleibt. Oberfläche: Abschnitt „Bericht“ in Weitergabe → E-Mail (Uhrzeit a
 Ausleseplan). Tests: Rust `report::tests` (4), Zeitplan
 `daily_report_with_readings_goes_out_at_its_time`; Browser `23-bericht`.
 
+**Danach (27.10.2026):** „Bericht jetzt senden“ (`POST /api/mail/report`, Zeitraum seit dem
+letzten Bericht, Zeitplan unverändert), Vorschau des Betreffs bei Warnungen und Bericht (im
+Browser gefüllt wie `mail::fill`), Testmail vorbelegt mit „Warnungen an“ (Abschnitt 3).
+
 1. **Ausgang E-Mail** (Karte, Einstellungen, Testmail, Schalter, Protokoll); Mailserver aus der
    Abrechnung entfernen. Tests: Browser (Karte, Einstellungen, Testmail, Protokoll), Rust.
 2. **Abrechnung in der Weitergabe** (Ansicht, Adressen, Versand sichtbar, Per E-Mail senden,

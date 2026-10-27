@@ -112,6 +112,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/projects/{id}/billing/mail", post(billing_mail))
         .route("/api/mail", get(mail_get).put(mail_put))
         .route("/api/mail/test", post(mail_test))
+        .route("/api/mail/report", post(mail_report))
         .route("/api/warnings", get(warnings_get))
         .route("/api/warnings/seen", post(warnings_seen))
         .route("/api/projects/{id}/clear", post(project_clear))
