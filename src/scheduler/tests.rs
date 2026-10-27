@@ -405,3 +405,40 @@ fn disturbed_meter_becomes_warning_and_mail() {
     // gespeichert: nach einem Neustart nicht noch einmal
     assert_eq!(r.st.db.lock().unwrap().warn_state().open, open);
 }
+
+/// Bericht (Konzept E-Mail 6): nach dem Einschalten nicht sofort, am nächsten Termin mit den
+/// Zahlen seit dem Beginn des Zeitraums
+#[test]
+fn daily_report_with_readings_goes_out_at_its_time() {
+    crate::i18n::set(crate::i18n::Lang::De);
+    let r = Rig::new(&["1", "4"]);
+    let (port, server) = crate::mail::tests::fake_server("PLAIN");
+    {
+        let mut db = r.st.db.lock().unwrap();
+        db.set_project_plan(1, "hourly").unwrap();
+        let mut c = crate::mail::tests::config(port, "geheim");
+        c.device = "keller".into();
+        c.report.to = "hv@example.org".into();
+        db.set_mail_config(&c).unwrap();
+    }
+    for t in ["2026-10-17 10:30", "2026-10-17 11:00", "2026-10-18 06:59"] {
+        r.set_time(t);
+        r.tick();
+    }
+    // vor dem Termin keine Mail
+    assert!(r.st.db.lock().unwrap().mail_last().is_none());
+    let lines =
+        r.st.db
+            .lock()
+            .unwrap()
+            .report_reading("2026-10-17 07:00:00")
+            .unwrap();
+    assert_eq!((lines[0].read, lines[0].total), (1, 2));
+    r.set_time("2026-10-18 07:00");
+    r.tick();
+    let sent = server.join().unwrap();
+    assert!(sent.contains("RCPT TO:<hv@example.org>"), "{sent}");
+    let last = r.st.db.lock().unwrap().mail_last().unwrap();
+    assert_eq!(last.subject, "mbusio keller: Bericht 18.10.2026");
+    assert!(last.error.is_none(), "{:?}", last.error);
+}

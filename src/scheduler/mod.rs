@@ -24,6 +24,7 @@ use crate::storage::{self, DiskState, Level};
 use crate::web::AppState;
 
 mod reading;
+mod report;
 mod upkeep;
 mod warn;
 
@@ -185,6 +186,7 @@ pub fn tick(st: &AppState) -> anyhow::Result<()> {
     thin(st, now)?;
     export_billing(st, now)?;
     warn::warn(st, now)?;
+    report::report(st, now)?;
     let lines = st.db.lock().unwrap().planned()?;
     let mut planned = HashSet::new();
     for pl in lines {

@@ -171,6 +171,45 @@ function warnHtml(cfg) {
     </form></details>`;
 }
 
+/// Bericht (Konzept E-Mail 6), wie `report::FREQUENCIES` und `report::PARTS`
+const REPORT_FREQUENCIES = ["off", "daily", "weekly"];
+const REPORT_PARTS = ["reading", "outputs", "problems", "billing", "disk"];
+
+function reportFields(cfg) {
+  return [
+    ["to", t("wg_r_to"), "text", { ph: "hv@example.org", mono: true, hint: t("wg_r_to_hint") }],
+    ["subject", t("wg_w_subject"), "text", { ph: cfg.email.report_subject_default, hint: t("wg_r_subject_hint") }],
+    ["frequency", t("wg_r_frequency"), "select", { options: REPORT_FREQUENCIES.map((f) => [f, t("wg_r_freq_" + f)]) }],
+    ["time", t("wg_r_time"), "text", { ph: "HH:MM", mono: true }],
+    ["weekday", t("wg_r_weekday"), "select", { options: [0, 1, 2, 3, 4, 5, 6].map((d) => [d, t("wg_r_day_" + d)]), hint: t("wg_r_weekday_hint") }],
+  ];
+}
+
+/// Bericht: eigener Abschnitt mit eigenem Speichern, unter den Warnungen
+function reportHtml(cfg) {
+  const r = cfg.email.config.report;
+  return `<details class="more" data-report-section><summary>${esc(t("wg_r_title"))}</summary>
+    <p class="sub hint">${esc(t("wg_r_intro"))}</p>
+    <form class="fields" data-report-form>${reportFields(cfg).map((f) => fieldHtml(f, r[f[0]])).join("")}
+      <p class="sub">${esc(t("wg_r_parts"))}</p>
+      <div class="opts">${REPORT_PARTS.map((k) => opt(`part_${k}`, t("wg_r_part_" + k), !r.off.includes(k))).join("")}</div>
+      <div class="actions"><button type="submit">${esc(t("wg_save"))}</button></div>
+    </form></details>`;
+}
+
+/// Bericht-Einstellungen aus dem Formular
+export function reportValues(form) {
+  const e = form.elements;
+  return {
+    to: e.to.value.trim(),
+    subject: e.subject.value.trim(),
+    frequency: e.frequency.value,
+    time: e.time.value.trim(),
+    weekday: Number(e.weekday.value),
+    off: REPORT_PARTS.filter((k) => !e[`part_${k}`].checked),
+  };
+}
+
 /// Warn-Einstellungen aus dem Formular
 export function warnValues(cfg, form) {
   const values = {};
@@ -189,7 +228,7 @@ export function outputFormHtml(key, cfg, label_, o, projectId, has) {
     <form class="fields" data-out-form="${key}">${outputFields(key, cfg).map((f) => fieldHtml(f, c[f[0]])).join("")}
       <div class="actions"><button type="submit">${esc(t("wg_save"))}</button><button type="button" class="quiet" data-back>${esc(t("cancel"))}</button></div>
     </form>
-    ${key === "email" ? testMailHtml(cfg) + warnHtml(cfg) : integratorHtml(o, projectId, has)}`;
+    ${key === "email" ? testMailHtml(cfg) + warnHtml(cfg) + reportHtml(cfg) : integratorHtml(o, projectId, has)}`;
 }
 
 /// Werte aus dem Formular, nach Art des Felds (Häkchen, Zahl, Text)

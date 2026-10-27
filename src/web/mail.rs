@@ -11,7 +11,8 @@ pub(super) async fn mail_get(State(st): State<AppState>) -> ApiResult<serde_json
     let last = st.db.lock().unwrap().mail_last();
     Ok(Json(
         json!({ "config": c, "has_password": has_password, "last": last, "device": c.device_name(),
-                "warn_subject_default": crate::warn::default_subject() }),
+                "warn_subject_default": crate::warn::default_subject(),
+                "report_subject_default": crate::report::default_subject() }),
     ))
 }
 

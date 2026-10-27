@@ -68,6 +68,13 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Warnungen) kommen neue Probleme gebündelt per Mail, höchstens eine pro Stunde, Behobenes in der
   nächsten. Arten, Wartezeiten, Abstand, Betreff, Behobenes melden und täglich erinnern sind
   einstellbar. Klappt der Versand nicht, versucht mbusio es alle 15 Minuten, höchstens einen Tag.
+- **Bericht per E-Mail** (Weitergabe → E-Mail → Bericht): kurze Übersicht seit dem letzten Bericht,
+  je Linie gelesen x von y Zählern, Weitergabe je Ausgang (gesendet, verworfen, nicht gesendet),
+  offene Probleme, abgelegte und gesendete Abrechnungen, freier Speicher und wie lange er reicht.
+  Vorgabe täglich 07:00; Häufigkeit (aus, täglich, wöchentlich), Uhrzeit, Wochentag, Betreff und
+  jeder Teil einstellbar. Geht nur raus, wenn „Bericht an“ ausgefüllt ist; der erste kommt am
+  nächsten Termin, nicht sofort. War das Gerät aus, kommt danach einer, nicht mehrere. Klappt der
+  Versand nicht, versucht mbusio es jede Stunde neu.
 - **Abrechnung: gestört im Zeitraum und Linien wählen.** mbusio hält fest, von wann bis wann ein
   Zähler gestört war; die Abrechnung nennt das („gestört 05.09.2026 08:00 – 07.09.2026 09:00“),
   auch wenn er heute wieder antwortet. Bisher stand nur „zurzeit gestört“. Bei Projekten mit

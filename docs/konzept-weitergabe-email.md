@@ -216,6 +216,18 @@ gemeldet. API `GET /api/warnings`, `POST /api/warnings/seen`, `status.warnings`.
 „Warnungen“ in Weitergabe → E-Mail. Tests: Rust `warn::tests` (5), Zeitplan
 `disturbed_meter_becomes_warning_and_mail`; Browser `22-meldungen`.
 
+**Schritt 4 umgesetzt (27.10.2026):** `src/report/` (`ReportSettings` in `MailConfig.report`,
+`ReportState` in `meta` `report_state` mit dem letzten gesendeten Bericht; `due`, `done`, `mail`),
+Zahlen aus der Datenbank (`report_reading` über `last_read` der Zähler mit Plan,
+`report_outputs` aus `out_log` je Ausgang und Ergebnis, `billing_report`), offene Probleme aus den
+Meldungen, Speicher wie in der Statusleiste; Zeitplan `scheduler/report.rs`. Der Zeitraum geht vom
+letzten gesendeten Bericht bis jetzt. Eingeschaltet (oder Empfänger neu) beginnt er beim letzten
+Termin, ohne sofort zu senden; ausgeschaltet oder ohne Empfänger wird der Zustand vergessen. E-Mail
+aus: der Bericht wartet und kommt danach als einer. Nicht gesendet: jede Stunde neu, der Zeitraum
+bleibt. Oberfläche: Abschnitt „Bericht“ in Weitergabe → E-Mail (Uhrzeit als HH:MM wie beim
+Ausleseplan). Tests: Rust `report::tests` (4), Zeitplan
+`daily_report_with_readings_goes_out_at_its_time`; Browser `23-bericht`.
+
 1. **Ausgang E-Mail** (Karte, Einstellungen, Testmail, Schalter, Protokoll); Mailserver aus der
    Abrechnung entfernen. Tests: Browser (Karte, Einstellungen, Testmail, Protokoll), Rust.
 2. **Abrechnung in der Weitergabe** (Ansicht, Adressen, Versand sichtbar, Per E-Mail senden,

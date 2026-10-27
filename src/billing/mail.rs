@@ -223,6 +223,29 @@ impl Db {
         Ok(out)
     }
 
+    /// Für den Bericht: je Projekt mit automatischem Export abgelegte Dateien seit `since` (Ortszeit)
+    /// und wie viele davon per E-Mail gesendet sind
+    pub fn billing_report(
+        &self,
+        data_dir: &Path,
+        since: &str,
+    ) -> Result<Vec<(String, usize, usize)>> {
+        let mut out = Vec::new();
+        for (id, _) in self.billing_auto_projects()? {
+            let files: Vec<FileView> = self
+                .billing_files(data_dir, id)?
+                .into_iter()
+                .filter(|f| f.file.time.as_str() >= since)
+                .collect();
+            let sent = files
+                .iter()
+                .filter(|f| f.mail.as_ref().is_some_and(|m| m.sent.is_some()))
+                .count();
+            out.push((self.project(id)?.name, files.len(), sent));
+        }
+        Ok(out)
+    }
+
     /// Ergebnis festhalten; Meldung fürs Protokoll nur beim Erfolg, beim ersten Fehler und wenn sich
     /// der Grund ändert (ein falsches Passwort soll das Protokoll nicht füllen)
     pub fn billing_mail_done(

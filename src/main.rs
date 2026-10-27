@@ -14,6 +14,7 @@ mod meterlist;
 mod modbus;
 mod mqtt;
 mod plan;
+mod report;
 mod scheduler;
 mod service;
 mod sim;

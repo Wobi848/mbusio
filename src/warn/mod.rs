@@ -356,8 +356,8 @@ impl WarnState {
     }
 }
 
-/// Abschnitt einer Warnmail: Überschrift mit Anzahl, Zeilen, Rest als Anzahl
-fn section(out: &mut String, title: &str, items: &[&Open]) {
+/// Abschnitt einer Warnmail (auch im Bericht): Überschrift mit Anzahl, Zeilen, Rest als Anzahl
+pub(crate) fn section(out: &mut String, title: &str, items: &[&Open]) {
     if items.is_empty() {
         return;
     }
