@@ -21,6 +21,7 @@ mod storage;
 #[cfg(test)]
 mod testutil;
 mod tls;
+mod warn;
 mod web;
 
 use std::path::PathBuf;

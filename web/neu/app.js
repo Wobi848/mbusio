@@ -8,6 +8,7 @@ import { bind, keyList, onEscape } from "./keys.js";
 import { loadStatus, loadTree, reload, report } from "./data.js";
 import { startKopf } from "./app-kopf.js";
 import { startStatusleiste } from "./app-statusleiste.js";
+import { startMeldungen } from "./app-meldungen.js";
 
 const $ = (id) => document.getElementById(id);
 const AREAS = ["anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
@@ -156,6 +157,7 @@ async function start() {
   watch(["tree", "status", "area"], renderTabs);
   watch(["area"], renderWork);
   startStatusleiste();
+  startMeldungen();
   const fromAddress = location.hash.length > 2;
   readHash();
   await reload().catch(report);

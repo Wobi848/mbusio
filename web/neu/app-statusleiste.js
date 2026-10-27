@@ -78,7 +78,7 @@ function nextStep() {
 
 /// In einen Bereich wechseln und dort nacheinander klicken, sobald das jeweilige Element da ist
 /// (ein Bereich lädt beim ersten Öffnen erst seine Daten)
-async function goTo(area, ...sels) {
+export async function goTo(area, ...sels) {
   location.hash = `#/${area}`;
   for (const sel of sels) {
     let el = null;

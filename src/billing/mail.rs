@@ -193,6 +193,36 @@ impl Db {
         Ok((out, notes))
     }
 
+    /// Projekte, deren abgelegte Datei nicht gesendet werden konnte (in der Zeit für neue
+    /// Versuche), mit dem Grund der neuesten
+    pub fn billing_unsent(
+        &self,
+        data_dir: &Path,
+        now: NaiveDateTime,
+    ) -> Result<Vec<(i64, String)>> {
+        let since = (now - Duration::days(self.mail_config().retry_days))
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string();
+        let mut out = Vec::new();
+        for (id, _) in self.billing_auto_projects()? {
+            let states = self.mail_states(id);
+            let why = export_files(data_dir, id)?
+                .into_iter()
+                .filter(|f| f.time >= since)
+                .find_map(|f| {
+                    states
+                        .get(&f.name)
+                        .filter(|m| m.sent.is_none())?
+                        .error
+                        .clone()
+                });
+            if let Some(why) = why {
+                out.push((id, why));
+            }
+        }
+        Ok(out)
+    }
+
     /// Ergebnis festhalten; Meldung fürs Protokoll nur beim Erfolg, beim ersten Fehler und wenn sich
     /// der Grund ändert (ein falsches Passwort soll das Protokoll nicht füllen)
     pub fn billing_mail_done(

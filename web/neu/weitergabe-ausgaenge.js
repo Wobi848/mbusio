@@ -139,6 +139,47 @@ function testMailHtml(cfg) {
     <div class="actions"><button type="button" class="tonal" data-mail-test>${esc(t("wg_m_test_send"))}</button></div>`;
 }
 
+/// Arten von Problemen und wählbare Abstände in Minuten (wie `warn::KINDS`, `warn::INTERVALS`)
+export const WARN_KINDS = ["disturbed", "fault", "battery", "swap", "line", "mqtt", "disk", "billing"];
+const WARN_INTERVALS = [0, 15, 60, 240, 1440];
+
+function warnFields(cfg) {
+  return [
+    ["to", t("wg_w_to"), "text", { ph: "hv@example.org", mono: true, hint: t("wg_w_to_hint") }],
+    ["subject", t("wg_w_subject"), "text", { ph: cfg.email.warn_subject_default, hint: t("wg_w_subject_hint") }],
+    ["interval_minutes", t("wg_w_interval"), "select", { options: WARN_INTERVALS.map((m) => [m, t("wg_w_every_" + m)]), hint: t("wg_w_interval_hint") }],
+    ["line_minutes", t("wg_w_line"), "number", { mono: true }],
+    ["mqtt_minutes", t("wg_w_mqtt"), "number", { mono: true, hint: t("wg_w_wait_hint") }],
+  ];
+}
+const WARN_CHECKS = ["resolved", "remind"];
+
+/// Häkchen mit Text dahinter, platzsparend in zwei Spalten
+const opt = (name, label_, on) => `<label class="opt"><input type="checkbox" name="${name}"${on ? " checked" : ""}> ${esc(label_)}</label>`;
+
+/// Warnungen (Konzept E-Mail 5): eigener Abschnitt mit eigenem Speichern; gelten auch für die
+/// Meldungen in der Statusleiste
+function warnHtml(cfg) {
+  const w = cfg.email.config.warn;
+  return `<details class="more" data-warn-section><summary>${esc(t("wg_w_title"))}</summary>
+    <p class="sub hint">${esc(t("wg_w_intro"))}</p>
+    <form class="fields" data-warn-form>${warnFields(cfg).map((f) => fieldHtml(f, w[f[0]])).join("")}
+      <div class="opts">${WARN_CHECKS.map((k) => opt(k, t("wg_w_" + k), w[k])).join("")}</div>
+      <p class="sub">${esc(t("wg_w_kinds"))}</p>
+      <div class="opts">${WARN_KINDS.map((k) => opt(`kind_${k}`, t("warn_kind_" + k), !w.off.includes(k))).join("")}</div>
+      <div class="actions"><button type="submit">${esc(t("wg_save"))}</button></div>
+    </form></details>`;
+}
+
+/// Warn-Einstellungen aus dem Formular
+export function warnValues(cfg, form) {
+  const values = {};
+  for (const [name, , kind] of warnFields(cfg)) values[name] = kind === "text" ? form.elements[name].value.trim() : Number(form.elements[name].value) || 0;
+  for (const name of WARN_CHECKS) values[name] = form.elements[name].checked;
+  values.off = WARN_KINDS.filter((k) => !form.elements[`kind_${k}`].checked);
+  return values;
+}
+
 /// Formular mit den Einstellungen eines Ausgangs; `o`, `projectId`, `has` (Datenpunkte mit
 /// Adresse an diesem Ausgang) für die Teile für den Integrator
 export function outputFormHtml(key, cfg, label_, o, projectId, has) {
@@ -148,7 +189,7 @@ export function outputFormHtml(key, cfg, label_, o, projectId, has) {
     <form class="fields" data-out-form="${key}">${outputFields(key, cfg).map((f) => fieldHtml(f, c[f[0]])).join("")}
       <div class="actions"><button type="submit">${esc(t("wg_save"))}</button><button type="button" class="quiet" data-back>${esc(t("cancel"))}</button></div>
     </form>
-    ${key === "email" ? testMailHtml(cfg) : integratorHtml(o, projectId, has)}`;
+    ${key === "email" ? testMailHtml(cfg) + warnHtml(cfg) : integratorHtml(o, projectId, has)}`;
 }
 
 /// Werte aus dem Formular, nach Art des Felds (Häkchen, Zahl, Text)

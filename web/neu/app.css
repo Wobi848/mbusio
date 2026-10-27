@@ -190,7 +190,15 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .console .empty { padding: 12px; color: var(--muted); }
 .status #bus { height: 24px; padding: 0 6px; margin-left: -6px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font-weight: 400; }
 .status #bus:hover, .status #bus[aria-expanded="true"] { background: var(--sunken); }
-.status #issues button.chip { border: 0; cursor: pointer; }
+.status #issues button.chip, .status #warnings button.chip { border: 0; cursor: pointer; }
+.status #warnings button.chip.quiet { background: var(--sunken); color: var(--muted); }
+/* Meldungen: wie die Bus-Konsole über der Statusleiste */
+.warnpanel { height: auto; max-height: min(320px, 45vh); }
+.warnlist { overflow: auto; }
+.warnlist .wrow { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 5px 12px; border-bottom: 1px solid var(--line); }
+.warnlist .wrow.seen { color: var(--muted); }
+.warnlist .wrow .when { color: var(--muted); font-size: 12px; }
+.warnlist .wrow button { height: 26px; }
 .status #issues button.chip:hover { filter: brightness(.95); }
 
 /* ---------------------------------------------------------------- Menüs, Rückfrage, Meldung */

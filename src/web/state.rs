@@ -51,6 +51,7 @@ impl Shared {
     }
 
     pub fn with_planner(token: Option<String>, db: Db, planner: Planner) -> Self {
+        *planner.warnings.lock().unwrap() = db.warn_state();
         if let Ok(Some(lang)) = db.meta("ui_lang") {
             crate::i18n::remember_ui(crate::i18n::Lang::parse(&lang));
         }
@@ -168,6 +169,11 @@ impl Shared {
             }
             k
         });
+    }
+
+    /// Zustand des Linien-Dienstes, wenn einer läuft
+    pub(crate) fn line_status(&self, line_id: i64) -> Option<crate::line::LineStatus> {
+        self.lines.lock().unwrap().get(&line_id).map(|s| s.status())
     }
 
     /// Dienst für den Zeitplan: läuft schon, oder wird mit dem Anschluss aus der Datenbank

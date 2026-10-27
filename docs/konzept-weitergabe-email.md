@@ -201,6 +201,21 @@ Ausgang E-Mail. Oberfläche `weitergabe-abrechnung.js` (+ Texte), Adresse
 `subject_placeholders_and_mail_now`, `auto_export_wait_days_setting`; Browser 18, 19, 20, 08.
 
 
+**Schritt 3 umgesetzt (27.10.2026):** `src/warn/` (Regeln: `WarnSettings` in `MailConfig.warn`,
+`WarnState` in `meta` `warn_state` mit offenen, gemeldeten und behobenen Problemen; `update`,
+`mail_due`, `mail_done`), Zählerprobleme und nicht gesendete Abrechnungen aus der Datenbank
+(`meter_problems`, `billing_problems`), Linie/MQTT/Speicher im Zeitplan (`scheduler/warn.rs`).
+Abweichend von „alle 15 Minuten“: bei jeder Prüfung des Zeitplans (10 s), damit die Meldungen
+gleich da sind; gespeichert wird nur bei Änderungen (SD-Karte). Linie und MQTT, die gerade
+verbinden oder (nach dem Start) noch keinen Dienst haben, gelten als „unklar“ und behalten ihren
+Zustand, sonst käme nach jedem Neustart dieselbe Warnung neu. Ein gemeldetes Problem, das kurz
+weg und vor der nächsten Mail wieder da ist, gilt nicht als neu. Nur Behobenes löst keine Mail
+aus, es steht in der nächsten. Fehlgeschlagen: alle 15 min neu, nach einem Tag gilt es als
+gemeldet. API `GET /api/warnings`, `POST /api/warnings/seen`, `status.warnings`. Oberfläche:
+`app-meldungen.js` (Statusleiste, Liste über der Statusleiste wie die Bus-Konsole), Abschnitt
+„Warnungen“ in Weitergabe → E-Mail. Tests: Rust `warn::tests` (5), Zeitplan
+`disturbed_meter_becomes_warning_and_mail`; Browser `22-meldungen`.
+
 1. **Ausgang E-Mail** (Karte, Einstellungen, Testmail, Schalter, Protokoll); Mailserver aus der
    Abrechnung entfernen. Tests: Browser (Karte, Einstellungen, Testmail, Protokoll), Rust.
 2. **Abrechnung in der Weitergabe** (Ansicht, Adressen, Versand sichtbar, Per E-Mail senden,

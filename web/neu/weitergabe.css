@@ -85,3 +85,9 @@
   [data-area=weitergabe] .bview .bset { border-right: 0; border-bottom: 1px solid var(--line); }
 }
 [data-area=weitergabe] .chip.wide a { margin-left: 6px; }
+
+/* Warnungen: Häkchen mit Text dahinter in zwei Spalten */
+[data-area=weitergabe] [data-warn-section] > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 8px 0 4px; }
+[data-area=weitergabe] .fields .opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
+[data-area=weitergabe] .fields label.opt { display: flex; align-items: center; gap: 6px; }
+[data-area=weitergabe] .fields label.opt input { width: auto; margin: 0; }

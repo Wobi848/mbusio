@@ -1,46 +1,11 @@
-import net from "node:net";
-import { assert, simLine } from "./helpers.mjs";
+import { assert, simLine, smtp } from "./helpers.mjs";
 
 // E-Mail als Ausgang der Weitergabe (Konzept Weitergabe/E-Mail, Schritt 1): Hinweis in der
 // Abrechnung führt zu den Einstellungen, Passwort bleibt auf dem Gerät, Port folgt der
 // Verschlüsselung, Testmail, Zustand der Karte, Protokoll; dann abgelegte Datei senden.
-// Kleiner SMTP-Server im Test.
+// Kleiner SMTP-Server im Test (helpers).
 
 const sec = "section[data-area=anlage]";
-
-/// SMTP-Server ohne TLS: nimmt jede Anmeldung, sammelt die Nachrichten
-function smtp() {
-  const mails = [];
-  const server = net.createServer((c) => {
-    let buf = "";
-    let data = null;
-    const say = (s) => c.write(s + "\r\n");
-    say("220 test ESMTP");
-    c.on("data", (chunk) => {
-      buf += chunk;
-      let i;
-      while ((i = buf.indexOf("\r\n")) >= 0) {
-        const line = buf.slice(0, i);
-        buf = buf.slice(i + 2);
-        if (data !== null) {
-          if (line === ".") {
-            mails.push(data);
-            data = null;
-            say("250 queued");
-          } else data += line + "\n";
-          continue;
-        }
-        const u = line.toUpperCase();
-        if (u.startsWith("EHLO")) say("250-test\r\n250 AUTH PLAIN");
-        else if (u.startsWith("AUTH PLAIN")) say("235 ok");
-        else if (u === "DATA") (data = ""), say("354 go");
-        else if (u === "QUIT") say("221 bye"), c.end();
-        else say("250 ok");
-      }
-    });
-  });
-  return new Promise((ok) => server.listen(0, "127.0.0.1", () => ok({ port: server.address().port, mails, server })));
-}
 
 export default {
   name: "E-Mail (Ausgang, Einstellungen, Testmail, Protokoll, Abrechnung senden)",

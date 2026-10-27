@@ -33,6 +33,8 @@ pub struct MailConfig {
     pub from: String,
     /// nicht gesendete Dateien so viele Tage erneut versuchen
     pub retry_days: i64,
+    /// Warnungen: Empfänger, Arten, Wartezeiten, Abstand (Konzept E-Mail 5)
+    pub warn: crate::warn::WarnSettings,
 }
 
 impl Default for MailConfig {
@@ -48,6 +50,7 @@ impl Default for MailConfig {
             password: String::new(),
             from: String::new(),
             retry_days: 7,
+            warn: Default::default(),
         }
     }
 }
@@ -60,6 +63,7 @@ impl MailConfig {
         if !(1..=60).contains(&self.retry_days) {
             bail!(tr("Erneut versuchen: 1 bis 60 Tage", "Retry: 1 to 60 days"));
         }
+        self.warn.check()?;
         if !self.from.is_empty() && !is_address(&self.from) {
             bail!(tr(
                 "Absender ist keine E-Mail-Adresse",

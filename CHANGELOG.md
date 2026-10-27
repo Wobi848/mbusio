@@ -60,6 +60,14 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   erneut gesendet wird. Anlage → Projekt zeigt nur noch eine Zeile („Abrechnung: Vormonat,
   automatisch · an …“) mit Öffnen →. Die CSV hat dadurch standardmässig eine Spalte mehr
   (Vorjahr) vor „Hinweis“.
+- **Meldungen und Warnungen per E-Mail:** mbusio erkennt im Hintergrund Probleme (Zähler gestört,
+  meldet Fehler, Batterie schwach, Zählertausch, Linie im Dauerbetrieb 30 min nicht verbunden,
+  MQTT 60 min nicht verbunden, Speicher knapp, Abrechnung nicht gesendet). Sie stehen als
+  **Meldungen N** in der Statusleiste: Liste mit Zeit und Ort, „Zeigen →“ springt hin, „Gesehen“
+  beruhigt die Anzeige, behobene verschwinden von selbst. Mit Empfänger (Weitergabe → E-Mail →
+  Warnungen) kommen neue Probleme gebündelt per Mail, höchstens eine pro Stunde, Behobenes in der
+  nächsten. Arten, Wartezeiten, Abstand, Betreff, Behobenes melden und täglich erinnern sind
+  einstellbar. Klappt der Versand nicht, versucht mbusio es alle 15 Minuten, höchstens einen Tag.
 - **Abrechnung: gestört im Zeitraum und Linien wählen.** mbusio hält fest, von wann bis wann ein
   Zähler gestört war; die Abrechnung nennt das („gestört 05.09.2026 08:00 – 07.09.2026 09:00“),
   auch wenn er heute wieder antwortet. Bisher stand nur „zurzeit gestört“. Bei Projekten mit

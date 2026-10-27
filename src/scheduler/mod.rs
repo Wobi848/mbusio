@@ -25,6 +25,7 @@ use crate::web::AppState;
 
 mod reading;
 mod upkeep;
+mod warn;
 
 use self::reading::*;
 use self::upkeep::*;
@@ -72,6 +73,8 @@ pub struct Planner {
     last_thin: Mutex<Option<NaiveDateTime>>,
     /// wann zuletzt nach fälligen Exporten geschaut wurde
     last_export: Mutex<Option<NaiveDateTime>>,
+    /// offene Probleme (Meldungen, Warnmails); gespeichert in `meta` `warn_state`
+    pub warnings: Mutex<crate::warn::WarnState>,
 }
 
 impl Default for Planner {
@@ -94,12 +97,18 @@ impl Planner {
             disk: Mutex::default(),
             last_thin: Mutex::default(),
             last_export: Mutex::default(),
+            warnings: Mutex::default(),
         }
     }
 
     /// Fällige Exporte beim nächsten Durchlauf prüfen, nicht erst nach 15 Minuten
     pub fn export_soon(&self) {
         *self.last_export.lock().unwrap() = None;
+    }
+
+    /// Uhr des Zeitplans (in Tests verstellt)
+    pub fn now(&self) -> NaiveDateTime {
+        (self.now)()
     }
 
     pub fn disk(&self) -> DiskState {
@@ -175,6 +184,7 @@ pub fn tick(st: &AppState) -> anyhow::Result<()> {
     check_clock(st, now);
     thin(st, now)?;
     export_billing(st, now)?;
+    warn::warn(st, now)?;
     let lines = st.db.lock().unwrap().planned()?;
     let mut planned = HashSet::new();
     for pl in lines {

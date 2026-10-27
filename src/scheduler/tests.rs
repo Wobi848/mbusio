@@ -372,3 +372,36 @@ fn plan_alone_does_not_read_without_operation() {
     r.tick();
     assert_eq!(r.readings("1"), 1);
 }
+
+#[test]
+fn disturbed_meter_becomes_warning_and_mail() {
+    let r = Rig::new(&["1", "4"]);
+    let (port, server) = crate::mail::tests::fake_server("PLAIN");
+    {
+        let mut db = r.st.db.lock().unwrap();
+        db.set_project_plan(1, "hourly").unwrap();
+        let mut c = crate::mail::tests::config(port, "geheim");
+        c.device = "keller".into();
+        c.warn.to = "hv@example.org".into();
+        db.set_mail_config(&c).unwrap();
+    }
+    for t in [
+        "2026-10-17 10:30",
+        "2026-10-17 11:00",
+        "2026-10-17 12:00",
+        "2026-10-17 13:00",
+        "2026-10-17 13:01",
+    ] {
+        r.set_time(t);
+        r.tick();
+    }
+    let id = r.meter("4").id;
+    let open = r.st.planner.warnings.lock().unwrap().open.clone();
+    assert_eq!(open.len(), 1, "{open:?}");
+    assert_eq!(open[0].key, format!("disturbed:{id}"));
+    assert!(open[0].mailed.is_some());
+    let sent = server.join().unwrap();
+    assert!(sent.contains("RCPT TO:<hv@example.org>"), "{sent}");
+    // gespeichert: nach einem Neustart nicht noch einmal
+    assert_eq!(r.st.db.lock().unwrap().warn_state().open, open);
+}

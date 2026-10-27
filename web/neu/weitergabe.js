@@ -6,7 +6,7 @@ import { html, text, list, ask, toast, styles, previewApply, menu } from "./view
 import { onEscape } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
-import { outputsHtml, outputFormHtml, formValues, securityChanged } from "./weitergabe-ausgaenge.js";
+import { outputsHtml, outputFormHtml, formValues, securityChanged, warnValues } from "./weitergabe-ausgaenge.js";
 import { openLog } from "./weitergabe-protokoll.js";
 import { openBilling, closeBilling } from "./weitergabe-abrechnung.js";
 
@@ -162,6 +162,17 @@ async function saveOutput(form) {
 
 /// Testmail an die Adresse im Feld, mit den gespeicherten Einstellungen; die Karte zeigt danach
 /// auch das Ergebnis
+/// Warnungen speichern; das Formular des Servers bleibt offen
+async function saveWarn(form) {
+  try {
+    await request("mail", { method: "PUT", body: { config: { ...cfg.email.config, warn: warnValues(cfg, form) } } });
+    toast(t("wg_w_saved"));
+    cfg.email = await request("mail");
+  } catch (e) {
+    report(e);
+  }
+}
+
 async function testMail(button) {
   const to = q("[data-mail-test-to]").value.trim();
   button.disabled = true;
@@ -473,6 +484,7 @@ function wire() {
   menu(q("[data-tpl-btn]"), q("[data-tpl-menu]"), { onOpen: fillTemplates });
   root.addEventListener("submit", (ev) => {
     ev.preventDefault();
+    if (ev.target.matches("[data-warn-form]")) return saveWarn(ev.target);
     saveOutput(ev.target);
   });
   root.addEventListener("keydown", (ev) => {

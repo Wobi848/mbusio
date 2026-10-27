@@ -40,6 +40,8 @@ pub(super) async fn status(State(st): State<AppState>) -> ApiResult<serde_json::
         "modbus": modbus_status(&st),
         // alle Ausgänge: Schlüssel, Name, eingeschaltet
         "outputs": db.outputs_info(),
+        // Meldungen: offen, davon nicht gesehen
+        "warnings": warnings_count(&st, &db),
         "now": clock::stamp(),
         // läuft weiter ohne Anmeldung (Windows-Dienst, systemd); sonst Hinweis im Dauerbetrieb
         "background": crate::service::background(),

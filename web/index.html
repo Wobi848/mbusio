@@ -80,9 +80,18 @@
   <div id="console-log" class="buslog mono"></div>
 </section>
 
+<section id="warnpanel" class="console warnpanel" hidden>
+  <div class="chead"><b data-t="n_warn_title"></b><span class="grow"></span>
+    <a href="#/weitergabe/email" class="quiet" data-t="n_warn_settings"></a>
+    <button id="warn-seen-all" type="button" class="quiet" data-t="n_warn_seen_all"></button>
+    <button id="warn-close" type="button" class="icon" data-title="close">×</button></div>
+  <div id="warn-list" class="warnlist"></div>
+</section>
+
 <footer class="bar status" aria-live="polite">
   <button id="bus" type="button" class="state" aria-expanded="false" aria-controls="console" data-title="n_bus_title"></button>
   <span id="issues"></span>
+  <span id="warnings"></span>
   <span id="outputs"></span>
   <span class="grow"></span>
   <button id="next" type="button" class="tonal" hidden></button>
