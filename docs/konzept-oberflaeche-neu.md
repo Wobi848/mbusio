@@ -243,6 +243,11 @@ Gemeinsam mit dem Bericht (`report.html`): `web/js/texts.js` (Texte DE/EN), `web
 Kürzel stehen im Tooltip der Knöpfe („Auslesen (R)“). Eine Stelle (`keys.js`), keine Kürzel in
 Eingabefeldern.
 
+Erklärtexte für Einsteiger (wie früher „Erklärungen anzeigen“): `explain(text)` aus `view.js`
+gibt einen Absatz `.explain`, sichtbar nur mit dem Schalter im Menü ⚙ (`body.show-help`,
+gespeichert im Browser). Je Bereich einer in der ersten Leiste, bei den Werkzeugen je Werkzeug.
+Ohne Schalter bleibt die Oberfläche ruhig; Zustände stehen trotzdem als Wort am Element.
+
 ## 7. Server (Rust), klein
 
 1. `/neu/` liefert `web/neu/index.html` (heute nur genaue Pfade; ein Verzeichnis mit `/` am Ende

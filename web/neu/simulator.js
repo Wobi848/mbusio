@@ -3,7 +3,7 @@
 // Simulation startet dabei neu). Vorlagen sind nur zum Ansehen und Kopieren.
 
 import { state, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, texts, menu, closeMenu } from "./view.js";
+import { html, text, list, ask, toast, styles, texts, menu, closeMenu, explain } from "./view.js";
 import { loadStatus, loadTree, report } from "./data.js";
 
 texts(
@@ -60,6 +60,7 @@ export function mount(pane) {
       <button type="button" class="quiet danger-text" data-del></button>
       <span class="grow"></span>
       <span class="sub" data-count></span>
+      ${explain(t("sim_explain"))}
     </div>
     <div class="toolbar sub-bar" data-editbar></div>
     <div class="split">

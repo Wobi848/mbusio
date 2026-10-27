@@ -4,6 +4,7 @@ import { texts } from "./view.js";
 
 texts(
   {
+    zl_explain: "Die gemerkten Zähler dieser Linie. Eine Zeile anklicken zeigt Werte, Datenpunkte und Verlauf; mehrere wählt man mit dem Kästchen, Ctrl oder Shift. „Alle auslesen“ liest die ganze Liste. Gespeichert wird auf dem Rechner, auf dem mbusio läuft.",
     zl_more: "Liste ▾",
     zl_csv: "Als CSV exportieren",
     zl_history: "Verlauf",
@@ -32,8 +33,19 @@ texts(
     dp_tpl: (medium) => `Gleiche Auswahl für alle Zähler „${medium}“ dieser Linie`,
     dp_tpl_auto: "auch für Zähler, die später dazukommen",
     dp_saved: (a, r, o) => `Gespeichert: ${a} neu, ${r} entfernt` + (o ? `, ${o} bei anderen Zählern` : ""),
+    history_last: "Letzte",
+    history_diff: "Differenz",
+    history_per_day: "pro Tag",
+    history_table: "Tabelle",
+    history_chart: "Diagramm",
+    th_delta: "Δ zur vorherigen",
+    meter_disturbed_title: (n) => `${n} Termine nacheinander nicht gelesen. Wird weiter versucht.`,
+    meter_paused: (x) => `ausgesetzt bis ${x}`,
+    meter_paused_title: "Der Zähler hat abgelehnt (beschäftigt oder zu viele Auslesungen). Nächster Versuch am nächsten Tag.",
+    reading_time_unsure_title: "Beim Auslesen war die Uhrzeit von mbusio nicht bestätigt; der Zeitstempel kann falsch sein.",
   },
   {
+    zl_explain: "The remembered meters of this line. Clicking a row shows values, datapoints and history; select several with the box, Ctrl or Shift. “Read all” reads the whole list. Everything is stored on the computer running mbusio.",
     zl_more: "List ▾",
     zl_csv: "Export as CSV",
     zl_history: "History",
@@ -62,5 +74,15 @@ texts(
     dp_tpl: (medium) => `Same choice for all “${medium}” meters on this line`,
     dp_tpl_auto: "also for meters added later",
     dp_saved: (a, r, o) => `Saved: ${a} new, ${r} removed` + (o ? `, ${o} on other meters` : ""),
+    history_last: "Last",
+    history_diff: "Difference",
+    history_per_day: "per day",
+    history_table: "Table",
+    history_chart: "Chart",
+    th_delta: "Δ to previous",
+    meter_disturbed_title: (n) => `${n} terms in a row not read. Still being retried.`,
+    meter_paused: (x) => `suspended until ${x}`,
+    meter_paused_title: "The meter refused (busy or too many readouts). Next attempt on the next day.",
+    reading_time_unsure_title: "When this was read, mbusio's time was not confirmed; the timestamp may be wrong.",
   }
 );

@@ -2,12 +2,12 @@
 // Datenpunkte als Liste, Details rechts (Konzept neue Oberfläche §3.2, Schritt 4).
 
 import { state, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, previewApply, menu } from "./view.js";
+import { html, text, list, ask, toast, styles, previewApply, menu, explain } from "./view.js";
 import { onEscape } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
 import { outputsHtml, outputFormHtml, formValues, securityChanged, warnValues, reportValues, subjectPreview } from "./weitergabe-ausgaenge.js";
-import { openLog } from "./weitergabe-protokoll.js";
+import { openLog, closeLog } from "./weitergabe-protokoll.js";
 import { openBilling, closeBilling } from "./weitergabe-abrechnung.js";
 
 
@@ -41,6 +41,7 @@ export function mount(pane) {
       <span class="sub">${esc(t("wg_points_csv"))}</span>
       <a class="quiet" data-export>${esc(t("wg_export"))}</a>
       <label class="quiet filebtn">${esc(t("wg_import"))}<input type="file" accept=".csv,text/csv" data-import hidden></label>
+      ${explain(t("wg_explain"))}
     </div>
     <div class="split">
       <div class="listwrap">
@@ -88,10 +89,7 @@ function fromAddress() {
   const m = data && location.hash.match(/^#\/weitergabe\/(email|abrechnung)(?:\?projekt=(\d+))?/);
   if (!m) return;
   history.replaceState(null, "", "#/weitergabe");
-  if (m[1] === "email") {
-    closeBilling();
-    return openOutput("email");
-  }
+  if (m[1] === "email") return openOutput("email");
   showBilling(m[2] ? Number(m[2]) : null);
 }
 addEventListener("hashchange", fromAddress);
@@ -130,9 +128,15 @@ async function toggleOutput(input) {
   }
 }
 
+/// Abrechnung und Protokoll schliessen: es ist immer nur eine Ansicht offen
+function closeViews() {
+  closeBilling();
+  closeLog();
+}
+
 function openOutput(key, enable = false) {
   // Einstellungen eines Ausgangs ersetzen Abrechnung und Protokoll
-  root.classList.remove("showbill", "showlog");
+  closeViews();
   view.output = key;
   view.enableOnSave = enable;
   view.active = null;
@@ -424,6 +428,7 @@ function leaveOutput() {
 }
 
 function showBilling(project = null) {
+  closeViews();
   leaveOutput();
   root.classList.add("showbill");
   openBilling(q("[data-billview]"), { project, close: () => root.classList.remove("showbill") });
@@ -431,6 +436,7 @@ function showBilling(project = null) {
 
 /// Protokoll statt der Datenpunkte zeigen; `p` filtert auf einen Datenpunkt
 function showLog(p = null) {
+  closeViews();
   leaveOutput();
   root.classList.add("showlog");
   openLog(q("[data-logview]"), { dp: p?.id ?? null, dpName: p?.name || "", close: () => root.classList.remove("showlog") });

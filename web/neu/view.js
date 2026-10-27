@@ -10,6 +10,9 @@ export function texts(de, en) {
   Object.assign(UI.en, en);
 }
 
+/// Erklärung zu einem Bereich oder Werkzeug; sichtbar nur mit „Erklärungen anzeigen“ (Einstellungen)
+export const explain = (text) => `<p class="explain">${esc(text)}</p>`;
+
 /// Zustand eines Ausgangs (`state` aus /api/status) als [Farbe, Wort]; gleich in Statusleiste und
 /// Weitergabe
 export function outputWord(st) {

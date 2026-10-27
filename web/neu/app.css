@@ -224,9 +224,11 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .menu .row.end { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 /* Speicherschutz im Einstellungsmenü: Zahlenfelder schmal, Satz dahinter */
 .menu.form .storage { display: grid; gap: 6px; margin: 4px 0 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); }
-.menu.form .storage .row { grid-template-columns: 1fr auto; border: 0; padding: 0; }
+/* Einstellungen: Beschriftung links, Feld rechts bündig, ohne Linien zwischen den Zeilen */
+.menu.form label.row { grid-template-columns: 1fr auto; min-height: 30px; border: 0; padding: 0; }
+.menu.form label.row select { width: 170px; }
+.menu.form label.row input[type=checkbox] { width: 16px; height: 16px; margin: 0 4px 0 0; }
 .menu.form .storage input[type=number] { width: 70px; }
-.menu.form .storage input[type=checkbox] { justify-self: start; width: 16px; height: 16px; }
 .menu.form .storage .sub { margin: 0; max-width: 360px; }
 
 .ask {
@@ -259,6 +261,11 @@ input.switch:disabled { cursor: default; opacity: .5; }
 
 .toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .toolbar input[type=search] { width: 240px; }
+/* Erklärungen (Einstellungen → „Erklärungen anzeigen“): in einer Leiste als eigene Zeile darunter */
+.explain { margin: 6px 0 0; max-width: 100ch; color: var(--muted); font-size: 12px; line-height: 1.5; }
+body:not(.show-help) .explain { display: none; }
+body.show-help .toolbar:has(.explain) { flex-wrap: wrap; }
+.toolbar > .explain { flex: 1 0 100%; order: 99; margin: 0 0 2px; }
 .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
 .seg button { height: 26px; border: 0; border-radius: 0; background: transparent; color: var(--muted); font-weight: 600; }
 .seg button + button { border-left: 1px solid var(--line-strong); }
@@ -284,7 +291,9 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .box { display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1.5px solid var(--line-strong); border-radius: 4px; font-size: 11px; font-weight: 800; cursor: pointer; }
 .row .name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
 .row .name, .row .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.empty { padding: 16px 12px; color: var(--muted); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* leere Liste: der Hinweis steht oben in ihrer Fläche statt darunter */
+.listwrap > .rows:empty, .listwrap > .rows:empty ~ .empty { grid-row: 2; grid-column: 1; }
+.empty { align-self: start; padding: 16px 12px; color: var(--muted); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 .detail { min-height: 0; overflow: auto; padding: 12px; background: var(--surface); }
 .detail .back { display: none; }
@@ -352,5 +361,9 @@ button.danger-text:hover { background: var(--err-soft); }
   .row.head { display: none; }
   .toolbar { flex-wrap: wrap; }
   .toolbar input[type=search] { flex: 1 1 100%; width: auto; }
+  /* lange Umschalter (Filter im Protokoll) seitlich wischen statt abschneiden */
+  .toolbar .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .toolbar .seg::-webkit-scrollbar { display: none; }
+  .toolbar .seg button { flex: none; }
   .selbar { flex-wrap: wrap; }
 }

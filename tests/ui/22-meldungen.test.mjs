@@ -34,7 +34,8 @@ export default {
       await page.fill(f("from"), "mbusio@example.org");
       await page.fill(f("device"), "Keller-Pi");
       await page.click(`${wg} [data-out-form=email] button[type=submit]`);
-      await page.waitForSelector(`${wg} [data-outputs]`);
+      // gespeichert ist erst, wenn das Formular zu ist (sonst schliesst das Speichern das neu geöffnete)
+      await page.waitForSelector(`${wg} [data-out-form=email]`, { state: "detached" });
       await page.goto(base + "/#/weitergabe/email");
       await page.click(`${wg} [data-warn-section] summary`);
       const w = (n) => `${wg} [data-warn-form] [name=${n}]`;

@@ -22,6 +22,19 @@
 [data-area=zaehler] .filebtn:hover { background: var(--accent-soft); }
 [data-area=zaehler] .fields label.check { grid-template-columns: 90px auto; justify-content: start; }
 [data-area=zaehler] .chart svg { height: 200px; }
+[data-area=zaehler] .detail .actions.hbar { flex-wrap: nowrap; gap: 6px; }
+[data-area=zaehler] .hbar > * { flex: none; }
+[data-area=zaehler] .hbar select { flex: 1 1 auto; width: auto; min-width: 0; }
+[data-area=zaehler] .hsum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+[data-area=zaehler] .hsum > div { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--sunken); min-width: 0; }
+[data-area=zaehler] .hsum dt { font-size: 11px; color: var(--muted); }
+[data-area=zaehler] .hsum dd { margin: 2px 0 0; display: grid; font-variant-numeric: tabular-nums; }
+[data-area=zaehler] .hsum dd .sub { font-size: 11px; }
+[data-area=zaehler] .htable { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+[data-area=zaehler] .htable table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+[data-area=zaehler] .htable th, [data-area=zaehler] .htable td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+[data-area=zaehler] .htable th { position: sticky; top: 0; background: var(--sunken); font-weight: 650; }
+[data-area=zaehler] .htable .num { text-align: right; }
 [data-area=zaehler] .menu a[role=menuitem] { display: flex; padding: 0 10px; height: 28px; align-items: center; color: var(--text); font-weight: 500; text-decoration: none; }
 [data-area=zaehler] .menu a[role=menuitem]:hover { background: var(--accent-soft); }
 

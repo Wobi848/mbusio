@@ -2,11 +2,11 @@
 // Zustand als Wort am Element, Bearbeiten direkt in den Feldern, Mehrfachauswahl, Tastatur.
 
 import { state, watch, activeLine, faulty } from "./store.js";
-import { html, text, list, ask, toast, styles, menu, closeMenu } from "./view.js";
+import { html, text, list, ask, toast, styles, menu, closeMenu, explain } from "./view.js";
 import { bind, onEscape } from "./keys.js";
 import { loadMeters, loadTree, loadStatus, report } from "./data.js";
 import "./zaehler-texte.js";
-import { drawHistory, setHistoryKey, historyCsv, forgetHistory } from "./zaehler-verlauf.js";
+import { drawHistory, setHistoryKey, setHistoryView, historyCsv, forgetHistory } from "./zaehler-verlauf.js";
 import { PLANS, rowHtml, detailHtml, addFormHtml } from "./zaehler-ansicht.js";
 import { panelHtml, listLoad, listChange, listCheck, namesPreview } from "./zaehler-listen.js";
 import { locationsHtml, saveQuick, sameAsAbove, quickEnter } from "./zaehler-benennen.js";
@@ -50,6 +50,7 @@ export function mount(pane) {
       <datalist id="zl-locations" data-locations></datalist>
       <button type="button" class="tonal" data-add>${esc(t("meter_add"))}</button>
       <button type="button" data-read-all></button>
+      ${explain(t("zl_explain"))}
     </div>
     <div class="split">
       <div class="listwrap">
@@ -435,6 +436,10 @@ function wire() {
       return render();
     }
     if (el.closest("[data-hist-csv]")) return historyCsv(byId(view.active));
+    if (el.closest("[data-hist-view]")) {
+      setHistoryView(el.closest("[data-hist-view]").dataset.histView);
+      return render();
+    }
     if (el.closest("[data-exchange]")) {
       view.exchange = !view.exchange;
       render();

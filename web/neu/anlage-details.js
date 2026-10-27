@@ -1,7 +1,7 @@
 // Bereich Anlage: Details rechts für Projekt, Gateway und Linie (Felder, Plan, Dauerbetrieb).
 // Reine Bausteine; gespeichert wird in anlage.js.
 
-import { opText } from "./view.js";
+import { opText, explain } from "./view.js";
 import { allLines, sum, opSwitch, lineState } from "./anlage-zustand.js";
 
 const PLAN_KINDS = ["off", "monthly", "daily", "hourly", "15min"];
@@ -83,6 +83,7 @@ function lineDetail(l, g, { p, activeId, ports: known }) {
       ${field("line", "timeout_ms", t("an_timeout"), l.timeout_ms, ` type="number" min="0" max="10000" step="50" class="mono" title="${esc(t("an_timeout_title"))}" placeholder="0"`)}
       ${planField("line", l.plan ?? null, t("plan_inherit_project", planText(p.plan || "off")))}
     </div>
+    ${explain(t("an_conn_explain"))}
     <label class="opline${l.operation ? " on" : ""}">${opSwitch(l, true)}<b>${esc(t("op_chip"))}</b><span class="${l.operation ? "ok" : "sub"}">${esc(opText(l))}</span></label>
     <div class="chips">${lineState(l)}</div>
     <div class="actions">

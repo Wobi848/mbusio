@@ -3,6 +3,8 @@
 
 /* Drei Teile statt zwei: Werkzeugleiste, Zustand der Anlage, Liste mit Details */
 .pane[data-area=anlage] { grid-template-rows: auto auto minmax(0, 1fr); }
+/* ohne Anlagen-Übersicht bekommt die Liste die ganze Höhe */
+.pane[data-area=anlage]:has(> .plant[hidden]) { grid-template-rows: auto minmax(0, 1fr); }
 
 /* Name, Anschluss, Zähler, Datenpunkte, Dauerbetrieb · Plan, Zustand, Aktionen */
 /* Jede Zeile ist ein eigenes Raster: alle Spalten fest oder anteilig, keine nach Inhalt (sonst

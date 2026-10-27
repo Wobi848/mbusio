@@ -4,6 +4,8 @@ import { texts } from "./view.js";
 
 texts(
   {
+    an_explain: "Projekte mit ihren Gateways und Linien. Eine Linie ist ein Bus-Anschluss mit eigener Zählerliste; Scan, Zähler und Weitergabe arbeiten immer auf der aktiven Linie. Im Dauerbetrieb liest mbusio die Linie selbständig nach ihrem Ausleseplan aus.",
+    an_conn_explain: "Serielle Schnittstelle mit 8 Datenbits, gerader Parität, 1 Stopbit. Netzwerk-Gateways als tcp://IP:Port angeben (die Baudrate dann am Gateway einstellen). „SIMULATOR:Name“ verbindet mit einer Simulation.",
     an_col_name: "Name",
     an_col_conn: "Anschluss",
     an_col_meters: "Zähler",
@@ -45,6 +47,8 @@ texts(
     an_disk_title: (day, db) => `Beim heutigen Plan wächst die Datenbank um ca. ${day} pro Tag (jetzt ${db}).`,
   },
   {
+    an_explain: "Projects with their gateways and lines. A line is one bus connection with its own meter list; Scan, Meters and Transfer always work on the active line. In continuous operation mbusio reads the line by itself according to its reading plan.",
+    an_conn_explain: "Serial port with 8 data bits, even parity, 1 stop bit. Network gateways as tcp://IP:port (then set the baud rate on the gateway). “SIMULATOR:Name” connects to a simulation.",
     an_col_name: "Name",
     an_col_conn: "Connection",
     an_col_meters: "Meters",

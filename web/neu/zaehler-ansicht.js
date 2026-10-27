@@ -18,7 +18,9 @@ export function rowHtml(m, { active, selected, busy, naming }) {
       : m.last_error
       ? `<span class="chip err" title="${esc(m.last_error)}">${esc(t("n_no_answer"))}</span>`
       : m.plan_info?.disturbed
-        ? `<span class="chip warn">${esc(t("meter_disturbed"))}</span>`
+        ? `<span class="chip warn" title="${esc(t("meter_disturbed_title", m.plan_info.fails))}">${esc(t("meter_disturbed"))}</span>`
+        : m.plan_info?.paused_until
+        ? `<span class="chip" title="${esc(t("meter_paused_title"))}">${esc(t("meter_paused", slotText(m.plan_info.paused_until)))}</span>`
         : m.fault
           ? `<span class="chip ${m.fault === "power_low" ? "warn" : "err"}" title="${esc(t("meter_fault_title_" + m.fault))}">${esc(t("meter_fault_" + m.fault))}</span>`
           : m.clock_off != null

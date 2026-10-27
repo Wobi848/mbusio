@@ -70,6 +70,13 @@ $("theme").addEventListener("change", (ev) => {
   storageSet("theme", themeChoice);
   applyTheme();
 });
+// Erklärungen zu Bereichen und Werkzeugen (.explain); aus, bis man sie einschaltet
+$("help-toggle").addEventListener("change", (ev) => {
+  document.body.classList.toggle("show-help", ev.target.checked);
+  storageSet("help", ev.target.checked ? "1" : "0");
+});
+$("help-toggle").checked = storageGet("help") === "1";
+document.body.classList.toggle("show-help", $("help-toggle").checked);
 $("keys-help").addEventListener("click", () => {
   closeMenu();
   showKeys();

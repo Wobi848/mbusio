@@ -4,6 +4,7 @@ import { texts } from "./view.js";
 
 texts(
   {
+    wg_explain: "Oben die Ausgänge: wohin gesendet wird. Ein Ausgang ohne Einstellungen ist aus. Darunter die Datenpunkte: was gesendet wird. Welche Werte eines Zählers Datenpunkte sind, wählt man im Reiter Zähler; jeder Datenpunkt behält seine Nummer, auch nach einem Zählertausch.",
     wg_outputs: "Ausgänge",
     wg_email: "E-Mail",
     wg_m_off: "aus",
@@ -137,6 +138,7 @@ texts(
     wg_send_set: "Senden …",
   },
   {
+    wg_explain: "At the top the outputs: where data is sent. An output without settings is off. Below the datapoints: what is sent. Which values of a meter become datapoints is chosen in the Meters tab; each datapoint keeps its number, also after a meter replacement.",
     wg_outputs: "Outputs",
     wg_email: "E-mail",
     wg_m_off: "off",

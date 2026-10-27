@@ -17,6 +17,8 @@
 [data-area=scan] .row:not(.vrow) { grid-template-columns: 44px 56px minmax(140px, 2fr) minmax(110px, 1fr) minmax(0, 1.4fr); }
 [data-area=scan] .row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-area=scan] .rows { overflow-x: hidden; }
+[data-area=scan] .row.head .sorter { height: 28px; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; cursor: pointer; }
+[data-area=scan] .row.head .sorter:hover, [data-area=scan] .row.head .sorter.on { color: var(--text); }
 
 @media (max-width: 999px) {
   [data-area=scan] .row:not(.vrow) { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: "pa name state" "baud ident ident"; padding: 6px 12px; row-gap: 2px; }

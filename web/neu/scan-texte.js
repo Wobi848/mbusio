@@ -4,7 +4,11 @@ import { texts } from "./view.js";
 
 texts(
   {
+    sc_explain_primary: "Fragt jede Primäradresse im Bereich einzeln ab. Schnell, aber Zähler mit gleicher Adresse (z.B. alle auf 0) erscheinen nur als Kollision.",
+    sc_explain_secondary: "Sucht über die ID der Zähler, unabhängig von der Primäradresse. Findet auch Zähler, die sich eine Adresse teilen. Dauert länger, kein Bereich nötig.",
+    sc_explain_bauds: "„Prüfen, welche antworten“ fragt in wenigen Sekunden alle Baudraten ab und zeigt, auf welchen Geräte antworten. Gescannt wird nur auf den angehakten Baudraten.",
     sc_never: "Auf dieser Linie wurde noch nicht gesucht.",
+    sort_title: "Klicken zum Sortieren (auf, ab, wie gescannt)",
     sc_telegram: "Telegramm",
     sc_none_found: "Nichts gefunden. Baudrate und Verkabelung prüfen, oder einen Sekundärscan versuchen.",
     sc_in_list: "✓ in Liste",
@@ -40,6 +44,10 @@ texts(
     sc_mode_q: (mode, n) => `Zähler künftig über ${mode} merken? ${n} Zähler der Liste werden umgestellt, wo das eindeutig geht.`,
   },
   {
+    sc_explain_primary: "Queries each primary address in the range one by one. Fast, but meters sharing an address (e.g. all on 0) only show up as a collision.",
+    sc_explain_secondary: "Searches by the meters' IDs, independent of the primary address. Also finds meters sharing an address. Takes longer, no range needed.",
+    sc_explain_bauds: "“Check which respond” queries all baud rates in a few seconds and shows on which devices respond. Only the ticked baud rates are scanned.",
+    sort_title: "Click to sort (ascending, descending, as scanned)",
     sc_never: "No scan on this line yet.",
     sc_telegram: "Telegram",
     sc_none_found: "Nothing found. Check baud rate and wiring, or try a secondary scan.",

@@ -227,7 +227,22 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
     Auslesungen) und **Alle Auslesungen löschen**.
   - Scan: **Wiederholungen** je Adresse einstellbar (0–3, Vorgabe 1); die geschätzte Dauer folgt.
   - Anlage → Linie: **Timeout ms** (0 = automatisch nach Baudrate).
+  - Zähler → Verlauf: **Tabelle** neben dem Diagramm (neueste zuerst, Δ zur vorherigen
+    Auslesung, „Zeit unsicher“ markiert) und darüber **Erste, Letzte, Differenz und pro Tag**.
+  - Scan: **Treffer sortieren** per Klick auf die Spalte (auf, ab, wie gescannt; bleibt gespeichert).
+  - Zählerliste: **„ausgesetzt bis …“**, wenn ein Zähler das Auslesen abgelehnt hat (zu viele
+    Auslesungen, beschäftigt), und Anzahl verpasster Termine beim Hinweis „gestört“.
+  - Einstellungen (⚙): **Erklärungen anzeigen** blendet in jedem Bereich und bei den Werkzeugen
+    einen kurzen Text ein, was hier geht.
 - **Verbinden über die Kopfzeile setzte den Timeout der Linie auf 0 zurück**; jetzt bleibt er.
+- Weitergabe: Wer aus der Abrechnung das Protokoll öffnete, sah beide übereinander; jetzt ist
+  immer nur eine Ansicht offen. Auf dem Handy fehlten in der Abrechnung die Einstellungen ganz, und
+  die Filter im Protokoll waren abgeschnitten.
+- Abrechnung: Zwei Felder schnell hintereinander geändert (z.B. „Von“ und „Bis“) – die zweite
+  Änderung konnte die erste mit dem alten Stand überschreiben. Und eine Antwort des Servers
+  ersetzte das Feld, in dem man gerade tippte, samt dem Getippten. Beides behoben.
+- Aussehen: Einstellungsmenü bündig, Abrechnung und Anlage nutzen die ganze Höhe, Hinweise der
+  Abrechnung stehen unter dem Text statt daneben, „Keine Einträge“ steht oben in der Liste.
 - Abrechnung, Vorschau: Zähler ohne Namen zeigen ID und PA statt einer leeren Zelle; der Hinweis
   bricht um statt abgeschnitten zu werden.
 - Weitergabe: In Abrechnung und Protokoll ist keine Ausgangskarte mehr als gewählt markiert. Die

@@ -1,7 +1,7 @@
 // Bereich Scan: Menü der Baudraten mit „Prüfen, welche antworten“. `menu` ist das Menü-Element,
 // `view` die Einstellungen der Linie (bauds = gewählte, baudCheck = letztes Ergebnis).
 
-import { html, text } from "./view.js";
+import { html, text, explain } from "./view.js";
 import { report } from "./data.js";
 
 let checking = null; // Beginn der Prüfung (ms), solange sie läuft
@@ -11,7 +11,8 @@ export function fillBaudMenu(menu, view, busBaud) {
   html(
     menu,
     `<div class="bauds">${BAUDS.map((b) => `<label class="baud"><input type="checkbox" data-baud value="${b}"${on.has(b) ? " checked" : ""}>${b}</label>`).join("")}</div>
-    <div class="row end"><span class="sub" data-baud-result></span><button type="button" class="tonal" data-baud-check>${esc(t("sc_baud_check"))}</button></div>`
+    <div class="row end"><span class="sub" data-baud-result></span><button type="button" class="tonal" data-baud-check>${esc(t("sc_baud_check"))}</button></div>
+    ${explain(t("sc_explain_bauds"))}`
   );
   showCheck(menu, view);
 }

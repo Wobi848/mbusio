@@ -54,14 +54,20 @@ async function load() {
   }
 }
 
-async function save(change) {
-  try {
-    data = await request(`projects/${projectId}/billing`, { method: "PUT", body: { ...data.settings, ...change } });
-    render();
-  } catch (e) {
-    report(e);
-    render(); // Feld wieder wie gespeichert
-  }
+/// Nacheinander speichern: jede Änderung baut auf der vorigen auf (zwei Felder schnell
+/// hintereinander geändert, sonst überschreibt die zweite die erste mit dem alten Stand)
+let saving = Promise.resolve();
+function save(change) {
+  saving = saving.then(async () => {
+    try {
+      data = await request(`projects/${projectId}/billing`, { method: "PUT", body: { ...data.settings, ...change } });
+      render();
+    } catch (e) {
+      report(e);
+      render(); // Feld wieder wie gespeichert
+    }
+  });
+  return saving;
 }
 
 /// Knopf während der Arbeit sperren; Fehler als Meldung, Erfolg als kurze Bestätigung
@@ -142,25 +148,41 @@ function chosenLines(el) {
 const opt = (value, label, current) => `<option value="${esc(value)}"${String(value) === String(current) ? " selected" : ""}>${esc(label)}</option>`;
 const day = (iso) => (lang === "de" ? iso.split("-").reverse().join(".") : iso);
 
+/// Leiste, Einstellungen und Vorschau einzeln; eine Antwort des Servers ersetzt das Feld nicht
+/// samt dem Getippten
 function render() {
   if (!box || !data) return;
   const s = data.settings;
   const projects = state.tree?.projects || [];
+  if (!box.querySelector("[data-b-bar]"))
+    box.innerHTML = `<div class="toolbar" data-b-bar></div><div class="bview"><div class="bset detail"></div><div class="bout"></div></div>`;
   html(
-    box,
-    `<div class="toolbar">
-      <button type="button" class="quiet" data-b-close>← ${esc(t("tab_transfer"))}</button>
+    box.querySelector("[data-b-bar]"),
+    `<button type="button" class="quiet" data-b-close>← ${esc(t("tab_transfer"))}</button>
       <b>${esc(t("ab_title"))}</b>
       <label class="inline"><span class="sub">${esc(t("ab_project"))}</span><select data-b-project>${projects.map((p) => opt(p.id, p.name, projectId)).join("")}</select></label>
       <span class="grow"></span>
       ${data.preview ? `<a class="button" data-b-download href="${apiHref(`projects/${projectId}/billing/csv`)}" download>${esc(t("ab_download"))}</a>` : ""}
-      ${mailNowButton(s)}
-    </div>
-    <div class="bview">
-      <div class="bset detail">${settingsHtml(s)}${sendHtml(s)}</div>
-      <div class="bout">${preview(data.preview)}${filesHtml(s)}</div>
-    </div>`
+      ${mailNowButton(s)}`
   );
+  keepTyping(box.querySelector(".bset"), () => html(box.querySelector(".bset"), settingsHtml(s) + sendHtml(s)));
+  html(box.querySelector(".bout"), preview(data.preview) + filesHtml(s));
+}
+
+/// Neu bauen, ohne das Feld zu verlieren, in dem gerade getippt wird: Text, Fokus und Cursor
+/// gehen auf das gleiche Feld im neuen Inhalt über
+function keepTyping(part, rebuild) {
+  const el = document.activeElement;
+  const typing = part.contains(el) && el.matches("input:not([type=checkbox]), textarea");
+  const attr = typing && [...el.attributes].find((a) => a.name.startsWith("data-b-"));
+  const kept = attr && { sel: `[${attr.name}${attr.value ? `="${CSS.escape(attr.value)}"` : ""}]`, value: el.value, start: el.selectionStart, end: el.selectionEnd };
+  rebuild();
+  const again = kept && part.querySelector(kept.sel);
+  if (!again || again === el) return;
+  again.value = kept.value;
+  again.focus();
+  // Datumsfelder kennen keinen Cursor (selectionStart ist dort null)
+  if (kept.start !== null) again.setSelectionRange(kept.start, kept.end);
 }
 
 /// Senden geht nur mit Empfängern und eingerichtetem, eingeschaltetem Mailserver; sonst gesperrt

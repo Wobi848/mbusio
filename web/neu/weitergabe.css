@@ -9,7 +9,7 @@
 /* Protokoll: ersetzt Werkzeugleiste und Liste der Datenpunkte */
 .pane[data-area=weitergabe].showlog { grid-template-rows: auto 1fr; }
 .pane[data-area=weitergabe].showlog > .toolbar, .pane[data-area=weitergabe].showlog > .split, .pane[data-area=weitergabe].showlog > .selbar { display: none; }
-[data-area=weitergabe] .logview { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+[data-area=weitergabe] .logview { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); }
 [data-area=weitergabe] .logview[hidden] { display: none; }
 [data-area=weitergabe] .logwrap { border-right: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
 [data-area=weitergabe] .logwrap .row:not(.vrow) { grid-template-columns: 150px 64px minmax(120px, 1.4fr) minmax(120px, 1.6fr) minmax(90px, .8fr) 80px minmax(110px, 1fr); }
@@ -63,12 +63,15 @@
 
 /* Abrechnung: Ansicht statt der Datenpunkte (wie das Protokoll); links Einstellungen, rechts
    Vorschau und Dateien */
+.pane[data-area=weitergabe].showbill { grid-template-rows: auto 1fr; }
 .pane[data-area=weitergabe].showbill > .toolbar, .pane[data-area=weitergabe].showbill > .split, .pane[data-area=weitergabe].showbill > .selbar { display: none; }
-[data-area=weitergabe] .billview { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+[data-area=weitergabe] .billview { min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); }
 [data-area=weitergabe] .billview .toolbar label.inline { display: inline-flex; align-items: center; gap: 6px; }
 [data-area=weitergabe] .bview { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); min-height: 0; }
 [data-area=weitergabe] .bview > div { overflow: auto; padding: 4px 16px 16px; }
 [data-area=weitergabe] .bview .bset { border-right: 1px solid var(--line); }
+/* Gestaltung wie Details, aber immer sichtbar (schmal sind Details sonst ein Overlay) */
+[data-area=weitergabe] .bview > .bset { display: block; position: static; }
 [data-area=weitergabe] .btable { overflow: auto; max-height: 60vh; border: 1px solid var(--line); border-radius: 6px; }
 [data-area=weitergabe] .btable table { border-collapse: collapse; font-size: 11.5px; white-space: nowrap; }
 [data-area=weitergabe] .btable th, [data-area=weitergabe] .btable td { padding: 3px 8px; border-bottom: 1px solid var(--line); text-align: left; }
@@ -76,20 +79,28 @@
 [data-area=weitergabe] .btable td:last-child { white-space: normal; min-width: 240px; }
 [data-area=weitergabe] .btable th { position: sticky; top: 0; background: var(--sunken); font-weight: 650; }
 [data-area=weitergabe] .billview details.more { margin: 6px 0 10px; }
-[data-area=weitergabe] .billview details.more > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 4px 0; }
-/* Wert bzw. Schalter und Hinweis teilen sich die Breite (sonst bricht jedes Wort um) */
-[data-area=weitergabe] .billview .vrow:not(.bfile) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; }
+/* aufklappbare Abschnitte (weitere Werte, Warnungen, Bericht) */
+[data-area=weitergabe] details.more > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 6px 0 4px; }
+/* Wert bzw. Schalter mit dem Hinweis darunter, Häkchen rechts (nebeneinander bricht jedes Wort um) */
+[data-area=weitergabe] .billview .vrow:not(.bfile) { grid-template-columns: minmax(0, 1fr) 32px; row-gap: 1px; padding: 5px 8px; }
+[data-area=weitergabe] .billview .vrow:not(.bfile) > .sub { grid-column: 1; grid-row: 2; font-size: 11.5px; font-weight: 400; }
+[data-area=weitergabe] .billview .vrow:not(.bfile) > input { grid-column: 2; grid-row: 1 / span 2; }
 /* abgelegte Dateien: Name, Zeit, Zustand der E-Mail, Senden */
 [data-area=weitergabe] .vrow.bfile { grid-template-columns: minmax(0, 1fr) auto auto auto; }
 [data-area=weitergabe] .vrow.bfile a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) {
   [data-area=weitergabe] .bview { grid-template-columns: minmax(0, 1fr); }
   [data-area=weitergabe] .bview .bset { border-right: 0; border-bottom: 1px solid var(--line); }
+  /* untereinander: die ganze Abrechnung scrollt, nicht jede Hälfte für sich */
+  [data-area=weitergabe] .bview { overflow: auto; align-content: start; }
+  [data-area=weitergabe] .bview > div { overflow: visible; min-height: auto; }
+  /* Abrechnung und Protokoll bekommen den ganzen Platz; zurück über „← Weitergabe“ */
+  .pane[data-area=weitergabe]:is(.showbill, .showlog) > .outputs { display: none; }
+  .pane[data-area=weitergabe]:is(.showbill, .showlog) { grid-template-rows: 1fr; }
 }
 [data-area=weitergabe] .chip.wide a { margin-left: 6px; }
 
 /* Warnungen: Häkchen mit Text dahinter in zwei Spalten */
-[data-area=weitergabe] [data-warn-section] > summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 8px 0 4px; }
 [data-area=weitergabe] .fields .opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
 [data-area=weitergabe] .fields label.opt { display: flex; align-items: center; gap: 6px; }
 [data-area=weitergabe] .fields label.opt input { width: auto; margin: 0; }

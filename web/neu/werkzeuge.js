@@ -3,7 +3,7 @@
 // (Konzept neue Oberfläche §3.2).
 
 import { state, set, watch, activeLine } from "./store.js";
-import { html, text, list, ask, toast, styles } from "./view.js";
+import { html, text, list, ask, toast, styles, explain } from "./view.js";
 import { bind, onEscape } from "./keys.js";
 import { loadMeters, report } from "./data.js";
 import { clear as clearBusLog, logRow } from "./buslog.js";
@@ -41,6 +41,7 @@ export function mount(pane) {
       <button type="button" class="icon" data-clear title="${esc(t("wz_clear_target"))}" aria-label="${esc(t("wz_clear_target"))}">×</button>
       <span class="grow"></span>
       <a class="quiet" href="#/simulator" data-sim-link title="${esc(t("wz_sim_title"))}">${esc(t("wz_sim"))} →</a>
+      ${explain(t("wz_explain"))}
     </div>
     <div class="tools">
       <fieldset class="tool" data-tool>
@@ -51,6 +52,7 @@ export function mount(pane) {
       <fieldset class="tool" data-tool>
         <h3>${esc(t("set_primary"))}</h3>
         <p class="sub" data-now="pa"></p>
+        ${explain(t("wz_explain_pa"))}
         <div class="trow">
           <input type="number" min="0" max="250" class="mono" data-new-pa aria-label="${esc(t("new_primary"))}" placeholder="1–250">
           <button type="button" class="quiet" data-free>${esc(t("wz_free"))}</button>
@@ -60,6 +62,7 @@ export function mount(pane) {
       <fieldset class="tool" data-tool>
         <h3>${esc(t("baud_title"))}</h3>
         <p class="sub" data-now="baud"></p>
+        ${explain(t("wz_explain_baud"))}
         <div class="trow">
           <select data-new-baud aria-label="${esc(t("new_baud"))}">${BAUDS.map((b) => `<option value="${b}">${b} Bd</option>`).join("")}</select>
           <button type="button" class="tonal" data-switch>${esc(t("switch"))}</button>
@@ -69,6 +72,7 @@ export function mount(pane) {
       <fieldset class="tool" data-tool>
         <h3>${esc(t("reset_title"))}</h3>
         <p class="sub" data-now="reset"></p>
+        ${explain(t("wz_explain_reset"))}
         <div class="trow"><button type="button" class="quiet danger-text" data-reset>${esc(t("reset"))}</button></div>
       </fieldset>
     </div>

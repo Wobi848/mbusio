@@ -3,7 +3,7 @@
 // als Raster oben, nur wenn eine Linie des Projekts im Dauerbetrieb ist.
 
 import { state, set, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, texts } from "./view.js";
+import { html, text, list, ask, toast, styles, texts, explain } from "./view.js";
 import "./anlage-texte.js";
 import { allLines, sum, plantHtml } from "./anlage-zustand.js";
 import { rowHtml } from "./anlage-baum.js";
@@ -33,6 +33,7 @@ export function mount(pane) {
       <span class="grow"></span>
       <a class="quiet" data-export download title="${esc(t("an_backup_title"))}">${esc(t("an_backup"))}</a>
       <button type="button" data-report title="${esc(t("report_title"))}">${esc(t("report"))}</button>
+      ${explain(t("an_explain"))}
     </div>
     <div class="plant" data-plant hidden></div>
     <div class="split">

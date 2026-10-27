@@ -4,6 +4,10 @@ import { texts } from "./view.js";
 
 texts(
   {
+    wz_explain: "Befehle an einen einzelnen Zähler. Zuerst oben den Zähler wählen: aus der Liste oder Adresse eintippen. Stehen mehrere Zähler auf derselben Adresse (z.B. 0), die ID verwenden.",
+    wz_explain_pa: "„Freie suchen“ schlägt die nächste Adresse vor, die auf dieser Linie noch niemand hat. Danach antwortet der Zähler nur noch auf die neue Adresse; die Zählerliste wird nachgeführt.",
+    wz_explain_baud: "„Baudrate suchen“ probiert 300 bis 38400 Bd durch. Nach dem Umstellen antwortet der Zähler nur noch mit der neuen Baudrate; die Zählerliste wird nachgeführt.",
+    wz_explain_reset: "Setzt die Kommunikation des Zählers zurück (z.B. die Auswahl der Telegramme). Zählerstände bleiben erhalten.",
     wz_target: "Ziel",
     wz_target_ph: "Zähler suchen oder Adresse (PA, ID, Sekundär)",
     wz_use_address: (a) => `Adresse ${a} verwenden`,
@@ -27,6 +31,10 @@ texts(
     wz_key_read: "Ziel auslesen",
   },
   {
+    wz_explain: "Commands to a single meter. First pick the meter at the top: from the list, or type an address. If several meters share an address (e.g. 0), use the ID.",
+    wz_explain_pa: "“Find free” suggests the next address nobody uses on this line yet. Afterwards the meter only answers on the new address; the meter list is updated.",
+    wz_explain_baud: "“Detect baud rate” tries 300 to 38400 Bd. After switching, the meter only answers at the new baud rate; the meter list is updated.",
+    wz_explain_reset: "Resets the meter's communication (e.g. the telegram selection). Meter readings are kept.",
     wz_target: "Target",
     wz_target_ph: "Search meter or address (PA, ID, secondary)",
     wz_use_address: (a) => `Use address ${a}`,

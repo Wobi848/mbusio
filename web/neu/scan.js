@@ -19,6 +19,16 @@ let view = null;
 let lineId = null;
 /// Wiederholungen je Adresse im Primärscan (der Server nimmt höchstens 5)
 const RETRIES = [0, 1, 2, 3];
+/// Spalten der Trefferliste und wonach sie sortieren; leere Werte stehen immer unten
+const COLUMNS = [
+  ["pa", () => "PA", (h) => h.primary_address],
+  ["baud", () => "Bd", (h) => h.baud],
+  ["meter", () => t("col_meter"), (h) => hitName(h)],
+  ["id", () => "ID", (h) => h.id || null],
+  // Probleme zuerst
+  ["state", () => t("n_col_state"), (h) => ({ collision: 0, no_data: 1, ok: 2 })[h.status]],
+];
+let sort = readSort(); // { col, dir } oder null = wie gescannt; gilt für alle Linien wie früher
 let job = null; // Scan der Linie (laufend oder letzter), wie /api/job bzw. /api/last-scan
 let polling = false;
 const open = () => state.area === "scan";
@@ -37,6 +47,7 @@ export function mount(pane) {
       <span class="sub" data-progress></span>
       <button type="button" class="quiet" data-resume hidden></button>
       <button type="button" data-start></button>
+      <p class="explain" data-explain></p>
     </div>
     <div class="toolbar resultbar" data-resultbar hidden>
       <b data-meta></b><span data-changes></span>
@@ -47,7 +58,7 @@ export function mount(pane) {
     </div>
     <div class="split">
       <div class="listwrap">
-        <div class="row head" aria-hidden="true"><span>PA</span><span>Bd</span><span>${esc(t("col_meter"))}</span><span>ID</span><span>${esc(t("n_col_state"))}</span></div>
+        <div class="row head" data-head></div>
         <div class="rows" role="listbox" tabindex="0" aria-label="${esc(t("tab_scan"))}" data-list></div>
         <div class="empty" data-empty></div>
       </div>
@@ -144,7 +155,42 @@ function hitState(h, a, i) {
 
 function shown(a) {
   const att = scanLogic.attention(ctx(), a);
-  return (job?.hits || []).map((h, i) => ({ h, i })).filter(({ i }) => view.filter === "all" || (view.filter === "attention") === att.has(i));
+  return sorted((job?.hits || []).map((h, i) => ({ h, i })).filter(({ i }) => view.filter === "all" || (view.filter === "attention") === att.has(i)));
+}
+
+function readSort() {
+  try {
+    const s = JSON.parse(storageGet("hit_sort") || "null");
+    return COLUMNS.some(([c]) => c === s?.col) ? s : null;
+  } catch {
+    return null; // ungültig gespeichert: wie gescannt
+  }
+}
+
+function sorted(rows) {
+  const key = sort && COLUMNS.find(([c]) => c === sort.col)[2];
+  if (!key) return rows;
+  return rows.sort((a, b) => {
+    const x = key(a.h);
+    const y = key(b.h);
+    if (x == null || y == null) return x == null && y == null ? a.i - b.i : x == null ? 1 : -1;
+    const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true });
+    return c * sort.dir || a.i - b.i;
+  });
+}
+
+/// Klick auf eine Spalte: auf → ab → wie gescannt
+function toggleSort(col) {
+  sort = sort?.col !== col ? { col, dir: 1 } : sort.dir > 0 ? { col, dir: -1 } : null;
+  storageSet("hit_sort", JSON.stringify(sort));
+  render();
+}
+
+function headHtml() {
+  return COLUMNS.map(([c, name]) => {
+    const on = sort?.col === c;
+    return `<button type="button" class="sorter${on ? " on" : ""}" data-sort="${c}" title="${esc(t("sort_title"))}">${esc(name())}${on ? (sort.dir > 0 ? " ▲" : " ▼") : ""}</button>`;
+  }).join("");
 }
 
 function render() {
@@ -163,6 +209,7 @@ function render() {
         <label class="inline" title="${esc(t("sc_retries_title"))}"><span class="sub">${esc(t("sc_retries"))}</span><select data-retries>${RETRIES.map((n) => `<option value="${n}"${n === view.retries ? " selected" : ""}>${n}</option>`).join("")}</select></label>`
       : `<label class="inline"><span class="sub">${esc(t("scan_prefix"))}</span><input data-prefix class="mono" maxlength="7" value="${esc(view.prefix)}" placeholder="${esc(t("scan_prefix_ph"))}"></label>`
   );
+  text(q("[data-explain]"), t(view.kind === "primary" ? "sc_explain_primary" : "sc_explain_secondary"));
   text(q("[data-baud-btn]"), t("sc_baud_menu", bauds().join(", ")));
   text(
     q("[data-estimate]"),
@@ -198,6 +245,7 @@ function render() {
     html(q("[data-modes]"), ["primary", "secondary"].map((m) => `<button type="button" data-mode="${m}" aria-pressed="${c.mode === m}" title="${esc(t(m === "primary" ? "mode_pa_title" : "mode_sa_title"))}">${m === "primary" ? "PA" : "ID"}</button>`).join(""));
     html(q("[data-main]"), running ? "" : mainAction(c, a));
   }
+  html(q("[data-head]"), headHtml());
   list(q("[data-list]"), rows, ({ i }) => i, ({ h, i }) => row(h, i, a));
   const empty = q("[data-empty]");
   empty.hidden = rows.length > 0;
@@ -226,10 +274,15 @@ const hitLabel = (h) => [h.primary_address != null ? `PA ${h.primary_address}` :
 
 const newOnes = (c) => scanLogic.rememberable(c.hits, c).filter((h) => !scanLogic.listed(h, state.meters || [], c));
 
+/// Name wie in der Zählerliste, sonst Medium · Hersteller
+function hitName(h) {
+  const known = h.id && (state.meters || []).find((m) => m.meter_id === h.id);
+  return known?.name || (h.medium ? [label(h.medium), h.manufacturer].filter(Boolean).join(" · ") : t(h.status === "collision" ? "hit_many" : "hit_unknown"));
+}
+
 function row(h, i, a) {
   const [cls, word, title] = hitState(h, a, i);
-  const known = h.id && (state.meters || []).find((m) => m.meter_id === h.id);
-  const name = known?.name || (h.medium ? [label(h.medium), h.manufacturer].filter(Boolean).join(" · ") : t(h.status === "collision" ? "hit_many" : "hit_unknown"));
+  const name = hitName(h);
   const chg = scanLogic.changes(job)?.rows.get(i);
   return `<div class="row${i === view.active ? " active" : ""}" role="option" id="hit-${i}">
     <span class="mono">${h.primary_address ?? "–"}</span>
@@ -418,6 +471,7 @@ function wire() {
   root.addEventListener("click", async (ev) => {
     const el = ev.target;
     const b = (sel) => el.closest(sel);
+    if (b("[data-sort]")) return toggleSort(b("[data-sort]").dataset.sort);
     if (b("[data-kind]")) return (view.kind = b("[data-kind]").dataset.kind), render();
     if (b("[data-filter]")) return (view.filter = b("[data-filter]").dataset.filter), render();
     if (b("[data-mode]")) return setMode(b("[data-mode]"), b("[data-mode]").dataset.mode);
