@@ -5,7 +5,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 ## Harte Regeln des Nutzers
 - Modbus TCP am 25.10. freigegeben (docs/konzept-modbus.md). Alles bleibt privat: nichts auf npm.
-- v0.5.0 am 28.10. auf Wunsch des Nutzers ohne Pi-/Windows-Test getaggt (im CHANGELOG vermerkt). Releases nur nach ausdrücklichem OK.
+- v0.5.0 am 28./29.10. auf Wunsch des Nutzers ohne Pi-/Windows-Test getaggt (im CHANGELOG vermerkt). Releases nur nach ausdrücklichem OK.
 - KISS: wenig Code, wiederverwendbare Bausteine (web/app/view.js, web/js/base.js), nichts doppelt, kein Spaghetti.
   Dazu gelten die globalen Coding-Prinzipien des Nutzers (~/.claude/CLAUDE.md), u.a. Dateien über ~400 Zeilen teilen.
 - Grössere Änderungen: erst Konzept (docs/konzept-*.md), dann bauen.
@@ -70,8 +70,8 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
 2. 7-Tage-Test auf dem Raspberry Pi (Linien dort mit dem Schalter „Dauerbetrieb“ einschalten); steht für v0.5.0 noch aus.
    GitHub Actions war ab 25.10. gesperrt (Abrechnung/Kontingent): prüfen, ob der Tag v0.5.0 gebaut und als Release veröffentlicht wurde.
-   Der Tag v0.5.0 (411c6a3) liegt VOR den Korrekturen vom 28./29.10. (u.a. Sicherheit); Nutzer fragen,
-   ob er verschoben werden soll (nichts gebaut, noch nicht veröffentlicht) oder v0.5.1 folgt.
+   Der Tag v0.5.0 wurde am 29.10. auf Wunsch des Nutzers auf den Stand mit allen Korrekturen verschoben
+   (vorher 411c6a3; es war noch nichts gebaut oder veröffentlicht).
 3. Optional: USB wieder einstecken, bevor mbusio den Ausfall merkt (Linux vergibt dann ttyUSB1; fester Name sollte es abfangen).
 4. Weitere Punkte aus dem Simulator-Test hat der Nutzer nie genannt; bei Gelegenheit nachfragen.
 

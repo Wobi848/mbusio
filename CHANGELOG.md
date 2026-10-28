@@ -2,7 +2,7 @@
 
 Was sich für Benutzer ändert, je Version. Neuestes oben.
 
-## v0.5.0 (28.10.2026)
+## v0.5.0 (29.10.2026)
 
 Geprüft mit echter Hardware (Relay MR003 USB, Itron-Wärme-/Kältezähler, echter MQTT-Broker, USB
 abziehen im Dauerbetrieb) und mit Daten von v0.4.0 (werden ohne Zutun übernommen). **Noch offen:**
