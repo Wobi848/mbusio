@@ -224,6 +224,9 @@ eine Anlage zur Probe betreiben.
 
 ### Behoben
 
+- **Zählerliste importieren** ist bei grossen Listen viel schneller (2000 Zähler: 0,5 s statt
+  8,5 s): die Prüfung auf doppelte Adressen las für jeden neuen Zähler die ganze Liste.
+
 - **Nächster Schritt „Zähler auslesen“** bleibt, bis jeder Zähler einmal ausgelesen wurde; vorher
   ging es schon zum Bericht, sobald irgendein Zähler gelesen war. Der Projektbaum liefert dafür
   `unread` je Linie.

@@ -26,10 +26,16 @@ impl Db {
 
     pub(super) fn check_meter(&self, line_id: i64, m: &Meter, skip_id: i64) -> Result<()> {
         let target = Target::parse(&m.address)?;
-        if self
-            .meters(line_id)?
+        // nur die Adressen lesen: beim Import vieler Zähler wird das für jeden neuen geprüft
+        let mut st = self
+            .conn
+            .prepare_cached("SELECT address FROM meters WHERE line_id = ?1 AND id != ?2")?;
+        let taken = st
+            .query_map(params![line_id, skip_id], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        if taken
             .iter()
-            .any(|x| x.id != skip_id && listed(x, &target))
+            .any(|a| Target::parse(a).is_ok_and(|t| same_meter(&t, &target)))
         {
             bail!(
                 "{}: {}",
