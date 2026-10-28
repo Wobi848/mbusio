@@ -73,6 +73,15 @@ function slotText(s) {
   return `${d.getDate()}.${d.getMonth() + 1}. ${hm}`;
 }
 
+/// Zeitpunkt für den Bericht: "2026-10-18 00:05:00" oder Date → "18.10.2026 00:05" (englisch 18/10/2026)
+function dateTime(s) {
+  const d = s instanceof Date ? s : parseTime(s);
+  if (!s || isNaN(d)) return String(s || "");
+  const p = (n) => String(n).padStart(2, "0");
+  const day = [p(d.getDate()), p(d.getMonth() + 1), d.getFullYear()].join(lang === "de" ? "." : "/");
+  return `${day} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 /// "daily 00:05" → "täglich 00:05"
 function planText(key) {
   if (!key) return "";

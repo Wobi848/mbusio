@@ -161,8 +161,12 @@ pub(super) async fn set_address(
         m.at_baud(req.from_baud, |m| m.set_primary(&t, new))
     })
     .await?;
+    // nicht im letzten Scan: die alte PA ist die angesprochene (über die ID: unbekannt)
     let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Pa(new))
-        .unwrap_or_else(|| (target.label(), "?".into()));
+        .unwrap_or_else(|| match &target {
+            Target::Primary(a) => (listed_name(&st, line, *a), a.to_string()),
+            Target::Secondary(_) => (target.label(), "?".into()),
+        });
     follow_list(&st, line, &target, Some(new), None);
     let text = format!(
         "{name}: {} {old} → {new}",
@@ -193,8 +197,10 @@ pub(super) async fn switch_baud(
         m.at_baud(req.from_baud, |m| m.switch_baud(&t, baud))
     })
     .await?;
+    // nicht im letzten Scan: die alte Baudrate ist die, mit der gerade gesprochen wurde
+    let spoken = req.from_baud.or_else(|| st.conn_info().map(|c| c.baud));
     let (name, old) = update_hits(&st, line, &target, req.from_baud, HitUpdate::Baud(baud))
-        .unwrap_or_else(|| (target.label(), "?".into()));
+        .unwrap_or_else(|| (target.label(), spoken.map_or("?".into(), |b| b.to_string())));
     follow_list(&st, line, &target, None, Some(baud));
     let text = format!("{name}: {} {old} → {baud} Bd", tr("Baudrate", "baud rate"));
     record_change(&st, line, &text);
@@ -312,4 +318,14 @@ fn record_change(st: &AppState, line: i64, text: &str) {
     if let Err(e) = st.db.lock().unwrap().add_change(line, text) {
         st.log.push("INFO", format!("{text}: {e:#}"));
     }
+}
+
+/// Name des Zählers mit dieser PA aus der Zählerliste, sonst „PA 7“
+fn listed_name(st: &AppState, line: i64, pa: u8) -> String {
+    let meters = st.db.lock().unwrap().meters(line).unwrap_or_default();
+    meters
+        .iter()
+        .find(|m| m.primary_address == Some(pa) || m.address == pa.to_string())
+        .map(crate::datapoint::meter_label)
+        .unwrap_or_else(|| format!("PA {pa}"))
 }

@@ -47,6 +47,10 @@ export default {
     const [report] = await Promise.all([ctx.waitForEvent("page"), page.click("#next")]);
     await report.waitForSelector("#table tbody tr");
     assert.equal(await report.locator("#table tbody tr").count(), 10);
+    // für den Kunden: Einzahl richtig, Zeitpunkte überall gleich geschrieben (TT.MM.JJJJ HH:MM)
+    await report.waitForFunction(() => document.querySelector("#meta")?.textContent.includes("Gateway"));
+    assert.match(await report.textContent("#meta"), /1 Gateway · 1 Linie(?!n)/);
+    assert.match(await report.textContent("#table tbody tr:first-child"), /\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/);
     await report.close();
 
     // Dauerbetrieb: Plan und Schalter in der Kopfzeile, dann Werte und Ausgang

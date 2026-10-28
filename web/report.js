@@ -80,7 +80,7 @@ function renderTable() {
             <td>${meterHtml(meterBlock(m))}<span class="small">${esc([m.location, m.note].filter(Boolean).join(" · "))}</span></td>
             <td class="num mono">${m.baud ?? l.line.baud}</td>
             <td class="num">${esc(m.last_value ?? "")}<span class="small">${esc(m.last_value ? label(m.last_quantity) : "")}</span></td>
-            <td class="mono">${esc(m.last_read ?? "")}${
+            <td>${esc(dateTime(m.last_read))}${
               r?.time_unsure && r.timestamp === m.last_read ? `<span class="small">${t("time_unsure")}</span>` : ""
             }</td>
             <td>${status(m)}</td>
@@ -121,7 +121,7 @@ function renderDetails() {
     allMeters()
       .map(({ meter: m, reading: r, line }, i) => {
         const head = `<h3>${i + 1}. ${esc(m.name || m.meter_id || m.address)} <span class="small inline">${esc(line.name)}${
-          r ? " · " + esc(r.timestamp) + (r.time_unsure ? ` (${t("time_unsure")})` : "") : ""
+          r ? " · " + esc(dateTime(r.timestamp)) + (r.time_unsure ? ` (${t("time_unsure")})` : "") : ""
         }</span></h3>`;
         if (!r) return `<div class="detail">${head}<p class="empty">${t("no_details")}</p></div>`;
         const rows = r.records
@@ -199,7 +199,7 @@ function renderChanges() {
   if (!list.length) return "";
   return `<h2>${t("changes")}</h2><table>
     <thead><tr><th>${t("th_time")}</th><th>${t("th_line")}</th><th>${t("th_change")}</th></tr></thead>
-    <tbody>${list.map((c) => `<tr><td class="mono">${esc(c.time)}</td><td>${esc(c.line)}</td><td>${esc(c.text)}</td></tr>`).join("")}</tbody>
+    <tbody>${list.map((c) => `<tr><td>${esc(dateTime(c.time))}</td><td>${esc(c.line)}</td><td>${esc(c.text)}</td></tr>`).join("")}</tbody>
   </table>`;
 }
 
@@ -211,8 +211,8 @@ function render() {
   const open = data.gateways.reduce((n, g) => n + g.lines.reduce((k, l) => k + (l.issues?.count || 0), 0), 0);
   const meta = [
     [t("project"), data.project.name],
-    [t("date"), new Date().toLocaleString(lang === "de" ? "de-CH" : "en-GB")],
-    [t("lines"), `${data.gateways.length} Gateway · ${lines} ${t("lines")}`],
+    [t("date"), dateTime(new Date())],
+    [t("lines"), `${data.gateways.length} ${data.gateways.length === 1 ? "Gateway" : "Gateways"} · ${t("ps_lines", lines)}`],
     [t("count"), `${list.length} · ${ok} ${t("ok_count")}` + (err ? ` · ${err} ${t("err_count")}` : "")],
     issuesShown() ? [t("open_issues"), String(open)] : null,
   ].filter(Boolean);

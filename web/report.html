@@ -16,6 +16,10 @@
   td .mid svg { width: 14px; height: 14px; }
   td .mtr { gap: 8px; }
   td .mtr-info { font-size: 10.5px; }
+  /* Ort und Notiz unter dem Namen, nicht unter dem Symbol */
+  td .mtr + .small { padding-left: 34px; }
+  /* Wert und Einheit auf einer Zeile */
+  td.num { white-space: nowrap; }
   * { box-sizing: border-box; }
   body { margin: 0; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--text); background: #e9ecea; }
   .toolbar {
