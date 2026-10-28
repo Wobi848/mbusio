@@ -1,0 +1,237 @@
+//! Sicherung und Wiederherstellung (Konzept Sicherung): der ganze Stand eines Geräts ist die
+//! Datenbank. Gesichert wird eine stimmige Kopie (`Db::backup_to`); eingespielt wird beim Start,
+//! bevor etwas die Datenbank öffnet (`restore_pending`), der bisherige Stand bleibt als Rückfall.
+
+use std::io::Read;
+use std::path::Path;
+
+use anyhow::{bail, Context, Result};
+use rusqlite::{Connection, OpenFlags, OptionalExtension};
+use serde::Serialize;
+
+use crate::i18n::tr;
+
+const DB: &str = "mbusio.db";
+/// hochgeladen und geprüft, wartet auf „Einspielen“
+const UPLOAD: &str = "mbusio.db.upload";
+/// beim nächsten Start einsetzen
+const RESTORE: &str = "mbusio.db.restore";
+/// Stand vor dem Einspielen (eine Rückfalldatei, die nächste ersetzt sie)
+const BEFORE: &str = "mbusio.db.vorher";
+/// Tabellen, die jede Datenbank von mbusio hat
+const TABLES: [&str; 5] = ["meta", "projects", "lines", "meters", "readings"];
+
+/// Was in einer Sicherung steckt (für die Rückfrage vor dem Einspielen)
+#[derive(Debug, Serialize)]
+pub struct Summary {
+    /// mbusio-Version, die sie geschrieben hat (ältere Sicherungen kennen sie nicht)
+    pub version: Option<String>,
+    pub projects: Vec<String>,
+    pub meters: i64,
+    pub readings: i64,
+    /// erste und letzte Auslesung (Ortszeit)
+    pub first: Option<String>,
+    pub last: Option<String>,
+}
+
+/// Hochgeladene Sicherung ablegen und prüfen; liefert, was drin ist. Eine unbrauchbare Datei
+/// bleibt nicht liegen.
+pub fn upload(dir: &Path, bytes: &[u8]) -> Result<Summary> {
+    let path = dir.join(UPLOAD);
+    std::fs::write(&path, bytes).with_context(|| path.display().to_string())?;
+    let summary = check(&path);
+    if summary.is_err() {
+        discard(dir)?;
+    }
+    summary
+}
+
+/// Geprüfte Sicherung für den nächsten Start bereitlegen
+pub fn apply(dir: &Path) -> Result<()> {
+    let upload = dir.join(UPLOAD);
+    if !upload.exists() {
+        bail!(tr(
+            "Keine geprüfte Sicherung vorhanden",
+            "No checked backup present"
+        ));
+    }
+    std::fs::rename(&upload, dir.join(RESTORE))?;
+    Ok(())
+}
+
+/// Hochgeladene Sicherung verwerfen (Rückfrage abgelehnt)
+pub fn discard(dir: &Path) -> Result<()> {
+    match std::fs::remove_file(dir.join(UPLOAD)) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
+        _ => Ok(()),
+    }
+}
+
+/// Beim Start, vor dem Öffnen der Datenbank: liegt eine Sicherung bereit, ersetzt sie den Stand.
+/// Der bisherige (mit seinen WAL-Dateien) bleibt als `mbusio.db.vorher`. true = eingespielt.
+pub fn restore_pending(dir: &Path) -> Result<bool> {
+    let restore = dir.join(RESTORE);
+    if !restore.exists() {
+        return Ok(false);
+    }
+    for suffix in ["", "-wal", "-shm"] {
+        let keep = dir.join(format!("{BEFORE}{suffix}"));
+        if keep.exists() {
+            std::fs::remove_file(&keep)?;
+        }
+        let old = dir.join(format!("{DB}{suffix}"));
+        if old.exists() {
+            std::fs::rename(&old, &keep)?;
+        }
+    }
+    std::fs::rename(&restore, dir.join(DB))?;
+    Ok(true)
+}
+
+/// Ist das eine brauchbare Sicherung von mbusio, die diese Version lesen kann?
+pub fn check(path: &Path) -> Result<Summary> {
+    let not_ours = || {
+        anyhow::anyhow!(tr(
+            "Die Datei ist keine Sicherung von mbusio",
+            "The file is not an mbusio backup"
+        ))
+    };
+    let mut head = [0u8; 16];
+    std::fs::File::open(path)?
+        .read_exact(&mut head)
+        .map_err(|_| not_ours())?;
+    if &head != b"SQLite format 3\0" {
+        return Err(not_ours());
+    }
+    let c = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let integrity: String = c.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
+    if integrity != "ok" {
+        bail!(
+            "{}: {integrity}",
+            tr("Die Sicherung ist beschädigt", "The backup is damaged")
+        );
+    }
+    for table in TABLES {
+        let found: i64 = c.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            [table],
+            |r| r.get(0),
+        )?;
+        if found == 0 {
+            return Err(not_ours());
+        }
+    }
+    let version: Option<String> = c
+        .query_row(
+            "SELECT value FROM meta WHERE key = 'app_version'",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?;
+    if let Some(v) = version.as_deref().filter(|v| newer(v, env!("CARGO_PKG_VERSION"))) {
+        bail!(
+            "{} {v} ({} {})",
+            tr(
+                "Die Sicherung stammt von einer neueren mbusio-Version:",
+                "The backup comes from a newer mbusio version:"
+            ),
+            tr("hier läuft", "this is"),
+            env!("CARGO_PKG_VERSION")
+        );
+    }
+    let projects = c
+        .prepare("SELECT name FROM projects ORDER BY id")?
+        .query_map([], |r| r.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    let count = |sql: &str| c.query_row(sql, [], |r| r.get::<_, i64>(0));
+    let (first, last) = c.query_row(
+        "SELECT MIN(timestamp), MAX(timestamp) FROM readings",
+        [],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    Ok(Summary {
+        version,
+        projects,
+        meters: count("SELECT COUNT(*) FROM meters")?,
+        readings: count("SELECT COUNT(*) FROM readings")?,
+        first,
+        last,
+    })
+}
+
+/// Version a neuer als b ("0.10.0" > "0.9.3")
+fn newer(a: &str, b: &str) -> bool {
+    let parts = |v: &str| -> Vec<u32> { v.split('.').map(|x| x.parse().unwrap_or(0)).collect() };
+    parts(a) > parts(b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::{Db, Meter};
+
+    fn dir(name: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("mbusio-backup-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    /// Gerät mit einem Zähler; liefert den Ordner und die Sicherung als Bytes
+    fn device_with_backup(name: &str) -> (std::path::PathBuf, Vec<u8>) {
+        let d = dir(name);
+        let mut db = Db::open(&d).unwrap();
+        let line = db.active_line().unwrap().id;
+        let meter = Meter {
+            address: "7".into(),
+            name: "Whg 7".into(),
+            ..Default::default()
+        };
+        db.add_meter(line, meter).unwrap();
+        let file = d.join("kopie.db");
+        db.backup_to(&file).unwrap();
+        let bytes = std::fs::read(&file).unwrap();
+        std::fs::remove_file(file).unwrap();
+        (d, bytes)
+    }
+
+    #[test]
+    fn backup_restores_on_next_start_and_keeps_the_old_state() {
+        let (old, bytes) = device_with_backup("quelle");
+        // neues Gerät: leer, Sicherung hochladen, prüfen, bereitlegen
+        let new = dir("ziel");
+        drop(Db::open(&new).unwrap());
+        let s = upload(&new, &bytes).unwrap();
+        assert_eq!(s.meters, 1);
+        assert_eq!(s.version.as_deref(), Some(env!("CARGO_PKG_VERSION")));
+        apply(&new).unwrap();
+        // Start: eingesetzt, bisheriger Stand als Rückfall
+        assert!(restore_pending(&new).unwrap());
+        assert!(new.join(BEFORE).exists());
+        let db = Db::open(&new).unwrap();
+        let line = db.active_line().unwrap().id;
+        assert_eq!(db.meters(line).unwrap()[0].name, "Whg 7");
+        // nur einmal
+        assert!(!restore_pending(&new).unwrap());
+        for d in [old, new] {
+            std::fs::remove_dir_all(d).unwrap();
+        }
+    }
+
+    #[test]
+    fn refuses_other_files_and_newer_versions() {
+        let d = dir("fremd");
+        assert!(upload(&d, b"kein SQLite").is_err());
+        assert!(!d.join(UPLOAD).exists(), "unbrauchbare Datei bleibt nicht liegen");
+        let other = d.join("andere.db");
+        Connection::open(&other)
+            .unwrap()
+            .execute_batch("CREATE TABLE t (x)")
+            .unwrap();
+        assert!(upload(&d, &std::fs::read(&other).unwrap()).is_err());
+        assert!(newer("0.10.0", "0.9.3"));
+        assert!(!newer("0.5.0", "0.5.0"));
+        assert!(apply(&d).is_err(), "ohne geprüfte Sicherung nichts bereitlegen");
+        std::fs::remove_dir_all(d).unwrap();
+    }
+}

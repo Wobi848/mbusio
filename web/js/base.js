@@ -96,10 +96,12 @@ function apiHref(path) {
 }
 
 async function request(path, options = {}) {
-  const headers = { "Content-Type": "application/json", "X-Lang": lang };
+  // eine Datei (Blob) geht unverändert, alles andere als JSON
+  const file = options.body instanceof Blob;
+  const headers = { "Content-Type": file ? "application/octet-stream" : "application/json", "X-Lang": lang };
   if (token) headers["X-Token"] = token;
   const opts = { ...options, headers };
-  if (opts.body && typeof opts.body !== "string") opts.body = JSON.stringify(opts.body);
+  if (opts.body && !file && typeof opts.body !== "string") opts.body = JSON.stringify(opts.body);
   const res = await fetch("api/" + path, opts);
   if (res.status === 401) {
     await askToken(headers["X-Token"]);

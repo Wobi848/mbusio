@@ -2,6 +2,16 @@
 
 Was sich für Benutzer ändert, je Version. Neuestes oben.
 
+## Unveröffentlicht
+
+### Neu
+
+- **Sicherung des Geräts** (Konzept `docs/konzept-sicherung.md`): ⚙ → Sicherung → „Herunterladen“
+  liefert alles in einer Datei (Projekte, Zähler, Messwerte, Einstellungen samt Passwörtern).
+  „Einspielen …“ prüft die Datei, zeigt Projekte, Zähler und Zeitraum und startet mbusio danach
+  neu; fällt ein Gerät aus, läuft auf dem neuen damit alles wieder. Der bisherige Stand bleibt als
+  `mbusio.db.vorher`.
+
 ## v0.5.0 (29.10.2026)
 
 Geprüft mit echter Hardware (Relay MR003 USB, Itron-Wärme-/Kältezähler, echter MQTT-Broker, USB

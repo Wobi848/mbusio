@@ -231,6 +231,12 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .menu.form label.row input[type=checkbox] { width: 16px; height: 16px; margin: 0 4px 0 0; }
 .menu.form .storage input[type=number] { width: 70px; }
 .menu.form .storage .sub { margin: 0; max-width: 360px; }
+/* Einstellungen sind länger als andere Menüs: fast die ganze Höhe nutzen */
+#settings-menu { max-height: calc(100vh - 56px); }
+/* Sicherung: wie der Speicherschutz abgesetzt, zwei Knöpfe darunter */
+.menu.form .backup { display: grid; gap: 6px; margin: 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); }
+.menu.form .backup .acts { display: flex; gap: 6px; margin-left: -10px; }
+.menu.form .backup .sub { margin: 0; max-width: 360px; }
 
 .ask {
   position: fixed; z-index: 40; display: flex; align-items: center; gap: 8px; max-width: 520px;

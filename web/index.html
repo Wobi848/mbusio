@@ -51,6 +51,12 @@
         <label class="row"><span data-t="st_second"></span><span><input type="number" name="second_days" min="30" class="mono"> <span data-t="st_days"></span></span></label>
         <p class="sub" data-t="st_hint"></p>
       </fieldset>
+      <fieldset class="backup">
+        <span data-t="bk_title"></span>
+        <span class="acts"><a id="backup-get" class="quiet" download data-t="bk_download"></a><button id="backup-pick" type="button" class="quiet" data-t="bk_restore"></button></span>
+        <input id="backup-file" type="file" accept=".db,application/vnd.sqlite3" hidden>
+        <p class="sub" data-t="bk_hint"></p>
+      </fieldset>
       <button id="keys-help" type="button" class="quiet" data-t="n_keys"></button>
     </div>
   </div>

@@ -47,17 +47,60 @@ pub fn background() -> bool {
     }
 }
 
+/// Gesetzt bei einem Neustart, den mbusio selbst auslöst: der neue Prozess wartet, bis der alte
+/// den Port freigegeben hat, und öffnet keinen zweiten Browser-Tab
+pub const RESTARTED: &str = "MBUSIO_RESTARTED";
+/// Exit-Code für „bitte neu starten“ (systemd Restart=on-failure, Wiederherstellung des Dienstes)
+const RESTART_EXIT: i32 = 75;
+
+/// Neu starten, z.B. nach dem Einspielen einer Sicherung. Unter einem Dienst-Verwalter
+/// (Windows-Dienst, systemd) mit Fehlercode beenden, er startet mbusio neu; sonst (Fenster, tmux)
+/// startet mbusio sich selbst mit denselben Argumenten.
+pub fn restart() -> ! {
+    let supervised = AS_SERVICE.load(Ordering::Relaxed) || systemd_service();
+    if !supervised {
+        let spawned = std::env::current_exe().and_then(|exe| {
+            std::process::Command::new(exe)
+                .args(std::env::args_os().skip(1))
+                .env(RESTARTED, "1")
+                .spawn()
+        });
+        if spawned.is_ok() {
+            std::process::exit(0);
+        }
+    }
+    std::process::exit(RESTART_EXIT)
+}
+
+/// Läuft mbusio als systemd-Dienst (System oder Benutzer)?
+fn systemd_service() -> bool {
+    #[cfg(unix)]
+    {
+        let cgroup = std::fs::read_to_string("/proc/self/cgroup").unwrap_or_default();
+        unit(&cgroup).ends_with(".service")
+    }
+    #[cfg(not(unix))]
+    {
+        false
+    }
+}
+
+/// Letzter Teil der cgroup, z.B. `mbusio.service` oder `session-2.scope`
+#[cfg_attr(not(unix), allow(dead_code))]
+fn unit(cgroup: &str) -> &str {
+    cgroup
+        .lines()
+        .last()
+        .and_then(|l| l.rsplit('/').next())
+        .unwrap_or("")
+}
+
 /// Linux: von init gestartet (Elternprozess 1), als systemd-Dienst (System oder Benutzer: die
 /// cgroup endet auf `.service`; ein Terminal läuft in einer `.scope`) oder in tmux/screen.
 /// `INVOCATION_ID` taugt nicht: das erbt auch jede Shell im Terminal.
 #[cfg_attr(not(unix), allow(dead_code))]
 fn unix_background(ppid: u32, cgroup: &str, tmux_or_screen: bool) -> bool {
-    let unit = cgroup
-        .lines()
-        .last()
-        .and_then(|l| l.rsplit('/').next())
-        .unwrap_or("");
-    ppid == 1 || unit.ends_with(".service") || tmux_or_screen
+    ppid == 1 || unit(cgroup).ends_with(".service") || tmux_or_screen
 }
 
 /// Tests: so tun, als liefe mbusio im Hintergrund (true) oder im Fenster (false)

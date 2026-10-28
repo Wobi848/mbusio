@@ -23,6 +23,11 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Commits **ohne** KI-Hinweis (globale Regel des Nutzers); nach jedem fertigen Schritt committen und pushen. Nicht mergen ohne ausdrückliches OK.
 
 ## Zuletzt erledigt
+- 29.10. (nach v0.5.0): Sicherung des Geräts, Schritt 1 (docs/konzept-sicherung.md): `GET /api/backup`
+  (VACUUM INTO), `POST /api/restore` prüft, `restore/apply` legt `mbusio.db.restore` bereit und
+  startet neu (`service::restart`: als Dienst Exit 75, sonst startet sich mbusio selbst mit
+  `MBUSIO_RESTARTED`); beim Start setzt `backup::restore_pending` sie vor dem Öffnen ein. Offen:
+  Schritt 2 (nur Einstellungen übertragen) und 3 (automatisch sichern), Lasttest für den Pi.
 - 28./29.10. (Durchsicht des ganzen Projekts, nach dem Tag v0.5.0): Sicherheit: ändernde
   Anfragen fremder Webseiten abgelehnt (`foreign_origin`, Origin ≠ Host → 403). Release mit
   `panic = "abort"` (Neustart durch systemd/Dienst statt vergifteter DB-Sperre). Verlauf über den

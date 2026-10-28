@@ -107,7 +107,7 @@ pub(super) fn csv_download(csv: String, what: &str, name: &str) -> Response {
     )
 }
 
-pub(super) fn download(body: String, mime: &str, filename: &str) -> Response {
+pub(super) fn download(body: impl Into<axum::body::Body>, mime: &str, filename: &str) -> Response {
     (
         [
             (header::CONTENT_TYPE, mime.to_string()),
@@ -116,7 +116,7 @@ pub(super) fn download(body: String, mime: &str, filename: &str) -> Response {
                 format!("attachment; filename=\"{filename}\""),
             ),
         ],
-        body,
+        body.into(),
     )
         .into_response()
 }

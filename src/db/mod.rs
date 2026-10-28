@@ -143,7 +143,17 @@ impl Db {
         };
         db.init()?;
         db.import_legacy(dir)?;
+        // für Sicherungen: eine ältere Version spielt keine Sicherung einer neueren ein
+        db.set_meta("app_version", env!("CARGO_PKG_VERSION"))?;
         Ok(db)
+    }
+
+    /// Stimmige, kompakte Kopie der ganzen Datenbank nach `path` (Sicherung), auch während
+    /// andere schreiben; `path` darf es noch nicht geben
+    pub fn backup_to(&self, path: &Path) -> Result<()> {
+        self.conn
+            .execute("VACUUM INTO ?1", [path.to_string_lossy()])?;
+        Ok(())
     }
 
     /// Nur im Speicher, für Tests

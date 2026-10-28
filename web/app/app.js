@@ -3,7 +3,7 @@
 // Gemeinsam mit dem Bericht: js/texts.js (t, UI) und js/base.js (request, esc, …).
 
 import { state, set, watch, activeLine } from "./store.js";
-import { text, menu, closeMenu, toast } from "./view.js";
+import { text, menu, closeMenu, toast, ask } from "./view.js";
 import { bind, keyList, onEscape } from "./keys.js";
 import { pollStatus, loadTree, reload, report } from "./data.js";
 import { startKopf } from "./app-kopf.js";
@@ -58,6 +58,30 @@ $("storage").addEventListener("change", async () => {
   } catch (e) {
     report(e);
     loadStorage();
+  }
+});
+// Sicherung des Geräts (Konzept Sicherung): herunterladen; einspielen erst nach Rückfrage mit dem
+// Inhalt, dann startet mbusio neu und die Seite verbindet sich von selbst wieder
+$("backup-get").href = apiHref("backup");
+$("backup-pick").addEventListener("click", () => $("backup-file").click());
+$("backup-file").addEventListener("change", async (ev) => {
+  const file = ev.target.files[0];
+  ev.target.value = "";
+  if (!file) return;
+  try {
+    const summary = await request("restore", { method: "POST", body: file });
+    if (!(await ask($("backup-pick"), t("bk_q", summary), t("bk_apply")))) return await request("restore", { method: "DELETE" });
+    await request("restore/apply", { method: "POST" });
+    closeMenu();
+    toast(t("bk_restarting"));
+    // neu laden, sobald das neu gestartete mbusio antwortet: alles kommt aus der Sicherung
+    await new Promise((r) => setTimeout(r, 2000));
+    for (let i = 0; i < 60; i++) {
+      if (await request("status").then(() => true, () => false)) return location.reload();
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  } catch (e) {
+    report(e);
   }
 });
 $("lang").addEventListener("change", (ev) => {

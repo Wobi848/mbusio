@@ -1,3 +1,4 @@
+mod backup;
 mod billing;
 mod changeset;
 mod cli;
@@ -114,6 +115,11 @@ pub fn local_url(port: u16) -> String {
     format!("http://127.0.0.1:{port}")
 }
 
+/// Hat mbusio sich selbst neu gestartet (z.B. nach dem Einspielen einer Sicherung)?
+fn restarted() -> bool {
+    std::env::var_os(service::RESTARTED).is_some()
+}
+
 /// Wie viele Ports nach dem gewünschten probiert werden, wenn Windows ihn sperrt
 const PORT_TRIES: u16 = 10;
 
@@ -122,9 +128,15 @@ const PORT_TRIES: u16 = 10;
 /// (zweiter Doppelklick): dann nur den Browser öffnen und `None` liefern.
 async fn listen(host: &str, port: u16, no_browser: bool) -> anyhow::Result<Option<TcpListener>> {
     let mut p = port;
+    // selbst neu gestartet: der alte Prozess gibt den Port gleich frei
+    let mut wait = if restarted() { 50 } else { 0 };
     loop {
         match TcpListener::bind((host, p)).await {
             Ok(l) => return Ok(Some(l)),
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && wait > 0 => {
+                wait -= 1;
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
             Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !no_browser => {
                 let url = local_url(p);
                 println!("Port {p} belegt, mbusio läuft vermutlich schon / already running: {url}");
@@ -202,6 +214,9 @@ async fn serve(
     stop: impl std::future::Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
     let data_dir = args.data_dir.clone().unwrap_or_else(db::default_dir);
+    if backup::restore_pending(&data_dir)? {
+        println!("Sicherung eingespielt / backup restored (vorher: mbusio.db.vorher)");
+    }
     let database = db::Db::open(&data_dir)?;
     let active = database.active()?;
     let state: web::AppState = Arc::new(web::Shared::new(
@@ -263,7 +278,8 @@ async fn serve(
         }
     }
     println!("Ctrl+C = Ende / quit");
-    if !args.no_browser {
+    // nach einem Neustart ist die Oberfläche schon offen und lädt von selbst
+    if !args.no_browser && !restarted() {
         open_browser(&url);
     }
 

@@ -316,9 +316,16 @@ Dann im Handy- oder Laptop-Browser `http://<IP des Pi>:8080` öffnen.
 
 ### Daten und Sicherung
 
-Alle Projekte, Zählerlisten, Auslesungen (mit Verlauf), letzten Scans und Änderungen liegen in
-**einer Datei** `mbusio.db` (SQLite). Zum Sichern mbusio beenden und die Datei kopieren, oder ein
-Projekt über „Projekt sichern“ als JSON-Datei sichern. Eine `meters.json` aus Version 0.3 wird beim
+Alle Projekte, Zählerlisten, Auslesungen (mit Verlauf), letzten Scans, Änderungen und
+Einstellungen (MQTT, Modbus, E-Mail samt Passwörtern) liegen in **einer Datei** `mbusio.db` (SQLite).
+
+**Sicherung des Geräts:** Einstellungen (⚙) → Sicherung → „Herunterladen“ liefert diese Datei als
+stimmige Kopie, auch während mbusio ausliest. Fällt das Gerät aus: auf dem neuen mbusio starten,
+⚙ → Sicherung → „Einspielen …“, die Rückfrage zeigt Projekte, Zähler und Zeitraum; danach startet
+mbusio neu und alles läuft wieder (Linien verbinden sich, Plan und Ausgänge wie vorher). Der
+bisherige Stand bleibt als `mbusio.db.vorher` liegen. Eine Sicherung einer neueren mbusio-Version
+lehnt eine ältere ab. Die Datei enthält die Passwörter: sicher aufbewahren. Einzelne Projekte gehen
+weiter über „Projekt sichern“ als JSON-Datei (ohne Geräte-Einstellungen). Eine `meters.json` aus Version 0.3 wird beim
 ersten Start ins Projekt „Standard“ übernommen.
 
 ### Kommandozeile
