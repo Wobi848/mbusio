@@ -34,12 +34,12 @@ export function opText(l) {
   return plan ? t("op_plan_waiting", plan) : t("op_no_plan");
 }
 
-/// Eigene Stile eines Bereichs (neu/<bereich>.css) einmal laden
+/// Eigene Stile eines Bereichs (app/<bereich>.css) einmal laden
 export function styles(area) {
   if (document.querySelector(`link[data-area="${area}"]`)) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = `neu/${area}.css`;
+  link.href = `app/${area}.css`;
   link.dataset.area = area;
   document.head.append(link);
 }

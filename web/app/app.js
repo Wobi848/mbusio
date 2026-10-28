@@ -136,7 +136,7 @@ function renderTabs() {
 }
 
 /// Arbeitsfläche: jeder Bereich hat eine eigene Fläche, die beim Wechsel bleibt (Scroll, Auswahl,
-/// Filter). Ein Bereich ist die Datei neu/<bereich>.js mit `mount(fläche)`, geladen beim ersten
+/// Filter). Ein Bereich ist die Datei app/<bereich>.js mit `mount(fläche)`, geladen beim ersten
 /// Öffnen.
 const panes = {};
 function renderWork() {

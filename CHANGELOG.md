@@ -14,8 +14,8 @@ SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschni
   Scrollen), Zustand als Wort am Element, genau ein Hauptknopf und „Nächster Schritt“ in der
   Statusleiste, Mehrfachauswahl, Tastatur, Rückfragen am Knopf statt Browser-Fenster, Wechsel von
   Linie und Projekt ohne Neuladen, Zeilen werden während eines Scans nicht mehr ersetzt (keine
-  verlorenen Klicks). Die bisherige Oberfläche ist entfernt; alte Lesezeichen auf `/neu/` führen
-  zur Startseite.
+  verlorenen Klicks). Die bisherige Oberfläche ist entfernt; die Oberfläche liegt in `web/app/`,
+  der Zwischenstand `/neu/` existiert nicht mehr.
 - **Protokoll und Meldungen in der eingestellten Sprache:** Meldungen aus dem Hintergrund
   (Zeitplan, MQTT, Modbus, Uhrzeit, Linie getrennt) waren immer deutsch; jetzt folgen sie der
   Sprache der Oberfläche, Einträge im Protokoll auch nach einem Sprachwechsel. Die Sprache bleibt

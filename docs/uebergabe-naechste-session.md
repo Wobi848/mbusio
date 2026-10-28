@@ -6,7 +6,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 ## Harte Regeln des Nutzers
 - Modbus TCP am 25.10. freigegeben (docs/konzept-modbus.md). Alles bleibt privat: nichts auf npm.
 - **Kein Release v0.5.0**, bevor der 7-Tage-Test auf dem Raspberry Pi gelaufen ist (Strom weg, USB ab, kleine SD-Karte).
-- KISS: wenig Code, wiederverwendbare Bausteine (web/neu/view.js, web/js/base.js), nichts doppelt, kein Spaghetti.
+- KISS: wenig Code, wiederverwendbare Bausteine (web/app/view.js, web/js/base.js), nichts doppelt, kein Spaghetti.
   Dazu gelten die globalen Coding-Prinzipien des Nutzers (~/.claude/CLAUDE.md), u.a. Dateien über ~400 Zeilen teilen.
 - Grössere Änderungen: erst Konzept (docs/konzept-*.md), dann bauen.
 - Buttons müssen klar sichtbar sein: primär / `.tonal` (sekundär) / `.quiet`; Menüpunkte immer quiet.
@@ -25,7 +25,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 ## Zuletzt erledigt
 - 28.10.: Aufräumen: Tastenverhalten bearbeitbarer Felder (Escape/Enter) einmal in `view.js`
   (`fieldKeys`), toter CSS-Rest entfernt, Übergabe nachgeführt. Doppelter Code laut jscpd 0,07 %.
-- 26./27.10.: Neue Oberfläche (docs/konzept-oberflaeche-neu.md) ist die einzige, liegt in `web/neu/`
+- 26./27.10.: Neue Oberfläche (docs/konzept-oberflaeche-neu.md) ist die einzige, liegt in `web/app/` (bis 28.10. `web/neu/`)
   (Bereiche als ES-Module, Texte je Bereich in `*-texte.js`); die alte ist entfernt. Beim Umbau
   verlorene Funktionen zurückgeholt, Test `25-alte-funktionen` hält sie fest. E-Mail als Ausgang
   (Meldungen, Warnungen, Bericht; docs/konzept-weitergabe-email.md), Abrechnung mit Stichtagen,
@@ -55,9 +55,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Port 1 am externen USB-Hub des Nutzers ist kaputt (kein Softwareproblem).
 
 ## Offen (in dieser Reihenfolge)
-- Zur Entscheidung des Nutzers: Ordner `web/neu/` umbenennen (z.B. `web/app/`), seit es die einzige
-  Oberfläche ist; reine Umbenennung, berührt aber viele Pfade.
-- Später beim Ausbau teilen: web/neu/zaehler.js, weitergabe.js, scan.js (je 520–580 Zeilen).
+- Später beim Ausbau teilen: web/app/zaehler.js, weitergabe.js, scan.js (je 520–580 Zeilen).
 0. Node-RED: Entscheidung npm öffentlich ja/nein (mbusio-status ist gebaut).
 1. Windows-Dienst auf einem Windows-PC prüfen (Checkliste docs/konzept-hintergrund.md §9; wichtig: COM-Port unter LocalService).
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
@@ -75,6 +73,6 @@ Abweichung der Zähleruhr (`meters.clock_off`), USB-Ausfall nach 10 s erkannt (`
   Button-Ebenen §11.1, Farben §11.2), docs/konzept-scan.md, docs/konzept-dauerbetrieb.md (Roadmap, Abnahme §5.1),
   Ausgänge/Modbus/Node-RED/Home Assistant/E-Mail/Export je ein docs/konzept-*.md; HTTP-API: docs/api.md.
 - Rust: Aufbau der Module im README; Linien-Dienst src/line.rs (+ src/line/), Ports src/link.rs.
-- Web: web/index.html lädt web/neu/app.js; Bausteine in web/neu/view.js, Daten in store.js/data.js,
+- Web: web/index.html lädt web/app/app.js; Bausteine in web/app/view.js, Daten in store.js/data.js,
   gemeinsame Logik in web/js/ (base.js, texts.js, scanlogic.js, listlogic.js, plot.js).
 - docs/uebergabe-design-v2.md ist abgelöst (historisch).

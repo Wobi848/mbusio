@@ -36,12 +36,12 @@ Lies vor der ersten Arbeit `docs/konzept-bedienung.md`, vor allem §9 bis §14.
 - **Farben für Probleme (§11.2):** Orange = Hinweis (funktioniert, kommt mit), Rot = Fehler
   (funktioniert nicht) und Gefährliches (Löschen). Grün = läuft / in Ordnung.
 - **Ein/Aus-Zustände** als Schalter (`input.switch`, gross: `.switch.big`), nicht als zwei Knöpfe.
-- **Bausteine wiederverwenden:** `web/neu/view.js` (list, menu, ask, toast, previewApply …)
+- **Bausteine wiederverwenden:** `web/app/view.js` (list, menu, ask, toast, previewApply …)
   und die Farben/Abstände als CSS-Variablen in `web/css/tokens.css` (`--accent`, `--ok`, `--warn`,
   `--err`, `--*-soft`, `--line`, `--surface`, `--muted` …). Keine neuen Farbwerte oder
   Einzelstile daneben; fehlt ein Baustein, ihn einmal anlegen und überall nutzen.
-- **CSS nach Bereich:** `web/neu/app.css` (Gerüst, Kopfzeile, Statusleiste, Knöpfe), dazu je Bereich
-  `web/neu/<bereich>.css`.
+- **CSS nach Bereich:** `web/app/app.css` (Gerüst, Kopfzeile, Statusleiste, Knöpfe), dazu je Bereich
+  `web/app/<bereich>.css`.
 - **Texte** über `web/js/texts.js` oder `texts()` im Bereich, immer Deutsch und Englisch. Deutsch: Schweizer
   Schreibweise (ss statt ß).
 - **Immer drei Ansichten:** Desktop (1250 px), Handy (390 px), Dunkelmodus. Nichts darf

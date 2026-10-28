@@ -451,7 +451,7 @@ Aufbau:
   Ausgänge, Linien) folgt der Sprache der Oberfläche (letzte Anfrage mit `X-Lang`); Meldungen fürs
   Protokoll entstehen mit `both` in beiden Sprachen und erscheinen in der Sprache, die fragt; alle
   Texte der Oberfläche und des Berichts in `web/js/texts.js` bzw. beim Bereich
-- `web/index.html` und `web/neu/`: Oberfläche als ES-Module ohne Build-Schritt (Konzept
+- `web/index.html` und `web/app/`: Oberfläche als ES-Module ohne Build-Schritt (Konzept
   `docs/konzept-oberflaeche-neu.md`): `app.js` (Start, Laschen, Einstellungen),
   `app-kopf.js` und `app-statusleiste.js`, `store.js` (Zustand), `view.js` (Bausteine: Liste mit
   Schlüssel, Rückfrage am Ort, Rückgängig, Vorschau → Übernehmen), `keys.js` (Tastatur), `data.js`

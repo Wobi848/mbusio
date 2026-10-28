@@ -78,7 +78,7 @@ export default {
 
     // Liste mit Schlüssel: unveränderte Zeile bleibt dasselbe Element, geänderte wird ersetzt
     const same = await page.evaluate(async () => {
-      const { list } = await import("./neu/view.js");
+      const { list } = await import("./app/view.js");
       const box = document.createElement("div");
       const row = (x) => `<div>${x.text}</div>`;
       list(box, [{ id: 1, text: "a" }, { id: 2, text: "b" }, { id: 3, text: "c" }], (x) => x.id, row);

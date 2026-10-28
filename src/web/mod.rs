@@ -226,7 +226,7 @@ async fn check_token(st: AppState, req: Request, next: Next) -> Response {
     next.run(req).await
 }
 
-/// Dateien der Oberfläche. Ein Verzeichnis liefert seine `index.html` (`/`, `/neu/`). Mit ETag aus
+/// Dateien der Oberfläche. Ein Verzeichnis liefert seine `index.html` (`/`). Mit ETag aus
 /// dem Inhalt: der Browser fragt nur nach, unveränderte Dateien kommen als 304 (Pi über WLAN).
 async fn static_file(uri: Uri, headers: HeaderMap) -> Response {
     let path = uri.path().trim_start_matches('/');
@@ -283,7 +283,7 @@ mod tests {
 
     #[tokio::test]
     async fn static_files_with_index_and_etag() {
-        for path in ["/", "/neu/", "/neu", "/js/base.js"] {
+        for path in ["/", "/js/base.js"] {
             assert_eq!(get(path, None).await.status(), StatusCode::OK, "{path}");
         }
         assert_eq!(

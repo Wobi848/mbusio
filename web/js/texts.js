@@ -30,7 +30,7 @@ const UI = {
     op_chip: "Dauerbetrieb",
     op_running: "läuft",
     op_no_plan: "kein Ausleseplan",
-    // neue Oberfläche (web/neu)
+    // Oberfläche (web/app)
     n_undo: "Rückgängig",
     n_change: "Ändern",
     n_next: "Nächster Schritt",
@@ -599,7 +599,7 @@ const UI = {
     op_chip: "Continuous operation",
     op_running: "running",
     op_no_plan: "no read plan",
-    // new interface (web/neu)
+    // interface (web/app)
     n_undo: "Undo",
     n_change: "Change",
     n_next: "Next step",
