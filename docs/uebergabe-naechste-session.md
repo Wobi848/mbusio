@@ -1,4 +1,4 @@
-# Übergabe an die nächste Session (Stand 2026-10-28)
+# Übergabe an die nächste Session (Stand 2026-10-29)
 
 Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, Stand siehe `git log` (der letzte Eintrag hier: Aufräumen vom 28.10.).
 Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
@@ -17,12 +17,21 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - CI (GitHub Actions, privates Repo, Gratis-Plan 2000 Minuten/Monat): bei jedem Push nur Tests
   (Rust, UI, Node-RED); die Builds nur bei Tag `v*` oder von Hand. Am 25.10. war das Kontingent
   aufgebraucht (Jobs starten nicht) – dann lokal prüfen.
-- `cargo test` → 178 passed, 1 ignored; `cargo clippy --all-targets` ohne Warnungen.
+- `cargo test` → 180 passed, 1 ignored; `cargo clippy --all-targets` ohne Warnungen.
 - UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 25 Tests, alle grün (dauert ca. 20 min).
 - Server lokal: `cargo run -- --no-browser` (Port 8080; der Debug-Build liest web/ direkt von der Platte).
 - Commits **ohne** KI-Hinweis (globale Regel des Nutzers); nach jedem fertigen Schritt committen und pushen. Nicht mergen ohne ausdrückliches OK.
 
 ## Zuletzt erledigt
+- 28./29.10. (Durchsicht des ganzen Projekts, nach dem Tag v0.5.0): Sicherheit: ändernde
+  Anfragen fremder Webseiten abgelehnt (`foreign_origin`, Origin ≠ Host → 403). Release mit
+  `panic = "abort"` (Neustart durch systemd/Dienst statt vergifteter DB-Sperre). Verlauf über den
+  ganzen Zeitraum (über 2000: letzte je Tag). Oberfläche: „mbusio antwortet nicht“ bei Ausfall,
+  Zählerliste/Projektbaum laden bei `status.changes` neu, Nächster Schritt „Zähler auslesen“ bis
+  `unread` = 0. Import 2000 Zähler 0,5 s statt 8,5 s. Bericht: ein Datumsformat (`dateTime` in
+  base.js), Einzahl, keine „?“ im Änderungsprotokoll. Kontrast hell (Grün), Anlage ohne
+  abgeschnittene Wörter, gemeinsame Listentasten (`selectionKeys` in keys.js). Windows-Teil mit
+  clippy (Platzhalter-CC) ohne Warnungen.
 - 28.10.: Aufräumen: Tastenverhalten bearbeitbarer Felder (Escape/Enter) einmal in `view.js`
   (`fieldKeys`), toter CSS-Rest entfernt, Übergabe nachgeführt. Doppelter Code laut jscpd 0,07 %.
 - 26./27.10.: Neue Oberfläche (docs/konzept-oberflaeche-neu.md) ist die einzige, liegt in `web/app/` (bis 28.10. `web/neu/`)
@@ -61,6 +70,8 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
 2. 7-Tage-Test auf dem Raspberry Pi (Linien dort mit dem Schalter „Dauerbetrieb“ einschalten); steht für v0.5.0 noch aus.
    GitHub Actions war ab 25.10. gesperrt (Abrechnung/Kontingent): prüfen, ob der Tag v0.5.0 gebaut und als Release veröffentlicht wurde.
+   Der Tag v0.5.0 (411c6a3) liegt VOR den Korrekturen vom 28./29.10. (u.a. Sicherheit); Nutzer fragen,
+   ob er verschoben werden soll (nichts gebaut, noch nicht veröffentlicht) oder v0.5.1 folgt.
 3. Optional: USB wieder einstecken, bevor mbusio den Ausfall merkt (Linux vergibt dann ttyUSB1; fester Name sollte es abfangen).
 4. Weitere Punkte aus dem Simulator-Test hat der Nutzer nie genannt; bei Gelegenheit nachfragen.
 
