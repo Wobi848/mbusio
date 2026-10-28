@@ -5,7 +5,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 ## Harte Regeln des Nutzers
 - Modbus TCP am 25.10. freigegeben (docs/konzept-modbus.md). Alles bleibt privat: nichts auf npm.
-- **Kein Release v0.5.0**, bevor der 7-Tage-Test auf dem Raspberry Pi gelaufen ist (Strom weg, USB ab, kleine SD-Karte).
+- v0.5.0 am 28.10. auf Wunsch des Nutzers ohne Pi-/Windows-Test getaggt (im CHANGELOG vermerkt). Releases nur nach ausdrücklichem OK.
 - KISS: wenig Code, wiederverwendbare Bausteine (web/app/view.js, web/js/base.js), nichts doppelt, kein Spaghetti.
   Dazu gelten die globalen Coding-Prinzipien des Nutzers (~/.claude/CLAUDE.md), u.a. Dateien über ~400 Zeilen teilen.
 - Grössere Änderungen: erst Konzept (docs/konzept-*.md), dann bauen.
@@ -59,7 +59,8 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 0. Node-RED: Entscheidung npm öffentlich ja/nein (mbusio-status ist gebaut).
 1. Windows-Dienst auf einem Windows-PC prüfen (Checkliste docs/konzept-hintergrund.md §9; wichtig: COM-Port unter LocalService).
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
-2. 7-Tage-Test auf dem Raspberry Pi (Linien dort mit dem Schalter „Dauerbetrieb“ einschalten), danach erst Release v0.5.0.
+2. 7-Tage-Test auf dem Raspberry Pi (Linien dort mit dem Schalter „Dauerbetrieb“ einschalten); steht für v0.5.0 noch aus.
+   GitHub Actions war ab 25.10. gesperrt (Abrechnung/Kontingent): prüfen, ob der Tag v0.5.0 gebaut und als Release veröffentlicht wurde.
 3. Optional: USB wieder einstecken, bevor mbusio den Ausfall merkt (Linux vergibt dann ttyUSB1; fester Name sollte es abfangen).
 4. Weitere Punkte aus dem Simulator-Test hat der Nutzer nie genannt; bei Gelegenheit nachfragen.
 

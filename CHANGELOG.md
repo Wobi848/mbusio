@@ -2,10 +2,13 @@
 
 Was sich für Benutzer ändert, je Version. Neuestes oben.
 
-## Unveröffentlicht (wird v0.5.0)
+## v0.5.0 (28.10.2026)
 
-Erscheint nach den Hardware-Tests (7 Tage Raspberry Pi, Stromausfall, USB-Wandler abziehen, kleine
-SD-Karte, MQTT mit echtem Broker), siehe `docs/konzept-dauerbetrieb.md`, Abschnitt 11.
+Geprüft mit echter Hardware (Relay MR003 USB, Itron-Wärme-/Kältezähler, echter MQTT-Broker, USB
+abziehen im Dauerbetrieb) und mit Daten von v0.4.0 (werden ohne Zutun übernommen). **Noch offen:**
+der 7-Tage-Test auf einem Raspberry Pi und die Prüfung des Windows-Dienstes auf einem Windows-PC,
+siehe `docs/konzept-dauerbetrieb.md`, Abschnitt 11. Für den Dauerbetrieb beim Kunden darum zuerst
+eine Anlage zur Probe betreiben.
 
 ### Neu
 
