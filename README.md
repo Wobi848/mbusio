@@ -347,7 +347,7 @@ sonst öffnet man ihn unter **Werkzeuge → Simulator**. Eingebaute Vorlagen:
 
 | Simulation | Anschluss | Inhalt |
 | --- | --- | --- |
-| Praxis mit typischen Fehlern | `SIMULATOR` | 21 Zähler mit Fehlern aus der Praxis (Tabelle unten) |
+| Praxis mit typischen Fehlern | `SIMULATOR` | 20 Zähler mit Fehlern aus der Praxis (Tabelle unten) |
 | Alles in Ordnung – 10 Zähler | `SIMULATOR:ok10` | Wärme, Kalt- und Warmwasser, Strom, Gas, PA 1–10 |
 | Mehrfamilienhaus – 30 Zähler i.O. | `SIMULATOR:mfh30` | 10 Wohnungen mit Wärme, Kalt- und Warmwasser |
 | Gemischte Baudraten | `SIMULATOR:bauds` | 8 Zähler auf 2400, 9600 und 300 Bd, sonst i.O. |

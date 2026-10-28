@@ -244,10 +244,7 @@ pub fn builtins() -> Vec<Scenario> {
     vec![
         b(
             "praxis",
-            tr(
-                "Praxis mit typischen Fehlern (21 Zähler)",
-                "Real life with typical faults (21 meters)",
-            ),
+            tr("Praxis mit typischen Fehlern", "Real life with typical faults"),
             praxis(),
         ),
         b(
