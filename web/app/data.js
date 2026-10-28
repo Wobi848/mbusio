@@ -1,10 +1,13 @@
 // Daten vom Server in den Zustand laden; von allen Bereichen benutzt
 
-import { set, activeLine } from "./store.js";
+import { state, set, activeLine } from "./store.js";
 import { toast, ask } from "./view.js";
 
 export async function loadStatus() {
+  const before = state.status?.changes;
   set({ status: await request("status") });
+  // Daten im Hintergrund geändert (Plan, anderes Fenster): Zählerliste nachführen
+  if (before != null && state.status.changes !== before && state.meters) loadMeters().catch(() => {});
 }
 
 /// Dauerbetrieb einer Linie schalten (Schalter in Kopfzeile oder Anlage); aus nur nach Rückfrage

@@ -22,6 +22,8 @@ pub(super) async fn status(State(st): State<AppState>) -> ApiResult<serde_json::
         "connection": conn,
         "job_running": running,
         "readings": db.reading_count(active.line.id)?,
+        // zählt bei jeder Änderung der Daten hoch (auch Auslesungen des Plans im Hintergrund)
+        "changes": *db.changes.borrow(),
         "version": env!("CARGO_PKG_VERSION"),
         "token_required": st.token.is_some(),
         "meters_file": db.path().map(|p| p.display().to_string()),

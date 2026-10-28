@@ -19,6 +19,9 @@ export default {
     assert.match(await rows(page).nth(0).textContent(), /kWh/);
     assert.match(await rows(page).nth(1).textContent(), /noch nicht ausgelesen/);
     assert.match(await rows(page).nth(3).textContent(), /ohne Namen/);
+    // im Hintergrund ausgelesen (Plan, anderes Fenster): die offene Liste zieht nach
+    await api("meters/3/read", "POST");
+    await page.waitForFunction(() => /kWh|m³/.test(document.querySelectorAll("[data-list] [role=option]")[2]?.textContent), null, { timeout: 12000 });
 
     // Suche und Filter mit Anzahl
     await page.keyboard.press("/");
