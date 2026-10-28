@@ -224,6 +224,12 @@ eine Anlage zur Probe betreiben.
 
 ### Behoben
 
+- **Verlauf eines Zählers über den ganzen Zeitraum:** bisher kamen nur die letzten 2000
+  Auslesungen (bei stündlichem Plan knapp 3 Monate, bei 15 min 3 Wochen); „Erste“, Diagramm und
+  CSV zeigten nur diesen Ausschnitt. Jetzt alle Auslesungen, bei mehr als 2000 die letzte je Tag.
+- **Zählerliste zieht nach:** liest der Plan im Hintergrund (Dauerbetrieb) oder ein anderes
+  Fenster, zeigt die offene Liste die neuen Werte, statt bei „noch nicht ausgelesen“ zu bleiben.
+
 - **Funktionen der bisherigen Oberfläche, die gefehlt haben**, sind zurück:
   - Zähler → „Liste ▾“: **Benennen in der Liste** (Name und Ort direkt in den Zeilen, Enter zum
     nächsten Zähler, „↓“ übernimmt den Ort von oben), **Messwerte als CSV oder JSON** (alle

@@ -410,3 +410,31 @@ fn storage_protection_thins_in_steps_and_compacts() {
     assert_eq!(mode(&Db::open(&dir).unwrap()), 2);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn long_history_keeps_the_whole_period_with_one_reading_per_day() {
+    let (mut db, line, mid, r) = crate::testutil::db_with_energy();
+    db.conn.execute("DELETE FROM readings", []).unwrap();
+    for day in 1..=10 {
+        for hour in [0, 6, 12, 18] {
+            let r = MeterReading {
+                timestamp: format!("2026-10-{day:02} {hour:02}:00:00"),
+                ..r.clone()
+            };
+            db.conn
+                .execute(
+                    "INSERT INTO readings (line_id, meter, timestamp, data) VALUES (?1, ?2, ?3, ?4)",
+                    params![line, mid, r.timestamp, serde_json::to_string(&r).unwrap()],
+                )
+                .unwrap();
+        }
+    }
+    // wenige: alle
+    assert_eq!(db.meter_history(mid, 100).unwrap().len(), 40);
+    // mehr als das Limit: die letzte je Tag, der Anfang bleibt
+    let h = db.meter_history(mid, 20).unwrap();
+    let days: Vec<&str> = h.iter().map(|x| x.timestamp.as_str()).collect();
+    assert_eq!(days.len(), 10);
+    assert_eq!(days[0], "2026-10-01 18:00:00");
+    assert_eq!(days[9], "2026-10-10 18:00:00");
+}

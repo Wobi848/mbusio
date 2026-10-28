@@ -53,11 +53,20 @@ impl Db {
         id: i64,
         limit: usize,
     ) -> Result<Vec<MeterReading>> {
-        let mut st = self.conn.prepare(&format!(
-            "SELECT * FROM (SELECT id, data, raw, timestamp, utc, target, time_unsure FROM readings
-               WHERE {column} = ?1 ORDER BY id DESC LIMIT ?2)
-             ORDER BY id"
-        ))?;
+        self.decoded(
+            &format!(
+                "SELECT * FROM (SELECT id, data, raw, timestamp, utc, target, time_unsure FROM readings
+                   WHERE {column} = ?1 ORDER BY id DESC LIMIT ?2)
+                 ORDER BY id"
+            ),
+            id,
+            limit,
+        )
+    }
+
+    /// Zeilen aus `sql` (Parameter ?1 = id, ?2 = limit) als Auslesungen, unlesbare übersprungen
+    fn decoded(&self, sql: &str, id: i64, limit: usize) -> Result<Vec<MeterReading>> {
+        let mut st = self.conn.prepare(sql)?;
         let rows = st.query_map(params![id, limit as i64], reading_row)?;
         let mut out = Vec::new();
         for row in rows {
@@ -87,9 +96,26 @@ impl Db {
             .execute("DELETE FROM readings WHERE line_id = ?1", [line_id])?)
     }
 
-    /// Verlauf eines Zählers: seine Auslesungen, älteste zuerst (höchstens `limit` neueste)
+    /// Verlauf eines Zählers über den ganzen Zeitraum, älteste zuerst: alle Auslesungen; sind es
+    /// mehr als `limit`, die letzte je Tag (bei Zählerständen genügt der Tageswert für Diagramm und
+    /// CSV, und der Anfang des Verlaufs fällt nicht weg), höchstens `limit` Tage
     pub fn meter_history(&self, meter_id: i64, limit: usize) -> Result<Vec<MeterReading>> {
-        self.query_readings("meter", meter_id, limit)
+        let n: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM readings WHERE meter = ?1",
+            [meter_id],
+            |r| r.get(0),
+        )?;
+        if n as usize <= limit {
+            return self.query_readings("meter", meter_id, limit);
+        }
+        self.decoded(
+            "SELECT * FROM (SELECT id, data, raw, timestamp, utc, target, time_unsure FROM readings
+               WHERE id IN (SELECT MAX(id) FROM readings WHERE meter = ?1 GROUP BY substr(timestamp, 1, 10))
+               ORDER BY id DESC LIMIT ?2)
+             ORDER BY id",
+            meter_id,
+            limit,
+        )
     }
 
     /// Neueste Auslesung eines Zählers der Liste
