@@ -205,7 +205,7 @@ function render() {
   html(
     q("[data-range]"),
     view.kind === "primary"
-      ? `<label class="inline"><span class="sub">${esc(t("sc_from_to"))}</span><input type="number" min="0" max="250" data-from value="${view.from}"><span class="sub">–</span><input type="number" min="0" max="250" data-to value="${view.to}"></label>
+      ? `<label class="inline"><span class="sub">${esc(t("sc_from_to"))}</span><input type="number" min="0" max="250" data-from value="${view.from}"><span class="sub">–</span><input type="number" min="0" max="250" data-to value="${view.to}" aria-label="${esc(t("sc_to"))}"></label>
         <label class="inline" title="${esc(t("sc_retries_title"))}"><span class="sub">${esc(t("sc_retries"))}</span><select data-retries>${RETRIES.map((n) => `<option value="${n}"${n === view.retries ? " selected" : ""}>${n}</option>`).join("")}</select></label>`
       : `<label class="inline"><span class="sub">${esc(t("scan_prefix"))}</span><input data-prefix class="mono" maxlength="7" value="${esc(view.prefix)}" placeholder="${esc(t("scan_prefix_ph"))}"></label>`
   );
