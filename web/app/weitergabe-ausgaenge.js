@@ -252,5 +252,7 @@ export function formValues(key, cfg, form) {
     const el = form.elements[name];
     values[name] = kind === "check" ? el.checked : kind === "number" ? Number(el.value) || 0 : el.value;
   }
+  // Modbus: die Auswahlfelder liefern Text
+  if (key === "modbus") Object.assign(values, { project: Number(values.project), swap_words: values.swap_words === "true" });
   return values;
 }

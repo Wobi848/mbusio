@@ -119,13 +119,19 @@ async function toggleOutput(input) {
   }
   if (!on && !(await ask(input, t("wg_off_q", label), t("n_switch_off")))) return;
   try {
-    if (key === "mqtt") await request("mqtt", { method: "PUT", body: { config: { ...cfg.mqtt.config, enabled: on }, password: null } });
-    else if (key === "email") await request("mail", { method: "PUT", body: { config: { ...cfg.email.config, enabled: on } } });
-    else await request("modbus", { method: "PUT", body: { ...cfg.modbus.config, enabled: on } });
+    await putOutput(key, { enabled: on });
     await load();
   } catch (e) {
     report(e);
   }
+}
+
+/// Einstellungen eines Ausgangs zum Server, ergänzt um die gespeicherten; leeres Passwort = gespeichertes behalten
+function putOutput(key, changes) {
+  const { password, ...rest } = changes;
+  if (key === "mqtt") return request("mqtt", { method: "PUT", body: { config: { ...cfg.mqtt.config, ...rest }, password: password || null } });
+  if (key === "email") return request("mail", { method: "PUT", body: { config: { ...cfg.email.config, ...rest }, password: password || undefined } });
+  return request("modbus", { method: "PUT", body: { ...cfg.modbus.config, ...rest } });
 }
 
 /// Abrechnung und Protokoll schliessen: es ist immer nur eine Ansicht offen
@@ -148,16 +154,7 @@ async function saveOutput(form) {
   const key = form.dataset.outForm;
   const values = { ...formValues(key, cfg, form), ...(view.enableOnSave ? { enabled: true } : {}) };
   try {
-    if (key === "mqtt") {
-      const { password, ...rest } = values;
-      await request("mqtt", { method: "PUT", body: { config: { ...cfg.mqtt.config, ...rest }, password: password || null } });
-    } else if (key === "email") {
-      // leeres Passwort = gespeichertes behalten
-      const { password, ...rest } = values;
-      await request("mail", { method: "PUT", body: { config: { ...cfg.email.config, ...rest }, password: password || undefined } });
-    } else {
-      await request("modbus", { method: "PUT", body: { ...cfg.modbus.config, ...values, project: Number(values.project), swap_words: values.swap_words === "true" } });
-    }
+    await putOutput(key, values);
     toast(t(key === "mqtt" ? "mqtt_saved" : key === "email" ? "wg_m_saved" : "modbus_saved"));
     view.output = null;
     await load();
@@ -169,7 +166,7 @@ async function saveOutput(form) {
 /// Abschnitt Warnungen oder Bericht speichern; das Formular des Servers bleibt offen
 async function saveMailPart(part, values, saved) {
   try {
-    await request("mail", { method: "PUT", body: { config: { ...cfg.email.config, [part]: values } } });
+    await putOutput("email", { [part]: values });
     toast(t(saved));
     cfg.email = await request("mail");
   } catch (e) {

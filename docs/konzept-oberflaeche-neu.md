@@ -140,22 +140,21 @@ vom leeren Projekt bis zum Bericht, nur indem er dem einen Hauptknopf folgt.
 
 ```
 web/index.html          Gerüst: Kopfzeile, Laschen, Arbeitsfläche, Bus-Konsole, Statusleiste
-web/neu/index.html      leitet alte Lesezeichen /neu/ auf / weiter
-web/neu/app.js          Start, Texte, Einstellungen, Bereiche umschalten, Tasten
-web/neu/app-kopf.js     Kopfzeile: Projekt › Linie, Anschluss, Dauerbetrieb, „N im Dauerbetrieb“
-web/neu/app-statusleiste.js  Statusleiste, Nächster Schritt, Bus-Konsole
-web/neu/store.js        Zustand und Benachrichtigung; activeLine, faulty (Regel „gestört“)
-web/neu/data.js         Laden vom Server, Linie wechseln, Dauerbetrieb schalten, Fehler melden
-web/neu/view.js         Bausteine: Liste mit Schlüssel, Menü, Rückfrage am Ort, Meldung mit
+web/app/app.js          Start, Texte, Einstellungen, Bereiche umschalten, Tasten
+web/app/app-kopf.js     Kopfzeile: Projekt › Linie, Anschluss, Dauerbetrieb, „N im Dauerbetrieb“
+web/app/app-statusleiste.js  Statusleiste, Nächster Schritt, Bus-Konsole
+web/app/store.js        Zustand und Benachrichtigung; activeLine, faulty (Regel „gestört“)
+web/app/data.js         Laden vom Server, Linie wechseln, Dauerbetrieb schalten, Fehler melden
+web/app/view.js         Bausteine: Liste mit Schlüssel, Menü, Rückfrage am Ort, Meldung mit
                         Rückgängig, Vorschau → Übernehmen; outputWord, opText, opPossible
-web/neu/keys.js         Tastatur: eine Stelle für alle Kürzel
-web/neu/buslog.js       Protokoll des Busses für Werkzeuge und Bus-Konsole
-web/neu/<bereich>.js    anlage, scan, zaehler, weitergabe, werkzeuge, simulator; je mit .css:
+web/app/keys.js         Tastatur: eine Stelle für alle Kürzel
+web/app/buslog.js       Protokoll des Busses für Werkzeuge und Bus-Konsole
+web/app/<bereich>.js    anlage, scan, zaehler, weitergabe, werkzeuge, simulator; je mit .css:
                         Aufbau, Ablauf, Bedienung. Daneben <bereich>-texte.js (Texte) und
                         abgegrenzte Teile als reine Bausteine, die alles als Parameter bekommen:
                         anlage-zustand/-baum/-details, zaehler-ansicht/-verlauf/-listen,
                         weitergabe-ausgaenge, scan-baudraten, werkzeuge-analyse
-web/neu/app.css         Gerüst und Bausteine; Farben aus web/css/tokens.css
+web/app/app.css         Gerüst und Bausteine; Farben aus web/css/tokens.css
 ```
 
 Gemeinsam mit dem Bericht (`report.html`): `web/js/texts.js` (Texte DE/EN), `web/js/base.js`
@@ -203,10 +202,10 @@ Gemeinsam mit dem Bericht (`report.html`): `web/js/texts.js` (Texte DE/EN), `web
 
 ### 5.6 Einen Bereich bauen (Vorgabe, damit Bereiche unabhängig entstehen können)
 
-- **Eine Datei je Bereich:** `web/neu/<bereich>.js` (`scan`, `zaehler`, `weitergabe`, `anlage`,
+- **Eine Datei je Bereich:** `web/app/<bereich>.js` (`scan`, `zaehler`, `weitergabe`, `anlage`,
   `werkzeuge`, `simulator`) mit `export function mount(pane)`. `app.js` lädt sie selbst, wenn es
   die Datei gibt; an `app.js` ändert ein neuer Bereich nichts. Vorbild: `zaehler.js`.
-- **Eigene Stile** in `web/neu/<bereich>.css`, geladen mit `styles("<bereich>")` aus `view.js`,
+- **Eigene Stile** in `web/app/<bereich>.css`, geladen mit `styles("<bereich>")` aus `view.js`,
   alle Regeln beschränkt auf `[data-area=<bereich>]`. Allgemeines (Toolbar, Liste, Details,
   Auswahlleiste, Felder, Chips, Knöpfe) steht in `app.css` und wird benutzt, nicht kopiert.
 - **Eigene Texte** am Anfang der Datei mit `texts({…de}, {…en})` aus `view.js`; Schlüssel mit
