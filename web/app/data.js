@@ -10,6 +10,10 @@ export async function loadStatus() {
   if (before != null && state.status.changes !== before && state.meters) loadMeters().catch(() => {});
 }
 
+/// Regelmässige Statusabfrage; antwortet mbusio nicht (beendet, Pi neu gestartet), zeigen Kopf und
+/// Statusleiste das, statt beim letzten Stand „Verbunden“ stehen zu bleiben
+export const pollStatus = () => loadStatus().then(() => set({ offline: false }), () => set({ offline: true }));
+
 /// Dauerbetrieb einer Linie schalten (Schalter in Kopfzeile oder Anlage); aus nur nach Rückfrage
 /// am Ort. Der Schalter zeigt erst den echten Zustand, wenn der Server zugestimmt hat
 export async function switchOperation(sw, l) {

@@ -42,5 +42,13 @@ export default {
     await page.waitForSelector("[data-filter=attention][aria-pressed=true]");
     await page.waitForSelector("section[data-area=scan] [role=option].active");
     assert.match(await page.textContent("section[data-area=scan] [data-detail]"), /Kollision|Keine Daten/);
+
+    // mbusio antwortet nicht (beendet, Pi neu gestartet): Kopf und Statusleiste sagen es, statt
+    // „Verbunden“ stehen zu lassen; antwortet er wieder, ist alles wie vorher
+    await page.route("**/api/status", (r) => r.abort());
+    await page.waitForFunction(() => document.querySelector("#bus")?.textContent.includes("mbusio antwortet nicht"), null, { timeout: 12000 });
+    assert.match(await page.textContent("#conn-state"), /mbusio antwortet nicht/);
+    await page.unroute("**/api/status");
+    await page.waitForFunction(() => document.querySelector("#conn-state")?.textContent.includes("Verbunden"), null, { timeout: 12000 });
   },
 };

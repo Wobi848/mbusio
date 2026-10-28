@@ -125,7 +125,9 @@ pub(super) fn update_hits(
             changed = true;
         }
         if changed {
-            let _ = db.replace_last_scan(line, &scan);
+            if let Err(e) = db.replace_last_scan(line, &scan) {
+                st.log.push("INFO", format!("{e:#}"));
+            }
         }
     }
     found
@@ -166,7 +168,7 @@ pub(super) async fn set_address(
         "{name}: {} {old} → {new}",
         tr("Primäradresse", "primary address")
     );
-    let _ = st.db.lock().unwrap().add_change(line, &text);
+    record_change(&st, line, &text);
     Ok(Json(json!({ "ok": true, "new_address": new })))
 }
 
@@ -195,7 +197,7 @@ pub(super) async fn switch_baud(
         .unwrap_or_else(|| (target.label(), "?".into()));
     follow_list(&st, line, &target, None, Some(baud));
     let text = format!("{name}: {} {old} → {baud} Bd", tr("Baudrate", "baud rate"));
-    let _ = st.db.lock().unwrap().add_change(line, &text);
+    record_change(&st, line, &text);
     Ok(Json(json!({ "ok": true, "baud": baud })))
 }
 
@@ -302,4 +304,12 @@ pub(super) async fn labels() -> Json<serde_json::Map<String, serde_json::Value>>
 pub(super) async fn clear_log(State(st): State<AppState>) -> Json<serde_json::Value> {
     st.log.clear();
     Json(json!({ "ok": true }))
+}
+
+/// Änderung am Zähler ins Protokoll für den Bericht; klappt das Speichern nicht, steht es im Log
+/// (die Änderung am Zähler ist schon gemacht und gilt)
+fn record_change(st: &AppState, line: i64, text: &str) {
+    if let Err(e) = st.db.lock().unwrap().add_change(line, text) {
+        st.log.push("INFO", format!("{text}: {e:#}"));
+    }
 }

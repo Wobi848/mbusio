@@ -224,6 +224,13 @@ eine Anlage zur Probe betreiben.
 
 ### Behoben
 
+- **mbusio antwortet nicht:** ist der Server beendet oder der Pi neu gestartet, zeigen Kopf und
+  Statusleiste „mbusio antwortet nicht“ statt weiter „Verbunden“; danach geht es von selbst weiter.
+- **Messwerte als CSV/JSON** heissen ehrlich „letzte 5000 Auslesungen“ (hiess „alle“); für
+  Zeiträume gibt es die Abrechnung.
+- Scheitert das Protokoll einer Adress- oder Baudratenänderung, steht es im Log statt still zu
+  verschwinden.
+
 - **Verlauf eines Zählers über den ganzen Zeitraum:** bisher kamen nur die letzten 2000
   Auslesungen (bei stündlichem Plan knapp 3 Monate, bei 15 min 3 Wochen); „Erste“, Diagramm und
   CSV zeigten nur diesen Ausschnitt. Jetzt alle Auslesungen, bei mehr als 2000 die letzte je Tag.

@@ -109,6 +109,7 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .dot.on { background: var(--ok); }
 .dot.off { background: var(--muted); }
 .dot.warn { background: var(--warn); }
+.dot.err { background: var(--err); }
 .dot.busy { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
 

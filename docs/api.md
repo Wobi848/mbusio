@@ -110,7 +110,7 @@ Bezeichnungen zu Schlüsseln (`energy`, `medium_water`, `checksum` …): `GET /a
 | `POST /api/meters/names` | Namen nach Muster: `{pattern, ids?, only_empty, apply}` → `ChangeSet`. |
 | `GET /api/meters/csv` | Zählerliste als CSV (Datei). |
 | `GET /api/readings` | Die letzten 5000 Auslesungen der aktiven Linie (`MeterReading`), älteste zuerst. `DELETE` löscht sie. |
-| `GET /api/export?format=csv|json` | Auslesungen als Datei. |
+| `GET /api/export?format=csv|json` | Die letzten 5000 Auslesungen der aktiven Linie als Datei (für Zeiträume: Abrechnung). |
 
 ## 6. Projekte, Gateways, Linien
 

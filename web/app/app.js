@@ -5,7 +5,7 @@
 import { state, set, watch, activeLine } from "./store.js";
 import { text, menu, closeMenu, toast } from "./view.js";
 import { bind, keyList, onEscape } from "./keys.js";
-import { loadStatus, loadTree, reload, report } from "./data.js";
+import { pollStatus, loadTree, reload, report } from "./data.js";
 import { startKopf } from "./app-kopf.js";
 import { startStatusleiste } from "./app-statusleiste.js";
 import { startMeldungen } from "./app-meldungen.js";
@@ -181,7 +181,7 @@ async function start() {
   await reload().catch(report);
   // ohne Adresse dort anfangen, wo es weitergeht: noch keine Zähler → Scan, sonst Zähler (§3.4)
   if (!fromAddress) location.hash = activeLine()?.meters ? "#/zaehler" : "#/scan";
-  setInterval(() => loadStatus().catch(() => {}), STATUS_EVERY);
+  setInterval(pollStatus, STATUS_EVERY);
   setInterval(() => loadTree().catch(() => {}), TREE_EVERY);
 }
 

@@ -9,6 +9,7 @@ export const state = {
   job: null, // /api/job, solange ein Auftrag läuft
   scanNew: null, // { line, n }: im Scan gefunden, aber noch nicht in der Zählerliste
   area: "zaehler", // Bereich aus der Adresse (#/zaehler)
+  offline: false, // mbusio antwortet nicht (letzte Statusabfrage gescheitert)
 };
 
 const listeners = new Map(); // Feld → Set von Funktionen

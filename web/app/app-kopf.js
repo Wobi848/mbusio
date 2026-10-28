@@ -9,7 +9,7 @@ import { reload, useLine, report, switchOperation } from "./data.js";
 export function startKopf() {
   watch(["tree", "status"], renderProjects);
   watch(["tree", "status"], renderLine);
-  watch(["status"], renderConnection);
+  watch(["status", "offline"], renderConnection);
   watch(["tree", "status"], renderOperation);
   watch(["tree", "status"], renderOpAll);
 }
@@ -69,7 +69,9 @@ function renderConnection() {
   if (!s) return;
   const line = s.active.line;
   const btn = $("conn-action");
-  if (s.connected) {
+  if (state.offline) {
+    html($("conn-state"), `<span class="dot err"></span><b>${esc(t("server_offline"))}</b>`);
+  } else if (s.connected) {
     $("conn-state").title = "";
     html($("conn-state"), `<span class="dot on"></span><b>${esc(t("lb_connected"))}</b> <span class="mono">${esc(portText(s.connection.port))} · ${s.connection.baud}</span>`);
     text(btn, t("n_change"));

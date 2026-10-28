@@ -10,14 +10,15 @@ const CONSOLE_KEEP = 300; // Zeilen in der Bus-Konsole; alles in Werkzeuge
 
 /// Anzeigen an den Zustand hängen und das Protokoll abfragen, solange es jemand zeigt
 export function startStatusleiste() {
-  watch(["tree", "status"], renderStatus);
-  watch(["tree", "status", "meters", "scanNew"], renderNext);
+  watch(["tree", "status", "offline"], renderStatus);
+  watch(["tree", "status", "meters", "scanNew", "offline"], renderNext);
   watch(["log"], () => renderConsole());
   follow(() => consoleOpen || state.area === "werkzeuge");
 }
 
 /// Was der Bus gerade macht (Statusleiste und Kopf der Bus-Konsole)
 function busState(s) {
+  if (state.offline) return `<span class="dot err"></span>${esc(t("server_offline"))}`;
   const run = s.plans?.[0];
   return s.job_running
     ? `<span class="dot busy"></span>${esc(t("lb_busy"))}`
@@ -62,7 +63,7 @@ function renderStatus() {
 function nextStep() {
   const s = state.status;
   const l = activeLine();
-  if (!s || !l) return null;
+  if (!s || !l || state.offline) return null;
   const go = (area, sel) => () => goTo(area, sel);
   if (!l.connection) return ["guide_conn_set", () => $("conn-action").click()];
   if (!s.connected) return ["guide_connect", () => $("conn-action").click(), portText(l.connection)];
