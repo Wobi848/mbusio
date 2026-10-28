@@ -1,27 +1,36 @@
-# Übergabe an die nächste Session (Stand 2026-10-25)
+# Übergabe an die nächste Session (Stand 2026-10-28)
 
-Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, letzter Commit `12bee0a`.
+Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, Stand siehe `git log` (der letzte Eintrag hier: Aufräumen vom 28.10.).
 Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 ## Harte Regeln des Nutzers
 - Modbus TCP am 25.10. freigegeben (docs/konzept-modbus.md). Alles bleibt privat: nichts auf npm.
 - **Kein Release v0.5.0**, bevor der 7-Tage-Test auf dem Raspberry Pi gelaufen ist (Strom weg, USB ab, kleine SD-Karte).
-- KISS: wenig Code, wiederverwendbare Bausteine (web/js/ui.js, base.js), nichts doppelt, kein Spaghetti.
+- KISS: wenig Code, wiederverwendbare Bausteine (web/neu/view.js, web/js/base.js), nichts doppelt, kein Spaghetti.
+  Dazu gelten die globalen Coding-Prinzipien des Nutzers (~/.claude/CLAUDE.md), u.a. Dateien über ~400 Zeilen teilen.
 - Grössere Änderungen: erst Konzept (docs/konzept-*.md), dann bauen.
-- Buttons müssen klar sichtbar sein: primär / `.tonal` (sekundär) / `.quiet`. Menüpunkte (`.menu-items > button`) sind immer quiet.
-- Problemzähler: orange = Hinweis, Zähler bleibt übernehmbar (`tr.issue`), rot = Fehler (`tr.issue.fault`).
+- Buttons müssen klar sichtbar sein: primär / `.tonal` (sekundär) / `.quiet`; Menüpunkte immer quiet.
+- Problemzähler: orange = Hinweis, Zähler bleibt übernehmbar; rot = Fehler.
 - Plan-Vorgabe „Aus“, 24-h-Zeit, batteriebetriebene Zähler nicht zu oft auslesen.
 
 ## Tests
 - CI (GitHub Actions, privates Repo, Gratis-Plan 2000 Minuten/Monat): bei jedem Push nur Tests
   (Rust, UI, Node-RED); die Builds nur bei Tag `v*` oder von Hand. Am 25.10. war das Kontingent
   aufgebraucht (Jobs starten nicht) – dann lokal prüfen.
-- `cargo test` → 115 passed, 1 ignored.
-- UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 12 Tests, alle grün.
+- `cargo test` → 178 passed, 1 ignored; `cargo clippy --all-targets` ohne Warnungen.
+- UI: `PLAYWRIGHT=$(ls -d ~/.npm/_npx/*/node_modules/playwright|head -1) MBUSIO_TEST_BROKER=127.0.0.1:18830 node tests/ui/run.mjs` → 25 Tests, alle grün (dauert ca. 20 min).
 - Server lokal: `cargo run -- --no-browser` (Port 8080; der Debug-Build liest web/ direkt von der Platte).
 - Commits **ohne** KI-Hinweis (globale Regel des Nutzers); nach jedem fertigen Schritt committen und pushen. Nicht mergen ohne ausdrückliches OK.
 
 ## Zuletzt erledigt
+- 28.10.: Aufräumen: Tastenverhalten bearbeitbarer Felder (Escape/Enter) einmal in `view.js`
+  (`fieldKeys`), toter CSS-Rest entfernt, Übergabe nachgeführt. Doppelter Code laut jscpd 0,07 %.
+- 26./27.10.: Neue Oberfläche (docs/konzept-oberflaeche-neu.md) ist die einzige, liegt in `web/neu/`
+  (Bereiche als ES-Module, Texte je Bereich in `*-texte.js`); die alte ist entfernt. Beim Umbau
+  verlorene Funktionen zurückgeholt, Test `25-alte-funktionen` hält sie fest. E-Mail als Ausgang
+  (Meldungen, Warnungen, Bericht; docs/konzept-weitergabe-email.md), Abrechnung mit Stichtagen,
+  Quartal/Halbjahr, Zählertausch (docs/konzept-export.md), Weitergabe-Protokoll, Speicherschutz mit
+  Ausdünnen. Grosse Rust- und JS-Dateien nach Aufgaben geteilt, ohne Verhaltensänderung.
 - 25.10.: Modbus TCP (docs/konzept-modbus.md), geprüft mit eigenem Client und pymodbus. Simulator-
   Zählerstände laufen ab 1.10.2026 (Systemuhr) und überleben Neustarts. Repo hat nur diesen einen
   Branch (Standard-Branch), es gibt nichts zu mergen.
@@ -46,6 +55,9 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Port 1 am externen USB-Hub des Nutzers ist kaputt (kein Softwareproblem).
 
 ## Offen (in dieser Reihenfolge)
+- Zur Entscheidung des Nutzers: Ordner `web/neu/` umbenennen (z.B. `web/app/`), seit es die einzige
+  Oberfläche ist; reine Umbenennung, berührt aber viele Pfade.
+- Später beim Ausbau teilen: web/neu/zaehler.js, weitergabe.js, scan.js (je 520–580 Zeilen).
 0. Node-RED: Entscheidung npm öffentlich ja/nein (mbusio-status ist gebaut).
 1. Windows-Dienst auf einem Windows-PC prüfen (Checkliste docs/konzept-hintergrund.md §9; wichtig: COM-Port unter LocalService).
    Windows-Code hier prüfen: `rustup target add x86_64-pc-windows-gnu`, dann `cargo clippy --target x86_64-pc-windows-gnu` mit Platzhalter-C-Compiler (CC_x86_64_pc_windows_gnu=Skript, das nur die -Fo/-o-Datei anlegt; AR_…=ar).
@@ -59,6 +71,10 @@ Schalter, Hintergrund-Erkennung über cgroup, Fehler-Bit im Zählerstatus nur f�
 Abweichung der Zähleruhr (`meters.clock_off`), USB-Ausfall nach 10 s erkannt (`line::device_gone`).
 
 ## Wo was steht
-- Konzepte: docs/konzept-bedienung.md (Bedienung, Design v2, Button-Ebenen §11.1, Farben §11.2), docs/konzept-scan.md, docs/konzept-dauerbetrieb.md (Roadmap, MQTT).
-- Rust: src/link.rs (Ports, Simulator), src/web/ (axum-API), Linien-Dienste mit `with_bus` / `start_job`.
-- Web: web/js/ (ui.js-Bausteine, scan.js, guide.js, busbar.js), web/css/ (aufgeteilt nach Reiter).
+- Konzepte: docs/konzept-oberflaeche-neu.md (heutige Oberfläche), docs/konzept-bedienung.md (Leitbild §14,
+  Button-Ebenen §11.1, Farben §11.2), docs/konzept-scan.md, docs/konzept-dauerbetrieb.md (Roadmap, Abnahme §5.1),
+  Ausgänge/Modbus/Node-RED/Home Assistant/E-Mail/Export je ein docs/konzept-*.md; HTTP-API: docs/api.md.
+- Rust: Aufbau der Module im README; Linien-Dienst src/line.rs (+ src/line/), Ports src/link.rs.
+- Web: web/index.html lädt web/neu/app.js; Bausteine in web/neu/view.js, Daten in store.js/data.js,
+  gemeinsame Logik in web/js/ (base.js, texts.js, scanlogic.js, listlogic.js, plot.js).
+- docs/uebergabe-design-v2.md ist abgelöst (historisch).

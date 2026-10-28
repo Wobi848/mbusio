@@ -2,7 +2,7 @@
 // Datenpunkte als Liste, Details rechts (Konzept neue Oberfläche §3.2, Schritt 4).
 
 import { state, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, previewApply, menu, explain } from "./view.js";
+import { html, text, list, ask, toast, styles, previewApply, menu, explain, fieldKeys } from "./view.js";
 import { onEscape } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
@@ -533,15 +533,7 @@ function wire() {
     if (ev.target.matches("[data-report-form]")) return saveMailPart("report", reportValues(ev.target), "wg_r_saved");
     saveOutput(ev.target);
   });
-  root.addEventListener("keydown", (ev) => {
-    const el = ev.target;
-    if (el.matches("[data-dp-field], [data-dp-addr]") && ev.key === "Escape" && el.dataset.saved !== undefined) {
-      el.value = el.dataset.saved;
-      el.blur();
-      ev.stopPropagation();
-    }
-    if (el.matches("[data-dp-field], [data-dp-addr]") && ev.key === "Enter") el.blur();
-  });
+  root.addEventListener("keydown", (ev) => fieldKeys(ev, "[data-dp-field], [data-dp-addr]"));
   q("[data-list]").addEventListener("keydown", (ev) => {
     const rows = shown();
     const i = rows.findIndex((p) => p.id === view.active);

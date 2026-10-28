@@ -2,7 +2,7 @@
 // Zustand als Wort am Element, Bearbeiten direkt in den Feldern, Mehrfachauswahl, Tastatur.
 
 import { state, watch, activeLine, faulty } from "./store.js";
-import { html, text, list, ask, toast, styles, menu, closeMenu, explain } from "./view.js";
+import { html, text, list, ask, toast, styles, menu, closeMenu, explain, fieldKeys } from "./view.js";
 import { bind, onEscape } from "./keys.js";
 import { loadMeters, loadTree, loadStatus, report } from "./data.js";
 import "./zaehler-texte.js";
@@ -475,12 +475,7 @@ function wire() {
   });
   root.addEventListener("keydown", (ev) => {
     const el = ev.target;
-    if (el.matches("[data-field]") && ev.key === "Escape") {
-      el.value = el.dataset.saved;
-      el.blur();
-      ev.stopPropagation();
-    }
-    if (el.matches("[data-field]") && ev.key === "Enter") el.blur();
+    if (fieldKeys(ev, "[data-field]")) return;
     if (el.matches("[data-new]") && ev.key === "Enter") saveNew();
     if (el.matches("input[data-q]") && ev.key === "Enter") return quickEnter(ev, q("[data-list]"), state.meters);
     if (el.matches("input[data-q]")) ev.stopPropagation();

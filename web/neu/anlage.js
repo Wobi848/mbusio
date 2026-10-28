@@ -3,7 +3,7 @@
 // als Raster oben, nur wenn eine Linie des Projekts im Dauerbetrieb ist.
 
 import { state, set, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, texts, explain } from "./view.js";
+import { html, text, list, ask, toast, styles, texts, explain, fieldKeys } from "./view.js";
 import "./anlage-texte.js";
 import { allLines, sum, plantHtml } from "./anlage-zustand.js";
 import { rowHtml } from "./anlage-baum.js";
@@ -382,12 +382,7 @@ function wire() {
   });
   root.addEventListener("keydown", (ev) => {
     const el = ev.target;
-    if (el.matches("[data-field]") && ev.key === "Escape") {
-      el.value = el.dataset.saved;
-      el.blur();
-      ev.stopPropagation();
-    }
-    if (el.matches("input[data-field], input[data-plan-time]") && ev.key === "Enter") el.blur();
+    if (fieldKeys(ev, "[data-field], [data-plan-time]")) return;
     if (el.matches("[data-new]") && ev.key === "Enter") create(el.dataset.new);
     if (el.matches("[data-new]") && ev.key === "Escape") {
       ev.stopPropagation();

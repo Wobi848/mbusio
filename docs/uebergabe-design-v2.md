@@ -1,7 +1,7 @@
 # Übergabe: Oberfläche v2 – „Was gehört wozu“
 
-**Status: umgesetzt am 18.10.2026** (siehe `docs/konzept-bedienung.md`, Abschnitt 11, mit den
-Abweichungen).
+**Status: umgesetzt am 18.10.2026, abgelöst am 26.10.2026** durch die neue Oberfläche
+([konzept-oberflaeche-neu.md](konzept-oberflaeche-neu.md)). Nur noch zur Geschichte.
 
 Entwurf (Seite „v2 · Was gehört wozu“): https://claude.ai/artifact/YWf4vE2MMjHVDWHVMmP8mF
 Drei Artboards: **Zählerliste** (klickbar), **Scan**, **Bausteine**. Farben, Abstände, Knöpfe sind die

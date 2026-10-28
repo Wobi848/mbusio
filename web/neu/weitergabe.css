@@ -19,7 +19,6 @@
 [data-area=weitergabe] .outlog { margin-left: auto; display: inline-flex; gap: 2px; white-space: nowrap; }
 [data-area=weitergabe] .out-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 [data-area=weitergabe] .out .cut { flex: 0 1 auto; max-width: 280px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-area=weitergabe] .out-more { display: inline-flex; align-items: center; gap: 2px; flex: none; }
 [data-area=weitergabe] .out .cut:empty { display: none; }
 
 [data-area=weitergabe] .seg-like { height: 28px; background: transparent; border: 1px solid var(--line-strong); color: var(--muted); }
@@ -42,7 +41,6 @@
 @media (max-width: 999px) {
   [data-area=weitergabe] .out { width: 100%; flex-wrap: wrap; padding: 6px 10px; }
   [data-area=weitergabe] .out .cut { flex-basis: 100%; order: 5; }
-  [data-area=weitergabe] .out-more { order: 6; }
   [data-area=weitergabe] .row:not(.vrow) { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "box name quality" "box value outs"; padding: 6px 12px; row-gap: 2px; }
   [data-area=weitergabe] .row > :nth-child(1) { grid-area: box; }
   [data-area=weitergabe] .row > :nth-child(2) { display: none; }

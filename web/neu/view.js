@@ -91,6 +91,24 @@ function build(markup, key) {
   return el;
 }
 
+/// Feld, das beim Verlassen speichert: Escape stellt den gespeicherten Wert (data-saved) wieder her,
+/// Enter speichert (ausser im mehrzeiligen Feld). true, wenn die Taste verbraucht ist.
+export function fieldKeys(ev, selector) {
+  const el = ev.target;
+  if (!el.matches(selector)) return false;
+  if (ev.key === "Escape" && el.dataset.saved !== undefined) {
+    el.value = el.dataset.saved;
+    el.blur();
+    ev.stopPropagation();
+    return true;
+  }
+  if (ev.key === "Enter" && el.tagName !== "TEXTAREA") {
+    el.blur();
+    return true;
+  }
+  return false;
+}
+
 // ------------------------------------------------------------ Menüs
 
 let openMenu = null;
