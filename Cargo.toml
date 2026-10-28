@@ -34,6 +34,9 @@ windows-sys = { version = "0.61", features = ["Win32_System_Power"] }
 lto = true
 strip = true
 codegen-units = 1
+# Absturz beendet mbusio ganz: systemd (Restart=on-failure) bzw. der Windows-Dienst starten es neu,
+# statt dass es mit gesperrter Datenbank (vergifteter Mutex) halb weiterläuft
+panic = "abort"
 
 # nur beim Bauen unter Windows: Icon in die .exe (build.rs)
 [target.'cfg(windows)'.build-dependencies]
