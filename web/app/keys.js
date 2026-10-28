@@ -20,6 +20,31 @@ export function onEscape(close) {
   };
 }
 
+/// Tasten einer Liste mit Mehrfachauswahl (Zähler, Weitergabe): ↑↓ wählt (mit Umschalt auch
+/// markieren), Leertaste markiert, Strg+A markiert alle sichtbaren. `rows`: sichtbare Einträge mit
+/// `id`; `view`: { active, selected }. true, wenn die Taste verbraucht ist.
+export function selectionKeys(ev, { rows, view, select, toggle, render }) {
+  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+    ev.preventDefault();
+    const i = rows.findIndex((x) => x.id === view.active);
+    const next = rows[Math.max(0, Math.min(rows.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)))];
+    if (!next) return true;
+    if (ev.shiftKey && view.active != null) {
+      view.selected.add(view.active);
+      view.selected.add(next.id);
+    }
+    select(next.id);
+  } else if (ev.key === " " && view.active != null) {
+    ev.preventDefault();
+    toggle(view.active);
+  } else if (ev.key.toLowerCase() === "a" && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    for (const x of rows) view.selected.add(x.id);
+    render();
+  } else return false;
+  return true;
+}
+
 /// Tasten, die gerade wirken, für die Übersicht
 export function keyList() {
   return [...bindings].flatMap(([key, list]) => list.filter((b) => b.label && b.when()).map((b) => ({ key, label: b.label })));

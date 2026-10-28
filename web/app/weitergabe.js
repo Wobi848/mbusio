@@ -3,7 +3,7 @@
 
 import { state, watch } from "./store.js";
 import { html, text, list, ask, toast, styles, previewApply, menu, explain, fieldKeys } from "./view.js";
-import { onEscape } from "./keys.js";
+import { onEscape, selectionKeys } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
 import { outputsHtml, outputFormHtml, formValues, securityChanged, warnValues, reportValues, subjectPreview } from "./weitergabe-ausgaenge.js";
@@ -531,22 +531,9 @@ function wire() {
     saveOutput(ev.target);
   });
   root.addEventListener("keydown", (ev) => fieldKeys(ev, "[data-dp-field], [data-dp-addr]"));
-  q("[data-list]").addEventListener("keydown", (ev) => {
-    const rows = shown();
-    const i = rows.findIndex((p) => p.id === view.active);
-    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
-      ev.preventDefault();
-      const next = rows[Math.max(0, Math.min(rows.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)))];
-      if (next) select(next.id, true);
-    } else if (ev.key === " " && view.active != null) {
-      ev.preventDefault();
-      toggle(view.active);
-    } else if (ev.key.toLowerCase() === "a" && (ev.ctrlKey || ev.metaKey)) {
-      ev.preventDefault();
-      for (const p of rows) view.selected.add(p.id);
-      render();
-    }
-  });
+  q("[data-list]").addEventListener("keydown", (ev) =>
+    selectionKeys(ev, { rows: shown(), view, select: (id) => select(id, true), toggle, render })
+  );
 }
 
 function flash(el) {

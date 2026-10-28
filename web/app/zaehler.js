@@ -3,7 +3,7 @@
 
 import { state, watch, activeLine, faulty } from "./store.js";
 import { html, text, list, ask, toast, styles, menu, closeMenu, explain, fieldKeys } from "./view.js";
-import { bind, onEscape } from "./keys.js";
+import { bind, onEscape, selectionKeys } from "./keys.js";
 import { loadMeters, loadTree, loadStatus, report } from "./data.js";
 import "./zaehler-texte.js";
 import { drawHistory, setHistoryKey, setHistoryView, historyCsv, forgetHistory } from "./zaehler-verlauf.js";
@@ -481,27 +481,11 @@ function wire() {
     if (el.matches("input[data-q]")) ev.stopPropagation();
   });
   listEl.addEventListener("keydown", (ev) => {
-    const rows = shown();
-    const i = rows.findIndex((m) => m.id === view.active);
-    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
-      ev.preventDefault();
-      const next = rows[Math.max(0, Math.min(rows.length - 1, i + (ev.key === "ArrowDown" ? 1 : -1)))];
-      if (!next) return;
-      if (ev.shiftKey && view.active != null) {
-        view.selected.add(view.active);
-        view.selected.add(next.id);
-      }
-      select(next.id, { focusRow: true });
-    } else if (ev.key === " " && view.active != null) {
-      ev.preventDefault();
-      toggle(view.active);
-    } else if (ev.key === "Enter" && view.active != null) {
+    if (selectionKeys(ev, { rows: shown(), view, select: (id) => select(id, { focusRow: true }), toggle, render })) return;
+    // Enter: Namen des gewählten Zählers bearbeiten
+    if (ev.key === "Enter" && view.active != null) {
       ev.preventDefault();
       q("[data-field=name]")?.focus();
-    } else if (ev.key.toLowerCase() === "a" && (ev.ctrlKey || ev.metaKey)) {
-      ev.preventDefault();
-      for (const m of rows) view.selected.add(m.id);
-      render();
     }
   });
   root.addEventListener("input", (ev) => {
