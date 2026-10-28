@@ -17,7 +17,7 @@
   /* Crimson: nur Struktur (Logo, aktive Lasche, Überschriften), nie Zustand; Fehler bleiben --err */
   --brand: #b3123f;
   --brand-soft: #fbe9ee;
-  --ok: #15803d;
+  --ok: #147a3a; /* 4,5:1 auch auf --ok-soft (Chips) */
   --ok-soft: #e6f4ea;
   --warn: #a85000;
   --warn-soft: #fbf0e3;
