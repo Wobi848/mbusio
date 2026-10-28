@@ -4,6 +4,8 @@ import { assert, scanDone, simLine } from "./helpers.mjs";
 // Anschluss, suchen, merken, auslesen, Gestörte, Bericht, dann Dauerbetrieb, Werte, Ausgang
 
 const next = (page) => page.textContent("#next");
+// die Oberfläche fragt den Status alle 5 s ab; danach ist eine Änderung im Hintergrund angekommen
+const STATUS_POLL = 6000;
 const waitNext = (page, text, timeout = 30000) =>
   page.waitForFunction((t) => document.querySelector("#next:not([hidden])")?.textContent.includes(t), text, { timeout });
 
@@ -27,6 +29,11 @@ export default {
     await waitNext(page, "Gefundene merken");
     await page.click("#next");
     await waitNext(page, "Zähler auslesen");
+    // einer gelesen, die anderen nicht: weiter „Zähler auslesen“, nicht schon „Bericht“
+    const [one] = await api("meters");
+    await api(`meters/${one.id}/read`, "POST");
+    await page.waitForTimeout(STATUS_POLL);
+    assert.match(await page.textContent("#next"), /Zähler auslesen/);
     await page.click("#next");
     await page.waitForSelector(".tabs [data-area=zaehler][aria-current=page]");
     await waitNext(page, "Bericht", 60000);

@@ -413,7 +413,7 @@ fn storage_protection_thins_in_steps_and_compacts() {
 
 #[test]
 fn long_history_keeps_the_whole_period_with_one_reading_per_day() {
-    let (mut db, line, mid, r) = crate::testutil::db_with_energy();
+    let (db, line, mid, r) = crate::testutil::db_with_energy();
     db.conn.execute("DELETE FROM readings", []).unwrap();
     for day in 1..=10 {
         for hour in [0, 6, 12, 18] {

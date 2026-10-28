@@ -191,6 +191,26 @@ async fn notify_changes(State(st): State<AppState>, req: Request, next: Next) ->
     res
 }
 
+/// Ändernde Anfrage einer fremden Webseite (CSRF)? Der Browser schickt sie auch ohne Rückfrage an
+/// mbusio, z.B. ein POST „Projekt leeren“ an 127.0.0.1, aber immer mit dem `Origin` jener Seite.
+/// Programme ohne Browser (Node-RED, curl) schicken kein `Origin` und bleiben erlaubt.
+fn foreign_origin(req: &Request) -> bool {
+    use axum::http::Method;
+    if matches!(*req.method(), Method::GET | Method::HEAD | Method::OPTIONS) {
+        return false;
+    }
+    let Some(origin) = req.headers().get(header::ORIGIN) else {
+        return false;
+    };
+    let host = req.headers().get(header::HOST).and_then(|v| v.to_str().ok());
+    let origin_host = origin
+        .to_str()
+        .ok()
+        .and_then(|o| o.split_once("://"))
+        .map(|(_, h)| h);
+    origin_host.is_none() || origin_host != host
+}
+
 /// Prüft den Zugriffsschlüssel (Header `X-Token` oder `?token=`), falls einer gesetzt ist.
 async fn auth(State(st): State<AppState>, req: Request, next: Next) -> Response {
     let lang = lang_of(&req);
@@ -205,6 +225,16 @@ async fn auth(State(st): State<AppState>, req: Request, next: Next) -> Response 
 }
 
 async fn check_token(st: AppState, req: Request, next: Next) -> Response {
+    if foreign_origin(&req) {
+        return ApiError(
+            StatusCode::FORBIDDEN,
+            tr(
+                "Anfrage einer fremden Webseite abgelehnt",
+                "Request from another website refused",
+            ),
+        )
+        .into_response();
+    }
     if let Some(token) = &st.token {
         let header_ok =
             req.headers().get("x-token").and_then(|v| v.to_str().ok()) == Some(token.as_str());
@@ -279,6 +309,28 @@ mod tests {
             headers.insert(header::IF_NONE_MATCH, e.parse().unwrap());
         }
         static_file(path.parse().unwrap(), headers).await
+    }
+
+    #[test]
+    fn refuses_changes_from_other_websites_only() {
+        let req = |method: &str, origin: Option<&str>| {
+            let mut b = Request::builder()
+                .method(method)
+                .uri("/api/projects/1/clear")
+                .header(header::HOST, "127.0.0.1:8080");
+            if let Some(o) = origin {
+                b = b.header(header::ORIGIN, o);
+            }
+            b.body(axum::body::Body::empty()).unwrap()
+        };
+        // fremde Seite, auch „null“ (Datei, Sandbox): abgelehnt
+        assert!(foreign_origin(&req("POST", Some("https://boese.example"))));
+        assert!(foreign_origin(&req("POST", Some("null"))));
+        assert!(foreign_origin(&req("DELETE", Some("http://127.0.0.1:9999"))));
+        // eigene Oberfläche, Programme ohne Origin, Lesen: erlaubt
+        assert!(!foreign_origin(&req("POST", Some("http://127.0.0.1:8080"))));
+        assert!(!foreign_origin(&req("POST", None)));
+        assert!(!foreign_origin(&req("GET", Some("https://boese.example"))));
     }
 
     #[tokio::test]

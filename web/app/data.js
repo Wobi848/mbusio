@@ -7,7 +7,9 @@ export async function loadStatus() {
   const before = state.status?.changes;
   set({ status: await request("status") });
   // Daten im Hintergrund geändert (Plan, anderes Fenster): Zählerliste nachführen
-  if (before != null && state.status.changes !== before && state.meters) loadMeters().catch(() => {});
+  if (before == null || state.status.changes === before) return;
+  loadTree().catch(() => {});
+  if (state.meters) loadMeters().catch(() => {});
 }
 
 /// Regelmässige Statusabfrage; antwortet mbusio nicht (beendet, Pi neu gestartet), zeigen Kopf und

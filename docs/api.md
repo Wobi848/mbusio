@@ -14,6 +14,7 @@ Pfade relativ zu `http://<gerät>:8080`. Anfragen und Antworten JSON, ausser wo 
 | Thema | Regel |
 | --- | --- |
 | **Zugriffsschlüssel** | Wenn mbusio mit `--token` läuft: Header `X-Token: <schlüssel>` oder `?token=` (für Downloads/Links). Sonst 401. |
+| **Fremde Webseiten** | Ändernde Anfragen (POST, PUT, DELETE) mit einem `Origin`, das nicht zum `Host` passt, lehnt mbusio mit 403 ab (Schutz gegen Steuerung über eine andere geöffnete Webseite). Programme ohne Browser schicken kein `Origin` und sind nicht betroffen. |
 | **Sprache** | `?lang=de|en` (Downloads), sonst Header `X-Lang`, sonst `Accept-Language`. Betrifft Meldungen, Bezeichnungen, CSV-Spalten. |
 | **Fehler** | `{"error": "verständlicher Text"}` mit Status **400** (Eingabe falsch), **404** (gibt es nicht), **409** (Bus belegt: Scan läuft), **502** (Bus/Zähler: keine Antwort, Prüfsumme …), 401 (Schlüssel). Den Text kann man direkt anzeigen. |
 | **Aktive Linie** | Scan, Zählerliste, Auslesen und Werkzeuge arbeiten auf der **aktiven Linie** (`active` in `/api/status`, wechseln mit `POST /api/lines/{id}/activate`). |
@@ -123,7 +124,7 @@ leer = noch nicht festgelegt), `baud`, `timeout_ms`, `addressing` (`secondary`/`
 
 | | |
 | --- | --- |
-| `GET /api/projects` | **Baum**: `{projects: [Project + gateways: [Gateway + lines: [Line + meters (Anzahl), last_read, scanned, issues, plan_info, datapoints {count, invalid}]]], active}`. |
+| `GET /api/projects` | **Baum**: `{projects: [Project + gateways: [Gateway + lines: [Line + meters (Anzahl), unread (noch nie ausgelesen), last_read, scanned, issues, plan_info, datapoints {count, invalid}]]], active}`. |
 | `POST /api/projects` | Anlegen: `Project` → `{ok, project}` (mit erster Linie, wird aktiv). |
 | `PUT /api/projects/{id}` · `DELETE` | Ändern → `Project` · Löschen. |
 | `POST /api/projects/{id}/clear` | Projekt leeren (Zähler, Auslesungen, Änderungen, letzter Scan; Linien bleiben) → `{ok, removed}`. |

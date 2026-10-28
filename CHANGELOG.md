@@ -224,6 +224,16 @@ eine Anlage zur Probe betreiben.
 
 ### Behoben
 
+- **Nächster Schritt „Zähler auslesen“** bleibt, bis jeder Zähler einmal ausgelesen wurde; vorher
+  ging es schon zum Bericht, sobald irgendein Zähler gelesen war. Der Projektbaum liefert dafür
+  `unread` je Linie.
+
+- **Sicherheit: fremde Webseiten können mbusio nicht mehr steuern.** Eine Webseite, die man im
+  Browser offen hatte, konnte unbemerkt ändernde Anfragen an mbusio auf demselben Rechner schicken
+  (z.B. Projekt leeren, auslesen, Adresse ändern). Solche Anfragen mit fremdem `Origin` lehnt
+  mbusio jetzt ab (403). Die eigene Oberfläche und Programme wie Node-RED oder curl sind nicht
+  betroffen.
+
 - **mbusio antwortet nicht:** ist der Server beendet oder der Pi neu gestartet, zeigen Kopf und
   Statusleiste „mbusio antwortet nicht“ statt weiter „Verbunden“; danach geht es von selbst weiter.
 - **Messwerte als CSV/JSON** heissen ehrlich „letzte 5000 Auslesungen“ (hiess „alle“); für

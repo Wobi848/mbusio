@@ -203,6 +203,8 @@ pub struct LineInfo {
     #[serde(flatten)]
     pub line: Line,
     pub meters: i64,
+    /// Zähler, die noch nie ausgelesen wurden (weder mit Wert noch mit Fehler)
+    pub unread: i64,
     pub last_read: Option<String>,
     pub scanned: Option<String>,
     /// Auffälligkeiten des letzten Scans: {"count": n, "items": [...]}

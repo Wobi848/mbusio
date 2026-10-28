@@ -243,6 +243,8 @@ impl Db {
                 let mut ls = self.conn.prepare(
                     "SELECT lines.*,
                        (SELECT COUNT(*) FROM meters WHERE line_id = lines.id) AS n,
+                       (SELECT COUNT(*) FROM meters WHERE line_id = lines.id
+                         AND last_read IS NULL AND last_error IS NULL) AS unread,
                        (SELECT MAX(last_read) FROM meters WHERE line_id = lines.id) AS lr,
                        (SELECT COUNT(*) FROM datapoints JOIN meters ON meters.id = datapoints.meter_id
                          WHERE meters.line_id = lines.id) AS dp_n,
@@ -255,6 +257,7 @@ impl Db {
                         Ok(LineInfo {
                             line: line_of(r)?,
                             meters: r.get("n")?,
+                            unread: r.get("unread")?,
                             last_read: r.get("lr")?,
                             scanned: r.get("scanned")?,
                             issues: r

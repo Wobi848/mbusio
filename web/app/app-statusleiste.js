@@ -72,7 +72,8 @@ function nextStep() {
     const fresh = state.scanNew?.line === l.id ? state.scanNew.n : 0;
     return fresh ? ["guide_merge", go("scan", "[data-merge]"), fresh] : ["guide_scan", go("scan", "[data-start]")];
   }
-  if (!l.last_read) return ["guide_read", go("zaehler", "[data-read-all]"), l.meters];
+  // erst weiter, wenn jeder Zähler einmal versucht ist (nicht schon, wenn irgendeiner gelesen ist)
+  if (l.unread) return ["guide_read", go("zaehler", "[data-read-all]"), l.unread];
   const bad = (state.meters || []).filter(faulty).length;
   if (bad) return ["guide_faulty_btn", go("zaehler", "[data-filter=err]"), bad];
   if (!l.operation) return ["guide_ready_btn", () => window.open("report.html", "_blank", "noopener")];
