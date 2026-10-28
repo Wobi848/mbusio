@@ -39,6 +39,19 @@ export const opSwitch = (l, big = false) =>
 
 
 /// Zustand der Linie: Probleme als Wort und Farbe zuerst, sonst letzter bzw. nächster Termin
+/// Letzte oder nächste Auslesung der Linie als kurzer Text (leer, wenn es keine gibt)
+export function lineInfo(l) {
+  const p = l.plan_info || {};
+  const r = p.result;
+  return r?.time && !r.offline && !r.line_down
+    ? t("plan_last", r.ok, r.total)
+    : l.operation && p.next && !l.held
+      ? t("plan_next", slotText(p.next))
+      : l.last_read
+        ? t("an_read_at", slotText(l.last_read))
+        : "";
+}
+
 export function lineState(l) {
   const p = l.plan_info || {};
   const r = p.result;
@@ -51,14 +64,7 @@ export function lineState(l) {
   if (l.issues?.count) chips.push(["warn", t("ln_issues", l.issues.count), l.issues.items.join("\n")]);
   if (p.paused) chips.push(["", t("plan_paused", p.paused)]);
   if (p.load_warn) chips.push(["warn", t("plan_load", Math.round(p.load * 100))]);
-  const info =
-    r?.time && !r.offline && !r.line_down
-      ? t("plan_last", r.ok, r.total)
-      : l.operation && p.next && !l.held
-        ? t("plan_next", slotText(p.next))
-        : l.last_read
-          ? t("an_read_at", slotText(l.last_read))
-          : "";
+  const info = lineInfo(l);
   return chips.map(([cls, txt, title]) => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(txt)}</span>`).join(" ") + (info ? ` <span class="sub">${esc(info)}</span>` : "");
 }
 

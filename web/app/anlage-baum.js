@@ -2,7 +2,7 @@
 // Bausteine; `ctx`: { sel (gewählter Schlüssel), closed (zugeklappte Gateways), activeId }.
 
 import { opText } from "./view.js";
-import { allLines, sum, opSwitch, lineState } from "./anlage-zustand.js";
+import { allLines, sum, opSwitch, lineState, lineInfo } from "./anlage-zustand.js";
 
 export function rowHtml(x, ctx) {
   if (x.kind === "project") return projectRow(x.p, ctx);
@@ -51,12 +51,12 @@ function gatewayRow({ g, i, n }, { sel, closed: shut }) {
 function lineRow({ l, i, n }, { sel, activeId }) {
   const current = l.id === activeId;
   return `<div ${rowAttrs(`l:${l.id}`, "ln" + (current ? " current" : ""), sel)}>
-    <span class="name">${esc(l.name)}${current ? ` <span class="chip ok">${esc(t("ln_active"))}</span>` : ""}</span>
+    <span class="name"><span class="cut">${esc(l.name)}</span>${current ? ` <span class="chip ok">${esc(t("ln_active"))}</span>` : ""}</span>
     <span class="cut mono">${l.connection ? esc(`${portText(l.connection)} · ${l.baud}`) : `<span class="warn">${esc(t("ln_no_conn"))}</span>`}</span>
     <span class="num">${l.meters}</span>
     <span class="num">${l.datapoints?.count || ""}</span>
     <span class="op">${opSwitch(l)}<span class="cut ${l.operation ? "ok" : "sub"}">${esc(opText(l))}</span></span>
-    <span class="cut">${lineState(l)}</span>
+    <span class="cut state" title="${esc(lineInfo(l))}">${lineState(l)}</span>
     <span class="acts">${current ? "" : `<button type="button" class="quiet" data-use="${l.id}" title="${esc(t("an_use_title"))}">${esc(t("ln_use"))}</button>`}${moveButtons(
       "lines",
       l.id,

@@ -10,7 +10,7 @@
 /* Jede Zeile ist ein eigenes Raster: alle Spalten fest oder anteilig, keine nach Inhalt (sonst
    verschieben sich die Spalten zwischen Projekt-, Gateway- und Linienzeilen) */
 [data-area=anlage] .row:not(.vrow):not(.new):not(.add) {
-  grid-template-columns: minmax(140px, 2fr) minmax(100px, 1.2fr) 56px 104px minmax(170px, 1.4fr) minmax(140px, 1fr) 100px;
+  grid-template-columns: minmax(140px, 1.5fr) minmax(100px, 1.2fr) 56px 104px minmax(170px, 1.4fr) minmax(140px, 1.5fr) 100px;
 }
 [data-area=anlage] .row > * { min-width: 0; }
 [data-area=anlage] .row .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -23,6 +23,10 @@
 /* eingerückt wird nur der Name, damit die Spalten unter dem Kopf bleiben */
 [data-area=anlage] .row.ln .name { font-weight: 500; padding-left: 26px; }
 [data-area=anlage] .row.current .name { font-weight: 650; }
+/* Lesezeit nur, wo Platz ist; sonst im Tooltip und im Detailbereich */
+@media (max-width: 1499px) { [data-area=anlage] .row .state .sub { display: none; } }
+/* „Aktiv“ bleibt ganz, gekürzt wird der Name */
+[data-area=anlage] .row .name .chip { flex: none; }
 [data-area=anlage] button.chev { width: 22px; height: 22px; font-size: 12px; }
 
 /* Dauerbetrieb in der Zeile: nur Schalter und Text (nicht die Pille der Kopfzeile) */
