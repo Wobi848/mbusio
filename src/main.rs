@@ -22,6 +22,7 @@ mod sim;
 mod storage;
 #[cfg(test)]
 mod testutil;
+mod textproto;
 mod tls;
 mod warn;
 mod web;

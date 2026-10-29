@@ -73,10 +73,15 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
   Ziele Ordner (USB, eingebundenes Netzlaufwerk), **SMB über das Betriebssystem** (Windows-Pfad
   `\\server\freigabe`, Pi per /etc/fstab einbinden, Anleitung ins README) und **FTP/FTPS** (eigener
   Client); **verschlüsselt mit Sicherungs-Passwort** (Nutzerwunsch). Plan:
-  1. `src/textproto.rs` ist geschrieben, aber noch NICHT in main.rs eingebunden: gemeinsame
-     Verbindung (Conn Plain/TLS, `connect`, `tls(config, host, tcp)`, Session reply/cmd/expect) aus
-     `src/mail/smtp.rs` herausgelöst. Nächster Schritt: `mod textproto;` in main.rs, smtp.rs darauf
-     umstellen (Conn/Session/tls dort löschen; STARTTLS über `s.switched(...)`), Tests grün.
+  1. ERLEDIGT (29.10.): `mod textproto;` in main.rs, `src/mail/smtp.rs` auf `textproto::{connect,
+     tls, Conn, Session}` umgestellt (eigene Conn/Session/tls dort entfernt). STARTTLS läuft über
+     `Session::upgrade(self, config, host) -> Result<Self>` (nimmt sich `self`, nicht `&mut self`:
+     sonst meckert der Borrow-Checker beim Herausnehmen der TCP-Verbindung aus `Conn::Plain`, siehe
+     Git-Historie); Puffer wird dabei geleert wie vorher bei `switched`. `Session` hat jetzt auch
+     `impl Write` (leitet an `conn` weiter), damit `smtp.rs` nicht mehr direkt auf das Feld `conn`
+     zugreifen muss. `cargo build`/`clippy`/`test` grün (182 passed, 1 ignored); einzige Warnung:
+     `Conn::finish` noch unbenutzt, das braucht erst `ftp.rs` (Schritt 2). Kein Test deckt bisher
+     SMTP mit TLS/STARTTLS ab (nur `security: "none"` im Fake-Server-Test) – das war schon vorher so.
   2. `src/backup.rs` → `src/backup/mod.rs`; neu `crypt.rs` (ring ist schon im Lock: AES-256-GCM,
      PBKDF2-SHA256 200 000 Runden; Format `MBUSIOV1` | Runden u32 | Salt 16 | Nonce 12 | Daten),
      `ftp.rs` (USER/PASS, AUTH TLS + PBSZ 0 + PROT P, TYPE I, CWD/MKD, PASV, STOR, NLST, DELE; eine

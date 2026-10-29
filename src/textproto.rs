@@ -83,6 +83,16 @@ pub struct Session {
     buf: Vec<u8>,
 }
 
+impl Write for Session {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.conn.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.conn.flush()
+    }
+}
+
 impl Session {
     pub fn new(conn: Conn) -> Self {
         Session {
@@ -91,10 +101,18 @@ impl Session {
         }
     }
 
-    /// Nach einem Wechsel auf TLS: was noch unverschlüsselt im Puffer lag, gilt nicht mehr
-    pub fn switched(&mut self, conn: Conn) {
-        self.conn = conn;
+    /// Von unverschlüsselt auf TLS wechseln (STARTTLS, FTP „AUTH TLS“). Was noch unverschlüsselt
+    /// im Puffer lag, gilt nicht mehr (schützt vor Befehlen, die vor dem Wechsel eingeschleust wurden)
+    pub fn upgrade(mut self, config: Arc<rustls::ClientConfig>, host: &str) -> Result<Self> {
+        let Conn::Plain(tcp) = self.conn else {
+            bail!(tr(
+                "Verbindung ist schon verschlüsselt",
+                "connection is already encrypted"
+            ));
+        };
+        self.conn = tls(config, host, tcp)?;
         self.buf.clear();
+        Ok(self)
     }
 
     /// Eine Antwort des Servers (auch mehrzeilig): Code und Text der Zeilen
