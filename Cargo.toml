@@ -12,6 +12,8 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 clap = { version = "4", features = ["derive", "env"] }
 fs4 = "0.13"
 mime_guess = "2"
+# schon über rustls im Lock; eigene Nutzung für die verschlüsselte Sicherung (AES-256-GCM, PBKDF2)
+ring = "0.17"
 # SQLite fest eingebaut: keine Systembibliothek nötig, auch nicht auf Windows oder dem Pi
 rusqlite = { version = "0.40", features = ["bundled"] }
 rust-embed = "8"

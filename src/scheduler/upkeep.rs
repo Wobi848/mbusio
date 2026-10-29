@@ -104,6 +104,49 @@ pub(super) fn export_billing(st: &AppState, now: NaiveDateTime) -> anyhow::Resul
     Ok(())
 }
 
+/// Fällige automatische Sicherung (Konzept Sicherung §5) in einem eigenen Thread, damit der
+/// Zeitplan nicht auf das Netz wartet; läuft nie zwei gleichzeitig
+pub(super) fn backup_auto(st: &AppState, now: NaiveDateTime) {
+    let (config, due) = {
+        let db = st.db.lock().unwrap();
+        let config = db.backup_config();
+        let due = config.enabled && db.backup_state().due(&config.time, now);
+        (config, due)
+    };
+    if !due {
+        return;
+    }
+    {
+        let mut running = st.planner.backup_running.lock().unwrap();
+        if *running {
+            return;
+        }
+        *running = true;
+    }
+    let st = st.clone();
+    std::thread::spawn(move || {
+        let result = run_backup(&st, &config);
+        if let Err(e) = &result {
+            note(&st, both(|| format!("{}: {e:#}", tr("Sicherung", "Backup"))));
+        }
+        let mut state = st.db.lock().unwrap().backup_state();
+        state.done(&result, now);
+        if let Err(e) = st.db.lock().unwrap().set_backup_state(&state) {
+            note(&st, format!("Sicherung: {e:#}"));
+        }
+        *st.planner.backup_running.lock().unwrap() = false;
+    });
+}
+
+fn run_backup(st: &AppState, config: &crate::backup::auto::BackupConfig) -> anyhow::Result<u64> {
+    let (device, bytes) = {
+        let db = st.db.lock().unwrap();
+        let device = crate::backup::safe_device_name(&db.mail_config().device_name());
+        (device, crate::backup::auto::build(&db)?)
+    };
+    crate::backup::auto::store(config, &device, &bytes)
+}
+
 /// Speicher knapp: selbst ausdünnen und verkleinern (Konzept Dauerbetrieb 4.5), danach neu messen
 fn protect_storage(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
     let disk = st.planner.disk();

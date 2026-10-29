@@ -11,6 +11,18 @@ use serde::Serialize;
 
 use crate::i18n::tr;
 
+pub mod auto;
+pub mod crypt;
+pub mod ftp;
+
+/// Gerätename für einen Dateinamen: nur Buchstaben, Ziffern und „-“
+pub(crate) fn safe_device_name(device: &str) -> String {
+    device
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
+        .collect()
+}
+
 const DB: &str = "mbusio.db";
 /// hochgeladen und geprüft, wartet auf „Einspielen“
 const UPLOAD: &str = "mbusio.db.upload";

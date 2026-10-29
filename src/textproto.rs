@@ -150,12 +150,22 @@ impl Session {
     /// Befehl senden und eine Antwort mit Code `want` erwarten; `shown`: was im Fehler steht
     /// (nie das Passwort)
     pub fn cmd(&mut self, line: &str, shown: &str, want: &[u16]) -> Result<Vec<String>> {
+        Ok(self.cmd_code(line, shown, want)?.1)
+    }
+
+    /// Wie [`Session::cmd`], liefert aber auch den Code (z.B. FTP „USER“: 230 ohne, 331 mit Passwort)
+    pub fn cmd_code(&mut self, line: &str, shown: &str, want: &[u16]) -> Result<(u16, Vec<String>)> {
         self.conn.write_all(format!("{line}\r\n").as_bytes())?;
         self.conn.flush()?;
-        self.expect(shown, want)
+        self.expect_code(shown, want)
     }
 
     pub fn expect(&mut self, shown: &str, want: &[u16]) -> Result<Vec<String>> {
+        Ok(self.expect_code(shown, want)?.1)
+    }
+
+    /// Wie [`Session::expect`], liefert aber auch den Code
+    pub fn expect_code(&mut self, shown: &str, want: &[u16]) -> Result<(u16, Vec<String>)> {
         let (code, lines) = self.reply()?;
         if !want.contains(&code) {
             // 530 FTP, 535 SMTP: Anmeldung abgelehnt
@@ -166,6 +176,6 @@ impl Session {
             };
             bail!("{shown}: {why} ({code} {})", lines.join(" "));
         }
-        Ok(lines)
+        Ok((code, lines))
     }
 }

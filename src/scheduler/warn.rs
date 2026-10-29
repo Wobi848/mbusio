@@ -15,6 +15,7 @@ pub(super) fn warn(st: &AppState, now: NaiveDateTime) -> anyhow::Result<()> {
         if let Some(dir) = db.path().and_then(|p| p.parent()) {
             found.extend(db.billing_problems(dir, now)?);
         }
+        found.extend(db.backup_problem());
         (db.mail_config(), lines, found)
     };
     let mut unsure = Vec::new();

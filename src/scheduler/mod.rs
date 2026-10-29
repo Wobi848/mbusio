@@ -77,6 +77,8 @@ pub struct Planner {
     last_export: Mutex<Option<NaiveDateTime>>,
     /// offene Probleme (Meldungen, Warnmails); gespeichert in `meta` `warn_state`
     pub warnings: Mutex<crate::warn::WarnState>,
+    /// läuft gerade eine automatische Sicherung (eigener Thread, damit der Plan nicht wartet)
+    backup_running: Mutex<bool>,
 }
 
 impl Default for Planner {
@@ -100,6 +102,7 @@ impl Planner {
             last_thin: Mutex::default(),
             last_export: Mutex::default(),
             warnings: Mutex::default(),
+            backup_running: Mutex::default(),
         }
     }
 
@@ -186,6 +189,7 @@ pub fn tick(st: &AppState) -> anyhow::Result<()> {
     check_clock(st, now);
     thin(st, now)?;
     export_billing(st, now)?;
+    backup_auto(st, now);
     warn::warn(st, now)?;
     report::report(st, now)?;
     let lines = st.db.lock().unwrap().planned()?;

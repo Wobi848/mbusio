@@ -20,6 +20,7 @@ pub const KINDS: &[&str] = &[
     "mqtt",
     "disk",
     "billing",
+    "backup",
 ];
 /// wählbare Abstände zwischen zwei Warnmails in Minuten (0 = sofort)
 pub const INTERVALS: &[i64] = &[0, 15, 60, 240, 1440];

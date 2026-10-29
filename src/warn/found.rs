@@ -140,4 +140,24 @@ impl Db {
         }
         Ok(out)
     }
+
+    /// Letzte automatische Sicherung fehlgeschlagen (Konzept Sicherung §5.3); behoben, sobald eine
+    /// wieder glückt
+    pub fn backup_problem(&self) -> Option<Problem> {
+        let c = self.backup_config();
+        if !c.enabled {
+            return None;
+        }
+        let error = self.backup_state().error?;
+        Some(Problem {
+            key: "backup".into(),
+            kind: "backup",
+            text: both(|| format!("{}: {error}", tr("Sicherung fehlgeschlagen", "Backup failed"))),
+            place: String::new(),
+            since: None,
+            line: None,
+            meter: None,
+            project: None,
+        })
+    }
 }

@@ -29,10 +29,7 @@ pub(super) async fn backup_download(State(st): State<AppState>) -> Result<Respon
     };
     let body = std::fs::read(&tmp).map_err(anyhow::Error::from);
     std::fs::remove_file(&tmp).map_err(anyhow::Error::from)?;
-    let device: String = device
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
-        .collect();
+    let device = backup::safe_device_name(&device);
     let name = format!(
         "mbusio-sicherung-{device}-{}.db",
         chrono::Local::now().format("%Y-%m-%d")
