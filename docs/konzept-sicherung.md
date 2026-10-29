@@ -1,6 +1,6 @@
 # Konzept: Sicherung und Wiederherstellung
 
-Stand: 29.10.2026 · Status: **Schritt 1 umgesetzt**, Schritt 2 und 3 offen
+Stand: 29.10.2026 · Status: **Schritt 1 und 3 umgesetzt**, Schritt 2 offen
 
 ## 1. Ziel
 
@@ -46,7 +46,7 @@ Einstellungen → „Einstellungen sichern“ / „Einstellungen einlesen“: JS
 und Speicherschutz, **ohne Passwörter**. Beim Einlesen Vorschau → Übernehmen (bestehender Baustein),
 danach fragt mbusio die fehlenden Passwörter ab. Projekte gehen weiter über den Projekt-Export.
 
-## 5. Schritt 3: automatisch sichern (zur Entscheidung)
+## 5. Schritt 3: automatisch sichern (umgesetzt)
 
 Eine Sicherung von Hand ist beim Ausfall oft alt, und eine Sicherung **auf dem Gerät** hilft nicht,
 wenn das Gerät ausfällt. Darum automatisch und **auf einen anderen Rechner**.
@@ -74,10 +74,18 @@ wenn das Gerät ausfällt. Darum automatisch und **auf einen anderen Rechner**.
   E-Mail-Warnung, falls eingerichtet), damit niemand erst beim Ausfall merkt, dass seit Wochen
   nichts gesichert wurde.
 
-### 5.4 Offen zur Entscheidung
+### 5.4 Entschieden (29.10., Nutzer)
 
-1. **SMB über das Betriebssystem** (Windows-Pfad bzw. Einbinden auf dem Pi) statt eines eigenen
-   SMB-Clients? Vorschlag: ja.
-2. **Verschlüsseln?** Die Sicherung enthält die Passwörter (MQTT, E-Mail) und liegt danach auf einem
-   Server. Vorschlag für jetzt: nicht verschlüsseln, FTPS und eine Freigabe mit Zugriffsschutz
-   nutzen; eine Verschlüsselung mit eigenem Sicherungs-Passwort später, falls gewünscht.
+1. **SMB über das Betriebssystem** statt eines eigenen SMB-Clients: Windows-Pfad bzw. auf dem Pi
+   einmal in `/etc/fstab` einbinden (Anleitung im README). Kein eigener SMB-Client in mbusio.
+2. **Verschlüsseln:** anders als zuerst vorgeschlagen (oben, historisch) doch verschlüsseln, mit
+   einem eigenen **Sicherungs-Passwort** (AES-256-GCM, Schlüssel aus PBKDF2-SHA256 200 000 Runden;
+   Format `MBUSIOV1` | Runden | Salt 16 | Nonce 12 | Daten, `src/backup/crypt.rs`). Gilt auch für
+   „Sicherung herunterladen“/„Einspielen …“ von Hand (Schritt 1): ist ein Sicherungs-Passwort
+   eingestellt, verschlüsselt das Herunterladen automatisch; Einspielen erkennt die Kennung und
+   fragt im Feld nach dem Passwort.
+
+Umsetzung: `src/backup/` als Modul (`crypt.rs`, `ftp.rs` auf `src/textproto.rs`, `auto.rs` für
+Konfiguration/Zustand/Ablegen), Zeitplan-Hook in einem eigenen Thread (`scheduler::upkeep`), Art
+`backup` in `warn::KINDS`, Oberfläche als Karte bei den Ausgängen (Weitergabe), API
+`/api/backup/auto` (siehe `docs/api.md`).

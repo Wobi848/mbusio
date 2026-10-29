@@ -328,6 +328,31 @@ lehnt eine ältere ab. Die Datei enthält die Passwörter: sicher aufbewahren. E
 weiter über „Projekt sichern“ als JSON-Datei (ohne Geräte-Einstellungen). Eine `meters.json` aus Version 0.3 wird beim
 ersten Start ins Projekt „Standard“ übernommen.
 
+**Automatische Sicherung** (Weitergabe → Automatische Sicherung): täglich zu einer einstellbaren
+Uhrzeit auf ein **anderes** Gerät, damit ein Ausfall des Geräts selbst nicht auch die Sicherung
+mitreisst. Ziel: ein Ordner (USB-Stick oder ein vom Betriebssystem eingebundenes Netzlaufwerk,
+siehe unten) oder ein eigener kleiner FTP/FTPS-Client. Am Ziel bleiben nur die letzten paar
+eigenen Sicherungen dieses Geräts (einstellbar); ältere löscht mbusio dort selbst, nichts anderes
+im Ordner. Mit einem **Sicherungs-Passwort** verschlüsselt mbusio die Datei (AES-256-GCM,
+Schlüssel aus PBKDF2-SHA256); dasselbe Passwort verschlüsselt dann auch „Sicherung herunterladen“
+von Hand. Ohne das Passwort ist die Datei nicht mehr lesbar – wie einen Schlüssel aufbewahren.
+Scheitert eine Sicherung, meldet mbusio das über die Meldungen (Statusleiste, E-Mail-Warnung).
+
+**Netzlaufwerk (SMB) als Ziel einbinden:** mbusio hat dafür keinen eigenen Client, das kann das
+Betriebssystem.
+- **Windows:** die Freigabe (z. B. `\\server\freigabe`) direkt als Ordner-Pfad eintragen.
+- **Raspberry Pi / Linux:** einmal in `/etc/fstab` einbinden, danach den Mountpunkt als Ordner
+  eintragen:
+  ```
+  //server/freigabe /mnt/sicherung cifs credentials=/etc/mbusio-smb-credentials,uid=pi,iocharset=utf8,x-systemd.automount 0 0
+  ```
+  dazu `/etc/mbusio-smb-credentials` (nur root lesbar: `sudo chmod 600 /etc/mbusio-smb-credentials`):
+  ```
+  username=...
+  password=...
+  ```
+  Dann `sudo mount -a` und `/mnt/sicherung` in den Einstellungen als Ordner eintragen.
+
 ### Kommandozeile
 
 Wie die Tools von libmbus, aber ein Programm. Ergebnis als JSON auf stdout, Telegramm-Log auf stderr.

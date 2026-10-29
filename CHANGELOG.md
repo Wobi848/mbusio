@@ -11,6 +11,12 @@ Was sich für Benutzer ändert, je Version. Neuestes oben.
   „Einspielen …“ prüft die Datei, zeigt Projekte, Zähler und Zeitraum und startet mbusio danach
   neu; fällt ein Gerät aus, läuft auf dem neuen damit alles wieder. Der bisherige Stand bleibt als
   `mbusio.db.vorher`.
+- **Automatische Sicherung** (Weitergabe → Automatische Sicherung, Konzept `docs/konzept-sicherung.md`
+  §5): täglich zu einer Uhrzeit auf einen Ordner (USB-Stick, auch vom Betriebssystem eingebundenes
+  SMB-Netzlaufwerk, siehe README) oder per eigenem FTP/FTPS-Client; am Ziel bleiben nur die letzten
+  paar eigenen Sicherungen, ältere löscht mbusio dort selbst. Mit einem Sicherungs-Passwort
+  verschlüsselt (AES-256-GCM); dasselbe Passwort verschlüsselt dann auch „Sicherung herunterladen“
+  von Hand, „Einspielen …“ fragt dafür danach. Ein Fehlschlag erscheint bei den Meldungen.
 
 ## v0.5.0 (29.10.2026)
 
