@@ -85,6 +85,65 @@ pub(super) async fn restore_upload(
     Ok(Json(summary).into_response())
 }
 
+/// Einstellungen der automatischen Sicherung ohne Passwort/Sicherungs-Passwort, dazu ob je eines
+/// gespeichert ist, und das letzte Ergebnis
+pub(super) async fn backup_auto_get(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let mut c = st.db.lock().unwrap().backup_config();
+    let has_password = !c.password.is_empty();
+    let has_secret = !c.secret.is_empty();
+    c.password.clear();
+    c.secret.clear();
+    let state = st.db.lock().unwrap().backup_state();
+    Ok(Json(json!({
+        "config": c, "has_password": has_password, "has_secret": has_secret, "state": state,
+    })))
+}
+
+#[derive(Deserialize)]
+pub(super) struct BackupAutoReq {
+    config: crate::backup::auto::BackupConfig,
+    /// None = gespeichertes Passwort/Sicherungs-Passwort behalten, "" = löschen
+    #[serde(default)]
+    password: Option<String>,
+    #[serde(default)]
+    secret: Option<String>,
+}
+
+pub(super) async fn backup_auto_put(
+    State(st): State<AppState>,
+    Json(r): Json<BackupAutoReq>,
+) -> ApiResult<serde_json::Value> {
+    let mut db = st.db.lock().unwrap();
+    let mut c = r.config;
+    let saved = db.backup_config();
+    c.password = r.password.unwrap_or(saved.password);
+    c.secret = r.secret.unwrap_or(saved.secret);
+    c.folder = c.folder.trim().to_string();
+    c.host = c.host.trim().to_string();
+    c.dir = c.dir.trim().to_string();
+    c.user = c.user.trim().to_string();
+    db.set_backup_config(&c).map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// Jetzt sichern, mit den gespeicherten Einstellungen; der Fehler kommt sofort zurück
+pub(super) async fn backup_auto_test(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
+    let config = st.db.lock().unwrap().backup_config();
+    config.ready().map_err(bad_request)?;
+    let target = config.target_label();
+    let device = backup::safe_device_name(&st.db.lock().unwrap().mail_config().device_name());
+    let st2 = st.clone();
+    let result = blocking(move || -> anyhow::Result<u64> {
+        let bytes = backup::auto::build(&st2.db.lock().unwrap())?;
+        backup::auto::store(&config, &device, &bytes)
+    })
+    .await?;
+    let mut db = st.db.lock().unwrap();
+    db.backup_record(&target, &result, crate::clock::now())?;
+    let bytes = result.map_err(bad_request)?;
+    Ok(Json(json!({ "ok": true, "bytes": bytes })))
+}
+
 /// Hochgeladene Sicherung verwerfen
 pub(super) async fn restore_discard(State(st): State<AppState>) -> ApiResult<serde_json::Value> {
     backup::discard(&data_dir(&st)?)?;
@@ -110,8 +169,8 @@ pub(super) async fn restore_apply(State(st): State<AppState>) -> ApiResult<serde
 mod tests {
     use super::*;
 
-    fn state() -> (std::path::PathBuf, AppState) {
-        let d = std::env::temp_dir().join(format!("mbusio-webbackup-{}", std::process::id()));
+    fn state(name: &str) -> (std::path::PathBuf, AppState) {
+        let d = std::env::temp_dir().join(format!("mbusio-webbackup-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         let db = crate::db::Db::open(&d).unwrap();
@@ -127,7 +186,7 @@ mod tests {
     /// das und fragt erst mit, dann ohne Kopfzeile das Passwort ab
     #[tokio::test]
     async fn download_encrypted_upload_needs_password_then_works() {
-        let (dir, st) = state();
+        let (dir, st) = state("passwort");
         {
             let mut db = st.db.lock().unwrap();
             let mut c = db.backup_config();
@@ -161,6 +220,55 @@ mod tests {
             .unwrap_or_else(|e| panic!("{}", e.1));
         assert_eq!(r.status(), StatusCode::OK);
         let _ = restore_discard(State(st)).await.unwrap_or_else(|e| panic!("{}", e.1));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Einstellungen speichern (Sicherungs-Passwort separat), „Jetzt sichern“ legt die
+    /// verschlüsselte Datei im Ordner ab
+    #[tokio::test]
+    async fn auto_config_roundtrip_and_test_now() {
+        let (dir, st) = state("auto");
+        let target = dir.join("ziel");
+        std::fs::create_dir_all(&target).unwrap();
+
+        let r = backup_auto_get(State(st.clone()))
+            .await
+            .unwrap_or_else(|e| panic!("{}", e.1));
+        assert_eq!(r.0["has_secret"], false);
+
+        let req = BackupAutoReq {
+            config: backup::auto::BackupConfig {
+                enabled: true,
+                target: "folder".into(),
+                folder: target.to_string_lossy().into_owned(),
+                keep: 3,
+                ..Default::default()
+            },
+            password: None,
+            secret: Some("geheim".into()),
+        };
+        let _ = backup_auto_put(State(st.clone()), Json(req))
+            .await
+            .unwrap_or_else(|e| panic!("{}", e.1));
+
+        let r = backup_auto_get(State(st.clone()))
+            .await
+            .unwrap_or_else(|e| panic!("{}", e.1));
+        assert_eq!(r.0["has_secret"], true);
+        assert_eq!(r.0["config"]["secret"], "");
+
+        let r = backup_auto_test(State(st.clone()))
+            .await
+            .unwrap_or_else(|e| panic!("{}", e.1));
+        assert_eq!(r.0["ok"], true);
+        let files: Vec<String> = std::fs::read_dir(&target)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(files.len(), 1);
+        assert!(files[0].ends_with(".mbusio"));
+        assert_eq!(st.db.lock().unwrap().backup_state().error, None);
+
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

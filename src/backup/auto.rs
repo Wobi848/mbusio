@@ -95,6 +95,15 @@ impl BackupConfig {
         }
         self.check()
     }
+
+    /// Ziel als Text, für die Karte und das Protokoll der Weitergabe
+    pub fn target_label(&self) -> String {
+        if self.target == "ftp" {
+            format!("FTP {}", self.host.trim())
+        } else {
+            format!("{} {}", tr("Ordner", "folder"), self.folder.trim())
+        }
+    }
 }
 
 /// Letzter Versuch, für die Karte und für „einmal am Tag“
@@ -175,6 +184,25 @@ impl Db {
 
     pub fn set_backup_state(&mut self, s: &BackupState) -> Result<()> {
         self.set_meta("backup_state", &serde_json::to_string(s)?)
+    }
+
+    /// Ergebnis eines Versuchs festhalten: Zustand für die Karte und ins Protokoll der Weitergabe
+    /// (Ausgang `backup`). Jede Sicherung geht hier durch, ob durch den Zeitplan oder von Hand.
+    pub fn backup_record(&mut self, target: &str, result: &Result<u64>, now: NaiveDateTime) -> Result<()> {
+        let mut state = self.backup_state();
+        state.done(result, now);
+        let reason = result.as_ref().err().map(|e| format!("{e:#}")).unwrap_or_default();
+        self.out_log(&crate::datapoint::OutLogEntry {
+            output: "backup",
+            dp: None,
+            name: None,
+            address: target,
+            value: &result.as_ref().map(u64::to_string).unwrap_or_default(),
+            quality: "",
+            result: if result.is_ok() { "sent" } else { "failed" },
+            reason: &reason,
+        })?;
+        self.set_backup_state(&state)
     }
 }
 

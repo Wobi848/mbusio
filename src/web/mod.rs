@@ -138,6 +138,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/projects/{id}/thin", put(project_thin))
         .route("/api/storage", get(storage_get).put(storage_put))
         .route("/api/backup", get(backup_download))
+        .route("/api/backup/auto", get(backup_auto_get).put(backup_auto_put))
+        .route("/api/backup/auto/test", post(backup_auto_test))
         // eine Sicherung mit Jahren an Messwerten ist gross (ohne Grenze lehnt axum ab 2 MB ab)
         .route(
             "/api/restore",

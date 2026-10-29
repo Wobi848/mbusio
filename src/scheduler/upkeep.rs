@@ -129,9 +129,12 @@ pub(super) fn backup_auto(st: &AppState, now: NaiveDateTime) {
         if let Err(e) = &result {
             note(&st, both(|| format!("{}: {e:#}", tr("Sicherung", "Backup"))));
         }
-        let mut state = st.db.lock().unwrap().backup_state();
-        state.done(&result, now);
-        if let Err(e) = st.db.lock().unwrap().set_backup_state(&state) {
+        if let Err(e) = st
+            .db
+            .lock()
+            .unwrap()
+            .backup_record(&config.target_label(), &result, now)
+        {
             note(&st, format!("Sicherung: {e:#}"));
         }
         *st.planner.backup_running.lock().unwrap() = false;
