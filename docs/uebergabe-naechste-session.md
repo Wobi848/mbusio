@@ -69,6 +69,32 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Port 1 am externen USB-Hub des Nutzers ist kaputt (kein Softwareproblem).
 
 ## Offen (in dieser Reihenfolge)
+- **IN ARBEIT: automatische Sicherung (docs/konzept-sicherung.md §5)**. Entschieden vom Nutzer:
+  Ziele Ordner (USB, eingebundenes Netzlaufwerk), **SMB über das Betriebssystem** (Windows-Pfad
+  `\\server\freigabe`, Pi per /etc/fstab einbinden, Anleitung ins README) und **FTP/FTPS** (eigener
+  Client); **verschlüsselt mit Sicherungs-Passwort** (Nutzerwunsch). Plan:
+  1. `src/textproto.rs` ist geschrieben, aber noch NICHT in main.rs eingebunden: gemeinsame
+     Verbindung (Conn Plain/TLS, `connect`, `tls(config, host, tcp)`, Session reply/cmd/expect) aus
+     `src/mail/smtp.rs` herausgelöst. Nächster Schritt: `mod textproto;` in main.rs, smtp.rs darauf
+     umstellen (Conn/Session/tls dort löschen; STARTTLS über `s.switched(...)`), Tests grün.
+  2. `src/backup.rs` → `src/backup/mod.rs`; neu `crypt.rs` (ring ist schon im Lock: AES-256-GCM,
+     PBKDF2-SHA256 200 000 Runden; Format `MBUSIOV1` | Runden u32 | Salt 16 | Nonce 12 | Daten),
+     `ftp.rs` (USER/PASS, AUTH TLS + PBSZ 0 + PROT P, TYPE I, CWD/MKD, PASV, STOR, NLST, DELE; eine
+     Arc<ClientConfig> für Steuer- und Datenverbindung wegen Sitzungs-Wiederaufnahme; Testserver im
+     Rust-Test wie beim SMTP), `auto.rs` (Config in meta "backup": enabled, target folder|ftp,
+     folder, host, port, user, password, dir, tls, insecure, time "02:30", keep 7, secret; Zustand
+     meta "backup_state"; täglich fällig, im eigenen Thread, damit der Plan nicht wartet; Name
+     `mbusio-sicherung-<gerät>-JJJJ-MM-TT_HHMM.mbusio` verschlüsselt bzw. `.db`; nur eigene Dateien
+     über `keep` löschen).
+  3. Hook in `scheduler::tick` (wie report/export_billing); Warnung: Art "backup" in
+     `warn::KINDS` UND `web/app/weitergabe-ausgaenge.js` WARN_KINDS (Liste ist doppelt, später vom
+     Server liefern) + Texte `warn_kind_backup`.
+  4. Download/Restore: mit gesetztem Sicherungs-Passwort verschlüsselt; beim Einspielen erkennt die
+     Oberfläche `MBUSIOV1` an den ersten Bytes und fragt das Passwort (Header `X-Backup-Password`).
+  5. Oberfläche: Sicherung als Karte bei den Ausgängen in der Weitergabe (gleiche Bausteine wie
+     MQTT/E-Mail: outputFields/formValues), „Jetzt sichern“, letztes Ergebnis; README, API, CHANGELOG
+     (Abschnitt „Unveröffentlicht“).
+- Danach: Schritt 2 Sicherung (nur Einstellungen übertragen, ohne Passwörter), Lasttest für den Pi.
 - Später beim Ausbau teilen: web/app/zaehler.js, weitergabe.js, scan.js (je 520–580 Zeilen).
 0. Node-RED: Entscheidung npm öffentlich ja/nein (mbusio-status ist gebaut).
 1. Windows-Dienst auf einem Windows-PC prüfen (Checkliste docs/konzept-hintergrund.md §9; wichtig: COM-Port unter LocalService).

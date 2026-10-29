@@ -46,8 +46,38 @@ Einstellungen → „Einstellungen sichern“ / „Einstellungen einlesen“: JS
 und Speicherschutz, **ohne Passwörter**. Beim Einlesen Vorschau → Übernehmen (bestehender Baustein),
 danach fragt mbusio die fehlenden Passwörter ab. Projekte gehen weiter über den Projekt-Export.
 
-## 5. Schritt 3 (zur Entscheidung): automatisch sichern
+## 5. Schritt 3: automatisch sichern (zur Entscheidung)
 
-Eine Sicherung von Hand ist beim Ausfall oft alt. Vorschlag: täglich nach dem ersten Plan-Termin
-eine Sicherung in einen wählbaren Ordner (USB-Stick, Netzlaufwerk), die letzten 7 behalten. Erst
-nach Schritt 1 und 2 entscheiden.
+Eine Sicherung von Hand ist beim Ausfall oft alt, und eine Sicherung **auf dem Gerät** hilft nicht,
+wenn das Gerät ausfällt. Darum automatisch und **auf einen anderen Rechner**.
+
+### 5.1 Wann und wie viele
+
+- Täglich zu einer einstellbaren Zeit (Vorgabe 02:30, 24 h), dazu „Jetzt sichern“ zum Ausprobieren.
+- Am Ziel bleiben die letzten **7** (einstellbar); ältere `mbusio-sicherung-<gerät>-*.db` löscht
+  mbusio dort selbst. Nur eigene Dateien dieses Geräts, nichts anderes im Ordner.
+- Gleiche Datei wie „Herunterladen“ (`VACUUM INTO`), also mit „Einspielen …“ direkt verwendbar.
+
+### 5.2 Ziele
+
+| Ziel | Wie | Bemerkung |
+| --- | --- | --- |
+| **Ordner** | Pfad auf dem Gerät | USB-Stick; ein Netzlaufwerk, das das Betriebssystem eingebunden hat |
+| **SMB (Windows-Freigabe, NAS)** | Windows: Pfad `\\server\freigabe\mbusio` direkt als Ordner. Raspberry Pi: Freigabe einmal einbinden (`/etc/fstab`, Anleitung im README), dann als Ordner | kein eigener SMB-Client: dafür gibt es in Rust nichts Verlässliches; das Betriebssystem kann es |
+| **FTP / FTPS** | eigener kleiner Client (wie beim E-Mail-Versand): Server, Port, Benutzer, Passwort, Ordner, Verschlüsselung (FTPS explizit, Vorgabe) oder ohne | passiver Modus; ohne Verschlüsselung geht das Passwort im Klartext übers Netz (Hinweis) |
+
+### 5.3 Zustand und Meldungen
+
+- Einstellungen → Sicherung: Ziel, Zeit, Anzahl, „Jetzt sichern“, darunter das letzte Ergebnis
+  („heute 02:30 · 1,2 MB · gespeichert“ oder der Fehler).
+- Scheitert die Sicherung, meldet mbusio das über die bestehenden **Meldungen** (Statusleiste,
+  E-Mail-Warnung, falls eingerichtet), damit niemand erst beim Ausfall merkt, dass seit Wochen
+  nichts gesichert wurde.
+
+### 5.4 Offen zur Entscheidung
+
+1. **SMB über das Betriebssystem** (Windows-Pfad bzw. Einbinden auf dem Pi) statt eines eigenen
+   SMB-Clients? Vorschlag: ja.
+2. **Verschlüsseln?** Die Sicherung enthält die Passwörter (MQTT, E-Mail) und liegt danach auf einem
+   Server. Vorschlag für jetzt: nicht verschlüsseln, FTPS und eine Freigabe mit Zugriffsschutz
+   nutzen; eine Verschlüsselung mit eigenem Sicherungs-Passwort später, falls gewünscht.
