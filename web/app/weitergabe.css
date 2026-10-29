@@ -34,6 +34,10 @@
 [data-area=weitergabe] .rows { overflow-x: hidden; }
 [data-area=weitergabe] .fields label.check { grid-template-columns: 90px auto; justify-content: start; }
 [data-area=weitergabe] .fields textarea { font: 12px var(--mono); padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: inherit; }
+/* Felder, die nur zu einem Ziel gehören (Sicherung: Ordner oder FTP); display:contents hält den
+   Abstand zu den Nachbarn im Raster von .fields, als wären Label und Hinweis direkte Kinder */
+[data-area=weitergabe] .fieldwhen { display: contents; }
+[data-area=weitergabe] .fieldwhen.hide { display: none; }
 [data-area=weitergabe] .hint { margin: -2px 0 4px 98px; font-size: 11.5px; }
 [data-area=weitergabe] .cs-err { color: var(--err); }
 [data-area=weitergabe] .cs-warn { color: var(--warn); }

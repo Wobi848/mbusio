@@ -5,9 +5,6 @@ import { outputWord, opPossible } from "./view.js";
 
 const README = "https://github.com/Wobi848/mbusio";
 
-/// Bytes lesbar (kB, MB, GB)
-const size = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : `${Math.max(1, Math.round(b / 1e3))} kB`);
-
 /// Wie lange der Platz beim heutigen Plan reicht, als Satzteil in passender Einheit
 function lasts(days) {
   if (days >= 36500) return t("an_disk_century");
@@ -20,7 +17,7 @@ function lasts(days) {
 function diskHtml(d, chip) {
   const pct = Math.round(d.free_pct);
   if (d.level !== "ok") return chip("warn", t(d.level === "full" ? "disk_full" : "disk_low", pct));
-  const title = d.per_day ? t("an_disk_title", size(d.per_day), size(d.db_bytes)) : "";
+  const title = d.per_day ? t("an_disk_title", sizeText(d.per_day), sizeText(d.db_bytes)) : "";
   const free = esc(t("ps_disk_free", pct));
   if (d.days_left == null) return free;
   return d.days_left < 90 ? `${free} ${chip("warn", lasts(d.days_left), title)}` : `<span title="${esc(title)}">${free} · ${esc(lasts(d.days_left))}</span>`;

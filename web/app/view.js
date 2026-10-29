@@ -179,6 +179,34 @@ export function ask(anchor, question, yes) {
   });
 }
 
+/// Wie `ask`, aber mit einem Textfeld statt nur ja/nein (z.B. ein Passwort). Liefert den Wert oder
+/// null bei Abbruch.
+export function askValue(anchor, question, yes, type = "text") {
+  return new Promise((resolve) => {
+    const box = document.createElement("div");
+    box.className = "ask";
+    box.setAttribute("role", "alertdialog");
+    box.innerHTML = `<span>${esc(question)}</span><input type="${type}" autocomplete="current-password"><button type="button" class="danger">${esc(yes)}</button><button type="button" class="quiet">${esc(t("cancel"))}</button>`;
+    const r = anchor.getBoundingClientRect();
+    box.style.top = `${r.bottom + 6}px`;
+    box.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 360))}px`;
+    document.body.append(box);
+    const input = box.querySelector("input");
+    const [ok, no] = box.querySelectorAll("button");
+    const done = (v) => {
+      release();
+      box.remove();
+      anchor.focus?.();
+      resolve(v);
+    };
+    const release = onEscape(() => done(null));
+    ok.onclick = () => done(input.value);
+    no.onclick = () => done(null);
+    input.addEventListener("keydown", (ev) => ev.key === "Enter" && done(input.value));
+    input.focus();
+  });
+}
+
 // ------------------------------------------------------------ Meldung
 
 let toastTimer = null;

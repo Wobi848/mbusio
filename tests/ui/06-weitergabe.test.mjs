@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { assert, simLine } from "./helpers.mjs";
 
 // Weitergabe (Ausgänge mit Schalter und Zustand, Datenpunkte als
@@ -64,5 +67,23 @@ export default {
     await page.click(".ask button.danger");
     await page.waitForFunction(async () => !document.querySelector("[data-out-toggle=mqtt]").checked);
     assert.equal((await api("mqtt")).config.enabled, false);
+
+    // Automatische Sicherung: Ziel fehlt → Hinweis und Einstellungen auf; Ordner eintragen,
+    // speichern schaltet ein; „Jetzt sichern“ legt eine Datei dort ab
+    await page.click("[data-out-toggle=backup]");
+    await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("Ziel eintragen"));
+    await page.waitForSelector(`${detail} [data-out-form=backup]`);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mbusio-autosicherung-"));
+    await page.fill(`${detail} [name=folder]`, dir);
+    await page.click(`${detail} [type=submit]`);
+    await page.waitForFunction(() => document.querySelector("[data-out-toggle=backup]")?.checked);
+    assert.equal((await api("backup/auto")).config.folder, dir);
+    await page.click("[data-out-settings=backup]");
+    await page.click("[data-backup-now]");
+    await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("Sicherung angelegt"));
+    const files = fs.readdirSync(dir);
+    assert.equal(files.length, 1, "genau eine Sicherung im Ordner");
+    assert.match(files[0], /^mbusio-sicherung-.+\.db$/);
+    fs.rmSync(dir, { recursive: true });
   },
 };

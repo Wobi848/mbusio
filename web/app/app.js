@@ -3,7 +3,7 @@
 // Gemeinsam mit dem Bericht: js/texts.js (t, UI) und js/base.js (request, esc, …).
 
 import { state, set, watch, activeLine } from "./store.js";
-import { text, menu, closeMenu, toast, ask } from "./view.js";
+import { text, menu, closeMenu, toast, ask, askValue } from "./view.js";
 import { bind, keyList, onEscape } from "./keys.js";
 import { pollStatus, loadTree, reload, report } from "./data.js";
 import { startKopf } from "./app-kopf.js";
@@ -69,7 +69,18 @@ $("backup-file").addEventListener("change", async (ev) => {
   ev.target.value = "";
   if (!file) return;
   try {
-    const summary = await request("restore", { method: "POST", body: file });
+    let password = "";
+    let summary;
+    for (;;) {
+      try {
+        summary = await request("restore", { method: "POST", body: file, headers: password ? { "X-Backup-Password": password } : {} });
+        break;
+      } catch (e) {
+        if (!e.needsPassword) throw e;
+        password = await askValue($("backup-pick"), t("bk_password"), t("bk_unlock"), "password");
+        if (password == null) return;
+      }
+    }
     if (!(await ask($("backup-pick"), t("bk_q", summary), t("bk_apply")))) return await request("restore", { method: "DELETE" });
     await request("restore/apply", { method: "POST" });
     closeMenu();

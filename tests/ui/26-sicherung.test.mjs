@@ -14,7 +14,7 @@ export default {
     for (const a of ["1", "2"]) await api("meters", "POST", { address: a, name: "Whg " + a });
     await api("meters/1/read", "POST");
   },
-  async run({ page, base }) {
+  async run({ page, base, api }) {
     await page.goto(base + "/#/zaehler");
     await page.click("#settings");
     await page.waitForSelector("#settings-menu:not([hidden]) #backup-get");
@@ -39,5 +39,25 @@ export default {
     await page.setInputFiles("#backup-file", other);
     await page.waitForFunction(() => document.querySelector("#toast")?.textContent.includes("keine Sicherung von mbusio"));
     assert.equal(await page.locator(".ask").count(), 0);
+
+    // Sicherungs-Passwort eingestellt (automatische Sicherung): Herunterladen verschlüsselt
+    // (.mbusio, Kennung MBUSIOV1); Einspielen fragt erst nach dem Passwort
+    await api("backup/auto", "PUT", {
+      config: { enabled: false, target: "folder", folder: "/tmp", host: "", port: 21, user: "", dir: "", tls: true, insecure: false, time: "02:30", keep: 7 },
+      secret: "geheim",
+    });
+    const [dl2] = await Promise.all([page.waitForEvent("download"), page.click("#backup-get")]);
+    assert.match(dl2.suggestedFilename(), /\.mbusio$/);
+    const file2 = await dl2.path();
+    assert.equal(fs.readFileSync(file2).subarray(0, 8).toString(), "MBUSIOV1");
+
+    await page.setInputFiles("#backup-file", file2);
+    await page.waitForSelector(".ask input");
+    await page.fill(".ask input", "geheim");
+    await page.click(".ask button.danger");
+    await page.waitForFunction(() => document.querySelector(".ask")?.textContent.includes("Zähler"));
+    assert.match(await page.textContent(".ask"), /2 Zähler/);
+    await page.click(".ask button.quiet");
+    await page.waitForSelector(".ask", { state: "detached" });
   },
 };

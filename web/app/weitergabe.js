@@ -6,7 +6,7 @@ import { html, text, list, ask, toast, styles, previewApply, menu, explain, fiel
 import { onEscape, selectionKeys } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
-import { outputsHtml, outputFormHtml, formValues, securityChanged, warnValues, reportValues, subjectPreview } from "./weitergabe-ausgaenge.js";
+import { outputsHtml, outputFormHtml, formValues, securityChanged, backupTargetChanged, warnValues, reportValues, subjectPreview } from "./weitergabe-ausgaenge.js";
 import { openLog, closeLog } from "./weitergabe-protokoll.js";
 import { openBilling, closeBilling } from "./weitergabe-abrechnung.js";
 
@@ -16,7 +16,7 @@ const QUALITY = { good: "ok", stale: "warn", disturbed: "err", invalid: "err", n
 
 let root = null;
 let data = null; // /api/datapoints: { meters (mit datapoints), templates, outputs }
-let cfg = { mqtt: null, modbus: null, email: null }; // Einstellungen der Ausgänge
+let cfg = { mqtt: null, modbus: null, email: null, backup: null }; // Einstellungen der Ausgänge
 const view = { scope: storageGet("wg_scope") || "line", search: "", problems: false, active: null, output: null, selected: new Set(), preview: false, enableOnSave: false };
 let releaseEscape = null;
 /// `cfg`, aus dem das gezeigte Formular eines Ausgangs gebaut ist (`load` legt ein neues an)
@@ -71,9 +71,9 @@ async function onLine() {
 
 async function load() {
   try {
-    const [d, mq, mb, em] = await Promise.all([request(`datapoints?scope=${view.scope}`), request("mqtt"), request("modbus"), request("mail")]);
+    const [d, mq, mb, em, bk] = await Promise.all([request(`datapoints?scope=${view.scope}`), request("mqtt"), request("modbus"), request("mail"), request("backup/auto")]);
     data = d;
-    cfg = { mqtt: mq, modbus: mb, email: em };
+    cfg = { mqtt: mq, modbus: mb, email: em, backup: bk };
     const ids = new Set(points().map((p) => p.id));
     for (const id of [...view.selected]) if (!ids.has(id)) view.selected.delete(id);
   } catch (e) {
@@ -86,10 +86,10 @@ async function load() {
 /// Feste Adressen: #/weitergabe/email öffnet die Einstellungen der E-Mail,
 /// #/weitergabe/abrechnung?projekt=<id> die Abrechnung (z.B. aus der Anlage)
 function fromAddress() {
-  const m = data && location.hash.match(/^#\/weitergabe\/(email|abrechnung)(?:\?projekt=(\d+))?/);
+  const m = data && location.hash.match(/^#\/weitergabe\/(email|backup|abrechnung)(?:\?projekt=(\d+))?/);
   if (!m) return;
   history.replaceState(null, "", "#/weitergabe");
-  if (m[1] === "email") return openOutput("email");
+  if (m[1] === "email" || m[1] === "backup") return openOutput(m[1]);
   showBilling(m[2] ? Number(m[2]) : null);
 }
 addEventListener("hashchange", fromAddress);
@@ -111,9 +111,10 @@ async function toggleOutput(input) {
   const key = input.dataset.outToggle;
   const on = input.checked;
   input.checked = !on;
-  const label = key === "email" ? t("wg_email") : data.outputs.find((o) => o.key === key)?.label || key;
-  if (on && ((key === "mqtt" && !cfg.mqtt.config.host) || (key === "email" && !cfg.email.config.host))) {
-    toast(t(key === "email" ? "wg_m_need_host" : "wg_need_host"));
+  const label = key === "email" ? t("wg_email") : key === "backup" ? t("wg_bk_title") : data.outputs.find((o) => o.key === key)?.label || key;
+  const backupUnset = key === "backup" && !(cfg.backup.config.target === "ftp" ? cfg.backup.config.host : cfg.backup.config.folder);
+  if (on && ((key === "mqtt" && !cfg.mqtt.config.host) || (key === "email" && !cfg.email.config.host) || backupUnset)) {
+    toast(t(key === "email" ? "wg_m_need_host" : key === "backup" ? "wg_bk_need_target" : "wg_need_host"));
     // man hat „ein“ gedrückt: nach dem Speichern ist der Ausgang ein
     return openOutput(key, true);
   }
@@ -128,9 +129,10 @@ async function toggleOutput(input) {
 
 /// Einstellungen eines Ausgangs zum Server, ergänzt um die gespeicherten; leeres Passwort = gespeichertes behalten
 function putOutput(key, changes) {
-  const { password, ...rest } = changes;
+  const { password, secret, ...rest } = changes;
   if (key === "mqtt") return request("mqtt", { method: "PUT", body: { config: { ...cfg.mqtt.config, ...rest }, password: password || null } });
   if (key === "email") return request("mail", { method: "PUT", body: { config: { ...cfg.email.config, ...rest }, password: password || undefined } });
+  if (key === "backup") return request("backup/auto", { method: "PUT", body: { config: { ...cfg.backup.config, ...rest }, password: password || null, secret: secret || null } });
   return request("modbus", { method: "PUT", body: { ...cfg.modbus.config, ...rest } });
 }
 
@@ -155,7 +157,7 @@ async function saveOutput(form) {
   const values = { ...formValues(key, cfg, form), ...(view.enableOnSave ? { enabled: true } : {}) };
   try {
     await putOutput(key, values);
-    toast(t(key === "mqtt" ? "mqtt_saved" : key === "email" ? "wg_m_saved" : "modbus_saved"));
+    toast(t(key === "mqtt" ? "mqtt_saved" : key === "email" ? "wg_m_saved" : key === "backup" ? "wg_bk_saved" : "modbus_saved"));
     view.output = null;
     await load();
   } catch (e) {
@@ -206,13 +208,28 @@ async function testMail(button) {
   }
 }
 
+/// Jetzt sichern mit den gespeicherten Einstellungen; die Karte zeigt danach auch das Ergebnis
+async function backupNow(button) {
+  button.disabled = true;
+  try {
+    const r = await request("backup/auto/test", { method: "POST" });
+    toast(t("wg_bk_now_ok", sizeText(r.bytes)));
+  } catch (e) {
+    report(e);
+  } finally {
+    button.disabled = false;
+    cfg.backup = await request("backup/auto").catch(() => cfg.backup);
+    render();
+  }
+}
+
 // ------------------------------------------------------------ Datenpunkte
 
 /// Karten der Ausgänge (Zustand, zuletzt gesendet)
 function renderCards() {
   html(
     q("[data-outputs]"),
-    outputsHtml(data.outputs || [], { status: state.status, active: view.output, mail: cfg.email })
+    outputsHtml(data.outputs || [], { status: state.status, active: view.output, mail: cfg.email, backup: cfg.backup })
   );
 }
 
@@ -273,7 +290,7 @@ function renderDetail() {
   if (view.output) {
     const o = data.outputs.find((x) => x.key === view.output);
     const has = points().some((p) => p.outputs[view.output]?.address);
-    const label = view.output === "email" ? t("wg_email") : o?.label || view.output;
+    const label = view.output === "email" ? t("wg_email") : view.output === "backup" ? t("wg_bk_title") : o?.label || view.output;
     return html(box, outputFormHtml(view.output, cfg, label, o, projectId(), has));
   }
   const p = byId(view.active);
@@ -467,6 +484,7 @@ function wire() {
     if (b("[data-readdress]")) return readdress(b("[data-readdress]").dataset.readdress);
     if (b("[data-mail-test]")) return testMail(b("[data-mail-test]"));
     if (b("[data-report-now]")) return reportNow(b("[data-report-now]"));
+    if (b("[data-backup-now]")) return backupNow(b("[data-backup-now]"));
     if (b("[data-back]")) {
       view.output = null;
       view.active = null;
@@ -500,6 +518,7 @@ function wire() {
     const el = ev.target;
     if (el.matches("[data-out-toggle]")) return toggleOutput(el);
     if (el.matches("[data-out-form=email] [name=security]")) return securityChanged(el);
+    if (el.matches("[data-out-form=backup] [name=target]")) return backupTargetChanged(el);
     if (el.matches("[data-import]") && el.files[0]) {
       const f = el.files[0];
       el.value = "";

@@ -73,6 +73,11 @@ function slotText(s) {
   return `${d.getDate()}.${d.getMonth() + 1}. ${hm}`;
 }
 
+/// Bytes lesbar (kB, MB, GB)
+function sizeText(b) {
+  return b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : `${Math.max(1, Math.round(b / 1e3))} kB`;
+}
+
 /// Zeitpunkt für den Bericht: "2026-10-18 00:05:00" oder Date → "18.10.2026 00:05" (englisch 18/10/2026)
 function dateTime(s) {
   const d = s instanceof Date ? s : parseTime(s);
@@ -98,7 +103,7 @@ function apiHref(path) {
 async function request(path, options = {}) {
   // eine Datei (Blob) geht unverändert, alles andere als JSON
   const file = options.body instanceof Blob;
-  const headers = { "Content-Type": file ? "application/octet-stream" : "application/json", "X-Lang": lang };
+  const headers = { "Content-Type": file ? "application/octet-stream" : "application/json", "X-Lang": lang, ...options.headers };
   if (token) headers["X-Token"] = token;
   const opts = { ...options, headers };
   if (opts.body && !file && typeof opts.body !== "string") opts.body = JSON.stringify(opts.body);
@@ -108,7 +113,11 @@ async function request(path, options = {}) {
     return request(path, options);
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || res.statusText);
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText);
+    if (data.needs_password) err.needsPassword = true;
+    throw err;
+  }
   return data;
 }
 

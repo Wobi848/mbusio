@@ -28,6 +28,18 @@ function emailState(m) {
   return ["ok", t("wg_m_ready"), m.last ? t("wg_m_info", c.host, slotText(m.last.time)) : c.host];
 }
 
+/// Ziel der automatischen Sicherung, auch für die Karte und den Einschalt-Check
+const backupTarget = (c) => (c.target === "ftp" ? c.host : c.folder);
+
+/// Zustand der automatischen Sicherung aus /api/backup/auto: [farbe, wort, satz]
+function backupState(b) {
+  const c = b.config;
+  if (!c.enabled) return ["", t("wg_m_off"), ""];
+  if (!backupTarget(c)) return ["warn", t("wg_m_unset"), ""];
+  if (b.state.error) return ["err", t("wg_m_failed"), `${slotText(b.state.time)}: ${b.state.error}`];
+  return ["ok", t("wg_m_ready"), b.state.time ? t("wg_bk_info", backupTarget(c), slotText(b.state.time), sizeText(b.state.bytes)) : backupTarget(c)];
+}
+
 function card(key, label, on, [cls, word, info], active) {
   // Einstellungen gleich beim Zustand: gehört zu diesem Ausgang, nicht an den Rand
   return `<div class="out${active === key ? " active" : ""}">
@@ -41,7 +53,7 @@ function card(key, label, on, [cls, word, info], active) {
 /// Karten der Ausgänge: Schalter, Name, Zustand, Einstellungen, Info. Alles Weitere (Listen für den
 /// Integrator, Adressen nach Muster, Testmail) steht in den Einstellungen, damit die Leiste ruhig
 /// bleibt. `ctx`: { status, active (offenes Formular), mail (/api/mail) }
-export function outputsHtml(outs, { status, active, mail }) {
+export function outputsHtml(outs, { status, active, mail, backup }) {
   // eine Zeile: Überschrift, je Ausgang eine Karte, Protokoll am Ende
   return (
     `<span class="eyebrow mark">${esc(t("wg_outputs"))}</span>` +
@@ -50,6 +62,7 @@ export function outputsHtml(outs, { status, active, mail }) {
         .join("") +
     // ohne Server ist die E-Mail nicht ein, auch wenn sie eingeschaltet gespeichert ist (Vorgabe)
     (mail ? card("email", t("wg_email"), mail.config.enabled && !!mail.config.host, emailState(mail), active) : "") +
+    (backup ? card("backup", t("wg_bk_title"), backup.config.enabled && !!backupTarget(backup.config), backupState(backup), active) : "") +
     // Ansichten statt der Datenpunkte, zusammen am Ende
     `<span class="outlog"><button type="button" class="quiet" data-open-billing title="${esc(t("ab_hint"))}">${esc(t("ab_open"))} →</button>` +
     `<button type="button" class="quiet" data-open-log title="${esc(t("wg_log_title"))}">${esc(t("wg_log"))} →</button></span>`
@@ -97,12 +110,36 @@ function outputFields(key, cfg) {
       ["ha_prefix", t("mqtt_ha_prefix"), "text", { ph: "homeassistant", mono: true, hint: t("mqtt_ha_hint") }],
     ];
   }
+  if (key === "backup") {
+    const b = cfg.backup;
+    const folder = { when: "folder", hide: b.config.target !== "folder" };
+    const ftp = { when: "ftp", hide: b.config.target !== "ftp" };
+    return [
+      ["target", t("wg_bk_target"), "select", { options: [["folder", t("wg_bk_target_folder")], ["ftp", t("wg_bk_target_ftp")]] }],
+      ["folder", t("wg_bk_folder"), "text", { ph: "/mnt/sicherung", mono: true, hint: t("wg_bk_folder_hint"), ...folder }],
+      ["host", t("wg_bk_host"), "text", { ph: "ftp.example.org", mono: true, ...ftp }],
+      ["port", t("wg_bk_port"), "number", { mono: true, ...ftp }],
+      ["user", t("wg_bk_user"), "text", ftp],
+      ["password", t("wg_bk_password"), "password", { ph: b.has_password ? t("mqtt_pass_saved") : "", ...ftp }],
+      ["dir", t("wg_bk_dir"), "text", { ph: "/sicherung", mono: true, ...ftp }],
+      ["tls", t("wg_bk_tls"), "check", ftp],
+      ["insecure", t("wg_m_insecure"), "check", ftp],
+      ["time", t("wg_bk_time"), "text", { ph: "02:30", mono: true }],
+      ["keep", t("wg_bk_keep"), "number", { mono: true, hint: t("wg_bk_keep_hint") }],
+      ["secret", t("wg_bk_secret"), "password", { ph: b.has_secret ? t("mqtt_pass_saved") : "", hint: t("wg_bk_secret_hint") }],
+    ];
+  }
   return [
     ["bind", t("modbus_bind"), "text", { ph: "0.0.0.0", mono: true, hint: t("modbus_bind_hint") }],
     ["port", t("modbus_port"), "number", { mono: true, hint: t("modbus_port_hint") }],
     ["project", t("modbus_project"), "select", { options: [[0, t("modbus_project_active")], ...cfg.modbus.projects.map((p) => [p.id, p.name])] }],
     ["swap_words", t("modbus_words"), "select", { options: [[false, t("modbus_words_abcd")], [true, t("modbus_words_cdab")]] }],
   ];
+}
+
+/// Ziel-Auswahl der Sicherung geändert: nur die dazu passenden Felder zeigen
+export function backupTargetChanged(select) {
+  for (const el of select.form.querySelectorAll("[data-when]")) el.classList.toggle("hide", el.dataset.when !== select.value);
 }
 
 function fieldHtml([name, label_, kind, x = {}], value) {
@@ -117,7 +154,16 @@ function fieldHtml([name, label_, kind, x = {}], value) {
           ? `<textarea name="${name}" rows="3"${cls}${ph}>${esc(value ?? "")}</textarea>`
           : `<input type="${kind}" name="${name}" value="${kind === "password" ? "" : esc(value ?? "")}"${cls}${ph}>`;
   const preview = x.preview ? `<b data-subject-preview>${esc(x.preview)}</b><br>` : "";
-  return `<label${kind === "check" ? ' class="check"' : ""}><span>${esc(label_)}</span>${input}</label>${x.hint ? `<p class="sub hint">${preview}${esc(x.hint)}</p>` : ""}`;
+  const field = `<label${kind === "check" ? ' class="check"' : ""}><span>${esc(label_)}</span>${input}</label>${x.hint ? `<p class="sub hint">${preview}${esc(x.hint)}</p>` : ""}`;
+  // nur für Felder, die vom Ziel abhängen (Sicherung: Ordner oder FTP)
+  return x.when ? `<div class="fieldwhen${x.hide ? " hide" : ""}" data-when="${x.when}">${field}</div>` : field;
+}
+
+/// Jetzt sichern, unter den Einstellungen der automatischen Sicherung
+function backupNowHtml() {
+  return `<h3>${esc(t("wg_bk_now"))}</h3>
+    <p class="sub hint">${esc(t("wg_bk_now_hint"))}</p>
+    <div class="actions"><button type="button" class="tonal" data-backup-now>${esc(t("wg_bk_now"))}</button></div>`;
 }
 
 /// Für den Integrator, unter den Einstellungen: Adressen nach Muster, Liste als CSV/JSON
@@ -153,7 +199,7 @@ export function subjectPreview(cfg, form, value) {
 }
 
 /// Arten von Problemen und wählbare Abstände in Minuten (wie `warn::KINDS`, `warn::INTERVALS`)
-export const WARN_KINDS = ["disturbed", "fault", "battery", "swap", "line", "mqtt", "disk", "billing"];
+export const WARN_KINDS = ["disturbed", "fault", "battery", "swap", "line", "mqtt", "disk", "billing", "backup"];
 const WARN_INTERVALS = [0, 15, 60, 240, 1440];
 
 function warnFields(cfg) {
@@ -242,7 +288,7 @@ export function outputFormHtml(key, cfg, label_, o, projectId, has) {
     <form class="fields" data-out-form="${key}">${outputFields(key, cfg).map((f) => fieldHtml(f, c[f[0]])).join("")}
       <div class="actions"><button type="submit">${esc(t("wg_save"))}</button><button type="button" class="quiet" data-back>${esc(t("cancel"))}</button></div>
     </form>
-    ${key === "email" ? testMailHtml(cfg) + warnHtml(cfg) + reportHtml(cfg) : integratorHtml(o, projectId, has)}`;
+    ${key === "email" ? testMailHtml(cfg) + warnHtml(cfg) + reportHtml(cfg) : key === "backup" ? backupNowHtml() : integratorHtml(o, projectId, has)}`;
 }
 
 /// Werte aus dem Formular, nach Art des Felds (Häkchen, Zahl, Text)
