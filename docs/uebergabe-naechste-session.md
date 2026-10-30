@@ -23,6 +23,12 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 - Commits **ohne** KI-Hinweis (globale Regel des Nutzers); nach jedem fertigen Schritt committen und pushen. Nicht mergen ohne ausdrückliches OK.
 
 ## Zuletzt erledigt
+- 30.10.: Automatische Sicherung (andere Sitzung) geprüft und repariert: FTPS-Datei war
+  abgeschnitten (textproto Conn::finish), alle Adressen eines Namens (`textproto::tcp`, auch MQTT
+  und M-Bus-Gateway), PASV hinter NAT, Passwort mit Umlauten. Sicherung jetzt über Dateien in
+  Stücken (MBUSIOV2), Höchstwert Arbeitsspeicher 15 MB bei 490 MB. `mbusio lasttest` (README, Pi).
+  Status ohne `readings` (teuer, unbenutzt). Tests: cargo 195, UI alle grün. Für den MQTT-UI-Test
+  braucht es den Test-Broker: `node tests/ui/broker.mjs 18830` (Paket aedes, z.B. per NODE_PATH).
 - 29.10. (nach v0.5.0): Sicherung des Geräts, Schritt 1 (docs/konzept-sicherung.md): `GET /api/backup`
   (VACUUM INTO), `POST /api/restore` prüft, `restore/apply` legt `mbusio.db.restore` bereit und
   startet neu (`service::restart`: als Dienst Exit 75, sonst startet sich mbusio selbst mit
