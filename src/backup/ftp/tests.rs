@@ -121,3 +121,110 @@ fn wrong_password_is_refused() {
     assert!(Ftp::connect(&c).is_err());
     handle.join().unwrap();
 }
+
+// ------------------------------------------------------------ FTPS
+
+/// Nur für diesen Test: selbst signiert für „localhost“, 100 Jahre gültig, kein Geheimnis
+const CERT: &[u8] = include_bytes!("test-cert.pem");
+const KEY: &[u8] = include_bytes!("test-key.pem");
+
+type Tls = rustls::StreamOwned<rustls::ServerConnection, TcpStream>;
+
+fn tls_config() -> std::sync::Arc<rustls::ServerConfig> {
+    use rustls::pki_types::pem::PemObject;
+    let certs = rustls::pki_types::CertificateDer::pem_slice_iter(CERT)
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    let key = rustls::pki_types::PrivateKeyDer::from_pem_slice(KEY).unwrap();
+    let provider = std::sync::Arc::new(rustls::crypto::ring::default_provider());
+    // wie echte Server schickt rustls nach dem Handschlag Sitzungs-Tickets; liest der Client sie
+    // auf der Datenverbindung nicht, kam die Datei früher abgeschnitten an
+    std::sync::Arc::new(
+        rustls::ServerConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_no_client_auth()
+            .with_single_cert(certs, key)
+            .unwrap(),
+    )
+}
+
+fn accept_tls(config: &std::sync::Arc<rustls::ServerConfig>, tcp: TcpStream) -> Tls {
+    rustls::StreamOwned::new(rustls::ServerConnection::new(config.clone()).unwrap(), tcp)
+}
+
+/// FTPS-Server (explizit, AUTH TLS) für eine Sitzung; liefert die Grössen der hochgeladenen Dateien
+fn ftps_server() -> (u16, JoinHandle<Vec<usize>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let handle = std::thread::spawn(move || {
+        let config = tls_config();
+        let (mut plain, _) = listener.accept().unwrap();
+        plain.write_all(b"220 test FTPS\r\n").unwrap();
+        let mut line = String::new();
+        BufReader::new(plain.try_clone().unwrap())
+            .read_line(&mut line)
+            .unwrap();
+        assert_eq!(line.trim_end(), "AUTH TLS");
+        plain.write_all(b"234 go\r\n").unwrap();
+        let mut ctrl = BufReader::new(accept_tls(&config, plain));
+        let mut sizes = Vec::new();
+        let mut data: Option<TcpListener> = None;
+        loop {
+            let mut line = String::new();
+            if ctrl.read_line(&mut line).unwrap_or(0) == 0 {
+                break;
+            }
+            let l = line.trim_end().to_string();
+            let mut say = |s: &str| {
+                let w = ctrl.get_mut();
+                w.write_all(format!("{s}\r\n").as_bytes()).unwrap();
+                w.flush().unwrap();
+            };
+            if l.starts_with("PBSZ") || l.starts_with("PROT") || l == "TYPE I" {
+                say("200 ok");
+            } else if l.starts_with("USER") {
+                say("331 password please");
+            } else if l.starts_with("PASS") {
+                say("230 ok");
+            } else if l == "PASV" {
+                let d = TcpListener::bind("127.0.0.1:0").unwrap();
+                let p = d.local_addr().unwrap().port();
+                data = Some(d);
+                say(&format!("227 Passive (127,0,0,1,{},{}).", p / 256, p % 256));
+            } else if l.starts_with("STOR") {
+                say("150 go");
+                let (tcp, _) = data.take().unwrap().accept().unwrap();
+                let mut d = accept_tls(&config, tcp);
+                let mut buf = Vec::new();
+                // abgebrochen (RST) zählt nur, was bis dahin ankam
+                let _ = d.read_to_end(&mut buf);
+                sizes.push(buf.len());
+                say("226 done");
+            } else if l == "QUIT" {
+                say("221 bye");
+                break;
+            } else {
+                say("500 what");
+            }
+        }
+        sizes
+    });
+    (port, handle)
+}
+
+#[test]
+fn ftps_upload_arrives_complete() {
+    let (port, server) = ftps_server();
+    let mut ftp = Ftp::connect(&FtpConfig {
+        tls: true,
+        insecure: true,
+        ..config(port)
+    })
+    .unwrap();
+    // gross genug für viele TLS-Datensätze (die abgeschnittene Datei war 96 von 132 KB)
+    let file: Vec<u8> = (0..300_000u32).map(|i| (i % 251) as u8).collect();
+    ftp.store("sicherung.mbusio", &file).unwrap();
+    ftp.quit();
+    assert_eq!(server.join().unwrap(), [file.len()]);
+}
