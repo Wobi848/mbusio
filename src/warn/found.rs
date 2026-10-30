@@ -152,7 +152,12 @@ impl Db {
         Some(Problem {
             key: "backup".into(),
             kind: "backup",
-            text: both(|| format!("{}: {error}", tr("Sicherung fehlgeschlagen", "Backup failed"))),
+            text: both(|| {
+                format!(
+                    "{}: {error}",
+                    tr("Sicherung fehlgeschlagen", "Backup failed")
+                )
+            }),
             place: String::new(),
             since: None,
             line: None,

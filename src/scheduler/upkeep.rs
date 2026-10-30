@@ -127,7 +127,10 @@ pub(super) fn backup_auto(st: &AppState, now: NaiveDateTime) {
     std::thread::spawn(move || {
         let result = run_backup(&st, &config);
         if let Err(e) = &result {
-            note(&st, both(|| format!("{}: {e:#}", tr("Sicherung", "Backup"))));
+            note(
+                &st,
+                both(|| format!("{}: {e:#}", tr("Sicherung", "Backup"))),
+            );
         }
         if let Err(e) = st
             .db

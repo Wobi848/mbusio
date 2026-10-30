@@ -132,7 +132,12 @@ impl BackupState {
             .as_deref()
             .and_then(parse)
             .is_some_and(|t| now - t < Duration::minutes(RETRY_MINUTES));
-        !retrying && self.last_ok.as_deref().and_then(parse).is_none_or(|t| t < slot)
+        !retrying
+            && self
+                .last_ok
+                .as_deref()
+                .and_then(parse)
+                .is_none_or(|t| t < slot)
     }
 
     /// Ergebnis eines Versuchs festhalten
@@ -157,7 +162,11 @@ impl BackupState {
 fn slot(time: &str, now: NaiveDateTime) -> Option<NaiveDateTime> {
     let at = NaiveTime::parse_from_str(time.trim(), "%H:%M").ok()?;
     let slot = now.date().and_time(at);
-    Some(if slot > now { slot - Duration::days(1) } else { slot })
+    Some(if slot > now {
+        slot - Duration::days(1)
+    } else {
+        slot
+    })
 }
 
 fn parse(s: &str) -> Option<NaiveDateTime> {
@@ -188,10 +197,19 @@ impl Db {
 
     /// Ergebnis eines Versuchs festhalten: Zustand für die Karte und ins Protokoll der Weitergabe
     /// (Ausgang `backup`). Jede Sicherung geht hier durch, ob durch den Zeitplan oder von Hand.
-    pub fn backup_record(&mut self, target: &str, result: &Result<u64>, now: NaiveDateTime) -> Result<()> {
+    pub fn backup_record(
+        &mut self,
+        target: &str,
+        result: &Result<u64>,
+        now: NaiveDateTime,
+    ) -> Result<()> {
         let mut state = self.backup_state();
         state.done(result, now);
-        let reason = result.as_ref().err().map(|e| format!("{e:#}")).unwrap_or_default();
+        let reason = result
+            .as_ref()
+            .err()
+            .map(|e| format!("{e:#}"))
+            .unwrap_or_default();
         self.out_log(&crate::datapoint::OutLogEntry {
             output: "backup",
             dp: None,
@@ -325,12 +343,24 @@ mod tests {
         let mut s = BackupState::default();
         assert!(s.due("02:30", at("2026-10-29 02:30:00")));
         s.done(&Ok(1234), at("2026-10-29 02:30:05"));
-        assert!(!s.due("02:30", at("2026-10-29 10:00:00")), "heute schon geglückt");
+        assert!(
+            !s.due("02:30", at("2026-10-29 10:00:00")),
+            "heute schon geglückt"
+        );
         assert!(s.due("02:30", at("2026-10-30 02:31:00")), "neuer Tag");
-        s.done(&Err(anyhow::anyhow!("kein Netz")), at("2026-10-30 02:31:00"));
+        s.done(
+            &Err(anyhow::anyhow!("kein Netz")),
+            at("2026-10-30 02:31:00"),
+        );
         assert_eq!(s.error.as_deref(), Some("kein Netz"));
-        assert!(!s.due("02:30", at("2026-10-30 02:40:00")), "Wartezeit nach Fehlschlag");
-        assert!(s.due("02:30", at("2026-10-30 02:50:00")), "Wartezeit vorbei");
+        assert!(
+            !s.due("02:30", at("2026-10-30 02:40:00")),
+            "Wartezeit nach Fehlschlag"
+        );
+        assert!(
+            s.due("02:30", at("2026-10-30 02:50:00")),
+            "Wartezeit vorbei"
+        );
     }
 
     #[test]
@@ -360,7 +390,11 @@ mod tests {
         let target = dir.join("ziel");
         std::fs::create_dir_all(&target).unwrap();
         // ältere eigene Sicherung, die beim Ablegen (keep=1) verschwinden muss
-        std::fs::write(target.join("mbusio-sicherung-testgeraet-2000-01-01_0000.db"), b"alt").unwrap();
+        std::fs::write(
+            target.join("mbusio-sicherung-testgeraet-2000-01-01_0000.db"),
+            b"alt",
+        )
+        .unwrap();
         let c = BackupConfig {
             enabled: true,
             folder: target.to_string_lossy().into_owned(),

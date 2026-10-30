@@ -1,11 +1,10 @@
 //! Eigener kleiner Client für MQTT 3.1.1: Pakete, TLS, Sitzung mit Bestätigung (PUBACK)
 
 use std::io::{Read, Write};
-use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 
 use super::{MqttConfig, KEEPALIVE};
 use crate::i18n::tr;
@@ -125,13 +124,10 @@ pub struct Session {
 
 impl Session {
     pub fn connect(c: &MqttConfig) -> Result<Session> {
-        let addr = (c.host.trim(), c.port)
-            .to_socket_addrs()
-            .with_context(|| format!("{}:{}", c.host, c.port))?
-            .next()
-            .ok_or_else(|| anyhow!("{}: {}", c.host, tr("Adresse unbekannt", "unknown address")))?;
-        let tcp = TcpStream::connect_timeout(&addr, Duration::from_secs(5))
-            .with_context(|| format!("{}:{}", c.host, c.port))?;
+        let tcp = crate::textproto::tcp(
+            format!("{}:{}", c.host.trim(), c.port),
+            Duration::from_secs(5),
+        )?;
         tcp.set_nodelay(true)?;
         tcp.set_read_timeout(Some(Duration::from_millis(500)))?;
         tcp.set_write_timeout(Some(Duration::from_secs(10)))?;

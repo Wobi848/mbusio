@@ -1,7 +1,7 @@
 //! Physische Verbindung zum Bus: serielle Schnittstelle, TCP-Gateway oder Simulator.
 
 use std::io::{self, Read, Write};
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::TcpStream;
 use std::time::Duration;
 
 use crate::i18n::tr;
@@ -113,13 +113,7 @@ impl TcpLink {
                 tr("Keine Verbindung zu", "Could not connect to")
             )
         };
-        let sock = addr
-            .to_socket_addrs()
-            .with_context(context)?
-            .next()
-            .with_context(context)?;
-        let stream =
-            TcpStream::connect_timeout(&sock, Duration::from_secs(3)).with_context(context)?;
+        let stream = crate::textproto::tcp(addr, Duration::from_secs(3)).with_context(context)?;
         stream.set_nodelay(true)?;
         Ok(Self { stream })
     }

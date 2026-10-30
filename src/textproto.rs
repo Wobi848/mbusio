@@ -50,20 +50,37 @@ impl Conn {
         if let Conn::Tls(mut s) = self {
             s.conn.send_close_notify();
             s.flush()?;
+            // erst das Schreiben beenden, dann lesen, bis der Server schliesst: bliebe etwas
+            // ungelesen (z.B. ein Sitzungs-Ticket), käme das Schliessen als RST an, und der Server
+            // verwürfe, was er noch nicht verarbeitet hat (abgeschnittene Datei)
+            s.sock.shutdown(std::net::Shutdown::Write)?;
+            let mut rest = [0u8; 4096];
+            while matches!(s.read(&mut rest), Ok(n) if n > 0) {}
         }
         Ok(())
     }
 }
 
 /// TCP-Verbindung mit Zeitgrenzen; Fehler nennen Server und Port
+/// TCP-Verbindung zu `addr` (Name oder IP mit Port): alle Adressen des Namens der Reihe nach,
+/// z.B. `localhost` erst ::1, dann 127.0.0.1 (für SMTP, FTP, MQTT und M-Bus-Gateways)
+pub fn tcp<A: ToSocketAddrs + std::fmt::Display>(addr: A, timeout: Duration) -> Result<TcpStream> {
+    let mut last = None;
+    for a in addr.to_socket_addrs().with_context(|| addr.to_string())? {
+        match TcpStream::connect_timeout(&a, timeout) {
+            Ok(t) => return Ok(t),
+            Err(e) => last = Some(e),
+        }
+    }
+    Err(match last {
+        Some(e) => anyhow!(e).context(addr.to_string()),
+        None => anyhow!("{addr}: {}", tr("Adresse unbekannt", "unknown address")),
+    })
+}
+
+/// Verbindung für SMTP und FTP, mit Zeitgrenzen für Lesen und Schreiben
 pub fn connect(host: &str, port: u16) -> Result<TcpStream> {
-    let addr = (host, port)
-        .to_socket_addrs()
-        .with_context(|| format!("{host}:{port}"))?
-        .next()
-        .ok_or_else(|| anyhow!("{host}: {}", tr("Adresse unbekannt", "unknown address")))?;
-    let tcp = TcpStream::connect_timeout(&addr, Duration::from_secs(10))
-        .with_context(|| format!("{host}:{port}"))?;
+    let tcp = tcp(format!("{host}:{port}"), Duration::from_secs(10))?;
     tcp.set_read_timeout(Some(TIMEOUT))?;
     tcp.set_write_timeout(Some(TIMEOUT))?;
     Ok(tcp)
@@ -154,7 +171,12 @@ impl Session {
     }
 
     /// Wie [`Session::cmd`], liefert aber auch den Code (z.B. FTP „USER“: 230 ohne, 331 mit Passwort)
-    pub fn cmd_code(&mut self, line: &str, shown: &str, want: &[u16]) -> Result<(u16, Vec<String>)> {
+    pub fn cmd_code(
+        &mut self,
+        line: &str,
+        shown: &str,
+        want: &[u16],
+    ) -> Result<(u16, Vec<String>)> {
         self.conn.write_all(format!("{line}\r\n").as_bytes())?;
         self.conn.flush()?;
         self.expect_code(shown, want)

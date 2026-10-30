@@ -56,9 +56,9 @@ impl Ftp {
 
     fn login(&mut self, user: &str, password: &str) -> Result<()> {
         let shown = tr("Anmeldung", "login");
-        let (code, _) =
-            self.session
-                .cmd_code(&format!("USER {user}"), &shown, &[230, 331])?;
+        let (code, _) = self
+            .session
+            .cmd_code(&format!("USER {user}"), &shown, &[230, 331])?;
         if code == 331 {
             self.session
                 .cmd(&format!("PASS {password}"), &shown, &[230])?;
@@ -97,13 +97,16 @@ impl Ftp {
             .nth(1)
             .and_then(|s| s.split(')').next())
             .ok_or_else(|| anyhow!(tr("Antwort auf PASV unklar", "unclear answer to PASV")))?;
-        let nums: Vec<u16> = inside.split(',').filter_map(|n| n.trim().parse().ok()).collect();
-        let [a, b, c, d, p1, p2] = nums[..] else {
+        let nums: Vec<u16> = inside
+            .split(',')
+            .filter_map(|n| n.trim().parse().ok())
+            .collect();
+        // die genannte IP gilt nicht: hinter NAT nennt der Server oft seine interne Adresse; wie
+        // curl und FileZilla dieselbe Adresse wie für die Steuerverbindung nehmen
+        let [_, _, _, _, p1, p2] = nums[..] else {
             bail!(tr("Antwort auf PASV unklar", "unclear answer to PASV"));
         };
-        let ip = format!("{a}.{b}.{c}.{d}");
-        let port = p1 * 256 + p2;
-        let tcp = connect(&ip, port)?;
+        let tcp = connect(&self.host, p1 * 256 + p2)?;
         match &self.tls_config {
             Some(config) => tls(config.clone(), &self.host, tcp),
             None => Ok(Conn::Plain(tcp)),
@@ -140,8 +143,7 @@ impl Ftp {
 
     /// Datei im aktuellen Ordner löschen
     pub fn delete(&mut self, name: &str) -> Result<()> {
-        self.session
-            .cmd(&format!("DELE {name}"), "DELE", &[250])?;
+        self.session.cmd(&format!("DELE {name}"), "DELE", &[250])?;
         Ok(())
     }
 

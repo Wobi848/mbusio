@@ -637,6 +637,7 @@ dependencies = [
  "fs4",
  "futures-util",
  "mime_guess",
+ "percent-encoding",
  "ring",
  "rusqlite",
  "rust-embed",

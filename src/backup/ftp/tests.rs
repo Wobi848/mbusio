@@ -52,8 +52,10 @@ fn run(stream: TcpStream) {
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             let port = listener.local_addr().unwrap().port();
             data = Some(listener);
+            // absichtlich eine fremde IP wie hinter NAT: der Client muss die Adresse der
+            // Steuerverbindung nehmen
             say(&format!(
-                "227 Entering Passive Mode (127,0,0,1,{},{}).",
+                "227 Entering Passive Mode (10,99,99,99,{},{}).",
                 port / 256,
                 port % 256
             ));
@@ -88,7 +90,8 @@ fn run(stream: TcpStream) {
 
 fn config(port: u16) -> FtpConfig {
     FtpConfig {
-        host: "127.0.0.1".into(),
+        // Name statt IP: löst zu ::1 und 127.0.0.1 auf, der Server hört nur auf IPv4
+        host: "localhost".into(),
         port,
         user: "anna".into(),
         password: "geheim".into(),

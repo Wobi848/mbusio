@@ -18,6 +18,18 @@ Was sich für Benutzer ändert, je Version. Neuestes oben.
   verschlüsselt (AES-256-GCM); dasselbe Passwort verschlüsselt dann auch „Sicherung herunterladen“
   von Hand, „Einspielen …“ fragt dafür danach. Ein Fehlschlag erscheint bei den Meldungen.
 
+### Behoben
+
+- **FTPS: Sicherung kam abgeschnitten an** (z.B. 96 von 132 KB), weil die verschlüsselte
+  Datenverbindung geschlossen wurde, während der Server noch etwas schickte. Jetzt wird sie
+  geordnet beendet; die Datei kommt vollständig an (geprüft mit einem echten FTPS-Server).
+- **Server mit mehreren Adressen** (z.B. `localhost`, Namen mit IPv6 und IPv4): E-Mail, FTP, MQTT
+  und M-Bus-Gateways probieren jetzt alle Adressen, statt nach der ersten aufzugeben.
+- **FTP hinter einem Router (NAT):** die Datenverbindung nimmt die Adresse des Servers statt der
+  internen, die er bei PASV nennt (wie curl und FileZilla).
+- **Sicherungs-Passwort mit Umlauten** (ä, ö, ü, ß) funktioniert beim Einspielen; ein falsches
+  Passwort heisst jetzt „Passwort falsch“ statt wieder „Passwort nötig“.
+
 ## v0.5.0 (29.10.2026)
 
 Geprüft mit echter Hardware (Relay MR003 USB, Itron-Wärme-/Kältezähler, echter MQTT-Broker, USB

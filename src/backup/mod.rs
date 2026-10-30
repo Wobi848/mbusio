@@ -19,7 +19,13 @@ pub mod ftp;
 pub(crate) fn safe_device_name(device: &str) -> String {
     device
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -140,7 +146,10 @@ pub fn check(path: &Path) -> Result<Summary> {
             |r| r.get(0),
         )
         .optional()?;
-    if let Some(v) = version.as_deref().filter(|v| newer(v, env!("CARGO_PKG_VERSION"))) {
+    if let Some(v) = version
+        .as_deref()
+        .filter(|v| newer(v, env!("CARGO_PKG_VERSION")))
+    {
         bail!(
             "{} {v} ({} {})",
             tr(
@@ -234,7 +243,10 @@ mod tests {
     fn refuses_other_files_and_newer_versions() {
         let d = dir("fremd");
         assert!(upload(&d, b"kein SQLite").is_err());
-        assert!(!d.join(UPLOAD).exists(), "unbrauchbare Datei bleibt nicht liegen");
+        assert!(
+            !d.join(UPLOAD).exists(),
+            "unbrauchbare Datei bleibt nicht liegen"
+        );
         let other = d.join("andere.db");
         Connection::open(&other)
             .unwrap()
@@ -243,7 +255,10 @@ mod tests {
         assert!(upload(&d, &std::fs::read(&other).unwrap()).is_err());
         assert!(newer("0.10.0", "0.9.3"));
         assert!(!newer("0.5.0", "0.5.0"));
-        assert!(apply(&d).is_err(), "ohne geprüfte Sicherung nichts bereitlegen");
+        assert!(
+            apply(&d).is_err(),
+            "ohne geprüfte Sicherung nichts bereitlegen"
+        );
         std::fs::remove_dir_all(d).unwrap();
     }
 }

@@ -40,11 +40,20 @@ pub fn encrypt(password: &str, data: &[u8]) -> Result<Vec<u8>> {
     let mut nonce = [0u8; NONCE_LEN];
     rng.fill(&mut salt)
         .and_then(|()| rng.fill(&mut nonce))
-        .map_err(|_| anyhow!(tr("Keine Zufallszahl verfügbar", "no random number available")))?;
+        .map_err(|_| {
+            anyhow!(tr(
+                "Keine Zufallszahl verfügbar",
+                "no random number available"
+            ))
+        })?;
     let key = key_from(password, &salt, ROUNDS);
     let mut sealed = data.to_vec();
-    key.seal_in_place_append_tag(Nonce::assume_unique_for_key(nonce), Aad::empty(), &mut sealed)
-        .map_err(|_| anyhow!(tr("Verschlüsseln fehlgeschlagen", "encryption failed")))?;
+    key.seal_in_place_append_tag(
+        Nonce::assume_unique_for_key(nonce),
+        Aad::empty(),
+        &mut sealed,
+    )
+    .map_err(|_| anyhow!(tr("Verschlüsseln fehlgeschlagen", "encryption failed")))?;
     let mut out = Vec::with_capacity(HEAD_LEN + sealed.len());
     out.extend_from_slice(MAGIC);
     out.extend_from_slice(&ROUNDS.to_be_bytes());
@@ -71,7 +80,11 @@ pub fn decrypt(password: &str, data: &[u8]) -> Result<Vec<u8>> {
     let key = key_from(password, salt, rounds);
     let mut sealed = data[HEAD_LEN..].to_vec();
     let plain = key
-        .open_in_place(Nonce::assume_unique_for_key(nonce), Aad::empty(), &mut sealed)
+        .open_in_place(
+            Nonce::assume_unique_for_key(nonce),
+            Aad::empty(),
+            &mut sealed,
+        )
         .map_err(|_| {
             anyhow!(tr(
                 "Passwort falsch oder Sicherung beschädigt",

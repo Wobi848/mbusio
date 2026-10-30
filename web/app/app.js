@@ -73,11 +73,12 @@ $("backup-file").addEventListener("change", async (ev) => {
     let summary;
     for (;;) {
       try {
-        summary = await request("restore", { method: "POST", body: file, headers: password ? { "X-Backup-Password": password } : {} });
+        summary = await request("restore", { method: "POST", body: file, headers: password ? { "X-Backup-Password": encodeURIComponent(password) } : {} });
         break;
       } catch (e) {
         if (!e.needsPassword) throw e;
-        password = await askValue($("backup-pick"), t("bk_password"), t("bk_unlock"), "password");
+        // beim zweiten Mal steht dabei, warum (Passwort falsch)
+        password = await askValue($("backup-pick"), password ? e.message : t("bk_password"), t("bk_unlock"), "password");
         if (password == null) return;
       }
     }

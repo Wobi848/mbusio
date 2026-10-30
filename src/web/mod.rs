@@ -48,8 +48,8 @@ use self::api::*;
 pub use self::state::{AppState, JobStatus, Shared};
 pub use self::tools::parse_hex;
 use self::{
-    backup::*, billing::*, bus::*, datapoints::*, mail::*, meters::*, nodered::*, outputs::*, projects::*,
-    scan::*, schedule::*, simulator::*, tools::*, warnings::*,
+    backup::*, billing::*, bus::*, datapoints::*, mail::*, meters::*, nodered::*, outputs::*,
+    projects::*, scan::*, schedule::*, simulator::*, tools::*, warnings::*,
 };
 
 #[derive(RustEmbed)]
@@ -138,7 +138,10 @@ pub fn router(state: AppState) -> Router {
         .route("/api/projects/{id}/thin", put(project_thin))
         .route("/api/storage", get(storage_get).put(storage_put))
         .route("/api/backup", get(backup_download))
-        .route("/api/backup/auto", get(backup_auto_get).put(backup_auto_put))
+        .route(
+            "/api/backup/auto",
+            get(backup_auto_get).put(backup_auto_put),
+        )
         .route("/api/backup/auto/test", post(backup_auto_test))
         // eine Sicherung mit Jahren an Messwerten ist gross (ohne Grenze lehnt axum ab 2 MB ab)
         .route(
@@ -214,7 +217,10 @@ fn foreign_origin(req: &Request) -> bool {
     let Some(origin) = req.headers().get(header::ORIGIN) else {
         return false;
     };
-    let host = req.headers().get(header::HOST).and_then(|v| v.to_str().ok());
+    let host = req
+        .headers()
+        .get(header::HOST)
+        .and_then(|v| v.to_str().ok());
     let origin_host = origin
         .to_str()
         .ok()
@@ -338,7 +344,10 @@ mod tests {
         // fremde Seite, auch „null“ (Datei, Sandbox): abgelehnt
         assert!(foreign_origin(&req("POST", Some("https://boese.example"))));
         assert!(foreign_origin(&req("POST", Some("null"))));
-        assert!(foreign_origin(&req("DELETE", Some("http://127.0.0.1:9999"))));
+        assert!(foreign_origin(&req(
+            "DELETE",
+            Some("http://127.0.0.1:9999")
+        )));
         // eigene Oberfläche, Programme ohne Origin, Lesen: erlaubt
         assert!(!foreign_origin(&req("POST", Some("http://127.0.0.1:8080"))));
         assert!(!foreign_origin(&req("POST", None)));

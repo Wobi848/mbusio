@@ -56,27 +56,30 @@ pub(super) async fn restore_upload(
     body: axum::body::Bytes,
 ) -> Result<Response, ApiError> {
     let dir = data_dir(&st)?;
-    let needs_password = || {
+    // Antwort, nach der die Oberfläche (wieder) nach dem Passwort fragt
+    let needs_password = |error: String| {
         Ok((
             StatusCode::BAD_REQUEST,
-            Json(json!({
-                "error": tr("Sicherung ist verschlüsselt: Passwort nötig", "Backup is encrypted: password required"),
-                "needs_password": true,
-            })),
+            Json(json!({ "error": error, "needs_password": true })),
         )
             .into_response())
     };
     let plain = if backup::crypt::is_encrypted(&body) {
+        // prozent-kodiert, damit Umlaute im Kopf erlaubt sind
         let password = headers
             .get("x-backup-password")
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
+            .and_then(|v| percent_encoding::percent_decode_str(v).decode_utf8().ok())
+            .unwrap_or_default();
         if password.is_empty() {
-            return needs_password();
+            return needs_password(tr(
+                "Sicherung ist verschlüsselt: Passwort nötig",
+                "Backup is encrypted: password required",
+            ));
         }
-        match backup::crypt::decrypt(password, &body) {
+        match backup::crypt::decrypt(&password, &body) {
             Ok(d) => d,
-            Err(_) => return needs_password(),
+            Err(e) => return needs_password(format!("{e:#}")),
         }
     } else {
         body.to_vec()
@@ -156,7 +159,12 @@ pub(super) async fn restore_apply(State(st): State<AppState>) -> ApiResult<serde
     backup::apply(&data_dir(&st)?).map_err(bad_request)?;
     st.log.push(
         "INFO",
-        both(|| tr("Sicherung wird eingespielt, mbusio startet neu", "Restoring backup, mbusio restarts")),
+        both(|| {
+            tr(
+                "Sicherung wird eingespielt, mbusio startet neu",
+                "Restoring backup, mbusio restarts",
+            )
+        }),
     );
     tokio::spawn(async {
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -170,7 +178,8 @@ mod tests {
     use super::*;
 
     fn state(name: &str) -> (std::path::PathBuf, AppState) {
-        let d = std::env::temp_dir().join(format!("mbusio-webbackup-{name}-{}", std::process::id()));
+        let d =
+            std::env::temp_dir().join(format!("mbusio-webbackup-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         let db = crate::db::Db::open(&d).unwrap();
@@ -178,7 +187,9 @@ mod tests {
     }
 
     async fn body_json(r: Response) -> serde_json::Value {
-        let bytes = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
+        let bytes = axum::body::to_bytes(r.into_body(), usize::MAX)
+            .await
+            .unwrap();
         serde_json::from_slice(&bytes).unwrap()
     }
 
@@ -190,14 +201,17 @@ mod tests {
         {
             let mut db = st.db.lock().unwrap();
             let mut c = db.backup_config();
-            c.secret = "geheim".into();
+            // Umlaute: kommen prozent-kodiert im Kopf (HTTP-Köpfe sind nur ASCII)
+            c.secret = "Grüße".into();
             c.folder = "/tmp".into();
             db.set_backup_config(&c).unwrap();
         }
         let dl = backup_download(State(st.clone()))
             .await
             .unwrap_or_else(|e| panic!("{}", e.1));
-        let bytes = axum::body::to_bytes(dl.into_body(), usize::MAX).await.unwrap();
+        let bytes = axum::body::to_bytes(dl.into_body(), usize::MAX)
+            .await
+            .unwrap();
         assert!(backup::crypt::is_encrypted(&bytes));
 
         let r = restore_upload(State(st.clone()), HeaderMap::new(), bytes.clone())
@@ -211,15 +225,19 @@ mod tests {
         let r = restore_upload(State(st.clone()), wrong, bytes.clone())
             .await
             .unwrap_or_else(|e| panic!("{}", e.1));
-        assert_eq!(body_json(r).await["needs_password"], true);
+        let answer = body_json(r).await;
+        assert_eq!(answer["needs_password"], true);
+        assert!(answer["error"].as_str().unwrap().contains("falsch"), "{answer}");
 
         let mut right = HeaderMap::new();
-        right.insert("x-backup-password", "geheim".parse().unwrap());
+        right.insert("x-backup-password", "Gr%C3%BC%C3%9Fe".parse().unwrap());
         let r = restore_upload(State(st.clone()), right, bytes)
             .await
             .unwrap_or_else(|e| panic!("{}", e.1));
         assert_eq!(r.status(), StatusCode::OK);
-        let _ = restore_discard(State(st)).await.unwrap_or_else(|e| panic!("{}", e.1));
+        let _ = restore_discard(State(st))
+            .await
+            .unwrap_or_else(|e| panic!("{}", e.1));
         std::fs::remove_dir_all(dir).unwrap();
     }
 
