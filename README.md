@@ -300,6 +300,14 @@ sudo systemctl enable --now mbusio
 
 Dann im Handy- oder Laptop-Browser `http://<IP des Pi>:8080` öffnen.
 
+**Reicht der Pi?** Vor dem Einsatz `mbusio lasttest` laufen lassen: erzeugt in einem eigenen
+Ordner eine Anlage mit 60 Zählern und 3 Jahren Messwerten (Plan alle 15 min, im letzten Jahr jede
+Auslesung, davor eine je Tag wie beim Speicherschutz), startet mbusio darauf und zeigt, wie lange
+Status, Zählerliste, Verlauf, Bericht, Abrechnung, Export und Sicherung brauchen. Danach wird der
+Ordner gelöscht; echte Daten fasst der Lasttest nie an. Grösse wählbar:
+`mbusio lasttest --meters 120 --years 5 --minutes 15`. Zum Vergleich auf einem PC: 480 MB
+Datenbank, Status 1 ms, Verlauf 60 ms, Abrechnung 30 ms, Sicherung herunterladen 1 s.
+
 ### Optionen
 
 | Option | Bedeutung |

@@ -80,7 +80,7 @@ wenn das Gerät ausfällt. Darum automatisch und **auf einen anderen Rechner**.
    einmal in `/etc/fstab` einbinden (Anleitung im README). Kein eigener SMB-Client in mbusio.
 2. **Verschlüsseln:** anders als zuerst vorgeschlagen (oben, historisch) doch verschlüsseln, mit
    einem eigenen **Sicherungs-Passwort** (AES-256-GCM, Schlüssel aus PBKDF2-SHA256 200 000 Runden;
-   Format `MBUSIOV1` | Runden | Salt 16 | Nonce 12 | Daten, `src/backup/crypt.rs`). Gilt auch für
+   Format `MBUSIOV2` | Runden | Salt 16 | Nonce-Anfang 7 | Stücke zu 1 MiB, je mit eigener Prüfsumme; die Nonce zählt die Stücke und markiert das letzte, `src/backup/crypt.rs`). In Stücken, weil die Datenbank Hunderte MB gross sein kann (Lasttest: 490 MB, Höchstwert des Arbeitsspeichers beim Sichern 15 MB statt rund 500 MB). Gilt auch für
    „Sicherung herunterladen“/„Einspielen …“ von Hand (Schritt 1): ist ein Sicherungs-Passwort
    eingestellt, verschlüsselt das Herunterladen automatisch; Einspielen erkennt die Kennung und
    fragt im Feld nach dem Passwort.

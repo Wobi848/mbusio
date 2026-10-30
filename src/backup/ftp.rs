@@ -3,7 +3,7 @@
 //! dieselbe `Arc<rustls::ClientConfig>` für Steuer- und Datenverbindung erlaubt vielen Servern die
 //! Wiederaufnahme der TLS-Sitzung auf der Datenverbindung (ohne die lehnen sie PASV-Daten ab).
 
-use std::io::{Read, Write};
+use std::io::Read;
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Result};
@@ -113,12 +113,12 @@ impl Ftp {
         }
     }
 
-    /// Datei hochladen (überschreibt eine gleichnamige)
-    pub fn store(&mut self, name: &str, data: &[u8]) -> Result<()> {
+    /// Datei hochladen, Stück für Stück aus `data` (überschreibt eine gleichnamige)
+    pub fn store(&mut self, name: &str, mut data: impl Read) -> Result<()> {
         let mut conn = self.data_conn()?;
         self.session
             .cmd(&format!("STOR {name}"), "STOR", &[150, 125])?;
-        conn.write_all(data)?;
+        std::io::copy(&mut data, &mut conn)?;
         conn.finish()?;
         self.session.expect("STOR", &[226, 250])?;
         Ok(())

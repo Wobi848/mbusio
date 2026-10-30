@@ -145,12 +145,8 @@ pub(super) fn backup_auto(st: &AppState, now: NaiveDateTime) {
 }
 
 fn run_backup(st: &AppState, config: &crate::backup::auto::BackupConfig) -> anyhow::Result<u64> {
-    let (device, bytes) = {
-        let db = st.db.lock().unwrap();
-        let device = crate::backup::safe_device_name(&db.mail_config().device_name());
-        (device, crate::backup::auto::build(&db)?)
-    };
-    crate::backup::auto::store(config, &device, &bytes)
+    let (file, device) = st.backup_source()?;
+    crate::backup::auto::run(&file, &device, config)
 }
 
 /// Speicher knapp: selbst ausdünnen und verkleinern (Konzept Dauerbetrieb 4.5), danach neu messen

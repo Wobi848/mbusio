@@ -83,7 +83,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
      `Conn::finish` noch unbenutzt, das braucht erst `ftp.rs` (Schritt 2). Kein Test deckt bisher
      SMTP mit TLS/STARTTLS ab (nur `security: "none"` im Fake-Server-Test) – das war schon vorher so.
   2. `src/backup.rs` → `src/backup/mod.rs`; neu `crypt.rs` (ring ist schon im Lock: AES-256-GCM,
-     PBKDF2-SHA256 200 000 Runden; Format `MBUSIOV1` | Runden u32 | Salt 16 | Nonce 12 | Daten),
+     PBKDF2-SHA256 200 000 Runden; Format `MBUSIOV2`, in Stücken zu 1 MiB, siehe crypt.rs),
      `ftp.rs` (USER/PASS, AUTH TLS + PBSZ 0 + PROT P, TYPE I, CWD/MKD, PASV, STOR, NLST, DELE; eine
      Arc<ClientConfig> für Steuer- und Datenverbindung wegen Sitzungs-Wiederaufnahme; Testserver im
      Rust-Test wie beim SMTP), `auto.rs` (Config in meta "backup": enabled, target folder|ftp,
@@ -95,7 +95,7 @@ Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
      `warn::KINDS` UND `web/app/weitergabe-ausgaenge.js` WARN_KINDS (Liste ist doppelt, später vom
      Server liefern) + Texte `warn_kind_backup`.
   4. Download/Restore: mit gesetztem Sicherungs-Passwort verschlüsselt; beim Einspielen erkennt die
-     Oberfläche `MBUSIOV1` an den ersten Bytes und fragt das Passwort (Header `X-Backup-Password`).
+     Oberfläche `MBUSIOV2` an den ersten Bytes und fragt das Passwort (Header `X-Backup-Password`).
   5. Oberfläche: Sicherung als Karte bei den Ausgängen in der Weitergabe (gleiche Bausteine wie
      MQTT/E-Mail: outputFields/formValues), „Jetzt sichern“, letztes Ergebnis; README, API, CHANGELOG
      (Abschnitt „Unveröffentlicht“).

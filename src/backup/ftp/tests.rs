@@ -105,7 +105,7 @@ fn upload_list_delete_and_missing_dir_gets_created() {
     let (port, handle) = fake_server();
     let mut ftp = Ftp::connect(&config(port)).unwrap();
     ftp.cd("sicherung").unwrap();
-    ftp.store("eins.mbusio", b"geheime Daten").unwrap();
+    ftp.store("eins.mbusio", &b"geheime Daten"[..]).unwrap();
     assert_eq!(ftp.list().unwrap(), vec!["eins.mbusio"]);
     ftp.delete("eins.mbusio").unwrap();
     assert!(ftp.list().unwrap().is_empty());
@@ -224,7 +224,7 @@ fn ftps_upload_arrives_complete() {
     .unwrap();
     // gross genug für viele TLS-Datensätze (die abgeschnittene Datei war 96 von 132 KB)
     let file: Vec<u8> = (0..300_000u32).map(|i| (i % 251) as u8).collect();
-    ftp.store("sicherung.mbusio", &file).unwrap();
+    ftp.store("sicherung.mbusio", &file[..]).unwrap();
     ftp.quit();
     assert_eq!(server.join().unwrap(), [file.len()]);
 }

@@ -41,7 +41,7 @@ export default {
     assert.equal(await page.locator(".ask").count(), 0);
 
     // Sicherungs-Passwort eingestellt (automatische Sicherung): Herunterladen verschlüsselt
-    // (.mbusio, Kennung MBUSIOV1); Einspielen fragt erst nach dem Passwort
+    // (.mbusio, Kennung MBUSIOV2); Einspielen fragt erst nach dem Passwort
     await api("backup/auto", "PUT", {
       config: { enabled: false, target: "folder", folder: "/tmp", host: "", port: 21, user: "", dir: "", tls: true, insecure: false, time: "02:30", keep: 7 },
       secret: "geheim",
@@ -49,7 +49,7 @@ export default {
     const [dl2] = await Promise.all([page.waitForEvent("download"), page.click("#backup-get")]);
     assert.match(dl2.suggestedFilename(), /\.mbusio$/);
     const file2 = await dl2.path();
-    assert.equal(fs.readFileSync(file2).subarray(0, 8).toString(), "MBUSIOV1");
+    assert.equal(fs.readFileSync(file2).subarray(0, 8).toString(), "MBUSIOV2");
 
     await page.setInputFiles("#backup-file", file2);
     await page.waitForSelector(".ask input");

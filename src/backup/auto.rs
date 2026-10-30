@@ -9,7 +9,6 @@ use anyhow::{bail, Result};
 use chrono::{Duration, NaiveDateTime, NaiveTime};
 use serde::{Deserialize, Serialize};
 
-use super::crypt;
 use super::ftp::{Ftp, FtpConfig};
 use crate::db::Db;
 use crate::i18n::tr;
@@ -224,21 +223,15 @@ impl Db {
     }
 }
 
-/// Stimmige Kopie der Datenbank als Bytes (über eine Zwischendatei neben `mbusio.db`, wie beim
-/// Herunterladen von Hand)
-pub fn build(db: &Db) -> Result<Vec<u8>> {
-    let dir = db
-        .path()
-        .and_then(|p| p.parent())
-        .ok_or_else(|| anyhow::anyhow!(tr("Keine Datenbankdatei", "No database file")))?;
-    let tmp = dir.join("mbusio.db.autosicherung");
-    if tmp.exists() {
-        std::fs::remove_file(&tmp)?;
-    }
-    db.backup_to(&tmp)?;
-    let bytes = std::fs::read(&tmp)?;
-    std::fs::remove_file(&tmp)?;
-    Ok(bytes)
+/// Jetzt sichern (Zeitplan und „Jetzt sichern“): Kopie der Datenbank, mit Sicherungs-Passwort
+/// verschlüsselt, ablegen, Zwischendatei löschen. Liefert die abgelegte Grösse. Braucht die Sperre
+/// der Datenbank nicht (eigene Verbindung, Netz-I/O).
+pub fn run(db_file: &Path, device: &str, c: &BackupConfig) -> Result<u64> {
+    c.ready()?;
+    let (file, encrypted) = super::make(db_file, &c.secret)?;
+    let stored = store(c, device, &file, encrypted);
+    std::fs::remove_file(&file)?;
+    stored
 }
 
 /// Dateiname `mbusio-sicherung-<gerät>-<datum>_<zeit>.<db|mbusio>`
@@ -260,30 +253,28 @@ fn surplus(names: &[String], device: &str, keep: u32) -> Vec<String> {
     mine[..extra].iter().map(|s| s.to_string()).collect()
 }
 
-/// Bei Bedarf verschlüsseln, ablegen (Ordner oder FTP) und am Ziel nur die letzten `keep` eigenen
-/// Sicherungen behalten. Liefert die abgelegte Grösse. Braucht keine Datenbank-Sperre (Netz-I/O).
-pub fn store(c: &BackupConfig, device: &str, data: &[u8]) -> Result<u64> {
-    c.ready()?;
-    let encrypted = !c.secret.is_empty();
-    let bytes = if encrypted {
-        crypt::encrypt(&c.secret, data)?
-    } else {
-        data.to_vec()
-    };
+/// Datei ablegen (Ordner oder FTP) und am Ziel nur die letzten `keep` eigenen Sicherungen
+/// behalten. Liefert die abgelegte Grösse.
+fn store(c: &BackupConfig, device: &str, file: &Path, encrypted: bool) -> Result<u64> {
     let name = file_name(device, encrypted, chrono::Local::now());
+    let size = std::fs::metadata(file)?.len();
     match c.target.as_str() {
-        "ftp" => store_ftp(c, &name, &bytes, device)?,
-        _ => store_folder(c, &name, &bytes, device)?,
+        "ftp" => store_ftp(c, &name, file, device)?,
+        _ => store_folder(c, &name, file, device)?,
     }
-    Ok(bytes.len() as u64)
+    Ok(size)
 }
 
-fn store_folder(c: &BackupConfig, name: &str, bytes: &[u8], device: &str) -> Result<()> {
+fn store_folder(c: &BackupConfig, name: &str, file: &Path, device: &str) -> Result<()> {
     let dir = Path::new(c.folder.trim());
     if !dir.is_dir() {
         bail!(tr("Ordner nicht gefunden", "folder not found"));
     }
-    std::fs::write(dir.join(name), bytes)?;
+    // erst unter anderem Namen: bricht das Kopieren ab (Stick voll, Netz weg), liegt keine halbe
+    // Datei da, die wie eine Sicherung aussieht
+    let part = dir.join(format!("{name}.part"));
+    std::fs::copy(file, &part)?;
+    std::fs::rename(&part, dir.join(name))?;
     let names: Vec<String> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().into_owned()))
         .collect();
@@ -293,7 +284,7 @@ fn store_folder(c: &BackupConfig, name: &str, bytes: &[u8], device: &str) -> Res
     Ok(())
 }
 
-fn store_ftp(c: &BackupConfig, name: &str, bytes: &[u8], device: &str) -> Result<()> {
+fn store_ftp(c: &BackupConfig, name: &str, file: &Path, device: &str) -> Result<()> {
     let mut ftp = Ftp::connect(&FtpConfig {
         host: c.host.clone(),
         port: c.port,
@@ -303,7 +294,7 @@ fn store_ftp(c: &BackupConfig, name: &str, bytes: &[u8], device: &str) -> Result
         insecure: c.insecure,
     })?;
     ftp.cd(&c.dir)?;
-    ftp.store(name, bytes)?;
+    ftp.store(name, std::fs::File::open(file)?)?;
     let names = ftp.list()?;
     for old in surplus(&names, device, c.keep) {
         ftp.delete(&old)?;
@@ -384,8 +375,6 @@ mod tests {
         let data_dir = dir.join("data");
         std::fs::create_dir_all(&data_dir).unwrap();
         let db = Db::open(&data_dir).unwrap();
-        let data = build(&db).unwrap();
-        assert!(!data.is_empty());
 
         let target = dir.join("ziel");
         std::fs::create_dir_all(&target).unwrap();
@@ -402,7 +391,19 @@ mod tests {
             secret: "geheim".into(),
             ..Default::default()
         };
-        store(&c, "testgeraet", &data).unwrap();
+        assert!(run(db.path().unwrap(), "testgeraet", &c).unwrap() > 0);
+        // die Zwischendatei neben der Datenbank ist wieder weg
+        let temp = std::fs::read_dir(&data_dir)
+            .unwrap()
+            .filter(|e| {
+                e.as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("sicherung")
+            })
+            .count();
+        assert_eq!(temp, 0);
         let left: Vec<String> = std::fs::read_dir(&target)
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())

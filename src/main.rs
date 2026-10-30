@@ -9,6 +9,7 @@ mod export;
 mod i18n;
 mod line;
 mod link;
+mod loadtest;
 mod mail;
 mod mbus;
 mod meterlist;
@@ -218,6 +219,7 @@ async fn serve(
     if backup::restore_pending(&data_dir)? {
         println!("Sicherung eingespielt / backup restored (vorher: mbusio.db.vorher)");
     }
+    backup::clean_temp(&data_dir)?;
     let database = db::Db::open(&data_dir)?;
     let active = database.active()?;
     let state: web::AppState = Arc::new(web::Shared::new(

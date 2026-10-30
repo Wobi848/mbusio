@@ -148,14 +148,6 @@ impl Db {
         Ok(db)
     }
 
-    /// Stimmige, kompakte Kopie der ganzen Datenbank nach `path` (Sicherung), auch während
-    /// andere schreiben; `path` darf es noch nicht geben
-    pub fn backup_to(&self, path: &Path) -> Result<()> {
-        self.conn
-            .execute("VACUUM INTO ?1", [path.to_string_lossy()])?;
-        Ok(())
-    }
-
     /// Nur im Speicher, für Tests
     #[cfg(test)]
     pub fn memory() -> Result<Self> {

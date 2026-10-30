@@ -18,6 +18,20 @@ Was sich für Benutzer ändert, je Version. Neuestes oben.
   verschlüsselt (AES-256-GCM); dasselbe Passwort verschlüsselt dann auch „Sicherung herunterladen“
   von Hand, „Einspielen …“ fragt dafür danach. Ein Fehlschlag erscheint bei den Meldungen.
 
+- **Lasttest:** `mbusio lasttest` erzeugt eine grosse Anlage (Vorgabe 60 Zähler, 3 Jahre, alle
+  15 min) in einem eigenen Ordner und misst die Antwortzeiten, z.B. auf dem Raspberry Pi vor dem
+  Einsatz (README, Raspberry Pi).
+
+### Geändert
+
+- **Sicherung braucht kaum Arbeitsspeicher:** Kopie über eine eigene Verbindung (die Oberfläche
+  und der Plan laufen weiter), Verschlüsseln, Herunterladen, Hochladen und Ablegen in Stücken.
+  Lasttest mit 490 MB: Höchstwert 15 MB statt rund 500 MB. Neues Format der verschlüsselten
+  Sicherung (`MBUSIOV2`); `MBUSIOV1` gab es nur vor diesem Stand und wird nicht mehr gelesen.
+- **Status ohne Anzahl der Auslesungen:** `GET /api/status` liefert `readings` nicht mehr; die Zahl
+  zu bestimmen kostete bei grossen Anlagen am meisten (48 ms statt 1 ms, alle 5 s je offenem
+  Fenster), und niemand benutzte sie (Oberfläche und Node-RED nehmen `changes`).
+
 ### Behoben
 
 - **FTPS: Sicherung kam abgeschnitten an** (z.B. 96 von 132 KB), weil die verschlüsselte

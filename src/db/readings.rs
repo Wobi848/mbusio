@@ -77,12 +77,25 @@ impl Db {
         Ok(out)
     }
 
-    pub fn reading_count(&self, line_id: i64) -> Result<i64> {
-        Ok(self.conn.query_row(
-            "SELECT COUNT(*) FROM readings WHERE line_id = ?1",
-            [line_id],
-            |r| r.get(0),
-        )?)
+    /// Viele kompakt gespeicherte Auslesungen in einem Schreibvorgang (Lasttest): je Zeile Zähler,
+    /// Ortszeit und UTC, alle mit demselben Rohtelegramm
+    pub fn bulk_readings(
+        &mut self,
+        line_id: i64,
+        target: &str,
+        raw: &[u8],
+        rows: &[(i64, String, i64)],
+    ) -> Result<()> {
+        self.tx(|db| {
+            let mut st = db.conn.prepare_cached(
+                "INSERT INTO readings (line_id, meter, timestamp, data, raw, utc, target, time_unsure)
+                 VALUES (?1, ?2, ?3, '', ?4, ?5, ?6, 0)",
+            )?;
+            for (meter, timestamp, utc) in rows {
+                st.execute(params![line_id, meter, timestamp, raw, utc, target])?;
+            }
+            Ok(())
+        })
     }
 
     pub fn clear_readings(&mut self, line_id: i64) -> Result<usize> {

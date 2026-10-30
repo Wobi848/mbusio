@@ -16,76 +16,108 @@ fn data_dir(st: &AppState) -> Result<std::path::PathBuf, ApiError> {
 }
 
 /// Ganze Datenbank als Datei `mbusio-sicherung-<gerät>-<datum>.db`; ist ein Sicherungs-Passwort
-/// eingestellt (Konzept Sicherung §5, automatische Sicherung), auch von Hand verschlüsselt (`.mbusio`)
+/// eingestellt (Konzept Sicherung §5, automatische Sicherung), auch von Hand verschlüsselt
+/// (`.mbusio`). Erzeugt und gesendet Stück für Stück, nie ganz im Arbeitsspeicher.
 pub(super) async fn backup_download(State(st): State<AppState>) -> Result<Response, ApiError> {
-    let dir = data_dir(&st)?;
-    let tmp = dir.join("mbusio.db.sicherung");
-    let (device, secret) = {
-        let db = st.db.lock().unwrap();
-        if tmp.exists() {
-            std::fs::remove_file(&tmp).map_err(anyhow::Error::from)?;
-        }
-        db.backup_to(&tmp)?;
-        (db.mail_config().device_name(), db.backup_config().secret)
-    };
-    let plain = std::fs::read(&tmp).map_err(anyhow::Error::from)?;
-    std::fs::remove_file(&tmp).map_err(anyhow::Error::from)?;
-    let device = backup::safe_device_name(&device);
-    let (body, ext, mime) = if secret.is_empty() {
-        (plain, "db", "application/vnd.sqlite3")
+    let (db_file, device) = st.backup_source()?;
+    let secret = st.db.lock().unwrap().backup_config().secret;
+    let (file, encrypted) = blocking(move || backup::make(&db_file, &secret)).await??;
+    let (ext, mime) = if encrypted {
+        ("mbusio", "application/octet-stream")
     } else {
-        (
-            backup::crypt::encrypt(&secret, &plain)?,
-            "mbusio",
-            "application/octet-stream",
-        )
+        ("db", "application/vnd.sqlite3")
     };
     let name = format!(
         "mbusio-sicherung-{device}-{}.{ext}",
         chrono::Local::now().format("%Y-%m-%d")
     );
-    Ok(download(body, mime, &name))
+    let size = std::fs::metadata(&file).map_err(anyhow::Error::from)?.len();
+    let mut response = download(file_body(file, size), mime, &name);
+    response
+        .headers_mut()
+        .insert(header::CONTENT_LENGTH, size.into());
+    Ok(response)
+}
+
+/// Inhalt einer Zwischendatei (`size` Bytes) als Strom in Stücken; gelöscht, sobald das letzte
+/// Stück gelesen ist (nach dem letzten Byte fragt der Server nicht mehr nach) oder ein Fehler kam.
+/// Bricht der Browser ab, räumt der nächste Start auf (`backup::clean_temp`).
+fn file_body(path: std::path::PathBuf, size: u64) -> axum::body::Body {
+    use tokio::io::AsyncReadExt;
+    struct Open {
+        file: Option<tokio::fs::File>,
+        path: std::path::PathBuf,
+        left: u64,
+    }
+    let start = Open {
+        file: None,
+        path,
+        left: size,
+    };
+    let stream = futures_util::stream::unfold(Some(start), |state| async move {
+        let mut s = state?;
+        let read = async {
+            if s.file.is_none() {
+                s.file = Some(tokio::fs::File::open(&s.path).await?);
+            }
+            let mut buf = vec![0u8; 64 * 1024];
+            let n = s.file.as_mut().unwrap().read(&mut buf).await?;
+            if n == 0 {
+                return Err(std::io::ErrorKind::UnexpectedEof.into());
+            }
+            buf.truncate(n);
+            Ok(buf)
+        };
+        let chunk = read.await;
+        s.left = s.left.saturating_sub(chunk.as_ref().map_or(0, |c| c.len() as u64));
+        if chunk.is_err() || s.left == 0 {
+            s.file = None;
+            let removed = tokio::fs::remove_file(&s.path).await;
+            return Some((chunk.and_then(|c| removed.map(|()| c.into())), None));
+        }
+        Some((chunk.map(axum::body::Bytes::from), Some(s)))
+    });
+    axum::body::Body::from_stream(stream)
 }
 
 /// Sicherung hochladen und prüfen: zeigt, was drin ist; eingespielt wird erst mit `restore/apply`.
-/// Verschlüsselt (erkannt an `MBUSIOV1`): Passwort im Kopf `X-Backup-Password`, sonst
-/// `needs_password` in der Antwort, damit die Oberfläche danach fragen kann.
+/// Die Datei kommt Stück für Stück auf die Platte. Verschlüsselt: Passwort im Kopf
+/// `X-Backup-Password` (prozent-kodiert, damit Umlaute erlaubt sind), sonst `needs_password` in der
+/// Antwort, damit die Oberfläche danach fragen kann.
 pub(super) async fn restore_upload(
     State(st): State<AppState>,
     headers: HeaderMap,
-    body: axum::body::Bytes,
+    body: axum::body::Body,
 ) -> Result<Response, ApiError> {
+    use futures_util::StreamExt;
+    use tokio::io::AsyncWriteExt;
     let dir = data_dir(&st)?;
-    // Antwort, nach der die Oberfläche (wieder) nach dem Passwort fragt
-    let needs_password = |error: String| {
-        Ok((
+    let mut file = tokio::fs::File::create(backup::upload_file(&dir))
+        .await
+        .map_err(anyhow::Error::from)?;
+    let mut chunks = body.into_data_stream();
+    while let Some(chunk) = chunks.next().await {
+        let chunk = chunk.map_err(|e| bad_request(e.to_string()))?;
+        file.write_all(&chunk).await.map_err(anyhow::Error::from)?;
+    }
+    file.flush().await.map_err(anyhow::Error::from)?;
+    drop(file);
+    let password = headers
+        .get("x-backup-password")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| percent_encoding::percent_decode_str(v).decode_utf8().ok())
+        .unwrap_or_default()
+        .into_owned();
+    match blocking(move || backup::accept(&dir, &password)).await? {
+        Ok(summary) => Ok(Json(summary).into_response()),
+        // die Oberfläche fragt (wieder) nach dem Passwort
+        Err(backup::Refused::Password(error)) => Ok((
             StatusCode::BAD_REQUEST,
             Json(json!({ "error": error, "needs_password": true })),
         )
-            .into_response())
-    };
-    let plain = if backup::crypt::is_encrypted(&body) {
-        // prozent-kodiert, damit Umlaute im Kopf erlaubt sind
-        let password = headers
-            .get("x-backup-password")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| percent_encoding::percent_decode_str(v).decode_utf8().ok())
-            .unwrap_or_default();
-        if password.is_empty() {
-            return needs_password(tr(
-                "Sicherung ist verschlüsselt: Passwort nötig",
-                "Backup is encrypted: password required",
-            ));
-        }
-        match backup::crypt::decrypt(&password, &body) {
-            Ok(d) => d,
-            Err(e) => return needs_password(format!("{e:#}")),
-        }
-    } else {
-        body.to_vec()
-    };
-    let summary = backup::upload(&dir, &plain).map_err(bad_request)?;
-    Ok(Json(summary).into_response())
+            .into_response()),
+        Err(backup::Refused::Other(e)) => Err(bad_request(e)),
+    }
 }
 
 /// Einstellungen der automatischen Sicherung ohne Passwort/Sicherungs-Passwort, dazu ob je eines
@@ -134,13 +166,8 @@ pub(super) async fn backup_auto_test(State(st): State<AppState>) -> ApiResult<se
     let config = st.db.lock().unwrap().backup_config();
     config.ready().map_err(bad_request)?;
     let target = config.target_label();
-    let device = backup::safe_device_name(&st.db.lock().unwrap().mail_config().device_name());
-    let st2 = st.clone();
-    let result = blocking(move || -> anyhow::Result<u64> {
-        let bytes = backup::auto::build(&st2.db.lock().unwrap())?;
-        backup::auto::store(&config, &device, &bytes)
-    })
-    .await?;
+    let (db_file, device) = st.backup_source()?;
+    let result = blocking(move || backup::auto::run(&db_file, &device, &config)).await?;
     let mut db = st.db.lock().unwrap();
     db.backup_record(&target, &result, crate::clock::now())?;
     let bytes = result.map_err(bad_request)?;
@@ -213,8 +240,14 @@ mod tests {
             .await
             .unwrap();
         assert!(backup::crypt::is_encrypted(&bytes));
+        // gelesen: die Zwischendatei neben der Datenbank ist weg
+        let left = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().contains("sicherung"))
+            .count();
+        assert_eq!(left, 0);
 
-        let r = restore_upload(State(st.clone()), HeaderMap::new(), bytes.clone())
+        let r = restore_upload(State(st.clone()), HeaderMap::new(), bytes.clone().into())
             .await
             .unwrap_or_else(|e| panic!("{}", e.1));
         assert_eq!(r.status(), StatusCode::BAD_REQUEST);
@@ -222,16 +255,19 @@ mod tests {
 
         let mut wrong = HeaderMap::new();
         wrong.insert("x-backup-password", "falsch".parse().unwrap());
-        let r = restore_upload(State(st.clone()), wrong, bytes.clone())
+        let r = restore_upload(State(st.clone()), wrong, bytes.clone().into())
             .await
             .unwrap_or_else(|e| panic!("{}", e.1));
         let answer = body_json(r).await;
         assert_eq!(answer["needs_password"], true);
-        assert!(answer["error"].as_str().unwrap().contains("falsch"), "{answer}");
+        assert!(
+            answer["error"].as_str().unwrap().contains("falsch"),
+            "{answer}"
+        );
 
         let mut right = HeaderMap::new();
         right.insert("x-backup-password", "Gr%C3%BC%C3%9Fe".parse().unwrap());
-        let r = restore_upload(State(st.clone()), right, bytes)
+        let r = restore_upload(State(st.clone()), right, bytes.into())
             .await
             .unwrap_or_else(|e| panic!("{}", e.1));
         assert_eq!(r.status(), StatusCode::OK);

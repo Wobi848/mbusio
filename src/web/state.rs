@@ -46,6 +46,19 @@ pub struct Shared {
 }
 
 impl Shared {
+    /// Für eine Sicherung: Datenbankdatei und Gerätename für den Dateinamen
+    pub(crate) fn backup_source(&self) -> anyhow::Result<(std::path::PathBuf, String)> {
+        let db = self.db.lock().unwrap();
+        let file = db
+            .path()
+            .map(|p| p.to_path_buf())
+            .ok_or_else(|| anyhow::anyhow!(tr("Keine Datenbankdatei", "No database file")))?;
+        Ok((
+            file,
+            crate::backup::safe_device_name(&db.mail_config().device_name()),
+        ))
+    }
+
     pub fn new(token: Option<String>, db: Db) -> Self {
         Self::with_planner(token, db, Planner::default())
     }

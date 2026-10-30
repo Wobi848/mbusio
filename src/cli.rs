@@ -46,6 +46,18 @@ pub(crate) enum Cmd {
     },
     /// Rohe Bytes senden, z.B. "10 40 01 41 16"
     Raw { hex: String },
+    /// Lasttest: grosse Anlage erzeugen und messen, wie schnell mbusio antwortet (z.B. auf dem
+    /// Raspberry Pi vor dem Einsatz). Ohne --data-dir in einem eigenen Ordner, der danach gelöscht
+    /// wird; nie in einem Ordner mit Datenbank
+    Lasttest {
+        #[arg(long, default_value_t = 60)]
+        meters: u32,
+        #[arg(long, default_value_t = 3)]
+        years: u32,
+        /// Ausleseplan in Minuten
+        #[arg(long, default_value_t = 15)]
+        minutes: u32,
+    },
 }
 
 fn choice(all_bauds: bool, bauds: &[u32]) -> Bauds {
@@ -133,6 +145,8 @@ fn run_command(args: &Args, cmd: &Cmd) -> anyhow::Result<()> {
                 }
             }
         }
+        // braucht keinen Bus; läuft schon in run_cli
+        Cmd::Lasttest { .. } => unreachable!("Lasttest in run_cli"),
     };
     // Telegramm-Log für die Fehlersuche auf stderr, Ergebnis auf stdout
     for e in log.since(0) {
@@ -155,6 +169,18 @@ pub(crate) fn run_cli(args: &Args) -> anyhow::Result<()> {
         return Ok(());
     }
     match &args.cmd {
+        Some(Cmd::Lasttest {
+            meters,
+            years,
+            minutes,
+        }) => crate::loadtest::run(
+            args.data_dir.clone(),
+            crate::loadtest::Size {
+                meters: *meters,
+                years: *years,
+                minutes: *minutes,
+            },
+        ),
         Some(cmd) => run_command(args, cmd),
         None => Ok(()),
     }
