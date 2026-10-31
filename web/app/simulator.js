@@ -3,7 +3,7 @@
 // Simulation startet dabei neu). Vorlagen sind nur zum Ansehen und Kopieren.
 
 import { state, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, texts, menu, closeMenu, explain } from "./view.js";
+import { html, text, list, ask, toast, styles, texts, menu, closeMenu, explain, typingIn } from "./view.js";
 import { loadStatus, loadTree, report } from "./data.js";
 
 texts(
@@ -181,7 +181,7 @@ function row({ m, i }) {
 function renderDetail() {
   const box = q("[data-detail]");
   const m = meters()[active];
-  const typing = box.contains(document.activeElement) && document.activeElement.matches("input, select");
+  const typing = typingIn(box);
   if (typing && box.dataset.shown === `${key}:${active}`) return;
   box.dataset.shown = `${key}:${active}`;
   box.classList.toggle("open", !!m);

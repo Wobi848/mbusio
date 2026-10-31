@@ -55,6 +55,9 @@ What changes for users, per version, newest first. Entries up to v0.5.0 are in G
 
 ### Fixed
 
+- **Changes show at once:** a choice in a dropdown (e.g. the value in the history) or a click on
+  “Select” for a line only showed after clicking elsewhere, because the display waited for the focus to
+  leave. Now only typing holds it back.
 - **Site:** "+ Line" and the arrows on the right were cut off at common window widths.
 - **Scan:** before the first scan, the detail area ended after a few lines instead of using the full
   height.

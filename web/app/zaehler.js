@@ -2,7 +2,7 @@
 // Zustand als Wort am Element, Bearbeiten direkt in den Feldern, Mehrfachauswahl, Tastatur.
 
 import { state, watch, activeLine, faulty } from "./store.js";
-import { html, text, list, ask, toast, styles, menu, closeMenu, explain, fieldKeys } from "./view.js";
+import { html, text, list, ask, toast, styles, menu, closeMenu, explain, fieldKeys, typingIn } from "./view.js";
 import { bind, onEscape, selectionKeys } from "./keys.js";
 import { loadMeters, loadTree, loadStatus, report } from "./data.js";
 import "./zaehler-texte.js";
@@ -170,7 +170,7 @@ function render() {
 function renderDetail() {
   const box = q("[data-detail]");
   // wer gerade in ein Feld tippt, verliert nichts: neu gezeichnet wird erst danach
-  const typing = box.contains(document.activeElement) && document.activeElement.matches("input:not([type=checkbox]), select");
+  const typing = typingIn(box);
   if (typing && box.dataset.meter === String(view.adding ? "new" : view.active)) return;
   box.dataset.meter = view.panel || (view.adding ? "new" : String(view.active));
   if (view.panel) return; // Liste importieren / Namen: eigener Inhalt, siehe openPanel

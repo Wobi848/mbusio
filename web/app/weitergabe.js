@@ -2,7 +2,7 @@
 // Datenpunkte als Liste, Details rechts (Konzept neue Oberfläche §3.2, Schritt 4).
 
 import { state, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, previewApply, menu, explain, fieldKeys } from "./view.js";
+import { html, text, list, ask, toast, styles, previewApply, menu, explain, fieldKeys, typingIn } from "./view.js";
 import { onEscape, selectionKeys } from "./keys.js";
 import { loadTree, report } from "./data.js";
 import "./weitergabe-texte.js";
@@ -278,7 +278,7 @@ function row(p) {
 function renderDetail() {
   const box = q("[data-detail]");
   if (view.preview) return;
-  const typing = box.contains(document.activeElement) && document.activeElement.matches("input:not([type=checkbox]), select, textarea");
+  const typing = typingIn(box);
   const key = view.output ? "out:" + view.output : "dp:" + view.active;
   if (typing && box.dataset.shown === key) return;
   // Einstellungen eines Ausgangs hängen nur an `cfg`: nicht bei jeder Statusabfrage neu bauen,
