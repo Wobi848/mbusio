@@ -559,3 +559,7 @@ rights needed on Windows: the .exe runs from any folder. Put a folder `mbusio-da
 keep all data there (portable, e.g. USB stick). For continuous operation run it as a Windows service:
 double-click `mbusio-dienst-einrichten.cmd` (or `--install-service` as administrator); it then
 starts with Windows without anyone logged in, data in `C:\ProgramData\mbusio`. On Linux use systemd.
+
+## Lizenz
+
+MIT, siehe [LICENSE](LICENSE).
