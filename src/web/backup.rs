@@ -69,7 +69,9 @@ fn file_body(path: std::path::PathBuf, size: u64) -> axum::body::Body {
             Ok(buf)
         };
         let chunk = read.await;
-        s.left = s.left.saturating_sub(chunk.as_ref().map_or(0, |c| c.len() as u64));
+        s.left = s
+            .left
+            .saturating_sub(chunk.as_ref().map_or(0, |c| c.len() as u64));
         if chunk.is_err() || s.left == 0 {
             s.file = None;
             let removed = tokio::fs::remove_file(&s.path).await;
@@ -243,7 +245,13 @@ mod tests {
         // gelesen: die Zwischendatei neben der Datenbank ist weg
         let left = std::fs::read_dir(&dir)
             .unwrap()
-            .filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().contains("sicherung"))
+            .filter(|e| {
+                e.as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("sicherung")
+            })
             .count();
         assert_eq!(left, 0);
 
