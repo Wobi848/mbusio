@@ -104,4 +104,4 @@ In MQTT → Einstellungen: **„Home Assistant (MQTT Discovery)“** ein/aus (Vo
 - Rust-Tests: Konfig beim Einschalten, Inhalt (Typ, Einheit, Gerät, Verfügbarkeit), nichts bei
   unverändert, Entfernen bei Häkchen weg und bei Home Assistant aus, Warteschlange mit `abs`.
 - UI-Test mit Test-Broker: Häkchen setzen, Konfig-Nachricht kommt am Broker an.
-- Echter Test mit Home Assistant erst nach Freigabe (Broker 192.168.178.66 nicht ungefragt).
+- Echter Test mit Home Assistant erst nach Freigabe.

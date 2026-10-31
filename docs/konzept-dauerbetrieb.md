@@ -552,7 +552,7 @@ direkt in der Tabelle, Namen nach Muster, CSV-Export; Vorlagen auf Wunsch gleich
 mit MQTT. Bedienkonzept umgesetzt (Reiter Weitergabe, Bausteine), dazu die Karte „Nächster
 Schritt“ (PR #2). Code aufgeräumt: nichts doppelt, grosse Dateien nach Bereichen aufgeteilt.
 
-**Oberfläche v2** (Entwurf, Übergabe in [uebergabe-design-v2.md](uebergabe-design-v2.md)): Kopfzeile
+**Oberfläche v2**: Kopfzeile
 für das Projekt, Linien-Leiste mit Verbindung, Laschen je Linie, Zähler-Baustein mit Medium-Symbol,
 Bearbeiten in der Zeile, Auffälligkeiten an ihrer Zeile. Umsetzung schrittweise, je ein Commit.
 
