@@ -441,7 +441,7 @@ cargo run -- --port SIMULATOR
 cargo run -- --time-scale 48   # time lapse for long-running tests: one day in 30 minutes
 ```
 
-Code comments, commit messages and the concepts in `docs/` are in German.
+Code comments and the older concepts in `docs/` are in German; commit messages and new concepts are in English.
 
 Structure:
 
