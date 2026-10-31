@@ -6,11 +6,11 @@
 const listLogic = {
   FIELDS: ["id", "name", "location", "note", "pa"],
   GUESS: {
-    id: /^(id|ident|z(ä|ae)hler.?(nr|nummer)|serien.?(nr|nummer)|fab(rikations)?.?(nr|nummer)|meter.?(id|no)|serial|nummer|nr\.?)$/i,
-    name: /^(name|bezeichnung|benennung|description)$/i,
-    location: /^(ort|lage|standort|einbauort|wohnung|whg|raum|location|place)$/i,
-    note: /^(notiz|bemerkung|kommentar|note|remark|comment)$/i,
-    pa: /^(pa|prim(ä|ae)r.?adr(esse)?|primary.?address|m-?bus.?adr(esse)?)$/i,
+    id: /^(id|ident|z(ä|ae)hler.?(nr|nummer)|serien.?(nr|nummer)|fab(rikations)?.?(nr|nummer)|meter.?(id|no)|serial|nummer|nr\.?|compteur|n°|num(é|e)ro)$/i,
+    name: /^(name|bezeichnung|benennung|description|nom|d(é|e)signation)$/i,
+    location: /^(ort|lage|standort|einbauort|wohnung|whg|raum|location|place|emplacement|lieu|appartement|pi(è|e)ce|local)$/i,
+    note: /^(notiz|bemerkung|kommentar|note|remark|comment|remarque|commentaire)$/i,
+    pa: /^(pa|prim(ä|ae)r.?adr(esse)?|primary.?address|m-?bus.?adr(esse)?|adresse.?primaire)$/i,
   },
 
   /// Zeilen → { rows, header (erste Zeile ist Überschrift), cols, map (Feld → Spalte, geraten) }

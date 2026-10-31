@@ -34,16 +34,15 @@ pub enum Lang {
 /// Alle Sprachen; die Reihenfolge ist der Wert in `UI`
 const ALL: [Lang; 5] = [Lang::De, Lang::En, Lang::Fr, Lang::It, Lang::Es];
 
-/// Wählbare Sprachen. Eine neue kommt erst hierher (und in `LANGUAGES` in web/js/base.js), wenn sie
-/// vollständig ist; das prüfen die Tests für jede Sprache in dieser Liste.
-const OFFERED: [Lang; 2] = [Lang::De, Lang::En];
+/// Übersetzte Sprachen; für sie prüft ein Test, dass kein Text fehlt
+#[cfg(test)]
+const COMPLETE: [Lang; 1] = [Lang::Fr];
 
 impl Lang {
     /// "en", "en-US", "de-CH" … ; alles Unbekannte wird Deutsch.
     pub fn parse(s: &str) -> Self {
         let s = s.trim().to_ascii_lowercase();
-        OFFERED
-            .into_iter()
+        ALL.into_iter()
             .find(|l| s.starts_with(l.code()))
             .unwrap_or(Lang::De)
     }

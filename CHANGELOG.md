@@ -31,6 +31,8 @@ What changes for users, per version, newest first. Entries up to v0.5.0 are in G
 - **Status without the number of readings:** `GET /api/status` no longer returns `readings`. Counting
   them was the most expensive part on large plants (48 ms instead of 1 ms, every 5 s per open
   window), and nothing used it (the interface and Node-RED use `changes`).
+- **API languages:** `X-Lang` and `?lang=` now also accept `fr`, `it` and `es`, which returned German
+  until now. Texts not translated yet appear in English.
 - **Browser default language:** without a saved choice, a browser language mbusio does not know now
   gets English instead of German.
 - **Next step at the top:** it now sits right of the tabs instead of in the status bar. Only one

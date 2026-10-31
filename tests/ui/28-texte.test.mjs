@@ -8,10 +8,17 @@ const AREAS = ["anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulato
 export default {
   name: "Texte (alle Sprachen vollständig, unbekannte Sprache wird Englisch)",
   async run({ page, base }) {
-    // die Bereiche laden ihre Texte erst beim Öffnen
-    for (const area of AREAS) {
-      await page.goto(`${base}/#/${area}`);
-      await page.waitForSelector(`section[data-area=${area}]`);
+    // die Bereiche laden ihre Texte erst beim Öffnen; Sprachdateien nur für ihre Sprache
+    const open = async (query = "") => {
+      for (const area of AREAS) {
+        await page.goto(`${base}/${query}#/${area}`);
+        await page.waitForSelector(`section[data-area=${area}]`);
+      }
+    };
+    await open();
+    for (const code of await page.evaluate(() => Object.keys(LANG_PREVIEW))) {
+      await open(`?lang=${code}`);
+      assert.equal(await page.evaluate(() => document.documentElement.lang), code, "Vorschau über ?lang=");
     }
     const wrong = await page.evaluate(() => {
       const out = [];
@@ -28,6 +35,7 @@ export default {
 
     // gespeichert oder vom Browser: unbekannt wird Englisch, nie Deutsch und nie ein leeres Menü
     await page.addInitScript(() => localStorage.setItem("lang", "sv"));
+    await page.goto(`${base}/#/zaehler`);
     await page.reload();
     await page.waitForSelector("#lang option", { state: "attached" });
     assert.equal(await page.evaluate(() => lang), "en");

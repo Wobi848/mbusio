@@ -38,28 +38,39 @@ fn no_duplicate_keys() {
 
 #[test]
 fn catalog_text_or_english() {
-    // Kataloge sind in dieser Stufe leer: alles erscheint auf Englisch, nie der Schlüssel
     assert_eq!(tr_in(Lang::De, "Zähler", "Meter"), "Zähler");
     assert_eq!(tr_in(Lang::En, "Zähler", "Meter"), "Meter");
+    assert_eq!(tr_in(Lang::Fr, "Zähler", "Meter"), "Compteur");
+    // noch nicht übersetzt: Englisch, nie der Schlüssel und nie Deutsch
     assert_eq!(
         tr_in(Lang::Fr, "Ein neuer Text", "A new text"),
         "A new text"
     );
-    assert_eq!(label("no_such_key", Lang::It), "no_such_key");
-    for lang in ALL {
-        assert!(!label("energy", lang).is_empty());
+    assert_eq!(tr_in(Lang::It, "Zähler", "Meter"), "Meter");
+    assert_eq!(label("energy", Lang::Fr), "Énergie");
+    assert_eq!(label("energy", Lang::It), "Energy");
+    assert_eq!(label("no_such_key", Lang::Fr), "no_such_key");
+}
+
+#[test]
+fn parse_language_codes() {
+    assert_eq!(Lang::parse("fr-CH"), Lang::Fr);
+    assert_eq!(Lang::parse("it"), Lang::It);
+    assert_eq!(Lang::parse("es-ES"), Lang::Es);
+    for code in ["xx", ""] {
+        assert_eq!(Lang::parse(code), Lang::De);
     }
 }
 
 #[test]
-fn unavailable_language_stays_german() {
-    // eine Sprache ausserhalb von OFFERED verhält sich wie jede unbekannte
-    for code in ["xx", ""] {
-        assert_eq!(Lang::parse(code), Lang::De);
-    }
-    for lang in ALL.into_iter().filter(|l| !OFFERED.contains(l)) {
-        assert_eq!(Lang::parse(lang.code()), Lang::De);
-    }
+fn stored_messages_in_all_languages() {
+    let t = both(|| format!("{} 3", tr("Zähler", "Meter")));
+    assert_eq!(t.more.get("fr").map(String::as_str), Some("Compteur 3"));
+    // nur, was von Englisch abweicht
+    assert_eq!(t.more.get("it"), None);
+    set(Lang::Fr);
+    assert_eq!(t.get(), "Compteur 3");
+    follow_ui();
 }
 
 #[test]
@@ -92,6 +103,10 @@ fn source_texts() -> HashSet<String> {
     fn walk(dir: &Path, out: &mut HashSet<String>) {
         for entry in std::fs::read_dir(dir).unwrap() {
             let path = entry.unwrap().path();
+            let name = path.file_name().unwrap();
+            if name == "tests" || name == "tests.rs" {
+                continue;
+            }
             if path.is_dir() {
                 walk(&path, out);
             } else if path.extension().is_some_and(|e| e == "rs") {
@@ -175,7 +190,7 @@ fn catalogs_match_the_source() {
             "{}: unbekannte Namen: {stale:?}",
             lang.code()
         );
-        if OFFERED.contains(&lang) {
+        if COMPLETE.contains(&lang) {
             let missing: Vec<_> = texts
                 .iter()
                 .filter(|k| !c.messages.contains_key(*k))

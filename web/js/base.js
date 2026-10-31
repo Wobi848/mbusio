@@ -23,9 +23,10 @@ const $ = (id) => document.getElementById(id);
 /// Baudraten des M-Bus
 const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 
-/// Wählbare Sprachen. Eine neue kommt erst hierher (und in `OFFERED` in src/i18n/mod.rs), wenn sie
-/// vollständig ist
+/// Sprachen im Menü
 const LANGUAGES = { de: "Deutsch", en: "English" };
+/// Übersetzt, aber noch nicht geprüft: nicht im Menü, nur über ?lang=fr zu sehen (für die Prüfer)
+const LANG_PREVIEW = { fr: "Français" };
 
 /// Formate je Sprache (Gegenstück zu `Lang::date_format` und `Lang::decimal` im Server)
 const LANG_FORMATS = {
@@ -36,9 +37,23 @@ const LANG_FORMATS = {
   es: { locale: "es-ES", dateSep: "/", decimal: "," },
 };
 
+const urlLang = new URLSearchParams(location.search).get("lang");
+if (urlLang) storageSet("lang", urlLang);
 let lang = storageGet("lang") || (navigator.language || "de").slice(0, 2);
-if (!LANGUAGES[lang]) lang = "en";
+if (!LANGUAGES[lang] && !LANG_PREVIEW[lang]) lang = "en";
 const langFormat = () => LANG_FORMATS[lang];
+
+/// Sprachdatei laden, falls die Sprache nicht in texts.js steht; vor dem ersten Zeichnen abwarten.
+/// Schlägt das fehl, erscheint Englisch.
+function loadLanguage() {
+  if (UI[lang]) return Promise.resolve();
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = `js/lang-${lang}.js`;
+    script.onload = script.onerror = () => resolve();
+    document.head.append(script);
+  });
+}
 let labels = {}; // Messdaten-Begriffe vom Server
 let token = storageGet("token") || "";
 

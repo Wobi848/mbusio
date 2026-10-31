@@ -42,7 +42,7 @@ export default {
   async run({ page, base, api }) {
     // mit Bereich in der Adresse: ohne springt die App beim Start selbst auf einen Bereich
     await page.goto(base + "/#/zaehler");
-    const languages = await page.evaluate(() => Object.keys(LANGUAGES));
+    const languages = await page.evaluate(() => Object.keys({ ...LANGUAGES, ...LANG_PREVIEW }));
     const empty = await api("gateways/1/lines", "POST", { name: "Ohne Anschluss" });
     const found = [];
     for (const line of [1, empty.id]) {

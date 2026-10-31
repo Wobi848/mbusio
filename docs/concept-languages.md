@@ -1,6 +1,6 @@
 # Concept: more languages
 
-Date: 2026-10-31 · Status: **step 1 built**, no new language yet
+Date: 2026-10-31 · Status: **steps 1 and 2 built**; French is translated, not reviewed and not in the menu
 
 Goal: add French, Italian and Spanish to mbusio, and make any further language mostly a matter of
 translating, without touching the code each time. German and English must behave exactly as today.
@@ -177,11 +177,10 @@ Each step is its own commit and leaves everything working. The new languages sta
 menu until they are complete.
 
 1. **Engine, no new language (done).** `Lang` with five values, catalogs, `tr`, `Text`, `Open`, one
-   place for formats, checks. German and English identical to before. New languages stay unavailable
-   through `OFFERED` and `LANGUAGES`.
-2. **French, complete.** Includes the interface loader and the header words of the list import. The
-   first language shows what the engine missed, and whether the glossary and the layout hold. Fix
-   those before going on.
+   place for formats, checks. German and English identical to before.
+2. **French, complete (done, not reviewed).** Includes the interface loader and the header words of
+   the list import. The language is not in the menu yet; reviewers open it with `?lang=fr`, which
+   `LANG_PREVIEW` in `web/js/base.js` allows.
 3. **Italian and Spanish.**
 4. **Node-RED** in all three languages.
 5. **Review** by someone from the trade, then switch the languages on in the menu.

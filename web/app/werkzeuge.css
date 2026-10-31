@@ -47,7 +47,7 @@
 [data-area=werkzeuge] .frame:hover { border-color: var(--accent); }
 
 [data-area=werkzeuge] .logpart { min-height: 0; display: grid; grid-template-rows: auto minmax(120px, 1fr) auto auto auto; background: var(--surface); }
-[data-area=werkzeuge] .lhead { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+[data-area=werkzeuge] .lhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
 [data-area=werkzeuge] .follow { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 [data-area=werkzeuge] .lines { min-height: 0; overflow: auto; padding: 4px 0; background: var(--sunken); font-size: 11.5px; }
 [data-area=werkzeuge] .lines:has(+ .empty:not([hidden])) { display: none; }

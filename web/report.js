@@ -212,7 +212,7 @@ function render() {
   const meta = [
     [t("project"), data.project.name],
     [t("date"), dateTime(new Date())],
-    [t("lines"), `${data.gateways.length} ${data.gateways.length === 1 ? "Gateway" : "Gateways"} · ${t("ps_lines", lines)}`],
+    [t("lines"), `${t("rp_gateways", data.gateways.length)} · ${t("ps_lines", lines)}`],
     [t("count"), `${list.length} · ${ok} ${t("ok_count")}` + (err ? ` · ${err} ${t("err_count")}` : "")],
     issuesShown() ? [t("open_issues"), String(open)] : null,
   ].filter(Boolean);
@@ -225,6 +225,7 @@ function render() {
 }
 
 async function main() {
+  await loadLanguage();
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
   document.title = `mbusio – ${t("title")}`;

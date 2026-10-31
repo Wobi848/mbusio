@@ -205,7 +205,9 @@ bind("?", showKeys, t("n_key_help"));
 // ------------------------------------------------------------ Start
 
 async function start() {
-  $("lang").innerHTML = Object.entries(LANGUAGES).map(([code, name]) => `<option value="${code}">${esc(name)}</option>`).join("");
+  await loadLanguage();
+  const menuLanguages = { ...LANGUAGES, ...(LANG_PREVIEW[lang] && { [lang]: LANG_PREVIEW[lang] }) };
+  $("lang").innerHTML = Object.entries(menuLanguages).map(([code, name]) => `<option value="${code}">${esc(name)}</option>`).join("");
   applyTexts();
   labels = await request("labels").catch(() => ({}));
   startKopf();

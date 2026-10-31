@@ -1,7 +1,7 @@
 import { assert, simLine } from "./helpers.mjs";
 
-// jeder Bereich in beiden Sprachen ohne fehlende Texte (Schlüssel statt Text),
-// auf Englisch ohne deutsche Wörter – auch in Tooltips, Platzhaltern und Details
+// jeder Bereich in allen Sprachen ohne fehlende Texte (Schlüssel statt Text),
+// ausser auf Deutsch ohne deutsche Wörter – auch in Tooltips, Platzhaltern und Details
 
 const AREAS = ["scan", "zaehler", "weitergabe", "anlage", "werkzeuge", "simulator"];
 const KEY = /^[a-z]+(_[a-z0-9]+)+$/;
@@ -26,9 +26,9 @@ const visibleTexts = (page) =>
 async function check(page, lang, where) {
   const texts = await visibleTexts(page);
   assert.deepEqual(texts.filter((s) => KEY.test(s)), [], `fehlende Texte (${lang}, ${where})`);
-  if (lang === "en") {
+  if (lang !== "de") {
     const german = texts.filter((s) => GERMAN.test(s.replace(DATA, "")));
-    assert.deepEqual(german, [], `deutscher Text auf Englisch (${where})`);
+    assert.deepEqual(german, [], `deutscher Text auf ${lang} (${where})`);
   }
 }
 
@@ -73,7 +73,7 @@ export default {
     await api("meters/1/datapoints", "PUT", { keys: ["instantaneous|0|0|0|energy|kWh"] });
   },
   async run({ page, base }) {
-    for (const lang of ["en", "de"]) {
+    for (const lang of ["en", "de", "fr"]) {
       // das Testgerüst setzt bei jedem Laden Deutsch; ein späteres Init-Skript gewinnt
       await page.addInitScript((l) => localStorage.setItem("lang", l), lang);
       for (const area of AREAS) {
