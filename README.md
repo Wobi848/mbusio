@@ -229,6 +229,9 @@ Ready-made programs are on the [releases page](https://github.com/Wobi848/mbusio
 64-bit) and `mbusio-raspberrypi-armv7` (32-bit). On start the browser opens `http://localhost:8080`;
 the last active line reconnects automatically.
 
+**Android:** `mbusio-android.apk` from the same page reads meters with the phone and a USB M-Bus
+master on USB-C/OTG (arm64, Android 10 or later). Details: [android/README.md](android/README.md).
+
 ```sh
 mbusio                                  # http://localhost:8080
 mbusio --port SIMULATOR                 # try it without hardware

@@ -3,6 +3,12 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Version wie mbusio selbst (Cargo.toml), nicht ein zweites Mal pflegen
+val cargoVersion = Regex("""(?m)^version = "(\d+)\.(\d+)\.(\d+)"""")
+    .find(rootDir.parentFile.resolve("Cargo.toml").readText())!!.groupValues
+// Release-Signatur nur auf GitHub (Secrets, siehe .github/workflows/build.yml); lokal unsigniert
+val keystore = System.getenv("ANDROID_KEYSTORE_FILE")
+
 android {
     namespace = "io.github.wobi848.mbusio"
     compileSdk = 36
@@ -13,14 +19,26 @@ android {
         // Android 10: Speichern in „Downloads“ ohne Speicherberechtigung
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.5.0"
+        versionCode = cargoVersion[1].toInt() * 10000 + cargoVersion[2].toInt() * 100 + cargoVersion[3].toInt()
+        versionName = cargoVersion.drop(1).joinToString(".")
         ndk { abiFilters += "arm64-v8a" }
+    }
+
+    signingConfigs {
+        if (keystore != null) {
+            create("release") {
+                storeFile = file(keystore)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = "mbusio"
+                keyPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

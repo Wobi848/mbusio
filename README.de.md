@@ -237,6 +237,9 @@ Fertige Programme gibt es bei den [Releases](https://github.com/Wobi848/mbusio/r
 64-Bit) und `mbusio-raspberrypi-armv7` (32-Bit). Beim Start öffnet sich der Browser mit
 `http://localhost:8080`; die zuletzt aktive Linie wird automatisch wieder verbunden.
 
+**Android:** `mbusio-android.apk` von derselben Seite liest Zähler mit dem Handy und einem USB-M-Bus-
+Master an USB-C/OTG (arm64, ab Android 10). Details: [android/README.md](android/README.md).
+
 ### Windows ohne Adminrechte
 
 Keine Installation nötig: die .exe in einen beliebigen Ordner legen und doppelklicken. Bei der

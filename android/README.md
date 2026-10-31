@@ -2,6 +2,12 @@
 
 Read meters with a phone and a USB M-Bus master (USB-C/OTG adapter).
 
+## Install
+
+Download `mbusio-android.apk` from the [releases page](https://github.com/Wobi848/mbusio/releases),
+open it on the phone and allow installing from this source. Plug in the USB master (OTG cable or
+adapter) and allow mbusio to use it; with "always" Android does not ask again.
+
 ## How it works
 
 - The app ships mbusio itself (Rust, built for `aarch64-linux-android`) as `libmbusio.so` and
@@ -25,7 +31,9 @@ ANDROID_HOME=/usr/lib/android-sdk ./gradlew assembleDebug
 # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-`assembleDebug` builds mbusio with cargo first (task `cargoBuild`).
+`assembleDebug` builds mbusio with cargo first (task `cargoBuild`). The version comes from
+`Cargo.toml`. Release builds on GitHub are signed with the key from the secrets `ANDROID_KEYSTORE`
+(base64) and `ANDROID_KEYSTORE_PASSWORD`; the same key is needed for every update, keep it safe.
 
 ## Limits
 
