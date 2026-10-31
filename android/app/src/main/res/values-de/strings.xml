@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="usb_denied">USB-Zugriff nicht erlaubt</string>
+    <string name="usb_missing">USB-Wandler %1$s nicht gefunden, abgezogen?</string>
+    <string name="running">mbusio läuft</string>
+    <string name="running_text">Auslesen läuft im Hintergrund weiter. Tippen zum Öffnen.</string>
+    <string name="channel">mbusio läuft</string>
+    <string name="stop">Beenden</string>
+    <string name="starting">mbusio startet …</string>
+    <string name="failed">mbusio startet nicht. Siehe Protokoll in den App-Daten.</string>
+    <string name="saved">In Downloads gespeichert: %1$s</string>
+    <string name="save_failed">Speichern fehlgeschlagen: %1$s</string>
+</resources>

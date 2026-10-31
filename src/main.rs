@@ -51,7 +51,7 @@ struct Args {
     /// Zugriffsschlüssel für die API; empfohlen zusammen mit --lan
     #[arg(long, env = "MBUSIO_TOKEN")]
     token: Option<String>,
-    /// Verbinden mit /dev/ttyUSB0, COM3, tcp://192.168.1.50:10001 oder SIMULATOR
+    /// Verbinden mit /dev/ttyUSB0, COM3, tcp://192.168.1.50:10001, usb://… (Android-App) oder SIMULATOR
     #[arg(long, global = true)]
     port: Option<String>,
     /// Baudrate

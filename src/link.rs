@@ -1,4 +1,7 @@
-//! Physische Verbindung zum Bus: serielle Schnittstelle, TCP-Gateway oder Simulator.
+//! Physische Verbindung zum Bus: serielle Schnittstelle, TCP-Gateway, USB-Wandler am
+//! Android-Handy oder Simulator.
+
+mod bridge;
 
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
@@ -187,7 +190,7 @@ pub fn port_key(port: &str) -> Option<String> {
     Some(p.strip_prefix(r"\\.\").unwrap_or(p).to_string())
 }
 
-/// `SIMULATOR`, `tcp://host:port` oder Name der seriellen Schnittstelle
+/// `SIMULATOR`, `tcp://host:port`, `usb://…` (Android) oder Name der seriellen Schnittstelle
 pub fn open(port: &str, baud: u32) -> Result<Box<dyn Link>> {
     Ok(if port == SIMULATOR_PORT {
         Box::new(crate::sim::Simulator::new(baud))
@@ -195,6 +198,8 @@ pub fn open(port: &str, baud: u32) -> Result<Box<dyn Link>> {
         Box::new(crate::sim::open(key, baud)?)
     } else if let Some(addr) = port.strip_prefix(TCP_PREFIX) {
         Box::new(TcpLink::open(addr)?)
+    } else if let Some(name) = port.strip_prefix(bridge::USB_PREFIX) {
+        Box::new(bridge::open(name, baud)?)
     } else {
         Box::new(SerialLink::open(port, baud)?)
     })
@@ -266,7 +271,12 @@ pub fn list_ports() -> Vec<PortInfo> {
             label: String::new(),
             dev: None,
         });
-    usb.into_iter().chain(other).chain(sims).collect()
+    bridge::list()
+        .into_iter()
+        .chain(usb)
+        .chain(other)
+        .chain(sims)
+        .collect()
 }
 
 #[cfg(test)]

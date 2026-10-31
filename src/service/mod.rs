@@ -23,14 +23,15 @@ static AS_SERVICE: AtomicBool = AtomicBool::new(false);
 static TEST_BACKGROUND: AtomicU8 = AtomicU8::new(0);
 
 /// Läuft mbusio im Hintergrund, also weiter, wenn das Fenster zu ist? Windows: als Dienst
-/// gestartet. Linux: siehe `unix_background`.
+/// gestartet. Android: immer, die App startet es als Vordergrunddienst. Linux: siehe
+/// `unix_background`.
 pub fn background() -> bool {
     match TEST_BACKGROUND.load(Ordering::Relaxed) {
         1 => return false,
         2 => return true,
         _ => {}
     }
-    if AS_SERVICE.load(Ordering::Relaxed) {
+    if AS_SERVICE.load(Ordering::Relaxed) || cfg!(target_os = "android") {
         return true;
     }
     #[cfg(unix)]
@@ -54,10 +55,11 @@ pub const RESTARTED: &str = "MBUSIO_RESTARTED";
 const RESTART_EXIT: i32 = 75;
 
 /// Neu starten, z.B. nach dem Einspielen einer Sicherung. Unter einem Dienst-Verwalter
-/// (Windows-Dienst, systemd) mit Fehlercode beenden, er startet mbusio neu; sonst (Fenster, tmux)
-/// startet mbusio sich selbst mit denselben Argumenten.
+/// (Windows-Dienst, systemd, Android-App) mit Fehlercode beenden, er startet mbusio neu; sonst
+/// (Fenster, tmux) startet mbusio sich selbst mit denselben Argumenten.
 pub fn restart() -> ! {
-    let supervised = AS_SERVICE.load(Ordering::Relaxed) || systemd_service();
+    let supervised =
+        AS_SERVICE.load(Ordering::Relaxed) || systemd_service() || cfg!(target_os = "android");
     if !supervised {
         let spawned = std::env::current_exe().and_then(|exe| {
             std::process::Command::new(exe)

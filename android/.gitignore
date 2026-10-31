@@ -1,0 +1,5 @@
+.gradle/
+build/
+local.properties
+# vom Gradle-Schritt cargoBuild gebaut
+app/src/main/jniLibs/
