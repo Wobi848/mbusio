@@ -64,16 +64,16 @@
 <!-- Gruppen: einrichten | Arbeitsablauf (in dieser Reihenfolge) | Hilfsmittel -->
 <nav class="bar tabs" aria-label="Bereiche">
   <div class="tab-scroll">
-  <span class="tab-group"><a href="#/anlage" data-area="anlage"><span data-t="tab_project"></span></a></span>
+  <span class="tab-group"><a href="#/site" data-area="anlage"><span data-t="tab_project"></span></a></span>
   <span class="tab-sep" aria-hidden="true"></span>
   <span class="tab-group">
     <a href="#/scan" data-area="scan"><span data-t="tab_scan"></span></a>
-    <a href="#/zaehler" data-area="zaehler"><span data-t="tab_meters"></span> <span class="n" id="n-meters"></span></a>
-    <a href="#/weitergabe" data-area="weitergabe"><span data-t="tab_transfer"></span> <span class="n" id="n-dp"></span></a>
+    <a href="#/meters" data-area="zaehler"><span data-t="tab_meters"></span> <span class="n" id="n-meters"></span></a>
+    <a href="#/transfer" data-area="weitergabe"><span data-t="tab_transfer"></span> <span class="n" id="n-dp"></span></a>
   </span>
   <span class="tab-sep" aria-hidden="true"></span>
   <span class="tab-group">
-    <a href="#/werkzeuge" data-area="werkzeuge"><span data-t="tab_tools"></span></a>
+    <a href="#/tools" data-area="werkzeuge"><span data-t="tab_tools"></span></a>
     <a href="#/simulator" data-area="simulator" id="tab-sim"><span data-t="tab_sim"></span></a>
   </span>
   </div>
@@ -84,14 +84,14 @@
 
 <section id="console" class="console" aria-label="Bus" hidden>
   <div class="chead"><b data-t="n_console"></b><span id="console-state" class="sub cut"></span><span class="grow"></span>
-    <a href="#/werkzeuge" class="quiet" data-t="n_console_tools"></a>
+    <a href="#/tools" class="quiet" data-t="n_console_tools"></a>
     <button id="console-close" type="button" class="icon" data-title="close">×</button></div>
   <div id="console-log" class="buslog mono"></div>
 </section>
 
 <section id="warnpanel" class="console warnpanel" hidden>
   <div class="chead"><b data-t="n_warn_title"></b><span class="grow"></span>
-    <a href="#/weitergabe/email" class="quiet" data-t="n_warn_settings"></a>
+    <a href="#/transfer/email" class="quiet" data-t="n_warn_settings"></a>
     <button id="warn-seen-all" type="button" class="quiet" data-t="n_warn_seen_all"></button>
     <button id="warn-close" type="button" class="icon" data-title="close">×</button></div>
   <div id="warn-list" class="warnlist"></div>

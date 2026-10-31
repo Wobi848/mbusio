@@ -16,7 +16,7 @@ export default {
         config: { ...mail, host: "127.0.0.1", port, security: "none", username: "anna", from: "mbusio@example.org", device: "Keller-Pi", warn: { to: "warn@example.org" } },
         password: "geheim",
       });
-      await page.goto(base + "/#/weitergabe/email");
+      await page.goto(base + "/#/transfer/email");
       // Testmail geht vorbelegt an den, der die Warnungen bekommt
       assert.equal(await page.inputValue(`${wg} [data-mail-test-to]`), "warn@example.org");
       await page.click(`${wg} [data-report-section] summary`);

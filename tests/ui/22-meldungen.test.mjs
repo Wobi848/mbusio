@@ -23,7 +23,7 @@ export default {
     const { port, mails, server } = await smtp();
     try {
       // Mailserver und Warn-Empfänger über die Oberfläche
-      await page.goto(base + "/#/weitergabe/email");
+      await page.goto(base + "/#/transfer/email");
       const f = (n) => `${wg} [data-out-form=email] [name=${n}]`;
       await page.waitForSelector(f("host"));
       await page.fill(f("host"), "127.0.0.1");
@@ -36,7 +36,7 @@ export default {
       await page.click(`${wg} [data-out-form=email] button[type=submit]`);
       // gespeichert ist erst, wenn das Formular zu ist (sonst schliesst das Speichern das neu geöffnete)
       await page.waitForSelector(`${wg} [data-out-form=email]`, { state: "detached" });
-      await page.goto(base + "/#/weitergabe/email");
+      await page.goto(base + "/#/transfer/email");
       await page.click(`${wg} [data-warn-section] summary`);
       const w = (n) => `${wg} [data-warn-form] [name=${n}]`;
       assert.equal(await page.inputValue(w("line_minutes")), "30");

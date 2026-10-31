@@ -17,7 +17,7 @@ export default {
   },
   async run({ page, base }) {
     // Verlauf: Zusammenfassung, Tabelle neueste zuerst mit Differenz, zurück zum Diagramm
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.locator(`${zl} [data-list] [role=option]`).first().click();
     await page.click(`${zl} [data-detail] [data-history]`);
     await page.waitForSelector(`${zl} .hsum`);
@@ -65,7 +65,7 @@ export default {
     await page.setViewportSize({ width: 1250, height: 1000 });
 
     // Weitergabe: Abrechnung, Protokoll und Einstellungen eines Ausgangs sind nie gleichzeitig offen
-    await page.goto(base + "/#/weitergabe");
+    await page.goto(base + "/#/transfer");
     await page.click("[data-open-billing]");
     await page.waitForSelector("[data-billview]:not([hidden])");
     // zwei Felder schnell nacheinander: beide gespeichert, das Getippte bleibt im Feld
@@ -97,7 +97,7 @@ export default {
     await page.check("#help-toggle");
     assert.match(await page.textContent(explain), /Primäradresse/);
     assert.ok(await page.isVisible(explain));
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.reload();
     await page.waitForSelector(`${zl} .explain`, { state: "visible" });
     await page.click("#settings");

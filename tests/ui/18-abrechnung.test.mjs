@@ -15,7 +15,7 @@ export default {
     }
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/anlage");
+    await page.goto(base + "/#/site");
     await page.locator(`${sec} [data-list] [role=option]`).first().click();
     await page.click("[data-billing]");
     await page.waitForSelector("[data-b-period]");

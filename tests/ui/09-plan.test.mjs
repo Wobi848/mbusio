@@ -15,7 +15,7 @@ export default {
   },
   async run({ page, base, api }) {
     const plan = async () => (await api("projects")).projects.flatMap((p) => p.gateways.flatMap((g) => g.lines))[0].plan_info;
-    await page.goto(base + "/#/anlage");
+    await page.goto(base + "/#/site");
     await page.locator(tree).first().click();
 
     // Projekt täglich; Ungültiges abgelehnt und markiert, Kurzformen ergänzt
@@ -41,7 +41,7 @@ export default {
     assert.equal((await plan()).effective, "15min");
 
     // Zähler: geerbter Plan in der Liste, einen aus dem Plan nehmen
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.waitForFunction((sel) => document.querySelectorAll(sel).length === 3, meterRows);
     await page.waitForFunction((sel) => document.querySelector(sel)?.textContent.includes("alle 15 min"), meterRows);
     await page.locator(meterRows).nth(1).click();
@@ -52,7 +52,7 @@ export default {
     // ohne Zeitquelle: Anlage zeigt „Uhrzeit unsicher“ mit Knopf zum Übernehmen
     // über die API eingeschaltet: neu laden statt auf die nächste Abfrage der Anlage (15 s) warten
     await api("lines/1/operation", "PUT", { on: true });
-    await page.goto(base + "/#/anlage");
+    await page.goto(base + "/#/site");
     await page.reload();
     await page.waitForSelector("[data-take-time]");
     await page.click("[data-take-time]");

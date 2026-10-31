@@ -7,7 +7,7 @@ export default {
   name: "Statusleiste (Bus-Konsole, Telegramm erklären, Auffälligkeiten zeigen)",
   setup: (api) => simLine(api, "SIMULATOR:praxis"),
   async run({ page, base, api }) {
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.waitForSelector("#bus .dot");
 
     // Bus anklicken: Konsole geht auf, eine Auslesung erscheint Telegramm für Telegramm
@@ -37,7 +37,7 @@ export default {
     await page.fill("[data-to]", "12");
     await page.press("[data-to]", "Tab");
     await scan(page);
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.click("#issues [data-show-issues]");
     await page.waitForSelector("[data-filter=attention][aria-pressed=true]");
     await page.waitForSelector("section[data-area=scan] [role=option].active");

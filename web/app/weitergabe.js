@@ -83,12 +83,12 @@ async function load() {
   fromAddress();
 }
 
-/// Feste Adressen: #/weitergabe/email öffnet die Einstellungen der E-Mail,
-/// #/weitergabe/abrechnung?projekt=<id> die Abrechnung (z.B. aus der Anlage)
+/// Feste Adressen: #/transfer/email öffnet die Einstellungen der E-Mail,
+/// #/transfer/billing?project=<id> die Abrechnung (z.B. aus der Anlage)
 function fromAddress() {
-  const m = data && location.hash.match(/^#\/weitergabe\/(email|backup|abrechnung)(?:\?projekt=(\d+))?/);
+  const m = data && location.hash.match(/^#\/transfer\/(email|backup|billing)(?:\?project=(\d+))?/);
   if (!m) return;
-  history.replaceState(null, "", "#/weitergabe");
+  history.replaceState(null, "", "#/transfer");
   if (m[1] === "email" || m[1] === "backup") return openOutput(m[1]);
   showBilling(m[2] ? Number(m[2]) : null);
 }
@@ -251,7 +251,7 @@ function render() {
   list(q("[data-list]"), rows, (p) => p.id, row);
   const empty = q("[data-empty]");
   empty.hidden = rows.length > 0;
-  html(empty, points().length ? esc(t("meters_none_match")) : `${esc(t("wg_none"))} <a href="#/zaehler">${esc(t("wg_to_meters"))} →</a>`);
+  html(empty, points().length ? esc(t("meters_none_match")) : `${esc(t("wg_none"))} <a href="#/meters">${esc(t("wg_to_meters"))} →</a>`);
   renderDetail();
   renderSelbar();
 }

@@ -9,7 +9,7 @@ export default {
     await simLine(api, "SIMULATOR");
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/anlage");
+    await page.goto(base + "/#/site");
     await page.click("#settings");
     const f = (n) => `#storage [name=${n}]`;
     await page.waitForFunction(() => document.querySelector("#storage [name=first_days]")?.value === "365");

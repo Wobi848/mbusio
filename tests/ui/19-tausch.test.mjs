@@ -24,7 +24,7 @@ export default {
     await api("projects/1/billing", "PUT", { period: "custom", from: today.slice(0, 8) + "01", to: today });
     assert.equal((await api("projects/1/billing")).preview.summary.swap_open, 1);
 
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     const row = page.locator(`${sec} [data-list] [role=option]`).first();
     await row.waitFor();
     assert.match(await row.textContent(), /Tausch erkannt/);
@@ -38,7 +38,7 @@ export default {
     // bestätigt: Abrechnung nennt den Tausch ohne „nicht bestätigt“
     const s = (await api("projects/1/billing")).preview.summary;
     assert.deepEqual([s.swap, s.swap_open], [1, undefined]);
-    await page.goto(base + "/#/anlage");
+    await page.goto(base + "/#/site");
     await page.locator("section[data-area=anlage] [data-list] [role=option]").first().click();
     await page.click("[data-billing]");
     await page.waitForFunction(() => /1 × Zählertausch/.test(document.querySelector("section[data-area=weitergabe] .chip.warn.wide")?.textContent));

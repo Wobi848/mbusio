@@ -15,7 +15,7 @@ export default {
     await api("lines/1/operation", "PUT", { on: true });
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/anlage");
+    await page.goto(base + "/#/site");
     await page.waitForSelector("[data-area=anlage] [role=option]");
     // ohne Neuladen: diese Markierung bleibt bis zum Ende
     await page.evaluate(() => (window.__nochDa = true));

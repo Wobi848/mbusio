@@ -12,7 +12,7 @@ export default {
     await api("meters/1/read", "POST");
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.waitForFunction(() => document.querySelectorAll("[data-list] [role=option]").length === 4);
 
     // Zustand am Element: gelesen mit Wert, sonst „noch nicht ausgelesen“; ohne Namen sichtbar

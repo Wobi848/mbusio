@@ -271,7 +271,7 @@ function sendHtml(s) {
 function mailHint() {
   const c = mail.config;
   const why = !c.host ? t("ab_m_no_server") : !c.enabled ? t("ab_m_mail_off") : "";
-  return why ? `<p class="chip warn wide">${esc(why)} <a href="#/weitergabe/email">${esc(t("ab_m_setup"))} →</a></p>` : "";
+  return why ? `<p class="chip warn wide">${esc(why)} <a href="#/transfer/email">${esc(t("ab_m_setup"))} →</a></p>` : "";
 }
 
 /// Abgelegte Dateien mit Zustand der E-Mail; warum die neueste nicht ging, steht sichtbar darunter

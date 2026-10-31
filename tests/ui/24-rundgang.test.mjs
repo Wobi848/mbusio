@@ -20,7 +20,7 @@ export default {
   },
   async run({ page, base, api }) {
     // Benennen in der Liste: Enter springt zum nächsten Zähler, „wie oben“ übernimmt den Ort
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.waitForSelector(`${zl} [data-list] [role=option]`);
     await page.click(`${zl} [data-more]`);
     await page.click(`${zl} [data-naming]`);
@@ -73,7 +73,7 @@ export default {
     await page.waitForFunction((b) => document.querySelector("[data-estimate]").textContent !== b, before);
 
     // Anlage: Timeout der Linie, bleibt beim Verbinden über die Kopfzeile; Plan so breit wie die Felder
-    await page.goto(base + "/#/anlage");
+    await page.goto(base + "/#/site");
     await page.locator("section[data-area=anlage] [data-list] [role=option]").nth(2).click();
     await page.fill("[data-field=timeout_ms]", "800");
     await page.press("[data-field=timeout_ms]", "Tab");
@@ -85,7 +85,7 @@ export default {
     assert.ok(plan.x + plan.width > name_.x + name_.width - 90, "Plan reicht fast bis zum Rand der Felder");
 
     // Weitergabe: E-Mail ohne Server ist aus; in der Abrechnung ist keine Karte gewählt
-    await page.goto(base + "/#/weitergabe/email");
+    await page.goto(base + "/#/transfer/email");
     await page.waitForSelector("[data-out-form=email]");
     assert.equal(await page.isChecked("[data-out-toggle=email]"), false);
     await page.click("[data-open-billing]");
@@ -95,14 +95,14 @@ export default {
     assert.match(await page.textContent(".btable tbody"), /ID \d{8}/);
 
     // Datenpunkt: Häkchen so gross wie sonst
-    await page.goto(base + "/#/weitergabe");
+    await page.goto(base + "/#/transfer");
     await page.reload();
     await page.locator("section[data-area=weitergabe] [data-list] [role=option]").first().click();
     const check = await box(page, "[data-dp-field=active]");
     assert.ok(check.width <= 18 && check.height <= 18, `Häkchen ${check.width}×${check.height}`);
 
     // Werkzeuge: neue Baudrate steht auf der des Busses
-    await page.goto(base + "/#/werkzeuge");
+    await page.goto(base + "/#/tools");
     await page.waitForSelector("[data-new-baud]");
     assert.equal(await page.inputValue("[data-new-baud]"), "2400");
 
@@ -113,7 +113,7 @@ export default {
 
     // Handy: Reiter in einer Zeile, Seite nicht breiter als der Bildschirm
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(base + "/#/werkzeuge");
+    await page.goto(base + "/#/tools");
     await page.waitForSelector(".tabs [data-area=werkzeuge][aria-current=page]");
     const tabs = await box(page, ".tab-scroll");
     assert.ok(tabs.height < 45, `Reiter ${tabs.height}px hoch`);

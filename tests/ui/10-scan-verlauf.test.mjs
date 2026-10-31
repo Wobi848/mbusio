@@ -84,7 +84,7 @@ export default {
     await scanDone(page);
     // Leeren mit Rückfrage am Ort: Zähler und letzter Scan weg, Anschluss bleibt
     await api("meters", "POST", { address: "2", name: "weg" });
-    await page.goto(base + "/#/anlage");
+    await page.goto(base + "/#/site");
     await page.locator("section[data-area=anlage] [data-list] [role=option]").first().click();
     await page.click("[data-clear]");
     await page.click(".ask button.danger");

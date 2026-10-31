@@ -19,7 +19,7 @@ export default {
     const wg = "section[data-area=weitergabe]";
     try {
       // Abrechnung: Empfänger; ohne Server ein Hinweis mit Sprung zur Weitergabe
-      await page.goto(base + "/#/anlage");
+      await page.goto(base + "/#/site");
       await page.locator(`${sec} [data-list] [role=option]`).first().click();
       await page.click("[data-billing]");
       await page.check("[data-b-auto]");
@@ -75,11 +75,11 @@ export default {
         assert.ok(i < 30, "keine Datei nach 30 s");
         await page.waitForTimeout(1000);
       }
-      await page.goto(base + "/#/anlage");
+      await page.goto(base + "/#/site");
       await page.locator(`${sec} [data-list] [role=option]`).first().click();
       await page.click("[data-billing]");
       await page.waitForSelector("[data-b-send]");
-      assert.equal(await page.locator(`section[data-area=weitergabe] .chip.warn.wide a[href="#/weitergabe/email"]`).count(), 0, "Server da: kein Hinweis");
+      assert.equal(await page.locator(`section[data-area=weitergabe] .chip.warn.wide a[href="#/transfer/email"]`).count(), 0, "Server da: kein Hinweis");
       if (!(await api("projects/1/billing")).files[0].mail?.sent) await page.click("[data-b-send]");
       await page.waitForFunction(() => document.querySelector(".bfile .chip.ok")?.textContent === "gesendet");
       const sent = mails.find((x) => x.includes("Content-Disposition: attachment"));

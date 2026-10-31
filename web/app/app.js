@@ -2,7 +2,7 @@
 // in app-kopf.js, Statusleiste in app-statusleiste.js (Konzept neue Oberfläche).
 // Gemeinsam mit dem Bericht: js/texts.js (t, UI) und js/base.js (request, esc, …).
 
-import { state, set, watch, activeLine } from "./store.js";
+import { state, set, watch, activeLine, AREA_URL } from "./store.js";
 import { text, menu, closeMenu, toast, ask, askValue } from "./view.js";
 import { bind, keyList, onEscape } from "./keys.js";
 import { pollStatus, loadTree, reload, report } from "./data.js";
@@ -148,10 +148,16 @@ function showKeys() {
 
 // ------------------------------------------------------------ Bereiche
 
-/// Adresse ↔ Bereich: #/zaehler, #/scan …; Zurück-Taste und Lesezeichen funktionieren
+/// Frühere deutsche Adressen: Lesezeichen führen weiter an die richtige Stelle
+const OLD_URLS = [[/^#\/anlage\b/, "#/site"], [/^#\/zaehler\b/, "#/meters"], [/^#\/weitergabe\b/, "#/transfer"], [/^#\/werkzeuge\b/, "#/tools"], [/\/abrechnung\b/, "/billing"], [/\bprojekt=/, "project="], [/\bziel=/, "target="]];
+
+/// Adresse ↔ Bereich: #/meters, #/scan …; Zurück-Taste und Lesezeichen funktionieren. Läuft vor den
+/// Bereichen, die Teile der Adresse selbst lesen.
 function readHash() {
-  const area = location.hash.replace(/^#\/?/, "").split(/[/?]/)[0];
-  set({ area: AREAS.includes(area) ? area : "zaehler" });
+  const hash = OLD_URLS.reduce((h, [old, now]) => h.replace(old, now), location.hash);
+  if (hash !== location.hash) history.replaceState(null, "", hash);
+  const url = hash.replace(/^#\/?/, "").split(/[/?]/)[0];
+  set({ area: AREAS.find((a) => AREA_URL[a] === url) || "zaehler" });
 }
 addEventListener("hashchange", readHash);
 
@@ -196,7 +202,7 @@ function renderWork() {
 }
 
 AREAS.forEach((a, i) =>
-  bind(String(i + 1), () => (location.hash = `#/${a}`), t("n_key_area", t(AREA_TAB[a])))
+  bind(String(i + 1), () => (location.hash = `#/${AREA_URL[a]}`), t("n_key_area", t(AREA_TAB[a])))
 );
 // das erste sichtbare Suchfeld (im Protokoll der Weitergabe ist die Liste darunter versteckt)
 bind("/", () => [...document.querySelectorAll("#work .pane:not([hidden]) [data-search]")].find((el) => el.offsetParent)?.focus(), t("n_key_search"));
@@ -216,7 +222,7 @@ async function start() {
   readHash();
   await reload().catch(report);
   // ohne Adresse dort anfangen, wo es weitergeht: noch keine Zähler → Scan, sonst Zähler (§3.4)
-  if (!fromAddress) location.hash = activeLine()?.meters ? "#/zaehler" : "#/scan";
+  if (!fromAddress) location.hash = activeLine()?.meters ? "#/meters" : "#/scan";
   setInterval(pollStatus, STATUS_EVERY);
   setInterval(() => loadTree().catch(() => {}), TREE_EVERY);
 }

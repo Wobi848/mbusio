@@ -1,7 +1,7 @@
 // Statusleiste: was der Bus macht (Klick: Bus-Konsole), Auffälligkeiten (Klick: im Scan zeigen),
 // Ausgänge und der nächste Schritt. Event-Handler hängen beim Laden des Moduls an.
 
-import { state, set, watch, activeLine, faulty } from "./store.js";
+import { state, set, watch, activeLine, faulty, AREA_URL } from "./store.js";
 import { html, outputWord } from "./view.js";
 import { onEscape } from "./keys.js";
 import { follow, poll, logRow } from "./buslog.js";
@@ -77,15 +77,15 @@ function nextStep() {
   const bad = (state.meters || []).filter(faulty).length;
   if (bad) return ["guide_faulty_btn", go("zaehler", "[data-filter=err]"), bad];
   if (!l.operation) return ["guide_ready_btn", () => window.open("report.html", "_blank", "noopener")];
-  if (!l.datapoints?.count) return ["guide_transfer", () => (location.hash = "#/zaehler")];
-  if (!(s.outputs || []).some((o) => o.on)) return ["guide_output", () => (location.hash = "#/weitergabe")];
+  if (!l.datapoints?.count) return ["guide_transfer", () => (location.hash = "#/meters")];
+  if (!(s.outputs || []).some((o) => o.on)) return ["guide_output", () => (location.hash = "#/transfer")];
   return null;
 }
 
 /// In einen Bereich wechseln und dort nacheinander klicken, sobald das jeweilige Element da ist
 /// (ein Bereich lädt beim ersten Öffnen erst seine Daten)
 export async function goTo(area, ...sels) {
-  location.hash = `#/${area}`;
+  location.hash = `#/${AREA_URL[area]}`;
   for (const sel of sels) {
     let el = null;
     for (let i = 0; i < 40 && !el; i++) {
@@ -149,10 +149,10 @@ $("bus").addEventListener("click", () => toggleConsole());
 $("console-close").addEventListener("click", () => toggleConsole(false));
 $("console").addEventListener("click", (ev) => {
   // ganzes Protokoll oder ein Telegramm: in Werkzeuge weiter, dort ist das Protokoll ohnehin offen
-  if (ev.target.closest("a[href='#/werkzeuge']")) return toggleConsole(false);
+  if (ev.target.closest("a[href='#/tools']")) return toggleConsole(false);
   const frame = ev.target.closest("[data-hex]");
   if (!frame) return;
   set({ analyze: frame.dataset.hex });
-  location.hash = "#/werkzeuge";
+  location.hash = "#/tools";
   toggleConsole(false);
 });

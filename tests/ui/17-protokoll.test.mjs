@@ -23,7 +23,7 @@ export default {
     await api("mqtt", "PUT", { config: { ...c, host: "127.0.0.1", port: 1, enabled: true }, password: null });
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/weitergabe");
+    await page.goto(base + "/#/transfer");
     await page.waitForSelector(`${sec} [data-list] [role=option]`);
     await page.focus(`${sec} [data-list]`);
     await page.keyboard.press("Control+a");
