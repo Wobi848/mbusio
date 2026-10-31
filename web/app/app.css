@@ -311,7 +311,8 @@ body.show-help .toolbar:has(.explain) { flex-wrap: wrap; }
 .rows .row:hover { background: var(--sunken); }
 /* ausgewählte Zeile: Crimson-Strich links (Struktur, kein Zustand), auch beim Arbeiten mit der Tastatur */
 .rows .row.active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--brand); }
-.rows .row[aria-selected="true"] .box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.rows .row[aria-selected="true"] .box, .box.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.box { padding: 0; background: transparent; color: inherit; }
 .box { display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1.5px solid var(--line-strong); border-radius: 4px; font-size: 11px; font-weight: 800; cursor: pointer; }
 .row .name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
 .row .name, .row .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -3,7 +3,7 @@
 // als Raster oben, nur wenn eine Linie des Projekts im Dauerbetrieb ist.
 
 import { state, set, watch } from "./store.js";
-import { html, text, list, ask, toast, styles, texts, explain, fieldKeys } from "./view.js";
+import { html, text, list, ask, toast, styles, texts, explain, fieldKeys, typingIn } from "./view.js";
 import "./anlage-texte.js";
 import { allLines, sum, plantHtml } from "./anlage-zustand.js";
 import { rowHtml } from "./anlage-baum.js";
@@ -130,7 +130,7 @@ function renderDetail() {
   const box = q("[data-detail]");
   box.classList.toggle("open", view.detailOpen);
   // wer gerade in ein Feld tippt, verliert nichts: neu gezeichnet wird erst danach
-  const typing = box.contains(document.activeElement) && document.activeElement.matches("input:not([type=checkbox]), select, textarea");
+  const typing = typingIn(box);
   if (typing && box.dataset.sel === view.sel) return;
   box.dataset.sel = view.sel;
   const back = `<button type="button" class="quiet back" data-back>← ${esc(t("tab_project"))}</button>`;

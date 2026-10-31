@@ -15,6 +15,8 @@ What changes for users, per version, newest first. Entries up to v0.5.0 are in G
   or through a built-in FTP/FTPS client. Only the last few own backups stay at the target; mbusio
   deletes older ones itself. Encrypted with a backup password (AES-256-GCM); the same password then
   also encrypts a manual "Download", and "Restore …" asks for it. A failure appears in the messages.
+- **Select all meters:** a box in the head of the meter list selects all meters shown, a second click
+  none.
 - **Sort the meter list:** clicking a column head (meter, ID/PA, location, value/last reading, state
   with problems first) sorts ascending, descending, then back to the original order; on phones via
   the bar at the top. The choice is kept in the browser.
@@ -57,6 +59,9 @@ What changes for users, per version, newest first. Entries up to v0.5.0 are in G
 
 ### Fixed
 
+- **Changes show at once:** a choice in a dropdown (e.g. the value in the history) or a click on
+  “Select” for a line only showed after clicking elsewhere, because the display waited for the focus to
+  leave. Now only typing holds it back.
 - **Site:** "+ Line" and the arrows on the right were cut off at common window widths.
 - **Scan:** before the first scan, the detail area ended after a few lines instead of using the full
   height.

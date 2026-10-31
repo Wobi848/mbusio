@@ -44,11 +44,35 @@ export function styles(area) {
   document.head.append(link);
 }
 
-/// Inhalt nur schreiben, wenn er anders ist als beim letzten Mal
+// Ein Auswahlfeld gilt als „in Arbeit“, bis etwas gewählt ist; danach behält es zwar den Fokus,
+// darf die Anzeige aber nicht aufhalten
+addEventListener("change", (ev) => ev.target.matches?.("select") && (ev.target._chosen = true), true);
+addEventListener("pointerdown", (ev) => ev.target.matches?.("select") && (ev.target._chosen = false), true);
+
+/// Wird in `box` gerade etwas eingegeben? Dann wird dort nicht neu gezeichnet, sonst ginge es
+/// verloren. Ein benutzter Knopf oder Schalter mit Fokus zählt nicht.
+export function typingIn(box) {
+  const el = document.activeElement;
+  if (!box.contains(el)) return false;
+  if (el.matches("select")) return !el._chosen;
+  return el.matches("input:not([type=checkbox]):not([type=radio]), textarea");
+}
+
+/// Selektor für dasselbe Auswahlfeld im neuen Inhalt
+function selectKey(el) {
+  const a = [...el.attributes].find((x) => x.name.startsWith("data-") || x.name === "name");
+  return a && `select[${a.name}${a.value ? `="${CSS.escape(a.value)}"` : ""}]`;
+}
+
+/// Inhalt nur schreiben, wenn er anders ist als beim letzten Mal; ein Auswahlfeld mit Fokus behält
+/// ihn, damit man mit der Tastatur weiterwählen kann
 export function html(el, markup) {
   if (el._html === markup) return;
   el._html = markup;
+  const active = document.activeElement;
+  const key = el.contains(active) && active.matches("select") && selectKey(active);
   el.innerHTML = markup;
+  if (key) el.querySelector(key)?.focus();
 }
 
 export function text(el, value) {
@@ -67,7 +91,7 @@ export function list(container, items, key, row) {
     const markup = row(item);
     let el = old.get(k);
     // eine Zeile, in der gerade getippt wird, erst nach dem Verlassen neu bauen
-    if (el && el._html !== markup && !el.contains(document.activeElement)) {
+    if (el && el._html !== markup && !typingIn(el)) {
       const fresh = build(markup, k);
       el.replaceWith(fresh);
       if (at === el) at = fresh;
