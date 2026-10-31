@@ -42,7 +42,7 @@ Lies vor der ersten Arbeit `docs/konzept-bedienung.md`, vor allem §9 bis §14.
   Einzelstile daneben; fehlt ein Baustein, ihn einmal anlegen und überall nutzen.
 - **CSS nach Bereich:** `web/app/app.css` (Gerüst, Kopfzeile, Statusleiste, Knöpfe), dazu je Bereich
   `web/app/<bereich>.css`.
-- **Texte** über `web/js/texts.js` oder `texts()` im Bereich, immer Deutsch und Englisch. Deutsch: Schweizer
+- **Texte** über `web/js/texts.js` oder `texts()` im Bereich, immer in allen Sprachen (Deutsch, Englisch und `web/js/lang-*.js`; die Tests prüfen das). Deutsch: Schweizer
   Schreibweise (ss statt ß).
 - **Immer drei Ansichten:** Desktop (1250 px), Handy (390 px), Dunkelmodus. Nichts darf
   überlaufen, sich überlappen oder abgeschnitten sein; 16 px Rand am Handy.
