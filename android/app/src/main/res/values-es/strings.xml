@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="usb_denied">Acceso USB denegado</string>
+    <string name="usb_missing">Convertidor USB %1$s no encontrado, ¿desconectado?</string>
+    <string name="running">mbusio está en marcha</string>
+    <string name="running_text">La lectura continúa en segundo plano. Toca para abrir.</string>
+    <string name="channel">mbusio en marcha</string>
+    <string name="stop">Detener</string>
+    <string name="starting">mbusio se está iniciando …</string>
+    <string name="failed">mbusio no se inicia. Consulta el registro en los datos de la app.</string>
+    <string name="saved">Guardado en Descargas: %1$s</string>
+    <string name="save_failed">No se pudo guardar: %1$s</string>
+</resources>

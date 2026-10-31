@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="usb_denied">Accès USB refusé</string>
+    <string name="usb_missing">Convertisseur USB %1$s introuvable, débranché ?</string>
+    <string name="running">mbusio est actif</string>
+    <string name="running_text">Le relevé continue en arrière-plan. Toucher pour ouvrir.</string>
+    <string name="channel">mbusio actif</string>
+    <string name="stop">Arrêter</string>
+    <string name="starting">mbusio démarre …</string>
+    <string name="failed">mbusio ne démarre pas. Voir le journal dans les données de l\'application.</string>
+    <string name="saved">Enregistré dans Téléchargements : %1$s</string>
+    <string name="save_failed">Échec de l\'enregistrement : %1$s</string>
+</resources>
