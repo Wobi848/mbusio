@@ -10,6 +10,7 @@ import { drawHistory, setHistoryKey, setHistoryView, historyCsv, forgetHistory }
 import { PLANS, rowHtml, detailHtml, addFormHtml } from "./zaehler-ansicht.js";
 import { panelHtml, listLoad, listChange, listCheck, namesPreview } from "./zaehler-listen.js";
 import { locationsHtml, saveQuick, sameAsAbove, quickEnter } from "./zaehler-benennen.js";
+import { sorter } from "./sortieren.js";
 
 
 /// Einstellungen je Linie: Suche, Filter, gewählter Zähler, Auswahl (bleiben beim Wechsel)
@@ -27,6 +28,25 @@ const FILTERS = {
   noname: (m) => !m.name,
 };
 const open = () => state.area === "zaehler";
+/// Spalten der Liste und wonach sie sortieren; Zustand: Probleme zuerst
+const COLUMNS = [
+  ["name", () => t("n_col_meter"), (m) => m.name || null],
+  ["ident", () => t("n_col_ident"), (m) => meterBlock(m).pa ?? null],
+  ["location", () => t("meter_location"), (m) => m.location || null],
+  ["value", () => t("n_col_value"), (m) => m.last_read || null],
+  ["state", () => t("n_col_state"), stateRank],
+];
+const sort = sorter("meter_sort", COLUMNS, { title: () => t("zl_sort_title") });
+
+function stateRank(m) {
+  if (m.swap) return 0;
+  if (m.last_error) return 1;
+  if (m.plan_info?.disturbed) return 2;
+  if (m.fault) return 3;
+  if (m.clock_off != null) return 4;
+  if (m.plan_info?.paused_until) return 5;
+  return 6;
+}
 
 export function mount(pane) {
   styles("zaehler");
@@ -54,9 +74,7 @@ export function mount(pane) {
     </div>
     <div class="split">
       <div class="listwrap">
-        <div class="row head" aria-hidden="true"><span></span><span>${esc(t("n_col_meter"))}</span><span>${esc(t("n_col_ident"))}</span><span>${esc(
-          t("meter_location")
-        )}</span><span>${esc(t("n_col_value"))}</span><span>${esc(t("n_col_state"))}</span></div>
+        <div class="row head" data-head></div>
         <div class="rows" role="listbox" tabindex="0" aria-multiselectable="true" aria-label="${esc(t("tab_meters"))}" data-list></div>
         <div class="empty" data-empty hidden></div>
       </div>
@@ -84,8 +102,10 @@ function onLine() {
 
 function shown() {
   const s = view.search.trim().toLowerCase();
-  return (state.meters || []).filter(
-    (m) => FILTERS[view.filter](m) && (!s || [m.name, m.location, m.note, m.meter_id, m.address, m.manufacturer].some((x) => String(x ?? "").toLowerCase().includes(s)))
+  return sort.sorted(
+    (state.meters || []).filter(
+      (m) => FILTERS[view.filter](m) && (!s || [m.name, m.location, m.note, m.meter_id, m.address, m.manufacturer].some((x) => String(x ?? "").toLowerCase().includes(s)))
+    )
   );
 }
 
@@ -112,6 +132,7 @@ function render() {
   readAll.hidden = !all.length;
   text(q("[data-sum]"), job ? `${state.job.done}/${state.job.total}` : "");
 
+  html(q("[data-head]"), `<span></span>${sort.headHtml()}`);
   const rows = shown();
   if (view.active != null && !byId(view.active)) view.active = null;
   for (const id of [...view.selected]) if (!byId(id)) view.selected.delete(id);
@@ -409,6 +430,10 @@ function wire() {
     const el = ev.target;
     if (el.closest("[data-filter]")) {
       view.filter = el.closest("[data-filter]").dataset.filter;
+      return render();
+    }
+    if (el.closest("[data-sort]")) {
+      sort.toggle(el.closest("[data-sort]").dataset.sort);
       return render();
     }
     if (el.closest("[data-add]")) {

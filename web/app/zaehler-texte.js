@@ -6,6 +6,7 @@ texts(
   {
     zl_explain: "Die gemerkten Zähler dieser Linie. Eine Zeile anklicken zeigt Werte, Datenpunkte und Verlauf; mehrere wählt man mit dem Kästchen, Ctrl oder Shift. „Alle auslesen“ liest die ganze Liste. Gespeichert wird auf dem Rechner, auf dem mbusio läuft.",
     zl_more: "Liste ▾",
+    zl_sort_title: "Klicken zum Sortieren (auf, ab, wie angelegt)",
     zl_csv: "Als CSV exportieren",
     zl_history: "Verlauf",
     zl_exchange: "Getauscht …",
@@ -46,6 +47,7 @@ texts(
   },
   {
     zl_explain: "The remembered meters of this line. Clicking a row shows values, datapoints and history; select several with the box, Ctrl or Shift. “Read all” reads the whole list. Everything is stored on the computer running mbusio.",
+    zl_sort_title: "Click to sort (ascending, descending, as added)",
     zl_more: "List ▾",
     zl_csv: "Export as CSV",
     zl_history: "History",

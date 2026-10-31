@@ -291,6 +291,9 @@ body.show-help .toolbar:has(.explain) { flex-wrap: wrap; }
   cursor: default;
 }
 .row.head { min-height: 28px; font-size: 11px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; background: var(--sunken); }
+/* sortierbare Köpfe (app/sortieren.js) */
+.row.head .sorter { height: 28px; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; cursor: pointer; }
+.row.head .sorter:hover, .row.head .sorter.on { color: var(--text); }
 .rows .row:hover { background: var(--sunken); }
 /* ausgewählte Zeile: Crimson-Strich links (Struktur, kein Zustand), auch beim Arbeiten mit der Tastatur */
 .rows .row.active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--brand); }

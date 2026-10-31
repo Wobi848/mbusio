@@ -17,6 +17,9 @@ Was sich für Benutzer ändert, je Version. Neuestes oben.
   paar eigenen Sicherungen, ältere löscht mbusio dort selbst. Mit einem Sicherungs-Passwort
   verschlüsselt (AES-256-GCM); dasselbe Passwort verschlüsselt dann auch „Sicherung herunterladen“
   von Hand, „Einspielen …“ fragt dafür danach. Ein Fehlschlag erscheint bei den Meldungen.
+- **Zählerliste sortieren:** Klick auf einen Spaltenkopf (Zähler, Kennung/PA, Ort, Wert/letzte
+  Auslesung, Zustand mit Problemen zuerst) sortiert auf, ab, dann wieder wie angelegt; auch am
+  Handy über die Leiste oben. Die Wahl bleibt im Browser gespeichert.
 
 - **Lasttest:** `mbusio lasttest` erzeugt eine grosse Anlage (Vorgabe 60 Zähler, 3 Jahre, alle
   15 min) in einem eigenen Ordner und misst die Antwortzeiten, z.B. auf dem Raspberry Pi vor dem

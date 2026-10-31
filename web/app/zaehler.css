@@ -13,6 +13,8 @@
   [data-area=zaehler] .row > :nth-child(4) { display: none; }
   [data-area=zaehler] .row > :nth-child(5) { grid-area: value; justify-self: end; }
   [data-area=zaehler] .row > :nth-child(6) { grid-area: state; justify-self: end; }
+  /* schmal ohne Spalten: die Köpfe bleiben als Leiste zum Sortieren */
+  [data-area=zaehler] .row.head { display: flex; flex-wrap: wrap; gap: 4px 14px; min-height: 30px; padding: 0 12px; }
 }
 
 /* Detail: Tausch, Verlauf, Liste importieren, Namen nach Muster */

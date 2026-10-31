@@ -33,6 +33,16 @@ export default {
     assert.match(await page.textContent("[data-filter=noname]"), /1/);
     await page.click("[data-filter=all]");
 
+    // Sortieren nach Name: ab (ohne Namen bleibt unten), dann wieder wie angelegt
+    const names = () => page.$$eval("[data-list] [role=option] .name", (els) => els.map((e) => e.textContent.trim()));
+    await page.click("[data-sort=name]");
+    await page.click("[data-sort=name]");
+    await page.waitForSelector("[data-sort=name].on");
+    assert.deepEqual((await names()).slice(0, 3), ["Whg 3", "Whg 2", "Whg 1"]);
+    assert.match((await names())[3], /ohne Namen/);
+    await page.click("[data-sort=name]");
+    assert.deepEqual((await names()).slice(0, 3), ["Whg 1", "Whg 2", "Whg 3"]);
+
     // Tastatur: Liste fokussieren, ↓ wählt, Details folgen
     await page.focus("[data-list]");
     await page.keyboard.press("ArrowDown");

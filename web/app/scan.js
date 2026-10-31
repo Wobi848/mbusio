@@ -8,6 +8,7 @@ import { bind } from "./keys.js";
 import { loadMeters, loadTree, loadStatus, report } from "./data.js";
 import "./scan-texte.js";
 import { fillBaudMenu, checkBauds } from "./scan-baudraten.js";
+import { sorter } from "./sortieren.js";
 
 
 const FILTERS = ["all", "unique", "attention"];
@@ -28,7 +29,8 @@ const COLUMNS = [
   // Probleme zuerst
   ["state", () => t("n_col_state"), (h) => ({ collision: 0, no_data: 1, ok: 2 })[h.status]],
 ];
-let sort = readSort(); // { col, dir } oder null = wie gescannt; gilt für alle Linien wie früher
+// gilt für alle Linien wie früher
+const sort = sorter("hit_sort", COLUMNS, { title: () => t("sort_title"), of: (row) => row.h });
 let job = null; // Scan der Linie (laufend oder letzter), wie /api/job bzw. /api/last-scan
 let polling = false;
 const open = () => state.area === "scan";
@@ -155,42 +157,13 @@ function hitState(h, a, i) {
 
 function shown(a) {
   const att = scanLogic.attention(ctx(), a);
-  return sorted((job?.hits || []).map((h, i) => ({ h, i })).filter(({ i }) => view.filter === "all" || (view.filter === "attention") === att.has(i)));
-}
-
-function readSort() {
-  try {
-    const s = JSON.parse(storageGet("hit_sort") || "null");
-    return COLUMNS.some(([c]) => c === s?.col) ? s : null;
-  } catch {
-    return null; // ungültig gespeichert: wie gescannt
-  }
-}
-
-function sorted(rows) {
-  const key = sort && COLUMNS.find(([c]) => c === sort.col)[2];
-  if (!key) return rows;
-  return rows.sort((a, b) => {
-    const x = key(a.h);
-    const y = key(b.h);
-    if (x == null || y == null) return x == null && y == null ? a.i - b.i : x == null ? 1 : -1;
-    const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true });
-    return c * sort.dir || a.i - b.i;
-  });
+  return sort.sorted((job?.hits || []).map((h, i) => ({ h, i })).filter(({ i }) => view.filter === "all" || (view.filter === "attention") === att.has(i)));
 }
 
 /// Klick auf eine Spalte: auf → ab → wie gescannt
 function toggleSort(col) {
-  sort = sort?.col !== col ? { col, dir: 1 } : sort.dir > 0 ? { col, dir: -1 } : null;
-  storageSet("hit_sort", JSON.stringify(sort));
+  sort.toggle(col);
   render();
-}
-
-function headHtml() {
-  return COLUMNS.map(([c, name]) => {
-    const on = sort?.col === c;
-    return `<button type="button" class="sorter${on ? " on" : ""}" data-sort="${c}" title="${esc(t("sort_title"))}">${esc(name())}${on ? (sort.dir > 0 ? " ▲" : " ▼") : ""}</button>`;
-  }).join("");
 }
 
 function render() {
@@ -245,7 +218,7 @@ function render() {
     html(q("[data-modes]"), ["primary", "secondary"].map((m) => `<button type="button" data-mode="${m}" aria-pressed="${c.mode === m}" title="${esc(t(m === "primary" ? "mode_pa_title" : "mode_sa_title"))}">${m === "primary" ? "PA" : "ID"}</button>`).join(""));
     html(q("[data-main]"), running ? "" : mainAction(c, a));
   }
-  html(q("[data-head]"), headHtml());
+  html(q("[data-head]"), sort.headHtml());
   list(q("[data-list]"), rows, ({ i }) => i, ({ h, i }) => row(h, i, a));
   const empty = q("[data-empty]");
   empty.hidden = rows.length > 0;
