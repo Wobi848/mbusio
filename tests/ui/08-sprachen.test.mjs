@@ -73,7 +73,7 @@ export default {
     await api("meters/1/datapoints", "PUT", { keys: ["instantaneous|0|0|0|energy|kWh"] });
   },
   async run({ page, base }) {
-    for (const lang of ["en", "de", "fr"]) {
+    for (const lang of ["en", "de", "fr", "it", "es"]) {
       // das Testgerüst setzt bei jedem Laden Deutsch; ein späteres Init-Skript gewinnt
       await page.addInitScript((l) => localStorage.setItem("lang", l), lang);
       for (const area of AREAS) {

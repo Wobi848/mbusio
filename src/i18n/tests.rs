@@ -46,9 +46,11 @@ fn catalog_text_or_english() {
         tr_in(Lang::Fr, "Ein neuer Text", "A new text"),
         "A new text"
     );
-    assert_eq!(tr_in(Lang::It, "Zähler", "Meter"), "Meter");
+    assert_eq!(tr_in(Lang::It, "Zähler", "Meter"), "Contatore");
+    assert_eq!(tr_in(Lang::Es, "Zähler", "Meter"), "Contador");
     assert_eq!(label("energy", Lang::Fr), "Énergie");
-    assert_eq!(label("energy", Lang::It), "Energy");
+    assert_eq!(label("energy", Lang::It), "Energia");
+    assert_eq!(label("energy", Lang::Es), "Energía");
     assert_eq!(label("no_such_key", Lang::Fr), "no_such_key");
 }
 
@@ -67,7 +69,7 @@ fn stored_messages_in_all_languages() {
     let t = both(|| format!("{} 3", tr("Zähler", "Meter")));
     assert_eq!(t.more.get("fr").map(String::as_str), Some("Compteur 3"));
     // nur, was von Englisch abweicht
-    assert_eq!(t.more.get("it"), None);
+    assert_eq!(both(|| tr("OK", "OK")).more.get("fr"), None);
     set(Lang::Fr);
     assert_eq!(t.get(), "Compteur 3");
     follow_ui();

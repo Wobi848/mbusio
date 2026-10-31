@@ -26,7 +26,7 @@ const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 /// Sprachen im Menü
 const LANGUAGES = { de: "Deutsch", en: "English" };
 /// Übersetzt, aber noch nicht geprüft: nicht im Menü, nur über ?lang=fr zu sehen (für die Prüfer)
-const LANG_PREVIEW = { fr: "Français" };
+const LANG_PREVIEW = { fr: "Français", it: "Italiano", es: "Español" };
 
 /// Formate je Sprache (Gegenstück zu `Lang::date_format` und `Lang::decimal` im Server)
 const LANG_FORMATS = {

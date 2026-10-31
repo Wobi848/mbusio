@@ -36,7 +36,7 @@ const ALL: [Lang; 5] = [Lang::De, Lang::En, Lang::Fr, Lang::It, Lang::Es];
 
 /// Übersetzte Sprachen; für sie prüft ein Test, dass kein Text fehlt
 #[cfg(test)]
-const COMPLETE: [Lang; 1] = [Lang::Fr];
+const COMPLETE: [Lang; 3] = [Lang::Fr, Lang::It, Lang::Es];
 
 impl Lang {
     /// "en", "en-US", "de-CH" … ; alles Unbekannte wird Deutsch.

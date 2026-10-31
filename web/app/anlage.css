@@ -11,7 +11,7 @@
    verschieben sich die Spalten zwischen Projekt-, Gateway- und Linienzeilen). Textspalten ohne
    Mindestbreite: lieber kürzen, als rechts die Aktionen abzuschneiden. Aktionen: „+ Linie“ ↑ ↓ */
 [data-area=anlage] .row:not(.vrow):not(.new):not(.add) {
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) 76px 104px minmax(0, 2fr) minmax(0, .8fr) 140px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) 88px 104px minmax(0, 2fr) minmax(0, .8fr) 140px;
 }
 /* sieben Spalten: die Liste braucht mehr Platz als in den anderen Bereichen */
 @media (min-width: 1000px) {

@@ -6,11 +6,11 @@
 const listLogic = {
   FIELDS: ["id", "name", "location", "note", "pa"],
   GUESS: {
-    id: /^(id|ident|z(ä|ae)hler.?(nr|nummer)|serien.?(nr|nummer)|fab(rikations)?.?(nr|nummer)|meter.?(id|no)|serial|nummer|nr\.?|compteur|n°|num(é|e)ro)$/i,
-    name: /^(name|bezeichnung|benennung|description|nom|d(é|e)signation)$/i,
-    location: /^(ort|lage|standort|einbauort|wohnung|whg|raum|location|place|emplacement|lieu|appartement|pi(è|e)ce|local)$/i,
-    note: /^(notiz|bemerkung|kommentar|note|remark|comment|remarque|commentaire)$/i,
-    pa: /^(pa|prim(ä|ae)r.?adr(esse)?|primary.?address|m-?bus.?adr(esse)?|adresse.?primaire)$/i,
+    id: /^(id|ident|z(ä|ae)hler.?(nr|nummer)|serien.?(nr|nummer)|fab(rikations)?.?(nr|nummer)|meter.?(id|no)|serial|nummer|nr\.?|compteur|n°|num(é|e)ro|contatore|contador|n\.?º|numero|n(ú|u)mero)$/i,
+    name: /^(name|bezeichnung|benennung|description|nom|d(é|e)signation|nome|denominazione|nombre|denominaci(ó|o)n)$/i,
+    location: /^(ort|lage|standort|einbauort|wohnung|whg|raum|location|place|emplacement|lieu|appartement|pi(è|e)ce|local|posizione|luogo|appartamento|ubicaci(ó|o)n|lugar|piso)$/i,
+    note: /^(notiz|bemerkung|kommentar|note|remark|comment|remarque|commentaire|nota|osservazioni|commento|observaciones|comentario)$/i,
+    pa: /^(pa|prim(ä|ae)r.?adr(esse)?|primary.?address|m-?bus.?adr(esse)?|adresse.?primaire|indirizzo.?primario|direcci(ó|o)n.?primaria)$/i,
   },
 
   /// Zeilen → { rows, header (erste Zeile ist Überschrift), cols, map (Feld → Spalte, geraten) }
