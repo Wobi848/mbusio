@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-mbusio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Node-RED nodes for mbusio (M-Bus master): choose project, gateway, line, meter and datapoints from lists and get live meter values with quality, without an MQTT broker",
   "files": [
     "nodes",
