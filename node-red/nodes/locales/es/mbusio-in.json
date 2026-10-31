@@ -1,0 +1,46 @@
+{
+  "mbusio-in": {
+    "label": {
+      "project": "Proyecto",
+      "gateway": "Pasarela",
+      "line": "Línea",
+      "scope": "Valores",
+      "meter": "Contador",
+      "datapoints": "Puntos de datos",
+      "quality": "Transmisión",
+      "name": "Nombre"
+    },
+    "scope": {
+      "datapoints": "puntos de datos elegidos",
+      "meter": "todos los de este contador",
+      "line": "todos los de esta línea"
+    },
+    "quality": {
+      "good": "solo valores buenos",
+      "all": "todos los valores (compruebe msg.mbusio.quality)"
+    },
+    "editor": {
+      "loading": "Cargando la lista desde mbusio …",
+      "noServer": "Elija o añada primero mbusio",
+      "loadError": "mbusio inaccesible",
+      "keeps": "selección conservada",
+      "version": "La versión de mbusio no es adecuada para este nodo, actualice mbusio",
+      "noOperation": "funcionamiento continuo apagado, sin valores",
+      "all": "todos",
+      "empty": "No hay puntos de datos activos en esta línea. En mbusio: pestaña Transmisión → Elegir valores.",
+      "tip": "Los valores solo llegan de líneas en funcionamiento continuo. «todos los de este contador / esta línea» incluye también los puntos de datos añadidos después en mbusio."
+    },
+    "status": {
+      "config": "falta mbusio o la selección",
+      "connecting": "conectando …",
+      "offline": "mbusio inaccesible __detail__",
+      "denied": "acceso denegado (clave)",
+      "noproject": "proyecto no encontrado en mbusio",
+      "version": "la versión de mbusio no es adecuada",
+      "missing": "punto de datos ausente en mbusio: __no__",
+      "disturbed": "averiados: __n__",
+      "stale": "caducados: __n__",
+      "values": "__n__ valores"
+    }
+  }
+}

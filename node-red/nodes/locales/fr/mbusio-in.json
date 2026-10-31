@@ -1,0 +1,46 @@
+{
+  "mbusio-in": {
+    "label": {
+      "project": "Projet",
+      "gateway": "Passerelle",
+      "line": "Ligne",
+      "scope": "Valeurs",
+      "meter": "Compteur",
+      "datapoints": "Points de données",
+      "quality": "Transmission",
+      "name": "Nom"
+    },
+    "scope": {
+      "datapoints": "points de données choisis",
+      "meter": "tous ceux de ce compteur",
+      "line": "tous ceux de cette ligne"
+    },
+    "quality": {
+      "good": "seulement les bonnes valeurs",
+      "all": "toutes les valeurs (vérifier msg.mbusio.quality)"
+    },
+    "editor": {
+      "loading": "Chargement de la liste depuis mbusio …",
+      "noServer": "Choisissez ou ajoutez d'abord mbusio",
+      "loadError": "mbusio injoignable",
+      "keeps": "sélection conservée",
+      "version": "La version de mbusio ne correspond pas à ce nœud, veuillez mettre à jour mbusio",
+      "noOperation": "fonctionnement continu arrêté, aucune valeur",
+      "all": "tous",
+      "empty": "Aucun point de données actif sur cette ligne. Dans mbusio : onglet Transmission → Choisir les valeurs.",
+      "tip": "Les valeurs ne proviennent que des lignes en fonctionnement continu. « tous ceux de ce compteur / cette ligne » inclut aussi les points de données ajoutés plus tard dans mbusio."
+    },
+    "status": {
+      "config": "mbusio ou sélection manquant",
+      "connecting": "connexion …",
+      "offline": "mbusio injoignable __detail__",
+      "denied": "accès refusé (clé)",
+      "noproject": "projet introuvable dans mbusio",
+      "version": "la version de mbusio ne correspond pas",
+      "missing": "point de données absent de mbusio : __no__",
+      "disturbed": "en panne : __n__",
+      "stale": "périmé : __n__",
+      "values": "__n__ valeurs"
+    }
+  }
+}

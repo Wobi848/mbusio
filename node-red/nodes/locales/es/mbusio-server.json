@@ -1,0 +1,10 @@
+{
+  "mbusio-server": {
+    "label": {
+      "url": "Dirección",
+      "token": "Clave de acceso",
+      "name": "Nombre"
+    },
+    "tip": "Dirección de mbusio en la red local (iniciado con <code>--lan</code>), p. ej. <code>http://192.168.1.20:8080</code>. Clave de acceso tal como se indicó con <code>--token</code>; déjela vacía si mbusio no tiene."
+  }
+}

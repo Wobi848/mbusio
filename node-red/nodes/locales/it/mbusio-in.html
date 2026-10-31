@@ -1,0 +1,17 @@
+<script type="text/html" data-help-name="mbusio-in">
+  <p>Valori dei contatori M-Bus da <b>mbusio</b>, direttamente senza broker MQTT. Scegli progetto, gateway, linea, contatore e punti dati dagli elenchi.</p>
+  <h3>Uscite</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">number</span></dt>
+    <dd>Valore, fattore già applicato.</dd>
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>Nome del punto dati, ad es. <code>App. 1 · Energia</code>.</dd>
+    <dt>mbusio <span class="property-type">object</span></dt>
+    <dd><code>no</code> (numero del punto dati, non cambia mai), <code>unit</code>, <code>time</code> (UTC), <code>quality</code> (<code>good</code>, <code>stale</code>, <code>disturbed</code>, <code>invalid</code>), <code>meter</code>, <code>ident</code>, <code>pa</code>, <code>gateway</code>, <code>line</code>, <code>project</code>.</dd>
+  </dl>
+  <h3>Dettagli</h3>
+  <p>Dopo il deploy arriva subito il valore attuale di ogni punto dati, poi ogni nuova lettura come impostato in mbusio (ogni lettura, in caso di modifica, ogni giorno) e ogni cambio di qualità. I valori arrivano solo dalle linee in funzionamento continuo.</p>
+  <p><b>Trasmissione</b>: di norma solo i valori buoni. Con «tutti i valori» arrivano anche quelli scaduti e guasti; controlla <code>msg.mbusio.quality</code>.</p>
+  <p><b>Stato</b>: verde = buono, giallo = scaduto o punto dati assente in mbusio, rosso = guasto o accesso negato, grigio = mbusio non raggiungibile (nuovo tentativo ogni 10 s).</p>
+  <p>Node-RED si limita a leggere. La lettura del bus resta affidata al piano in mbusio.</p>
+</script>

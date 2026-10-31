@@ -1,0 +1,17 @@
+<script type="text/html" data-help-name="mbusio-in">
+  <p>Valeurs des compteurs M-Bus depuis <b>mbusio</b>, directement sans broker MQTT. Choisissez le projet, la passerelle, la ligne, le compteur et les points de données dans des listes.</p>
+  <h3>Sorties</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">number</span></dt>
+    <dd>Valeur, facteur déjà appliqué.</dd>
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>Nom du point de données, p. ex. <code>App. 1 · Énergie</code>.</dd>
+    <dt>mbusio <span class="property-type">object</span></dt>
+    <dd><code>no</code> (numéro du point de données, ne change jamais), <code>unit</code>, <code>time</code> (UTC), <code>quality</code> (<code>good</code>, <code>stale</code>, <code>disturbed</code>, <code>invalid</code>), <code>meter</code>, <code>ident</code>, <code>pa</code>, <code>gateway</code>, <code>line</code>, <code>project</code>.</dd>
+  </dl>
+  <h3>Détails</h3>
+  <p>Après le déploiement, la valeur actuelle de chaque point de données arrive aussitôt, puis chaque nouveau relevé selon le réglage dans mbusio (chaque relevé, en cas de changement, chaque jour) et chaque changement de qualité. Les valeurs ne proviennent que des lignes en fonctionnement continu.</p>
+  <p><b>Transmission</b> : par défaut, seulement les bonnes valeurs. Avec « toutes les valeurs », les valeurs périmées et en panne arrivent aussi ; vérifiez <code>msg.mbusio.quality</code>.</p>
+  <p><b>État</b> : vert = bon, jaune = périmé ou point de données absent de mbusio, rouge = en panne ou accès refusé, gris = mbusio injoignable (nouvel essai toutes les 10 s).</p>
+  <p>Node-RED ne fait que lire. Le relevé du bus reste assuré par le plan dans mbusio.</p>
+</script>

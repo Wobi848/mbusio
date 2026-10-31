@@ -1,6 +1,6 @@
 # Concept: more languages
 
-Date: 2026-10-31 · Status: **steps 1 to 3 built**; French, Italian and Spanish are translated, not reviewed and not in the menu
+Date: 2026-10-31 · Status: **steps 1 to 4 built**; French, Italian and Spanish are translated, not reviewed and not in the menu
 
 Goal: add French, Italian and Spanish to mbusio, and make any further language mostly a matter of
 translating, without touching the code each time. German and English must behave exactly as today.
@@ -182,7 +182,10 @@ menu until they are complete.
    the list import. The language is not in the menu yet; reviewers open it with `?lang=fr`, which
    `LANG_PREVIEW` in `web/js/base.js` allows.
 3. **Italian and Spanish (done, not reviewed).** Same preview as French: `?lang=it`, `?lang=es`.
-4. **Node-RED** in all three languages.
+4. **Node-RED** in all three languages **(done, not reviewed)**. The folders are `fr`, `it` and `es`:
+   Node-RED falls back from `es-MX` or `fr-CH` to the base code, so `es-ES` would miss other regions.
+   Node-RED follows the language of the browser, so these translations are live as soon as the package
+   with them is installed. It needs no menu.
 5. **Review** by someone from the trade, then switch the languages on in the menu.
 
 This branch builds on `design-polish`, which has to reach `main` first.

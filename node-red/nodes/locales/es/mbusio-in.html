@@ -1,0 +1,17 @@
+<script type="text/html" data-help-name="mbusio-in">
+  <p>Valores de contadores M-Bus desde <b>mbusio</b>, directamente sin broker MQTT. Elija proyecto, pasarela, línea, contador y puntos de datos en listas.</p>
+  <h3>Salidas</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">number</span></dt>
+    <dd>Valor, factor ya aplicado.</dd>
+    <dt>topic <span class="property-type">string</span></dt>
+    <dd>Nombre del punto de datos, p. ej. <code>Piso 1 · Energía</code>.</dd>
+    <dt>mbusio <span class="property-type">object</span></dt>
+    <dd><code>no</code> (número del punto de datos, nunca cambia), <code>unit</code>, <code>time</code> (UTC), <code>quality</code> (<code>good</code>, <code>stale</code>, <code>disturbed</code>, <code>invalid</code>), <code>meter</code>, <code>ident</code>, <code>pa</code>, <code>gateway</code>, <code>line</code>, <code>project</code>.</dd>
+  </dl>
+  <h3>Detalles</h3>
+  <p>Tras el despliegue llega enseguida el valor actual de cada punto de datos, luego cada lectura nueva según lo ajustado en mbusio (cada lectura, si cambia, cada día) y cada cambio de calidad. Los valores solo llegan de líneas en funcionamiento continuo.</p>
+  <p><b>Transmisión</b>: por defecto solo los valores buenos. Con «todos los valores» llegan también los caducados y averiados; compruebe <code>msg.mbusio.quality</code>.</p>
+  <p><b>Estado</b>: verde = bueno, amarillo = caducado o punto de datos ausente en mbusio, rojo = averiado o acceso denegado, gris = mbusio inaccesible (reintenta cada 10 s).</p>
+  <p>Node-RED solo lee. La lectura del bus sigue a cargo del plan en mbusio.</p>
+</script>

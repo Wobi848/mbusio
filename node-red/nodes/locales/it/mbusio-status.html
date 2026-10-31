@@ -1,0 +1,13 @@
+<script type="text/html" data-help-name="mbusio-status">
+  <p>Stato di un progetto o di una linea in <b>mbusio</b>, per le notifiche, ad es. verso un nodo di allarme.</p>
+  <h3>Uscite</h3>
+  <dl class="message-properties">
+    <dt>payload <span class="property-type">boolean</span></dt>
+    <dd><code>true</code> = tutto bene: mbusio raggiungibile e nessun valore guasto o non valido. Altrimenti <code>false</code>.</dd>
+    <dt>mbusio <span class="property-type">object</span></dt>
+    <dd><code>online</code>, numero di valori per qualità (<code>good</code>, <code>stale</code>, <code>disturbed</code>, <code>invalid</code>) e <code>problems</code>: elenco dei punti dati non buoni (<code>no</code>, <code>name</code>, <code>meter</code>, <code>line</code>, <code>quality</code>, <code>time</code>).</dd>
+  </dl>
+  <h3>Dettagli</h3>
+  <p>Inviato appena lo stato è noto e a ogni modifica; non si ripete finché nulla cambia. I valori scaduti sono elencati ma non rendono falso <code>payload</code>. Solo le linee in funzionamento continuo forniscono valori.</p>
+  <p>Anche un breve riavvio di mbusio dà <code>false</code>. Per gli allarmi usa un ritardo (ad es. «ritardo all'attivazione» nel nodo di allarme).</p>
+</script>

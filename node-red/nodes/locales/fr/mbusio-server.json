@@ -1,0 +1,10 @@
+{
+  "mbusio-server": {
+    "label": {
+      "url": "Adresse",
+      "token": "Clé d'accès",
+      "name": "Nom"
+    },
+    "tip": "Adresse de mbusio sur le réseau local (démarré avec <code>--lan</code>), p. ex. <code>http://192.168.1.20:8080</code>. Clé d'accès telle que donnée avec <code>--token</code> ; laissez vide si mbusio n'en a pas."
+  }
+}
