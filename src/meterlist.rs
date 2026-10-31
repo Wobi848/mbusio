@@ -280,12 +280,12 @@ impl Db {
 
     /// Zählerliste als CSV (Semikolon, Excel): zum Ausfüllen lassen und wieder Einlesen
     pub fn meters_csv(&self, line_id: i64, lang: Lang) -> Result<String> {
-        let de = lang == Lang::De;
-        let mut out = String::from(if de {
-            "ID;PA;Hersteller;Medium;Name;Ort;Notiz;Sekundäradresse;Letzter Wert\r\n"
-        } else {
-            "ID;PA;Manufacturer;Medium;Name;Location;Note;Secondary address;Last value\r\n"
-        });
+        let mut out = i18n::tr_in(
+            lang,
+            "ID;PA;Hersteller;Medium;Name;Ort;Notiz;Sekundäradresse;Letzter Wert",
+            "ID;PA;Manufacturer;Medium;Name;Location;Note;Secondary address;Last value",
+        );
+        out.push_str("\r\n");
         for m in self.meters(line_id)? {
             let row = [
                 meter_ident(&m).unwrap_or_default(),

@@ -174,10 +174,10 @@ impl Settings {
             "prev_quarter" => format!("Q{}/{}", (from.month() - 1) / 3 + 1, from.year()),
             "prev_half" => format!("H{}/{}", (from.month() - 1) / 6 + 1, from.year()),
             "prev_year" => from.year().to_string(),
-            _ if crate::i18n::current() == crate::i18n::Lang::De => {
-                format!("{}–{}", from.format("%d.%m.%Y"), to.format("%d.%m.%Y"))
+            _ => {
+                let f = crate::i18n::current().date_format();
+                format!("{}–{}", from.format(f), to.format(f))
             }
-            _ => format!("{from}–{to}"),
         }
     }
 }

@@ -23,8 +23,22 @@ const $ = (id) => document.getElementById(id);
 /// Baudraten des M-Bus
 const BAUDS = [300, 600, 1200, 2400, 4800, 9600, 19200, 38400];
 
+/// Wählbare Sprachen. Eine neue kommt erst hierher (und in `OFFERED` in src/i18n/mod.rs), wenn sie
+/// vollständig ist
+const LANGUAGES = { de: "Deutsch", en: "English" };
+
+/// Formate je Sprache (Gegenstück zu `Lang::date_format` und `Lang::decimal` im Server)
+const LANG_FORMATS = {
+  de: { locale: "de-CH", dateSep: ".", decimal: "," },
+  en: { locale: "en-GB", dateSep: "/", decimal: ".", isoDay: true },
+  fr: { locale: "fr-CH", dateSep: ".", decimal: "," },
+  it: { locale: "it-CH", dateSep: ".", decimal: "," },
+  es: { locale: "es-ES", dateSep: "/", decimal: "," },
+};
+
 let lang = storageGet("lang") || (navigator.language || "de").slice(0, 2);
-if (!UI[lang]) lang = "de";
+if (!LANGUAGES[lang]) lang = "en";
+const langFormat = () => LANG_FORMATS[lang];
 let labels = {}; // Messdaten-Begriffe vom Server
 let token = storageGet("token") || "";
 
@@ -42,7 +56,7 @@ function durText(min) {
 }
 
 function t(key, ...args) {
-  const v = UI[lang][key] ?? UI.de[key] ?? key;
+  const v = UI[lang]?.[key] ?? UI.en[key] ?? UI.de[key] ?? key;
   return typeof v === "function" ? v(...args) : v;
 }
 
@@ -83,7 +97,7 @@ function dateTime(s) {
   const d = s instanceof Date ? s : parseTime(s);
   if (!s || isNaN(d)) return String(s || "");
   const p = (n) => String(n).padStart(2, "0");
-  const day = [p(d.getDate()), p(d.getMonth() + 1), d.getFullYear()].join(lang === "de" ? "." : "/");
+  const day = [p(d.getDate()), p(d.getMonth() + 1), d.getFullYear()].join(langFormat().dateSep);
   return `${day} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 

@@ -147,10 +147,9 @@ impl Shared {
                     ))
                 })
                 .map(|(l, p)| {
-                    tr(
-                        &format!("„{l}“ im Projekt „{p}“"),
-                        &format!("“{l}” in project “{p}”"),
-                    )
+                    tr("„{l}“ im Projekt „{p}“", "“{l}” in project “{p}”")
+                        .replace("{l}", &l)
+                        .replace("{p}", &p)
                 })
                 .unwrap_or_else(|_| line_id.to_string())
         };

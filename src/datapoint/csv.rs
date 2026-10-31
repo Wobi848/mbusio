@@ -24,11 +24,11 @@ pub(super) fn parse_bool(s: &str) -> Option<bool> {
 }
 
 fn header(lang: Lang) -> Vec<String> {
-    let fixed = if lang == Lang::De {
-        "Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv"
-    } else {
-        "No;Line;Meter;Address;Key;Name;Unit;Factor;Send;Active"
-    };
+    let fixed = i18n::tr_in(
+        lang,
+        "Nr;Linie;Zähler;Adresse;Kennung;Name;Einheit;Faktor;Weitergabe;Aktiv",
+        "No;Line;Meter;Address;Key;Name;Unit;Factor;Send;Active",
+    );
     let mut h: Vec<String> = fixed.split(';').map(String::from).collect();
     for o in OUTPUTS {
         h.push(o.label());

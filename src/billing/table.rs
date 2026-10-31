@@ -72,8 +72,7 @@ pub(super) fn num(x: f64, decimal: &str) -> String {
 /// Zeitpunkt lesbar: Deutsch 30.09.2026 23:45, Englisch 2026-09-30 23:45
 fn when(time: &str, lang: Lang) -> String {
     match crate::plan::parse_time(time) {
-        Some(t) if lang == Lang::De => t.format("%d.%m.%Y %H:%M").to_string(),
-        Some(t) => t.format("%Y-%m-%d %H:%M").to_string(),
+        Some(t) => format!("{} {}", t.format(lang.date_format()), t.format("%H:%M")),
         None => time.to_string(),
     }
 }
@@ -157,20 +156,17 @@ impl Ctx {
 
 /// Kopf zum Zähler und Wert (für beide Formen gleich)
 pub(super) fn head() -> Vec<String> {
-    [
-        ("Projekt", "Project"),
-        ("Linie", "Line"),
-        ("Name", "Name"),
-        ("Ort", "Location"),
-        ("ID", "ID"),
-        ("PA", "PA"),
-        ("Medium", "Medium"),
-        ("Wert", "Value"),
-        ("Einheit", "Unit"),
+    vec![
+        tr("Projekt", "Project"),
+        tr("Linie", "Line"),
+        tr("Name", "Name"),
+        tr("Ort", "Location"),
+        tr("ID", "ID"),
+        tr("PA", "PA"),
+        tr("Medium", "Medium"),
+        tr("Wert", "Value"),
+        tr("Einheit", "Unit"),
     ]
-    .iter()
-    .map(|(de, en)| tr(de, en))
-    .collect()
 }
 
 impl Db {
@@ -198,7 +194,7 @@ impl Db {
     ) -> Result<Table> {
         let lang = crate::i18n::current();
         let decimal = match s.decimal.as_str() {
-            "" if lang == Lang::De => ",",
+            "" => lang.decimal(),
             "," => ",",
             _ => ".",
         };

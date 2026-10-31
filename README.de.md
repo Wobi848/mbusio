@@ -487,7 +487,7 @@ Aufbau:
   Linien-Dienste), api (Fehler, Downloads, Arbeit am Bus), dann nach Bereichen (bus: Verbindung und
   Auftrag, scan, tools, meters, projects, schedule: Plan/Dauerbetrieb/Uhrzeit, datapoints, outputs,
   nodered, simulator); `web/`: Oberfläche und Bericht (in die Binärdatei eingebettet)
-- `src/i18n.rs`: Übersetzungen der Messgrössen, Sprache je Request; Arbeit im Hintergrund (Zeitplan,
+- `src/i18n/`: Übersetzungen der Messgrössen, Sprache je Request; Arbeit im Hintergrund (Zeitplan,
   Ausgänge, Linien) folgt der Sprache der Oberfläche (letzte Anfrage mit `X-Lang`); Meldungen fürs
   Protokoll entstehen mit `both` in beiden Sprachen und erscheinen in der Sprache, die fragt; alle
   Texte der Oberfläche und des Berichts in `web/js/texts.js` bzw. beim Bereich

@@ -1,6 +1,6 @@
 # Concept: more languages
 
-Date: 2026-10-31 · Status: **proposed**, nothing built yet
+Date: 2026-10-31 · Status: **step 1 built**, no new language yet
 
 Goal: add French, Italian and Spanish to mbusio, and make any further language mostly a matter of
 translating, without touching the code each time. German and English must behave exactly as today.
@@ -49,11 +49,14 @@ stays readable, and a missing translation shows English instead of an error.
 The downside: one English text can only have one translation. If a word needs two translations
 depending on context, the English texts get a small difference. We expect this to be rare.
 
-The 9 non-literal calls are handled one by one:
-- 3 in `src/line.rs` and `src/web/state.rs` get a template with placeholders, because users see them.
+The 9 non-literal calls were handled one by one:
+- 3 in `src/line.rs` and `src/web/state.rs` now use literals with placeholders, because users see them.
 - 5 in `src/service/win.rs` are console messages during Windows service setup. They stay English in
   the new languages through the fallback.
-- 1 in `src/billing/table.rs` passes variables and has to be looked at in step 1.
+- 1 in `src/billing/table.rs` is now a plain list of `tr` calls.
+
+`tr_in(lang, "de", "en")` does the same for code that has its language as a parameter. All texts stay
+literals, because the catalog check reads them from the source.
 
 `LABELS` gets the same treatment: the catalog holds `energy`-style keys in a `labels` section.
 
@@ -75,7 +78,8 @@ unknown JSON fields are ignored (to be confirmed by a test in step 1).
 
 German and English stay where they are. Each new language gets one flat file with all its keys
 (`web/js/lang-fr.js` sets `UI.fr = { … }`), loaded before the first render in `app.js` and
-`report.js`. Plurals stay functions, because French and others count differently:
+`report.js`. The loader comes with the first language in step 2, because until then nothing would use
+it. Plurals stay functions, because French and others count differently:
 
 ```js
 ps_lines: (n) => (n <= 1 ? `${n} ligne` : `${n} lignes`),
@@ -100,9 +104,12 @@ for formats move there, so a new language can no longer silently be treated as E
 Places to move: `web/js/base.js`, `web/js/plot.js`, `web/app/zaehler-verlauf.js`,
 `web/app/weitergabe-abrechnung.js`, `src/billing/settings.rs`, `src/billing/table.rs`.
 
-Words chosen by a comparison (`src/datapoint/key.rs`, `src/datapoint/csv.rs`, `src/meterlist.rs`)
-go through `tr` instead. Step 1 also checks whether any import depends on translated header names;
-a list exported in one language must still import in another.
+Words chosen by a comparison (`src/datapoint/key.rs`, `src/datapoint/csv.rs`, `src/meterlist.rs`,
+`src/export.rs`, `src/web/outputs.rs`) go through `tr_in`.
+
+Imports: datapoint CSV files are read by column position and do not depend on the language. **The
+meter list import guesses columns from header words** (`GUESS` in `web/js/listlogic.js`), in German
+and English only. Step 2 adds the words of each new language there.
 
 ### Scope
 
@@ -154,7 +161,7 @@ common in the trade. The review decides the rest.
 - **Catalog check (Rust):** scans the source for `tr("…", "…")` and reports English texts missing
   from a catalog, and catalog entries nothing uses any more. Missing texts fail the test for every
   language that is switched on, so a language only appears in the menu once it is complete.
-- **Key check (Node):** every language has the same keys as English, and functions take the same
+- **Key check (UI test `28-texte`):** every language has the same keys as English, and functions take the same
   arguments.
 - **`tests/ui/08-sprachen`:** runs for all languages. Today's check for German words in English
   applies to all languages except German.
@@ -169,15 +176,17 @@ common in the trade. The review decides the rest.
 Each step is its own commit and leaves everything working. The new languages stay hidden from the
 menu until they are complete.
 
-1. **Engine, no new language.** `Lang` with five values, catalogs, `tr`, `Text`, `Open`, one place for
-   formats, interface loading, checks. German and English identical to before.
-2. **French, complete.** The first language shows what the engine missed, and whether the glossary
-   and the layout hold. Fix those before going on.
+1. **Engine, no new language (done).** `Lang` with five values, catalogs, `tr`, `Text`, `Open`, one
+   place for formats, checks. German and English identical to before. New languages stay unavailable
+   through `OFFERED` and `LANGUAGES`.
+2. **French, complete.** Includes the interface loader and the header words of the list import. The
+   first language shows what the engine missed, and whether the glossary and the layout hold. Fix
+   those before going on.
 3. **Italian and Spanish.**
 4. **Node-RED** in all three languages.
 5. **Review** by someone from the trade, then switch the languages on in the menu.
 
-Step 1 starts after `design-polish` is on `main`, because it touches many of the same files.
+This branch builds on `design-polish`, which has to reach `main` first.
 
 ## 7. Size of the translation
 

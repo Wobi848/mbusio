@@ -479,7 +479,7 @@ Structure:
 - `src/web/`: HTTP API: mod (router, access key, files), state, api (errors, downloads, bus work),
   then by area (bus, scan, tools, meters, projects, schedule, datapoints, outputs, nodered,
   simulator, backup); `web/`: UI and report (embedded in the binary)
-- `src/i18n.rs`: translations of the quantities, language per request; background work follows the
+- `src/i18n/`: translations of the quantities, language per request; background work follows the
   language of the UI (last request with `X-Lang`); log messages are created with `both` in both
   languages and appear in the language that asks; all UI and report texts in `web/js/texts.js` or
   next to the area

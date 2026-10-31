@@ -5,7 +5,7 @@ import { report } from "./data.js";
 
 let hist = null; // { id, points, keys (Schlüssel → Reihe), key, view: "chart" | "table" }
 
-const num = (x) => new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-GB", { maximumFractionDigits: 3 }).format(x);
+const num = (x) => new Intl.NumberFormat(langFormat().locale, { maximumFractionDigits: 3 }).format(x);
 const series = () => plotSeries(hist.points, hist.key);
 
 export function historyHtml(m) {

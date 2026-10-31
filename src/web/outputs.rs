@@ -142,44 +142,22 @@ pub(super) async fn output_list(
             &format!("mbusio-{what}-{name}.json"),
         ));
     }
-    let de = lang == Lang::De;
-    let head: Vec<String> = if de {
-        [
-            "Nr",
-            out.address_label().as_str(),
-            "Name",
-            "Einheit",
-            "Faktor",
-            "Weitergabe",
-            "Zähler",
-            "ID",
-            "PA",
-            "Ort",
-            "Medium",
-            "Linie",
-            "Kennung",
-        ]
-        .map(String::from)
-        .to_vec()
-    } else {
-        [
-            "No",
-            out.address_label().as_str(),
-            "Name",
-            "Unit",
-            "Factor",
-            "Send",
-            "Meter",
-            "ID",
-            "PA",
-            "Location",
-            "Medium",
-            "Line",
-            "Key",
-        ]
-        .map(String::from)
-        .to_vec()
-    };
+    let text = |de, en| crate::i18n::tr_in(lang, de, en);
+    let head = [
+        text("Nr", "No"),
+        out.address_label(),
+        text("Name", "Name"),
+        text("Einheit", "Unit"),
+        text("Faktor", "Factor"),
+        text("Weitergabe", "Send"),
+        text("Zähler", "Meter"),
+        text("ID", "ID"),
+        text("PA", "PA"),
+        text("Ort", "Location"),
+        text("Medium", "Medium"),
+        text("Linie", "Line"),
+        text("Kennung", "Key"),
+    ];
     let mut csv = crate::export::row(&head);
     let s = |v: &serde_json::Value| match v {
         serde_json::Value::Null => String::new(),

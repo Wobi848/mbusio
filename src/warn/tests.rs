@@ -197,3 +197,13 @@ fn settings_are_checked() {
     let c: crate::mail::MailConfig = serde_json::from_str(r#"{"host":"x"}"#).unwrap();
     assert_eq!(c.warn, WarnSettings::default());
 }
+
+#[test]
+fn stored_problem_keeps_loading_across_versions() {
+    // gespeichert von einer Version ohne weitere Sprachen
+    let old = r#"{"key":"k","kind":"line","de":"Linie weg","en":"Line gone","place":"","since":"2026-10-01 00:00:00"}"#;
+    let open: Open = serde_json::from_str(old).unwrap();
+    assert!(open.more.is_empty());
+    // ohne Übersetzungen unverändert gespeichert, damit auch ältere Versionen sie weiter lesen
+    assert!(!serde_json::to_string(&open).unwrap().contains("more"));
+}

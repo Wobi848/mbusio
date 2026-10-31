@@ -146,7 +146,7 @@ function chosenLines(el) {
 }
 
 const opt = (value, label, current) => `<option value="${esc(value)}"${String(value) === String(current) ? " selected" : ""}>${esc(label)}</option>`;
-const day = (iso) => (lang === "de" ? iso.split("-").reverse().join(".") : iso);
+const day = (iso) => (langFormat().isoDay ? iso : iso.split("-").reverse().join(langFormat().dateSep));
 
 /// Leiste, Einstellungen und Vorschau einzeln; eine Antwort des Servers ersetzt das Feld nicht
 /// samt dem Getippten
@@ -193,7 +193,7 @@ function mailNowButton(s) {
 }
 
 function settingsHtml(s) {
-  const decimal = s.decimal || (lang === "de" ? "," : ".");
+  const decimal = s.decimal || langFormat().decimal;
   return `<h3>${esc(t("ab_settings"))}</h3>
     <div class="fields">
       <label><span>${esc(t("ab_period"))}</span><select data-b-period>${PERIODS.map((x) => opt(x, t("period_" + x), s.period)).join("")}</select></label>

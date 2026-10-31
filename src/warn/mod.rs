@@ -2,11 +2,13 @@
 //! gebündelt per E-Mail und als Meldungen in der Oberfläche. Hier stehen nur die Regeln; was offen
 //! ist, sammelt der Zeitplan (`scheduler::warn`), die Zählerprobleme liefert die Datenbank.
 
+use std::collections::BTreeMap;
+
 use anyhow::{bail, Result};
 use chrono::{Duration, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 
-use crate::i18n::{current, tr, Lang, Text};
+use crate::i18n::{pick, tr, Text};
 
 mod found;
 
@@ -135,6 +137,9 @@ pub struct Open {
     pub kind: String,
     pub de: String,
     pub en: String,
+    /// weitere Sprachen; fehlt bei älteren gespeicherten Problemen, dann gilt Englisch
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub more: BTreeMap<String, String>,
     pub place: String,
     pub since: String,
     #[serde(default)]
@@ -153,10 +158,7 @@ pub struct Open {
 
 impl Open {
     pub fn text(&self) -> &str {
-        match current() {
-            Lang::De => &self.de,
-            Lang::En => &self.en,
-        }
+        pick(&self.de, &self.en, &self.more)
     }
 
     /// besteht lange genug, um zu zählen
@@ -232,8 +234,10 @@ impl WarnState {
         }
         for p in found {
             if let Some(o) = self.open.iter_mut().find(|o| o.key == p.key) {
-                if (&o.de, &o.en, &o.place) != (&p.text.de, &p.text.en, &p.place) {
-                    (o.de, o.en, o.place) = (p.text.de, p.text.en, p.place);
+                if (&o.de, &o.en, &o.more, &o.place)
+                    != (&p.text.de, &p.text.en, &p.text.more, &p.place)
+                {
+                    (o.de, o.en, o.more, o.place) = (p.text.de, p.text.en, p.text.more, p.place);
                     changed = true;
                 }
                 continue;
@@ -246,6 +250,7 @@ impl WarnState {
                 kind: p.kind.to_string(),
                 de: p.text.de,
                 en: p.text.en,
+                more: p.text.more,
                 place: p.place,
                 since: p.since.unwrap_or_else(|| stamp(now)),
                 line: p.line,

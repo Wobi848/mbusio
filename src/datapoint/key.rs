@@ -51,21 +51,20 @@ pub fn key_label(key: &str, lang: Lang) -> String {
     if p.function != "instantaneous" {
         s += &format!(" · {}", i18n::label(p.function, lang));
     }
-    let de = lang == Lang::De;
     if p.tariff != "0" {
-        s += &format!(" · {} {}", if de { "Tarif" } else { "tariff" }, p.tariff);
+        s += &format!(" · {} {}", i18n::tr_in(lang, "Tarif", "tariff"), p.tariff);
     }
     if p.storage != "0" {
         s += &format!(
             " · {} {}",
-            if de { "Speicher" } else { "storage" },
+            i18n::tr_in(lang, "Speicher", "storage"),
             p.storage
         );
     }
     if p.subunit != "0" {
         s += &format!(
             " · {} {}",
-            if de { "Untereinheit" } else { "subunit" },
+            i18n::tr_in(lang, "Untereinheit", "subunit"),
             p.subunit
         );
     }

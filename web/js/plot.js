@@ -44,12 +44,12 @@ function niceTicks(lo, hi, n) {
 function axisNum(v, step) {
   const digits = Math.min(6, Math.max(0, -Math.floor(Math.log10(step || 1) + 1e-9)));
   return Math.abs(v) >= 10000 && step >= 1000
-    ? new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-GB", { notation: "compact", maximumFractionDigits: 1 }).format(v)
-    : new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-GB", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
+    ? new Intl.NumberFormat(langFormat().locale, { notation: "compact", maximumFractionDigits: 1 }).format(v)
+    : new Intl.NumberFormat(langFormat().locale, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
 }
 
 function timeLabel(d, span) {
-  const loc = lang === "de" ? "de-CH" : "en-GB";
+  const loc = langFormat().locale;
   if (span < 2 * 36e5) return d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   if (span < 2 * 864e5) return d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
   return d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit" });

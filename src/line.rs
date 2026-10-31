@@ -85,9 +85,11 @@ impl Ports {
             match held.get(k) {
                 Some((other, by, _)) if *other != line_id => {
                     return Err(anyhow!(tr(
-                        &format!("{port} wird schon von Linie {by} benutzt"),
-                        &format!("{port} is already used by line {by}"),
-                    )))
+                        "{port} wird schon von Linie {by} benutzt",
+                        "{port} is already used by line {by}",
+                    )
+                    .replace("{port}", port)
+                    .replace("{by}", by)))
                 }
                 _ => {
                     held.insert(k.clone(), (line_id, label.to_string(), id));
@@ -336,15 +338,13 @@ fn run(inner: Arc<Inner>) {
                 if master.is_some() && device_gone(&inner.conf.connection) {
                     master = None;
                     let msg = both(|| {
-                        tr(
-                            &format!(
-                                "{}: nicht vorhanden – USB-Wandler abgezogen?",
-                                inner.conf.connection
-                            ),
-                            &format!(
-                                "{}: not present – USB converter unplugged?",
-                                inner.conf.connection
-                            ),
+                        format!(
+                            "{}: {}",
+                            inner.conf.connection,
+                            tr(
+                                "nicht vorhanden – USB-Wandler abgezogen?",
+                                "not present – USB converter unplugged?",
+                            )
                         )
                     });
                     let mut s = inner.status.lock().unwrap();

@@ -1,46 +1,30 @@
 //! Export der Messwerte als CSV (Semikolon, für Excel) oder JSON.
 
-use crate::i18n::{label, Lang};
+use crate::i18n::{label, tr_in, Lang};
 use crate::mbus::master::MeterReading;
 
-const COLUMNS_DE: &[&str] = &[
-    "Zeitpunkt",
-    "Adresse",
-    "Primäradresse",
-    "ID",
-    "Hersteller",
-    "Medium",
-    "Nr",
-    "Beschreibung",
-    "Wert",
-    "Einheit",
-    "Funktion",
-    "Speicher",
-    "Tarif",
-    "Untereinheit",
-    "DIF",
-    "VIF",
-    "Rohdaten",
-];
-const COLUMNS_EN: &[&str] = &[
-    "Timestamp",
-    "Address",
-    "Primary address",
-    "ID",
-    "Manufacturer",
-    "Medium",
-    "No",
-    "Description",
-    "Value",
-    "Unit",
-    "Function",
-    "Storage",
-    "Tariff",
-    "Subunit",
-    "DIF",
-    "VIF",
-    "Raw data",
-];
+/// Spalten des Messwert-Exports
+fn columns(lang: Lang) -> Vec<String> {
+    vec![
+        tr_in(lang, "Zeitpunkt", "Timestamp"),
+        tr_in(lang, "Adresse", "Address"),
+        tr_in(lang, "Primäradresse", "Primary address"),
+        tr_in(lang, "ID", "ID"),
+        tr_in(lang, "Hersteller", "Manufacturer"),
+        tr_in(lang, "Medium", "Medium"),
+        tr_in(lang, "Nr", "No"),
+        tr_in(lang, "Beschreibung", "Description"),
+        tr_in(lang, "Wert", "Value"),
+        tr_in(lang, "Einheit", "Unit"),
+        tr_in(lang, "Funktion", "Function"),
+        tr_in(lang, "Speicher", "Storage"),
+        tr_in(lang, "Tarif", "Tariff"),
+        tr_in(lang, "Untereinheit", "Subunit"),
+        tr_in(lang, "DIF", "DIF"),
+        tr_in(lang, "VIF", "VIF"),
+        tr_in(lang, "Rohdaten", "Raw data"),
+    ]
+}
 
 /// Beschreibung inkl. Hinweisen, z.B. "Energie (nur positive Anteile)".
 pub fn description(quantity: &str, notes: &[String], lang: Lang) -> String {
@@ -82,14 +66,7 @@ pub fn row<S: AsRef<str>>(fields: &[S]) -> String {
 pub fn csv(readings: &[MeterReading], lang: Lang) -> String {
     // BOM, damit Excel UTF-8 (Umlaute, m³) korrekt erkennt
     let mut out = String::from("\u{FEFF}");
-    out.push_str(
-        &if lang == Lang::En {
-            COLUMNS_EN
-        } else {
-            COLUMNS_DE
-        }
-        .join(";"),
-    );
+    out.push_str(&columns(lang).join(";"));
     out.push_str("\r\n");
     for r in readings {
         let (id, man, medium) = match &r.header {
