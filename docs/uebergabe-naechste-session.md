@@ -1,6 +1,6 @@
 # Übergabe an die nächste Session (Stand 2026-10-29)
 
-Lies das zuerst. Repo: Wobi848/mbusio, Branch `claude/mbusio-context-w51dtz`, Stand siehe `git log` (der letzte Eintrag hier: Aufräumen vom 28.10.).
+Lies das zuerst. Repo: Wobi848/mbusio, Branch `main` (öffentlich seit 31.10., Geschichte bereinigt; altes privates Repo: Wobi848/mbusio-alt), Stand siehe `git log` (der letzte Eintrag hier: Aufräumen vom 28.10.).
 Mit dem Nutzer **auf Deutsch** reden, kurz und direkt.
 
 ## Harte Regeln des Nutzers
