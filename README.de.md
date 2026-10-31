@@ -258,7 +258,7 @@ Für den Dauerbetrieb (regelmässig auslesen und weitergeben) muss mbusio auch l
 angemeldet ist. Im Fenster gestartet, steht es still, sobald das Fenster zu ist; der Zustand der
 Anlage zeigt das dann orange an.
 
-1. `mbusio-dienst-einrichten.cmd` aus dem Release neben die .exe legen und doppelklicken. Windows
+1. `mbusio-service-install.cmd` aus dem Release neben die .exe legen und doppelklicken. Windows
    fragt nach Adminrechten; danach wählen, ob die Oberfläche aus dem Netzwerk erreichbar sein soll
    (dann mit Zugriffsschlüssel). Ohne die Datei, in einer Eingabeaufforderung als Administrator:
    `mbusio-windows-x86_64.exe --install-service [--lan --token GEHEIM]`
@@ -268,7 +268,7 @@ Anlage zeigt das dann orange an.
 - **Programm** liegt dann in `C:\Program Files\mbusio`, **Daten** in `C:\ProgramData\mbusio`. Beim
   ersten Einrichten wird die bisherige Datenbank dorthin kopiert (das Original bleibt).
 - **Aktualisieren:** die neue .exe genauso einrichten; Daten bleiben.
-- **Entfernen:** `mbusio-dienst-entfernen.cmd` bzw. `--uninstall-service`; Programm und Daten bleiben.
+- **Entfernen:** `mbusio-service-uninstall.cmd` bzw. `--uninstall-service`; Programm und Daten bleiben.
 - Startet der Dienst nicht: `C:\ProgramData\mbusio\mbusio.log`.
 - Der Dienst läuft als `LocalService` (wenig Rechte). Solange ein Plan läuft, schläft der PC nicht ein.
 - **USB-Energiesparen ausschalten**, sonst schaltet Windows den M-Bus-Wandler ab: Energieoptionen →
@@ -303,12 +303,12 @@ sudo systemctl enable --now mbusio
 
 Dann im Handy- oder Laptop-Browser `http://<IP des Pi>:8080` öffnen.
 
-**Reicht der Pi?** Vor dem Einsatz `mbusio lasttest` laufen lassen: erzeugt in einem eigenen
+**Reicht der Pi?** Vor dem Einsatz `mbusio load-test` laufen lassen: erzeugt in einem eigenen
 Ordner eine Anlage mit 60 Zählern und 3 Jahren Messwerten (Plan alle 15 min, im letzten Jahr jede
 Auslesung, davor eine je Tag wie beim Speicherschutz), startet mbusio darauf und zeigt, wie lange
 Status, Zählerliste, Verlauf, Bericht, Abrechnung, Export und Sicherung brauchen. Danach wird der
 Ordner gelöscht; echte Daten fasst der Lasttest nie an. Grösse wählbar:
-`mbusio lasttest --meters 120 --years 5 --minutes 15`. Zum Vergleich auf einem PC: 480 MB
+`mbusio load-test --meters 120 --years 5 --minutes 15`. Zum Vergleich auf einem PC: 480 MB
 Datenbank, Status 1 ms, Verlauf 60 ms, Abrechnung 30 ms, Sicherung herunterladen 1 s.
 
 ### Optionen

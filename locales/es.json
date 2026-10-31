@@ -99,7 +99,7 @@
     "Address (A)": "Dirección (A)",
     "Address does not exist on this device": "La dirección no existe en este equipo",
     "Address set, but meter does not answer on new address": "Dirección definida, pero el contador no responde en la dirección nueva",
-    "Administrator rights needed: open the command prompt with right click “Run as administrator” or double-click mbusio-dienst-einrichten.cmd.": "Se necesitan derechos de administrador: abra el símbolo del sistema con clic derecho «Ejecutar como administrador» o haga doble clic en mbusio-dienst-einrichten.cmd.",
+    "Administrator rights needed: open the command prompt with right click “Run as administrator” or double-click mbusio-service-install.cmd.": "Se necesitan derechos de administrador: abra el símbolo del sistema con clic derecho «Ejecutar como administrador» o haga doble clic en mbusio-service-install.cmd.",
     "All OK – 10 meters": "Todo OK – 10 contadores",
     "Apartment block – 10 flats, 30 meters OK": "Bloque de pisos – 10 pisos, 30 contadores OK",
     "Application reset": "Reinicio de la aplicación",

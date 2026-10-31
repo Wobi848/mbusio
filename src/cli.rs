@@ -4,7 +4,7 @@ use super::*;
 
 #[derive(Subcommand)]
 pub(crate) enum Cmd {
-    /// Primärscan
+    /// Primary scan
     Scan {
         #[arg(long, default_value_t = 0)]
         from: u8,
@@ -12,49 +12,50 @@ pub(crate) enum Cmd {
         to: u8,
         #[arg(long, default_value_t = 1)]
         retries: u32,
-        /// Auf allen Baudraten scannen, auf denen Geräte antworten
+        /// Scan all baud rates on which devices answer
         #[arg(long)]
         all_bauds: bool,
-        /// Auf diesen Baudraten scannen, z.B. 2400,9600
+        /// Scan these baud rates, e.g. 2400,9600
         #[arg(long, value_delimiter = ',')]
         bauds: Vec<u32>,
     },
-    /// Sekundärscan (Wildcard-Suche über die ID)
+    /// Secondary scan (wildcard search by ID)
     ScanSecondary {
-        /// Auf allen Baudraten scannen, auf denen Geräte antworten
+        /// Scan all baud rates on which devices answer
         #[arg(long)]
         all_bauds: bool,
-        /// Auf diesen Baudraten scannen, z.B. 2400,9600
+        /// Scan these baud rates, e.g. 2400,9600
         #[arg(long, value_delimiter = ',')]
         bauds: Vec<u32>,
     },
-    /// Prüfen, auf welchen Baudraten Geräte am Bus antworten
+    /// Check on which baud rates devices on the bus answer
     BusBauds,
-    /// Zähler auslesen: Primäradresse, ID oder Sekundäradresse
+    /// Read a meter: primary address, ID or secondary address
     Read { address: String },
-    /// Primäradresse setzen
+    /// Set the primary address
     SetAddress { address: String, new_address: u8 },
-    /// Baudrate am Zähler umstellen
+    /// Change the baud rate on the meter
     SwitchBaud { address: String, baud: u32 },
-    /// Baudrate eines Zählers suchen
+    /// Find the baud rate of a meter
     DetectBaud { address: String },
-    /// Application Reset senden
+    /// Send an application reset
     Reset {
         address: String,
         #[arg(long)]
         subcode: Option<u8>,
     },
-    /// Rohe Bytes senden, z.B. "10 40 01 41 16"
+    /// Send raw bytes, e.g. "10 40 01 41 16"
     Raw { hex: String },
-    /// Lasttest: grosse Anlage erzeugen und messen, wie schnell mbusio antwortet (z.B. auf dem
-    /// Raspberry Pi vor dem Einsatz). Ohne --data-dir in einem eigenen Ordner, der danach gelöscht
-    /// wird; nie in einem Ordner mit Datenbank
+    /// Load test: create a large plant and measure how fast mbusio answers (e.g. on a Raspberry Pi
+    /// before deployment). Without --data-dir in its own folder, deleted afterwards; never in a
+    /// folder with a database
+    #[command(name = "load-test", alias = "lasttest")]
     Lasttest {
         #[arg(long, default_value_t = 60)]
         meters: u32,
         #[arg(long, default_value_t = 3)]
         years: u32,
-        /// Ausleseplan in Minuten
+        /// Read plan in minutes
         #[arg(long, default_value_t = 15)]
         minutes: u32,
     },

@@ -127,7 +127,7 @@ UI.fr = {
   op_switched_on: (l) => `« ${l} » en fonctionnement continu : relevé selon le plan`,
   op_switched_off: (l) => `Fonctionnement continu de « ${l} » désactivé`,
   ps_fg: "Ne fonctionne que tant que mbusio est ouvert",
-  ps_fg_win: "Pour le fonctionnement continu, installez-le comme service Windows (mbusio-dienst-einrichten.cmd).",
+  ps_fg_win: "Pour le fonctionnement continu, installez-le comme service Windows (mbusio-service-install.cmd).",
   ps_fg_linux: "Pour le fonctionnement continu, installez-le comme service systemd.",
   ps_time: "Heure",
   ps_time_ok: (src) => `confirmée (${{ ntp: "serveur de temps", rtc: "module d'horloge", system: "horloge système", browser: "depuis l'appareil", mqtt: "système de gestion" }[src] || src})`,

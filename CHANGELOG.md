@@ -20,7 +20,7 @@ What changes for users, per version, newest first. Entries up to v0.5.0 are in G
 - **Sort the meter list:** clicking a column head (meter, ID/PA, location, value/last reading, state
   with problems first) sorts ascending, descending, then back to the original order; on phones via
   the bar at the top. The choice is kept in the browser.
-- **Load test:** `mbusio lasttest` creates a large plant (by default 60 meters, 3 years, every
+- **Load test:** `mbusio load-test` creates a large plant (by default 60 meters, 3 years, every
   15 min) in its own folder and measures response times, e.g. on a Raspberry Pi before deployment
   (README, Raspberry Pi).
 
@@ -37,6 +37,10 @@ What changes for users, per version, newest first. Entries up to v0.5.0 are in G
   until now. Texts not translated yet appear in English.
 - **Browser default language:** without a saved choice, a browser language mbusio does not know now
   gets English instead of German.
+- **English names on the command line and in releases:** help texts are in English, and the Windows
+  files are now `mbusio-service-install.cmd` and `mbusio-service-uninstall.cmd` (they were
+  `mbusio-dienst-einrichten.cmd` and `mbusio-dienst-entfernen.cmd`). The install file now asks y/n
+  instead of j/n. `mbusio lasttest` is now `load-test`; the old name keeps working.
 - **English addresses in the browser:** `#/site`, `#/meters`, `#/transfer`, `#/tools` instead of the
   German ones. Old bookmarks and links keep working and lead to the new address.
 - **Next step at the top:** it now sits right of the tabs instead of in the status bar. Only one

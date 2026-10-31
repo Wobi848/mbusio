@@ -127,7 +127,7 @@ UI.es = {
   op_switched_on: (l) => `«${l}» en funcionamiento continuo: lectura según el plan`,
   op_switched_off: (l) => `Funcionamiento continuo de «${l}» desactivado`,
   ps_fg: "Solo funciona mientras mbusio esté abierto",
-  ps_fg_win: "Para el funcionamiento continuo, instálelo como servicio de Windows (mbusio-dienst-einrichten.cmd).",
+  ps_fg_win: "Para el funcionamiento continuo, instálelo como servicio de Windows (mbusio-service-install.cmd).",
   ps_fg_linux: "Para el funcionamiento continuo, instálelo como servicio systemd.",
   ps_time: "Hora",
   ps_time_ok: (src) => `confirmada (${{ ntp: "servidor de hora", rtc: "módulo de reloj", system: "reloj del sistema", browser: "desde el equipo", mqtt: "sistema de gestión" }[src] || src})`,

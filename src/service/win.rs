@@ -113,8 +113,8 @@ fn manager() -> Result<ServiceManager> {
     )
     .map_err(|_| {
         anyhow::anyhow!(tr(
-            "Adminrechte nötig: Eingabeaufforderung mit Rechtsklick „Als Administrator ausführen“ öffnen oder mbusio-dienst-einrichten.cmd doppelklicken.",
-            "Administrator rights needed: open the command prompt with right click “Run as administrator” or double-click mbusio-dienst-einrichten.cmd."
+            "Adminrechte nötig: Eingabeaufforderung mit Rechtsklick „Als Administrator ausführen“ öffnen oder mbusio-service-install.cmd doppelklicken.",
+            "Administrator rights needed: open the command prompt with right click “Run as administrator” or double-click mbusio-service-install.cmd."
         ))
     })
 }

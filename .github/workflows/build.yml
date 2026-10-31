@@ -105,7 +105,7 @@ jobs:
         run: |
           mkdir dist
           cp target/${{ matrix.target }}/release/mbusio${{ matrix.exe }} dist/${{ matrix.name }}${{ matrix.exe }}
-          # Windows: Doppelklick-Dateien zum Einrichten als Dienst (Konzept Hintergrund)
+          # Windows: double-click files to set up the service
           if [ "${{ matrix.exe }}" = ".exe" ]; then cp windows/*.cmd dist/; fi
       - uses: actions/upload-artifact@v7
         with:

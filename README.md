@@ -255,7 +255,7 @@ For continuous operation (reading and passing on regularly) mbusio must run even
 logged in. Started in a window it stops as soon as the window is closed; the plant status then shows
 this in orange.
 
-1. Put `mbusio-dienst-einrichten.cmd` from the release next to the .exe and double-click it. Windows
+1. Put `mbusio-service-install.cmd` from the release next to the .exe and double-click it. Windows
    asks for admin rights; then choose whether the UI should be reachable from the network (then with
    an access key). Without the file, in a command prompt as administrator:
    `mbusio-windows-x86_64.exe --install-service [--lan --token SECRET]`
@@ -265,7 +265,7 @@ this in orange.
 - The **program** is then in `C:\Program Files\mbusio`, the **data** in `C:\ProgramData\mbusio`. On
   the first setup the existing database is copied there (the original stays).
 - **Update:** set up the new .exe the same way; data stays.
-- **Remove:** `mbusio-dienst-entfernen.cmd` or `--uninstall-service`; program and data stay.
+- **Remove:** `mbusio-service-uninstall.cmd` or `--uninstall-service`; program and data stay.
 - If the service does not start: `C:\ProgramData\mbusio\mbusio.log`.
 - The service runs as `LocalService` (few privileges). While a plan is running the PC does not go
   to sleep.
@@ -301,11 +301,11 @@ sudo systemctl enable --now mbusio
 
 Then open `http://<IP of the Pi>:8080` in the browser of your phone or laptop.
 
-**Is the Pi enough?** Run `mbusio lasttest` before deployment: it creates a site with 60 meters and
+**Is the Pi enough?** Run `mbusio load-test` before deployment: it creates a site with 60 meters and
 3 years of readings in its own folder (plan every 15 min, every reading in the last year, one per
 day before that as with storage protection), starts mbusio on it and shows how long status, meter
 list, history, report, billing, export and backup take. The folder is deleted afterwards; the load
-test never touches real data. Size can be chosen: `mbusio lasttest --meters 120 --years 5 --minutes 15`.
+test never touches real data. Size can be chosen: `mbusio load-test --meters 120 --years 5 --minutes 15`.
 For comparison on a PC: 480 MB database, status 1 ms, history 60 ms, billing 30 ms, backup download 1 s.
 
 ### Options

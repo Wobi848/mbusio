@@ -128,7 +128,7 @@ Bleibt wie heute (systemd-Unit aus dem README). Ein `--install-service` für Lin
 ## 9. Entschieden (19.10.2026)
 
 Alle Empfehlungen übernommen: Windows-Dienst (kein Autostart bei der Anmeldung), Konto
-`LocalService`, Doppelklick-Dateien `mbusio-dienst-einrichten.cmd` / `-entfernen.cmd` im Release
+`LocalService`, Doppelklick-Dateien `mbusio-service-install.cmd` / `-entfernen.cmd` im Release
 (Ordner `windows/`, CRLF), kein Linux-`--install-service`, Pi-Test und Windows-Dienst parallel.
 
 **Umgesetzt:** `src/service.rs` (Erkennen `background`, Daten übernehmen, Log, Energiesparen,
@@ -139,7 +139,7 @@ Zustand der Anlage, README, Release-Paket. Unter Linux erkennt `background` syst
 
 **Prüfen auf einem Windows-PC (Checkliste):**
 1. Fenster-Betrieb mit Plan: Zustand der Anlage zeigt „Läuft nur, solange mbusio geöffnet ist“.
-2. `mbusio-dienst-einrichten.cmd` doppelklicken, Adminrechte bestätigen, „j“ und Schlüssel: Browser
+2. `mbusio-service-install.cmd` doppelklicken, Adminrechte bestätigen, „j“ und Schlüssel: Browser
    öffnet sich, Projekte von vorher sind da, Hinweis aus 1 ist weg.
 3. PC neu starten, nicht anmelden: von einem anderen Gerät `http://<IP>:8080` öffnen, Plan liest,
    MQTT kommt an.
@@ -148,7 +148,7 @@ Zustand der Anlage, README, Release-Paket. Unter Linux erkennt `background` syst
 6. USB-Wandler ab und wieder an: Linie offline, MQTT `disturbed`, danach weiter ohne Eingriff.
 7. Dienst im Task-Manager beenden: startet nach 10 s neu.
 8. Neue .exe mit der .cmd einrichten (Update): Daten bleiben.
-9. `mbusio-dienst-entfernen.cmd`: Dienst weg, `C:\ProgramData\mbusio` bleibt.
+9. `mbusio-service-uninstall.cmd`: Dienst weg, `C:\ProgramData\mbusio` bleibt.
 
 ## 9a. Ursprüngliche Fragen
 
@@ -157,7 +157,7 @@ Zustand der Anlage, README, Release-Paket. Unter Linux erkennt `background` syst
    mit sichtbarem Fenster; für eine Anlage zu wackelig. Empfehlung: nur der Dienst.)
 2. **Konto `LocalService`** (wenn COM-Ports gehen), sonst `LocalSystem`?
 3. Reicht die Kommandozeile (einmal „Als Administrator“ in einer Eingabeaufforderung), oder
-   braucht es eine Datei `mbusio-dienst-einrichten.cmd` zum Doppelklicken neben der .exe im
+   braucht es eine Datei `mbusio-service-install.cmd` zum Doppelklicken neben der .exe im
    Release? (Empfehlung: die .cmd-Datei, sie fragt selbst nach Adminrechten.)
 4. Linux-`--install-service` jetzt mitmachen oder weglassen? (Empfehlung: weglassen.)
 5. Reihenfolge: vor oder nach dem 7-Tage-Test auf dem Pi? Der Pi-Test braucht das nicht; für

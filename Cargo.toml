@@ -2,7 +2,7 @@
 name = "mbusio"
 version = "0.5.0"
 edition = "2021"
-description = "M-Bus Master mit Weboberfläche: Scan, Auslesen, Adressierung, Export"
+description = "M-Bus master with web interface: scan, readout, addressing, export"
 license = "MIT"
 
 [dependencies]

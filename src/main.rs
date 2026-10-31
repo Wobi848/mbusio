@@ -38,54 +38,54 @@ use tokio::net::TcpListener;
 use cli::{run_cli, Cmd};
 use mbus::master::{Bauds, FrameLog, Master, Progress, Reply, ScanHit, Target};
 
-/// M-Bus Master mit Weboberfläche
+/// M-Bus master with web interface
 #[derive(Parser)]
 #[command(version, about)]
 struct Args {
-    /// Port des Webservers
+    /// Port of the web server
     #[arg(long, default_value_t = 8080)]
     http_port: u16,
-    /// Auch aus dem LAN erreichbar machen (bindet an 0.0.0.0 statt 127.0.0.1)
+    /// Also reachable from the LAN (binds to 0.0.0.0 instead of 127.0.0.1)
     #[arg(long)]
     lan: bool,
-    /// Zugriffsschlüssel für die API; empfohlen zusammen mit --lan
+    /// Access key for the API; recommended together with --lan
     #[arg(long, env = "MBUSIO_TOKEN")]
     token: Option<String>,
-    /// Verbinden mit /dev/ttyUSB0, COM3, tcp://192.168.1.50:10001, usb://… (Android-App) oder SIMULATOR
+    /// Connect to /dev/ttyUSB0, COM3, tcp://192.168.1.50:10001, usb://… (Android app) or SIMULATOR
     #[arg(long, global = true)]
     port: Option<String>,
-    /// Baudrate
+    /// Baud rate
     #[arg(long, default_value_t = 2400, global = true)]
     baud: u32,
-    /// Antwort-Timeout in ms (0 = automatisch aus Baudrate)
+    /// Reply timeout in ms (0 = automatic from the baud rate)
     #[arg(long, default_value_t = 0, global = true)]
     timeout_ms: u64,
-    /// Ordner für die Zählerliste (meters.json)
+    /// Folder for the data
     #[arg(long, env = "MBUSIO_DATA_DIR")]
     data_dir: Option<PathBuf>,
-    /// Ports auflisten und beenden
+    /// List ports and exit
     #[arg(long)]
     list_ports: bool,
-    /// Browser beim Start nicht öffnen
+    /// Do not open the browser at start
     #[arg(long)]
     no_browser: bool,
-    /// Systemuhr nie als bestätigt ansehen (Auslesungen gelten als „Zeit unsicher“, bis die
-    /// Uhrzeit im Browser übernommen wird)
+    /// Never treat the system clock as confirmed (readings count as "time unsure" until the
+    /// time is taken from the browser)
     #[arg(long)]
     untrusted_clock: bool,
-    /// Als Windows-Dienst einrichten oder aktualisieren (als Administrator; mit --lan, --token)
+    /// Set up or update as a Windows service (as administrator; with --lan, --token)
     #[arg(long)]
     install_service: bool,
-    /// Windows-Dienst entfernen (Programm und Daten bleiben)
+    /// Remove the Windows service (program and data stay)
     #[arg(long)]
     uninstall_service: bool,
-    /// vom Windows-Dienst-Manager gestartet
+    /// Started by the Windows service manager
     #[arg(long, hide = true)]
     service: bool,
-    /// Zeitraffer für Dauertests: Uhr läuft so viel schneller (z.B. 96 = ein Tag in 15 min)
+    /// Time lapse for long tests: the clock runs this much faster (e.g. 96 = one day in 15 min)
     #[arg(long, hide = true)]
     time_scale: Option<f64>,
-    /// Befehle ohne Weboberfläche: Ergebnis als JSON auf stdout
+    /// Commands without web interface: result as JSON on stdout
     #[command(subcommand)]
     cmd: Option<Cmd>,
 }
