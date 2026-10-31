@@ -100,6 +100,21 @@ function onLine() {
   loadMeters().catch(report);
 }
 
+/// Häkchen im Kopf: alle gezeigten Zähler wählen, nochmals: keinen. Teilweise gewählt zeigt „–“.
+function selectAllBox(rows) {
+  if (!rows.length) return "<span></span>";
+  const n = rows.filter((m) => view.selected.has(m.id)).length;
+  const all = n === rows.length;
+  return `<button type="button" class="box${n ? " on" : ""}" data-select-all role="checkbox" aria-checked="${all ? "true" : n ? "mixed" : "false"}" title="${esc(t("n_key_all"))}" aria-label="${esc(t("n_key_all"))}">${all ? "✓" : n ? "–" : ""}</button>`;
+}
+
+function toggleAll() {
+  const rows = shown();
+  const all = rows.every((m) => view.selected.has(m.id));
+  for (const m of rows) all ? view.selected.delete(m.id) : view.selected.add(m.id);
+  render();
+}
+
 function shown() {
   const s = view.search.trim().toLowerCase();
   return sort.sorted(
@@ -133,8 +148,8 @@ function render() {
   readAll.hidden = !all.length;
   text(q("[data-sum]"), job ? `${state.job.done}/${state.job.total}` : "");
 
-  html(q("[data-head]"), `<span></span>${sort.headHtml()}`);
   const rows = shown();
+  html(q("[data-head]"), `${selectAllBox(rows)}${sort.headHtml()}`);
   if (view.active != null && !byId(view.active)) view.active = null;
   for (const id of [...view.selected]) if (!byId(id)) view.selected.delete(id);
   list(q("[data-list]"), rows, (m) => m.id, (m) => rowHtml(m, { active: view.active, selected: view.selected, busy, naming: view.naming }));
@@ -435,6 +450,7 @@ function wire() {
       view.filter = el.closest("[data-filter]").dataset.filter;
       return render();
     }
+    if (el.closest("[data-select-all]")) return toggleAll();
     if (el.closest("[data-sort]")) {
       sort.toggle(el.closest("[data-sort]").dataset.sort);
       return render();
@@ -525,7 +541,12 @@ function wire() {
       for (const a of root.querySelectorAll("[data-readings]")) a.href = apiHref(`export?format=${a.dataset.readings}`);
     },
   });
+  // Fokus mit der Maus wählt nichts vor: das baute die Zeile neu und der Klick ginge verloren
+  let pointer = false;
+  listEl.addEventListener("pointerdown", () => (pointer = true));
+  addEventListener("pointerup", () => (pointer = false));
   listEl.addEventListener("focus", () => {
+    if (pointer) return;
     if (view.active == null && shown()[0]) select(shown()[0].id);
   });
   bind("r", () => (view.selected.size ? readMeters([...view.selected]) : view.active != null && readMeters([view.active])), t("n_key_read"), open);
