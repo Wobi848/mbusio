@@ -12,7 +12,7 @@ export default {
     await api("meters", "POST", { address: "1", name: "Whg 1" });
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/werkzeuge");
+    await page.goto(base + "/#/tools");
     await page.waitForSelector(`${area} [data-read]`);
 
     // ohne Ziel gesperrt, mit Grund

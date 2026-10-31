@@ -81,9 +81,9 @@ async function go(w) {
   toggle(false);
   if (w.line && w.line !== state.status?.active?.line?.id) await useLine(w.line).catch(report);
   if (w.meter) return goTo("zaehler", `#meter-${w.meter}`);
-  if (w.kind === "line") return (location.hash = "#/anlage");
-  if (w.project) return (location.hash = `#/weitergabe/abrechnung?projekt=${w.project}`);
-  if (w.kind === "mqtt") return (location.hash = "#/weitergabe");
+  if (w.kind === "line") return (location.hash = "#/site");
+  if (w.project) return (location.hash = `#/transfer/billing?project=${w.project}`);
+  if (w.kind === "mqtt") return (location.hash = "#/transfer");
   if (w.kind === "disk") document.getElementById("settings").click();
 }
 

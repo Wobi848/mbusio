@@ -42,7 +42,7 @@ export default {
   },
   async run({ page, base, api }) {
     const port = 16000 + (process.pid % 1000);
-    await page.goto(base + "/#/weitergabe");
+    await page.goto(base + "/#/transfer");
     await page.click("[data-out-settings=modbus]");
     await page.fill(`${detail} [name=bind]`, "127.0.0.1");
     await page.fill(`${detail} [name=port]`, String(port));

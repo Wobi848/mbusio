@@ -28,7 +28,7 @@ export default {
     await api("lines/1/operation", "PUT", { on: true });
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/weitergabe");
+    await page.goto(base + "/#/transfer");
     await settings(page, { tls: true, insecure: true, ca: "-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----", ha: true, ha_prefix: "ha-test" });
     await settings(page, { tls: false, ha: false });
     const c = (await api("mqtt")).config;

@@ -111,7 +111,7 @@ export function plantHtml(p, s) {
   if (s.disk) cells.push(cell(t("ps_disk"), `${diskHtml(s.disk, chip)} <button type="button" class="quiet" data-open-settings>${esc(t("st_protect"))} …</button>`));
   for (const o of (s.outputs || []).filter((o) => o.on)) {
     const [cls, word] = outputWord(s[o.key]?.state);
-    cells.push(cell(o.label, `${chip(cls, word, s[o.key]?.error || "")} <a href="#/weitergabe">${esc(t("ps_open_transfer"))}</a>`));
+    cells.push(cell(o.label, `${chip(cls, word, s[o.key]?.error || "")} <a href="#/transfer">${esc(t("ps_open_transfer"))}</a>`));
   }
   return cells.join("");
 }

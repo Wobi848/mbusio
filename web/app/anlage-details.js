@@ -27,7 +27,7 @@ function billingLine(p) {
   const b = p.billing || {};
   const how = b.auto && b.period !== "custom" ? t("an_bill_auto", t("period_" + b.period)) : t("an_bill_manual");
   return `<span class="bline"><span class="sub">${esc(t("an_bill"))}:</span> ${esc(how)}${b.mail_to ? ` · ${esc(t("an_bill_to", b.mail_to))}` : ""}
-    <a class="quiet" data-billing href="#/weitergabe/abrechnung?projekt=${p.id}">${esc(t("an_bill_open"))} →</a></span>`;
+    <a class="quiet" data-billing href="#/transfer/billing?project=${p.id}">${esc(t("an_bill_open"))} →</a></span>`;
 }
 
 function projectDetail(p) {

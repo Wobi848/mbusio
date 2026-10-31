@@ -239,7 +239,7 @@ function mainAction(c, a) {
     return `${fresh ? `<button type="button" class="quiet" data-merge>${esc(t("sc_merge_n", fresh))}</button>` : ""}<button type="button" data-secondary title="${esc(t("sc_resolve_title"))}">${esc(t("sc_resolve_n", doubled))}</button>`;
   if (fresh) return `<button type="button" data-merge title="${esc(t("sc_key_merge"))} (M)">${esc(t("sc_merge_n", fresh))}</button>`;
   const ok = c.hits.some((h) => h.status === "ok");
-  return ok ? `<span class="ok-text">${esc(t("sc_all_listed"))}</span> <a href="#/zaehler">${esc(t("sc_to_meters"))} →</a>` : "";
+  return ok ? `<span class="ok-text">${esc(t("sc_all_listed"))}</span> <a href="#/meters">${esc(t("sc_to_meters"))} →</a>` : "";
 }
 
 /// Treffer kurz: PA und ID, z.B. für „fehlt seit dem letzten Scan“

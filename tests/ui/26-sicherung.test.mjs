@@ -15,7 +15,7 @@ export default {
     await api("meters/1/read", "POST");
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.click("#settings");
     await page.waitForSelector("#settings-menu:not([hidden]) #backup-get");
 

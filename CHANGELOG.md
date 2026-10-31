@@ -35,6 +35,8 @@ What changes for users, per version, newest first. Entries up to v0.5.0 are in G
   until now. Texts not translated yet appear in English.
 - **Browser default language:** without a saved choice, a browser language mbusio does not know now
   gets English instead of German.
+- **English addresses in the browser:** `#/site`, `#/meters`, `#/transfer`, `#/tools` instead of the
+  German ones. Old bookmarks and links keep working and lead to the new address.
 - **Next step at the top:** it now sits right of the tabs instead of in the status bar. Only one
   button in the bars is filled: the one for the next step.
 - **"N in continuous operation"** looks like a status instead of an action; its menu (▾) stays. It is

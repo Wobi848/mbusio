@@ -13,7 +13,7 @@ export default {
     await api("lines/1/plan", "PUT", { plan: "daily 00:05" });
   },
   async run({ page, base, api }) {
-    await page.goto(base + "/#/zaehler");
+    await page.goto(base + "/#/meters");
     await page.waitForFunction(() => document.querySelector("#line b")?.textContent === "Haus A");
     assert.match(await page.textContent("#conn-state"), /Verbunden/);
     assert.equal(await page.getAttribute(".tabs [data-area=zaehler]", "aria-current"), "page");
@@ -31,7 +31,7 @@ export default {
     await page.click("#line-menu [role=menuitem]:has-text('Haus B')");
     await page.waitForFunction(() => document.querySelector("#line b")?.textContent === "Haus B");
     assert.ok(await page.evaluate(() => window.__kept), "Seite wurde neu geladen");
-    assert.ok(page.url().endsWith("#/zaehler"));
+    assert.ok(page.url().endsWith("#/meters"));
 
     // Escape schliesst das Menü, Fokus zurück am Knopf
     await page.click("#line");

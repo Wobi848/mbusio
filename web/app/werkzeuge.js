@@ -118,12 +118,12 @@ function onLine() {
   loadMeters().then(targetFromHash).catch(report);
 }
 
-/// Andere Bereiche (z.B. Scan) schicken ein Ziel über die Adresse: #/werkzeuge?ziel=5&baud=9600
+/// Andere Bereiche (z.B. Scan) schicken ein Ziel über die Adresse: #/tools?target=5&baud=9600
 function targetFromHash() {
   const params = new URLSearchParams(location.hash.split("?")[1] || "");
-  if (!open() || !params.get("ziel")) return;
-  setTarget(params.get("ziel"), Number(params.get("baud")) || null);
-  history.replaceState(null, "", "#/werkzeuge");
+  if (!open() || !params.get("target")) return;
+  setTarget(params.get("target"), Number(params.get("baud")) || null);
+  history.replaceState(null, "", "#/tools");
 }
 
 // ------------------------------------------------------------ Ziel
