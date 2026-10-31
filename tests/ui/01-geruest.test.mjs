@@ -66,7 +66,9 @@ export default {
     await page.waitForFunction(() => !document.querySelector("#op-switch").disabled);
     await page.click("#op-switch");
     await page.waitForSelector("#op.on");
-    await page.waitForSelector("#op-all:not([hidden])");
+    // „1 im Dauerbetrieb“ nur als Warnung (nicht als Dienst); als Dienst (CI) sagt es der Schalter
+    const { background } = await page.evaluate(() => fetch("/api/status").then((r) => r.json()));
+    await page.waitForFunction((hidden) => document.querySelector("#op-all").hidden === hidden, background);
     await page.click("#op-switch");
     await page.waitForSelector(".ask");
     await page.keyboard.press("Escape");

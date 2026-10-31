@@ -11,7 +11,7 @@ const CONSOLE_KEEP = 300; // Zeilen in der Bus-Konsole; alles in Werkzeuge
 /// Anzeigen an den Zustand hängen und das Protokoll abfragen, solange es jemand zeigt
 export function startStatusleiste() {
   watch(["tree", "status", "offline"], renderStatus);
-  watch(["tree", "status", "meters", "scanNew", "offline"], renderNext);
+  watch(["tree", "status", "meters", "scanNew", "offline", "area"], renderNext);
   watch(["log"], () => renderConsole());
   follow(() => consoleOpen || state.area === "werkzeuge");
 }
@@ -58,22 +58,22 @@ function renderStatus() {
 // ------------------------------------------------------------ Nächster Schritt
 
 /// Der eine nächste Schritt aus dem Zustand (Konzept §3.4): [Text-Schlüssel, Aktion, Argument für
-/// den Erklärtext im Tooltip] oder null.
+/// den Erklärtext im Tooltip, wo sein eigener Hauptknopf steht („kopf“: immer sichtbar)] oder null.
 /// Der Knopf führt an die Stelle, an der man es auch selbst täte.
 function nextStep() {
   const s = state.status;
   const l = activeLine();
   if (!s || !l || state.offline) return null;
   const go = (area, sel) => () => goTo(area, sel);
-  if (!l.connection) return ["guide_conn_set", () => $("conn-action").click()];
-  if (!s.connected) return ["guide_connect", () => $("conn-action").click(), portText(l.connection)];
+  if (!l.connection) return ["guide_conn_set", () => $("conn-action").click(), undefined, "kopf"];
+  if (!s.connected) return ["guide_connect", () => $("conn-action").click(), portText(l.connection), "kopf"];
   if (!l.meters) {
     // gefunden heisst noch nicht gemerkt: erst „neue merken“ bringt sie in die Zählerliste
     const fresh = state.scanNew?.line === l.id ? state.scanNew.n : 0;
-    return fresh ? ["guide_merge", go("scan", "[data-merge]"), fresh] : ["guide_scan", go("scan", "[data-start]")];
+    return fresh ? ["guide_merge", go("scan", "[data-merge]"), fresh, "scan"] : ["guide_scan", go("scan", "[data-start]"), undefined, "scan"];
   }
   // erst weiter, wenn jeder Zähler einmal versucht ist (nicht schon, wenn irgendeiner gelesen ist)
-  if (l.unread) return ["guide_read", go("zaehler", "[data-read-all]"), l.unread];
+  if (l.unread) return ["guide_read", go("zaehler", "[data-read-all]"), l.unread, "zaehler"];
   const bad = (state.meters || []).filter(faulty).length;
   if (bad) return ["guide_faulty_btn", go("zaehler", "[data-filter=err]"), bad];
   if (!l.operation) return ["guide_ready_btn", () => window.open("report.html", "_blank", "noopener")];
@@ -101,8 +101,12 @@ function renderNext() {
   const step = nextStep();
   const b = $("next");
   b.hidden = !step;
+  document.body.classList.toggle("next-elsewhere", !!step && step[3] !== state.area);
   if (!step) return;
-  const [key, run, arg] = step;
+  const [key, run, arg, home] = step;
+  // auf jeder Seite genau ein gefüllter Knopf: steht der eigene Hauptknopf des Schritts schon da,
+  // tritt dieser zurück; sonst tritt der Hauptknopf der Seite zurück (Klasse next-elsewhere)
+  b.className = home === state.area || home === "kopf" ? "tonal" : "";
   html(b, `<span class="next-label">${esc(t("n_next"))}: </span>${esc(t(key))} →`);
   b.title = t(key.replace(/_btn$/, "") + "_body", arg);
   nextAction = run;

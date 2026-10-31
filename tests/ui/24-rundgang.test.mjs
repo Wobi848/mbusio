@@ -26,6 +26,17 @@ export default {
     await page.click(`${zl} [data-naming]`);
     const name = (i) => page.locator(`${zl} [data-list] input[data-q=name]`).nth(i);
     const loc = (i) => page.locator(`${zl} [data-list] input[data-q=location]`).nth(i);
+    assert.equal(await page.getAttribute(`${zl} [data-read-all]`, "class"), "tonal", "beim Benennen ist „Fertig“ der Hauptknopf");
+    const same = (i) => page.locator(`${zl} [data-list] [data-q-same]`).nth(i);
+    assert.equal(await same(0).isVisible(), false, "über der ersten Zeile steht nichts");
+    assert.ok(await same(1).isVisible());
+    // mittlere Breite: die Spalte Ort fehlt sonst, beim Benennen muss ihr Feld bleiben
+    const viewport = page.viewportSize();
+    await page.setViewportSize({ width: 1100, height: viewport.height });
+    assert.ok(await loc(0).isVisible(), "Ort beim Benennen auch bei 1100 px");
+    await page.setViewportSize({ width: 390, height: viewport.height });
+    assert.ok(await loc(0).isVisible(), "Ort beim Benennen auch auf dem Handy");
+    await page.setViewportSize(viewport);
     await name(1).fill("Whg 2");
     await page.keyboard.press("Enter");
     assert.equal(await page.evaluate(() => document.activeElement.dataset.id), "3", "Enter: nächster Zähler");
@@ -104,7 +115,7 @@ export default {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(base + "/#/werkzeuge");
     await page.waitForSelector(".tabs [data-area=werkzeuge][aria-current=page]");
-    const tabs = await box(page, ".tabs");
+    const tabs = await box(page, ".tab-scroll");
     assert.ok(tabs.height < 45, `Reiter ${tabs.height}px hoch`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth), 0);
   },

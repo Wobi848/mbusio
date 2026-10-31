@@ -34,9 +34,8 @@
     <div id="conn-form" class="menu form" hidden></div>
   </div>
   <label id="op" class="op"><input id="op-switch" type="checkbox" class="switch"><b data-t="op_chip"></b><span id="op-text" class="sub"></span></label>
-  <span class="grow"></span>
-  <div class="menu-host">
-    <button id="op-all" type="button" class="quiet" aria-haspopup="menu" aria-expanded="false" hidden></button>
+  <div class="menu-host push">
+    <button id="op-all" type="button" class="plain" aria-haspopup="menu" aria-expanded="false" hidden></button>
     <div id="op-all-menu" class="menu end" role="menu" hidden></div>
   </div>
   <div class="menu-host">
@@ -64,6 +63,7 @@
 
 <!-- Gruppen: einrichten | Arbeitsablauf (in dieser Reihenfolge) | Hilfsmittel -->
 <nav class="bar tabs" aria-label="Bereiche">
+  <div class="tab-scroll">
   <span class="tab-group"><a href="#/anlage" data-area="anlage"><span data-t="tab_project"></span></a></span>
   <span class="tab-sep" aria-hidden="true"></span>
   <span class="tab-group">
@@ -76,6 +76,8 @@
     <a href="#/werkzeuge" data-area="werkzeuge"><span data-t="tab_tools"></span></a>
     <a href="#/simulator" data-area="simulator" id="tab-sim"><span data-t="tab_sim"></span></a>
   </span>
+  </div>
+  <button id="next" type="button" hidden></button>
 </nav>
 
 <main id="work" class="work"></main>
@@ -100,8 +102,6 @@
   <span id="issues"></span>
   <span id="warnings"></span>
   <span id="outputs"></span>
-  <span class="grow"></span>
-  <button id="next" type="button" class="tonal" hidden></button>
 </footer>
 
 <div id="toast" class="toast" role="status" hidden></div>

@@ -267,7 +267,7 @@ function row(p) {
   return `<div class="row${p.id === view.active ? " active" : ""}${p.active ? "" : " off"}" role="option" id="dp-${p.id}" aria-selected="${sel}">
     <span class="box" data-box aria-hidden="true">${sel ? "✓" : ""}</span>
     <span class="mono sub">${p.no}</span>
-    <span class="name">${esc(p.name)}${p.name.includes(p.label) ? "" : `<span class="sub"> · ${esc(p.label)}</span>`}</span>
+    <span class="name"><span class="cut">${esc(p.name)}${p.name.includes(p.label) ? "" : `<span class="sub"> · ${esc(p.label)}</span>`}</span></span>
     <span class="mono">${p.last_value != null ? `${esc(p.last_value)} ${esc(p.unit)}` : "–"}</span>
     <span><span class="chip ${QUALITY[p.quality] || ""}" title="${esc(qualityTitle(p))}">${esc(t("q_" + p.quality))}</span></span>
     <span>${outs}</span>

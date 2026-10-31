@@ -23,7 +23,7 @@ function projectRow(p, { sel }) {
   const lines = allLines(p);
   const issues = sum(lines, (l) => l.issues?.count);
   return `<div ${rowAttrs("p", "pj", sel)}>
-    <span class="name">${esc(p.name)}</span>
+    <span class="name"><span class="cut" title="${esc(p.name)}">${esc(p.name)}</span></span>
     <span class="cut sub">${esc([p.customer, p.site].filter(Boolean).join(" · "))}</span>
     <span class="num">${sum(lines, (l) => l.meters)}</span>
     <span class="num">${sum(lines, (l) => l.datapoints?.count)}</span>
@@ -38,7 +38,7 @@ function gatewayRow({ g, i, n }, { sel, closed: shut }) {
   const ops = g.lines.filter((l) => l.operation).length;
   const issues = sum(g.lines, (l) => l.issues?.count);
   return `<div ${rowAttrs(`g:${g.id}`, "gw", sel)} aria-expanded="${!closed}">
-    <span class="name"><button type="button" class="icon chev" data-toggle="${g.id}" aria-label="${esc(g.name)}" aria-expanded="${!closed}">${closed ? "▸" : "▾"}</button>${esc(g.name)}</span>
+    <span class="name"><button type="button" class="icon chev" data-toggle="${g.id}" aria-label="${esc(g.name)}" aria-expanded="${!closed}">${closed ? "▸" : "▾"}</button><span class="cut" title="${esc(g.name)}">${esc(g.name)}</span></span>
     <span class="cut sub">${g.address ? `<span class="mono">${esc(g.address)}</span> · ` : ""}${esc(g.lines.length ? t("ps_lines", g.lines.length) : t("an_no_lines"))}</span>
     <span class="num">${sum(g.lines, (l) => l.meters)}</span>
     <span class="num">${sum(g.lines, (l) => l.datapoints?.count)}</span>
@@ -51,7 +51,7 @@ function gatewayRow({ g, i, n }, { sel, closed: shut }) {
 function lineRow({ l, i, n }, { sel, activeId }) {
   const current = l.id === activeId;
   return `<div ${rowAttrs(`l:${l.id}`, "ln" + (current ? " current" : ""), sel)}>
-    <span class="name"><span class="cut">${esc(l.name)}</span>${current ? ` <span class="chip ok">${esc(t("ln_active"))}</span>` : ""}</span>
+    <span class="name"><span class="cut" title="${esc(l.name)}">${esc(l.name)}</span>${current ? ` <span class="chip ok">${esc(t("ln_active"))}</span>` : ""}</span>
     <span class="cut mono">${l.connection ? esc(`${portText(l.connection)} · ${l.baud}`) : `<span class="warn">${esc(t("ln_no_conn"))}</span>`}</span>
     <span class="num">${l.meters}</span>
     <span class="num">${l.datapoints?.count || ""}</span>

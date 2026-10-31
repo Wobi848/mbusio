@@ -1,7 +1,20 @@
 /* Bereich Scan: Suchzeile, Ergebniszeile, Spalten der Trefferliste (Gerüst: app.css) */
 
 .pane[data-area=scan] { grid-template-rows: auto auto 1fr; }
+/* fest in der hohen Zeile: ohne Ergebniszeile (hidden) rutschte die Liste sonst in die zweite */
+.pane[data-area=scan] > .split { grid-row: 3; }
 [data-area=scan] .toolbar { flex-wrap: wrap; row-gap: 6px; }
+/* schmaler bricht die Zeile um, der Knopf bleibt rechts */
+[data-area=scan] .scanbar > [data-start] { margin-left: auto; }
+/* breit: Suchzeile bleibt eine Zeile, Knöpfe ganz; kürzen dürfen sich nur die Texte */
+@media (min-width: 1150px) {
+  body:not(.show-help) [data-area=scan] .scanbar { flex-wrap: nowrap; }
+  [data-area=scan] .scanbar > * { flex: none; }
+  [data-area=scan] .scanbar > .grow { flex: 1; }
+  [data-area=scan] .scanbar > [data-estimate], [data-area=scan] .scanbar > [data-progress] { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* läuft der Scan, ist der Fortschritt wichtiger als die Schätzung */
+  [data-area=scan] .scanbar > [data-estimate] { flex-shrink: 100; }
+}
 [data-area=scan] .resultbar { background: var(--sunken); }
 [data-area=scan] label.inline, [data-area=scan] .modes { display: inline-flex; align-items: center; gap: 6px; }
 [data-area=scan] input[type=number] { width: 64px; }

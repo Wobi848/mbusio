@@ -128,7 +128,8 @@ function render() {
   const job = state.job?.running && state.job.kind === "read_all";
   const readAll = q("[data-read-all]");
   text(readAll, job ? t("cancel") : t("meters_read_all_n", all.length));
-  readAll.className = job ? "quiet" : "";
+  // beim Benennen ist „Fertig“ der Hauptknopf
+  readAll.className = job ? "quiet" : view.naming ? "tonal" : "";
   readAll.hidden = !all.length;
   text(q("[data-sum]"), job ? `${state.job.done}/${state.job.total}` : "");
 
@@ -162,7 +163,8 @@ function renderDetail() {
   const m = byId(view.active);
   box.classList.toggle("open", !!m);
   if (!m) {
-    html(box, `<p class="sub">${esc(t(state.meters.length ? "n_pick_meter" : "n_no_meters"))}</p>`);
+    // ohne Zähler sagt es schon die Liste
+    html(box, state.meters.length ? `<p class="sub">${esc(t("n_pick_meter"))}</p>` : "");
     return;
   }
   html(box, detailHtml(m, { vals: values?.id === m.id ? values.list : null, template: values?.id === m.id ? values.template : null, busy: busy.has(m.id), history: view.history, exchange: view.exchange, linePlan: activeLine()?.plan_info?.effective || "off" }));
@@ -346,6 +348,7 @@ async function saveField(input) {
 }
 
 function startNaming() {
+  closeMenu();
   view.naming = true;
   render();
   q("[data-list] input[data-q=name]")?.focus();

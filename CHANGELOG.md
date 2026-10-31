@@ -1,51 +1,73 @@
-# Änderungen
+# Changelog
 
-Was sich für Benutzer ändert, je Version. Neuestes oben.
+What changes for users, per version, newest first. Entries up to v0.5.0 are in German.
 
-## Unveröffentlicht
+## Unreleased
 
-### Neu
+### Added
 
-- **Sicherung des Geräts** (Konzept `docs/konzept-sicherung.md`): ⚙ → Sicherung → „Herunterladen“
-  liefert alles in einer Datei (Projekte, Zähler, Messwerte, Einstellungen samt Passwörtern).
-  „Einspielen …“ prüft die Datei, zeigt Projekte, Zähler und Zeitraum und startet mbusio danach
-  neu; fällt ein Gerät aus, läuft auf dem neuen damit alles wieder. Der bisherige Stand bleibt als
-  `mbusio.db.vorher`.
-- **Automatische Sicherung** (Weitergabe → Automatische Sicherung, Konzept `docs/konzept-sicherung.md`
-  §5): täglich zu einer Uhrzeit auf einen Ordner (USB-Stick, auch vom Betriebssystem eingebundenes
-  SMB-Netzlaufwerk, siehe README) oder per eigenem FTP/FTPS-Client; am Ziel bleiben nur die letzten
-  paar eigenen Sicherungen, ältere löscht mbusio dort selbst. Mit einem Sicherungs-Passwort
-  verschlüsselt (AES-256-GCM); dasselbe Passwort verschlüsselt dann auch „Sicherung herunterladen“
-  von Hand, „Einspielen …“ fragt dafür danach. Ein Fehlschlag erscheint bei den Meldungen.
-- **Zählerliste sortieren:** Klick auf einen Spaltenkopf (Zähler, Kennung/PA, Ort, Wert/letzte
-  Auslesung, Zustand mit Problemen zuerst) sortiert auf, ab, dann wieder wie angelegt; auch am
-  Handy über die Leiste oben. Die Wahl bleibt im Browser gespeichert.
+- **Device backup** (concept `docs/konzept-sicherung.md`): ⚙ → Backup → "Download" saves everything
+  in one file (projects, meters, readings, settings including passwords). "Restore …" checks the
+  file, shows projects, meters and time range, then restarts mbusio; if a device fails, the new one
+  carries on from there. The previous state stays as `mbusio.db.vorher`.
+- **Automatic backup** (Pass on → Automatic backup, concept `docs/konzept-sicherung.md` §5): daily at
+  a set time to a folder (USB stick, also an SMB share mounted by the operating system, see README)
+  or through a built-in FTP/FTPS client. Only the last few own backups stay at the target; mbusio
+  deletes older ones itself. Encrypted with a backup password (AES-256-GCM); the same password then
+  also encrypts a manual "Download", and "Restore …" asks for it. A failure appears in the messages.
+- **Sort the meter list:** clicking a column head (meter, ID/PA, location, value/last reading, state
+  with problems first) sorts ascending, descending, then back to the original order; on phones via
+  the bar at the top. The choice is kept in the browser.
+- **Load test:** `mbusio lasttest` creates a large plant (by default 60 meters, 3 years, every
+  15 min) in its own folder and measures response times, e.g. on a Raspberry Pi before deployment
+  (README, Raspberry Pi).
 
-- **Lasttest:** `mbusio lasttest` erzeugt eine grosse Anlage (Vorgabe 60 Zähler, 3 Jahre, alle
-  15 min) in einem eigenen Ordner und misst die Antwortzeiten, z.B. auf dem Raspberry Pi vor dem
-  Einsatz (README, Raspberry Pi).
+### Changed
 
-### Geändert
+- **Backup needs hardly any memory:** copying over a separate connection (the interface and the plan
+  keep running); encrypting, downloading, uploading and storing in chunks. Load test with 490 MB:
+  peak 15 MB instead of about 500 MB. New format for encrypted backups (`MBUSIOV2`); `MBUSIOV1` only
+  existed before this version and can no longer be read.
+- **Status without the number of readings:** `GET /api/status` no longer returns `readings`. Counting
+  them was the most expensive part on large plants (48 ms instead of 1 ms, every 5 s per open
+  window), and nothing used it (the interface and Node-RED use `changes`).
+- **Next step at the top:** it now sits right of the tabs instead of in the status bar. Only one
+  button in the bars is filled: the one for the next step.
+- **"N in continuous operation"** looks like a status instead of an action; its menu (▾) stays. It is
+  hidden when it only repeats the switch next to it (active line, no warning).
+- **Tools without a target:** one sentence "First pick a meter …" instead of four orange "locked".
+- **Lists on a white surface** instead of grey.
+- **Clearer colours:** input fields have a stronger border in the light theme, and "OK" is a clearer
+  green, set apart from actions (teal), in both themes and in the report.
+- **Dark theme easier to read:** stronger borders on input fields, separators and table heads,
+  readable text on red buttons and messages, a clearly visible switch.
+- **Every button looks like a button:** quiet buttons (Change, Settings, List, ⚙ …) now have a border
+  instead of coloured text only, and the actions under Site are no longer faded.
+- **Scan:** the search bar stays on one line from 1150 px; long texts are shortened.
+- **The header wraps instead of overlapping** when its content does not fit (long names, English, a
+  line without a connection). Long names in lists end with "…"; the full name is in the tooltip.
+- **Below 1250 px, Site** shows meters and datapoints in the detail area only. **Between 1000 and
+  1199 px, Meters** shows the location in the detail area only, except while naming in the list.
 
-- **Sicherung braucht kaum Arbeitsspeicher:** Kopie über eine eigene Verbindung (die Oberfläche
-  und der Plan laufen weiter), Verschlüsseln, Herunterladen, Hochladen und Ablegen in Stücken.
-  Lasttest mit 490 MB: Höchstwert 15 MB statt rund 500 MB. Neues Format der verschlüsselten
-  Sicherung (`MBUSIOV2`); `MBUSIOV1` gab es nur vor diesem Stand und wird nicht mehr gelesen.
-- **Status ohne Anzahl der Auslesungen:** `GET /api/status` liefert `readings` nicht mehr; die Zahl
-  zu bestimmen kostete bei grossen Anlagen am meisten (48 ms statt 1 ms, alle 5 s je offenem
-  Fenster), und niemand benutzte sie (Oberfläche und Node-RED nehmen `changes`).
+### Fixed
 
-### Behoben
-
-- **FTPS: Sicherung kam abgeschnitten an** (z.B. 96 von 132 KB), weil die verschlüsselte
-  Datenverbindung geschlossen wurde, während der Server noch etwas schickte. Jetzt wird sie
-  geordnet beendet; die Datei kommt vollständig an (geprüft mit einem echten FTPS-Server).
-- **Server mit mehreren Adressen** (z.B. `localhost`, Namen mit IPv6 und IPv4): E-Mail, FTP, MQTT
-  und M-Bus-Gateways probieren jetzt alle Adressen, statt nach der ersten aufzugeben.
-- **FTP hinter einem Router (NAT):** die Datenverbindung nimmt die Adresse des Servers statt der
-  internen, die er bei PASV nennt (wie curl und FileZilla).
-- **Sicherungs-Passwort mit Umlauten** (ä, ö, ü, ß) funktioniert beim Einspielen; ein falsches
-  Passwort heisst jetzt „Passwort falsch“ statt wieder „Passwort nötig“.
+- **Site:** "+ Line" and the arrows on the right were cut off at common window widths.
+- **Scan:** before the first scan, the detail area ended after a few lines instead of using the full
+  height.
+- **Phones:** the meter list buttons take one row less.
+- **Phones:** without a connection, "Set connection" no longer sticks out of the screen.
+- **Simulator:** the template hint appeared twice when no meter was selected.
+- **Naming in the list:** the menu now closes after choosing it, phones now have the location field
+  too, "Done" is the only filled button, and the first row no longer offers "same as above".
+- **FTPS: backups arrived truncated** (e.g. 96 of 132 KB) because the encrypted data connection was
+  closed while the server was still sending. It now ends in an orderly way and the file arrives
+  complete (checked with a real FTPS server).
+- **Servers with several addresses** (e.g. `localhost`, names with IPv6 and IPv4): e-mail, FTP, MQTT
+  and M-Bus gateways now try all addresses instead of giving up after the first.
+- **FTP behind a router (NAT):** the data connection uses the server's address instead of the internal
+  one it reports in PASV (like curl and FileZilla).
+- **Backup password with umlauts** (ä, ö, ü, ß) now works when restoring; a wrong password now says
+  "wrong password" instead of "password required" again.
 
 ## v0.5.0 (29.10.2026)
 

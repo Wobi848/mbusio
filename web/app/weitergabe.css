@@ -16,7 +16,7 @@
 [data-area=weitergabe] .out { display: inline-flex; align-items: center; gap: 4px 10px; min-width: 0; max-width: 100%; min-height: 36px; padding: 3px 6px 3px 10px; border: 1px solid var(--line); border-radius: 8px; }
 [data-area=weitergabe] .out > .chip { flex: none; white-space: nowrap; }
 [data-area=weitergabe] .out.active { background: var(--accent-soft); border-color: var(--accent); }
-[data-area=weitergabe] .outlog { margin-left: auto; display: inline-flex; gap: 2px; white-space: nowrap; }
+[data-area=weitergabe] .outlog { margin-left: auto; display: inline-flex; gap: 6px; white-space: nowrap; }
 [data-area=weitergabe] .out-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 [data-area=weitergabe] .out .cut { flex: 0 1 auto; max-width: 280px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-area=weitergabe] .out .cut:empty { display: none; }
@@ -24,7 +24,7 @@
 [data-area=weitergabe] .seg-like { height: 28px; background: transparent; border: 1px solid var(--line-strong); color: var(--muted); }
 [data-area=weitergabe] .seg-like[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 [data-area=weitergabe] .n.err { color: var(--err); }
-[data-area=weitergabe] .filebtn { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 6px; color: var(--accent); font-weight: 600; cursor: pointer; }
+[data-area=weitergabe] .filebtn { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid var(--accent); border-radius: 6px; background: var(--surface); color: var(--accent); font-weight: 600; cursor: pointer; }
 [data-area=weitergabe] .filebtn:hover, [data-area=weitergabe] a.quiet:hover { background: var(--accent-soft); }
 [data-area=weitergabe] .tpl { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 6px; }
 

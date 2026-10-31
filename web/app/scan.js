@@ -260,7 +260,7 @@ function row(h, i, a) {
   return `<div class="row${i === view.active ? " active" : ""}" role="option" id="hit-${i}">
     <span class="mono">${h.primary_address ?? "–"}</span>
     <span class="mono sub">${h.baud || ""}</span>
-    <span class="name">${mediumIcon(h.medium, true)}${esc(name)}</span>
+    <span class="name">${mediumIcon(h.medium, true)}<span class="cut">${esc(name)}</span></span>
     <span class="mono sub">${esc(h.id || "")}${h.version != null ? ` · v${h.version}` : ""}</span>
     <span><span class="chip ${cls === "info" ? "" : cls}" title="${esc(title)}">${esc(word)}</span>${chg ? ` <span class="chip">${esc(chg.text)}</span>` : ""}</span>
   </div>`;

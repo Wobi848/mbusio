@@ -29,7 +29,7 @@ a { color: var(--accent); }
 
 /* ---------------------------------------------------------------- Bedienelemente */
 
-button, select, input, .field, a.button {
+button, select, input, .field, a.button, a.quiet {
   font: inherit;
   height: 28px;
   border-radius: 6px;
@@ -49,11 +49,16 @@ button, a.quiet, a.button {
   text-decoration: none;
 }
 button.tonal { background: var(--accent-soft); color: var(--accent); }
-button.quiet, a.quiet { background: transparent; border-color: transparent; color: var(--accent); }
+/* auch die leise Stufe ist als Knopf erkennbar: Rahmen in Akzentfarbe, nicht nur farbiger Text */
+button.quiet, a.quiet { background: var(--surface); border-color: var(--accent); color: var(--accent); }
 button.quiet:hover, a.quiet:hover { background: var(--accent-soft); }
-button.danger { background: var(--err); border-color: var(--err); color: #fff; }
-button.icon { width: 28px; padding: 0; justify-content: center; background: transparent; border-color: transparent; color: var(--muted); font-size: 15px; }
-button.icon:hover { background: var(--sunken); color: var(--text); }
+/* Anzeige, die man auch anklicken kann: kein Knopfrahmen, damit sie nicht wie eine Aktion wirkt */
+button.plain { background: transparent; border-color: transparent; color: var(--text); font-weight: 500; }
+button.plain:hover { background: var(--accent-soft); }
+button.plain[aria-haspopup]::after { content: "▾"; color: var(--muted); font-size: 11px; }
+button.danger { background: var(--err); border-color: var(--err); color: var(--err-ink); }
+button.icon { width: 28px; padding: 0; justify-content: center; background: var(--surface); border-color: var(--accent); color: var(--accent); font-size: 15px; }
+button.icon:hover { background: var(--accent-soft); }
 button:disabled { opacity: .45; cursor: default; }
 
 select, input {
@@ -100,7 +105,7 @@ input.switch::after {
   transition: transform .15s var(--ease);
 }
 input.switch:checked { background: var(--ok); }
-input.switch:checked::after { transform: translateX(14px); }
+input.switch:checked::after { transform: translateX(14px); background: var(--surface); }
 input.switch:disabled { cursor: default; opacity: .5; }
 
 /* Zustand: Punkt und Wort (nie nur Farbe) */
@@ -122,21 +127,23 @@ input.switch:disabled { cursor: default; opacity: .5; }
 
 .bar { display: flex; align-items: center; gap: 10px; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
 
-/* eine Zeile; lange Texte kürzen sich mit … statt umzubrechen */
-.top { min-height: 44px; flex-wrap: nowrap; }
+/* eine Zeile, solange alles passt; sonst umbrechen statt überlappen (lange Namen, Englisch, kein Anschluss) */
+.top { min-height: 44px; flex-wrap: wrap; row-gap: 4px; padding-block: 4px; }
 .top > * { flex: 0 1 auto; min-width: 0; }
 .top > .brand, .top > .menu-host { flex: none; }
-.top > .grow { flex: 1; }
+/* rechtsbündig, auch wenn die Kopfzeile umbricht */
+.top > .push { margin-left: auto; }
 .brand { display: inline-flex; align-items: center; gap: 6px; font-weight: 750; letter-spacing: -.01em; }
 .brand svg { color: var(--brand); }
 .path { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.path select { max-width: 220px; font-weight: 600; }
+.path select { max-width: 220px; font-weight: 600; text-overflow: ellipsis; }
 .path .sep { color: var(--muted); }
-#line { min-width: 140px; }
+#line { min-width: 140px; justify-content: space-between; }
 #line b { font-weight: 600; }
 .conn { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .conn .mono { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .op { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px 3px 6px; border-radius: 999px; cursor: pointer; }
+.op > b { white-space: nowrap; }
 .op.on { background: var(--ok-soft); }
 .op.on #op-text { color: var(--ok); }
 .top > .op, .top > .conn { flex: 0 1 auto; min-width: 0; }
@@ -147,9 +154,14 @@ input.switch:disabled { cursor: default; opacity: .5; }
 /* Chips (Auffälligkeiten, Ausgänge) haben Vorrang; eine lange Meldung am Bus kürzt sich */
 .status { overflow: hidden; white-space: nowrap; }
 .status #bus { flex: 0 1 auto; min-width: 0; overflow: hidden; }
-.status #issues, .status #outputs, .status #next { flex: none; }
+.status #issues, .status #outputs { flex: none; }
 
 .tabs { min-height: 34px; gap: 2px; background: var(--sunken); }
+/* Laschen links (schmal: laufen seitlich), der nächste Schritt rechts immer sichtbar */
+.tab-scroll { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 2px; }
+#next { flex: none; }
+/* der nächste Schritt liegt anderswo: der Hauptknopf der Seite tritt zurück */
+.next-elsewhere .work .toolbar > button:is(:not([class]), [class=""]), .next-elsewhere .work .toolbar > span > button:is(:not([class]), [class=""]) { background: var(--accent-soft); color: var(--accent); }
 .tabs a {
   display: inline-flex; align-items: center; gap: 6px;
   height: 34px; padding: 0 12px;
@@ -233,9 +245,10 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .menu.form .storage .sub { margin: 0; max-width: 360px; }
 /* Einstellungen sind länger als andere Menüs: fast die ganze Höhe nutzen */
 #settings-menu { max-height: calc(100vh - 56px); }
+#keys-help { justify-self: start; }
 /* Sicherung: wie der Speicherschutz abgesetzt, zwei Knöpfe darunter */
 .menu.form .backup { display: grid; gap: 6px; margin: 0; padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); }
-.menu.form .backup .acts { display: flex; gap: 6px; margin-left: -10px; }
+.menu.form .backup .acts { display: flex; gap: 6px; }
 .menu.form .backup .sub { margin: 0; max-width: 360px; }
 
 .ask {
@@ -248,8 +261,8 @@ input.switch:disabled { cursor: default; opacity: .5; }
   display: flex; align-items: center; gap: 10px; max-width: min(720px, calc(100vw - 32px));
   padding: 8px 12px; border-radius: 8px; background: var(--text); color: var(--bg); box-shadow: var(--shadow);
 }
-.toast.error { background: var(--err); color: #fff; }
-.toast button.quiet { color: inherit; text-decoration: underline; }
+.toast.error { background: var(--err); color: var(--err-ink); }
+.toast button.quiet { background: transparent; border-color: currentColor; color: inherit; }
 
 .keys-help {
   position: fixed; right: 16px; bottom: 44px; z-index: 50; width: min(380px, calc(100vw - 32px));
@@ -280,8 +293,9 @@ body.show-help .toolbar:has(.explain) { flex-wrap: wrap; }
 .seg .n { font-weight: 700; }
 .seg .n.err { color: var(--err); }
 
-.split { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); }
-.listwrap { min-height: 0; display: grid; grid-template-rows: auto 1fr; overflow: hidden; border-right: 1px solid var(--line); }
+/* schmale Fenster: Details geben Platz an die Liste ab */
+.split { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 420px); }
+.listwrap { min-height: 0; display: grid; grid-template-rows: auto 1fr; overflow: hidden; border-right: 1px solid var(--line); background: var(--surface); }
 .rows { overflow: auto; outline: none; }
 .rows:focus-visible .row.active { outline: 2px solid var(--accent); outline-offset: -2px; }
 .row {
@@ -329,7 +343,7 @@ input.invalid { border-color: var(--err); }
 .vrow.head { white-space: nowrap; font-size: 11px; color: var(--muted); background: var(--sunken); text-transform: uppercase; letter-spacing: .04em; }
 .vrow input { justify-self: center; width: 16px; height: 16px; }
 .vrow.main { font-weight: 650; }
-button.danger-text { color: var(--err); }
+button.danger-text { color: var(--err); border-color: var(--err); }
 button.danger-text:hover { background: var(--err-soft); }
 
 .selbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--accent-soft); border-top: 1px solid var(--line); }
@@ -340,43 +354,53 @@ button.danger-text:hover { background: var(--err-soft); }
 /* Mittlere Breite: Gateway steht im Linien-Menü, der Port in der Statusleiste */
 @media (max-width: 1349px) {
   #line .sub, #conn-state .mono { display: none; }
+  .path select { max-width: 170px; }
+  #line { max-width: 200px; }
 }
 
 /* ---------------------------------------------------------------- Schmale Fenster und Handy */
 
 @media (max-width: 999px) {
-  /* Kopfzeile in festen Zeilen: mbusio · Dauerbetrieb · ⚙ / Projekt › Linie / Anschluss / Schalter */
-  .top { display: grid; grid-template-columns: 1fr auto auto; gap: 6px 8px; padding: 6px 12px; }
-  .top > .grow { display: none; }
-  .brand { grid-column: 1; grid-row: 1; }
-  .top > .menu-host:nth-last-of-type(2) { grid-column: 2; grid-row: 1; }
-  .top > .menu-host:last-of-type { grid-column: 3; grid-row: 1; }
-  .path, .conn, .op { grid-column: 1 / -1; }
+  /* Kopfzeile in festen Zeilen: mbusio · Dauerbetrieb · ⚙ / Projekt › Linie / Anschluss · Schalter;
+     der Schalter mit Grund (z.B. kein Ausleseplan) bricht in eine eigene Zeile um */
+  .top { flex-wrap: wrap; gap: 6px 8px; padding: 6px 12px; }
+  .top > .brand { flex: 1; }
+  .top > .menu-host:not(.conn) { order: 1; }
+  .top > .path { order: 2; flex: 1 0 100%; }
+  /* der Knopf bleibt ganz im Bild, gekürzt wird der Zustand daneben */
+  .top > .conn { order: 3; flex: 0 1 auto; max-width: 100%; }
+  #conn-action { flex: none; }
+  .top > .op { order: 4; margin-left: auto; }
+  .top > .op:not(.on) { flex: 1 0 100%; margin-left: 0; }
   .path select { flex: 1; max-width: none; min-width: 0; }
   .path .menu-host { flex: 1; min-width: 0; }
-  #line { width: 100%; }
+  #line { width: 100%; max-width: none; }
   .conn .mono { max-width: 150px; }
   /* schmal: eine Zeile, die seitlich läuft, statt Umbrüche; Abstand statt Strich trennt Gruppen */
-  .tabs { flex-wrap: nowrap; overflow-x: auto; column-gap: 10px; scrollbar-width: none; }
-  .tabs::-webkit-scrollbar { display: none; }
+  .tabs { flex-wrap: wrap; }
+  .tab-scroll { flex: 1 0 100%; overflow-x: auto; column-gap: 10px; scrollbar-width: none; }
+  .tab-scroll::-webkit-scrollbar { display: none; }
+  #next { flex: 1 0 100%; justify-content: center; margin-bottom: 6px; }
   .tabs .tab-sep { display: none; }
   .tabs a { height: 32px; padding: 0 8px; white-space: nowrap; }
-  button, select, input, .field { height: 36px; } /* Finger */
-  .next-label { display: none; } /* Platz für den Zustand des Busses */
+  button, select, input, .field, a.button, a.quiet { height: 36px; } /* Finger */
+  button.icon { width: 36px; }
   /* Zustand des Busses eine Zeile, Hinweise darunter (sonst bleibt vom Zustand nur der Punkt) */
   .status { flex-wrap: wrap; row-gap: 2px; padding-block: 3px; }
   .status #bus { flex: 1 1 100%; justify-content: flex-start; }
   /* Liste über die ganze Breite, Details als eigene Ansicht mit „←“ */
   .split { grid-template-columns: minmax(0, 1fr); }
+  .listwrap { border-right: 0; }
   .detail { display: none; }
   .detail.open { display: block; position: fixed; inset: 0; z-index: 30; }
   .detail .back { display: inline-flex; margin-bottom: 8px; }
   .row.head { display: none; }
   .toolbar { flex-wrap: wrap; }
+  .toolbar button { padding: 0 8px; } /* drei Knöpfe passen so in eine Zeile */
   .toolbar input[type=search] { flex: 1 1 100%; width: auto; }
   /* lange Umschalter (Filter im Protokoll) seitlich wischen statt abschneiden */
   .toolbar .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .toolbar .seg::-webkit-scrollbar { display: none; }
-  .toolbar .seg button { flex: none; }
+  .toolbar .seg button { flex: none; padding: 0 6px; }
   .selbar { flex-wrap: wrap; }
 }

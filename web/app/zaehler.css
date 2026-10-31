@@ -1,10 +1,16 @@
 /* Bereich Zähler: Spalten der Liste (Gerüst für Liste und Details: app.css) */
 
-/* Name, Kennung und Wert behalten ihre Breite, der Ort wird zuerst schmaler */
-[data-area=zaehler] .row:not(.vrow) { grid-template-columns: 18px minmax(120px, 2fr) minmax(125px, 1fr) minmax(0, 1fr) minmax(130px, 1.4fr) minmax(0, 130px); }
+/* Name, Kennung und Wert behalten ihre Breite, der Ort wird zuerst schmaler; der Name bekommt am meisten */
+[data-area=zaehler] .row:not(.vrow) { grid-template-columns: 18px minmax(120px, 3fr) minmax(125px, 1fr) minmax(0, 1fr) minmax(130px, 1.4fr) minmax(0, 130px); }
 [data-area=zaehler] .row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-area=zaehler] .rows { overflow-x: hidden; }
 
+/* mittlere Breite: der Ort steht nur noch im Detailbereich, damit vom Namen etwas bleibt;
+   beim Benennen in der Liste bleibt die Spalte, dort steht das Eingabefeld für den Ort */
+@media (min-width: 1000px) and (max-width: 1199px) {
+  [data-area=zaehler]:not(:has(input.quick)) .row:not(.vrow) { grid-template-columns: 18px minmax(120px, 3fr) minmax(125px, 1fr) minmax(130px, 1.4fr) minmax(0, 130px); }
+  [data-area=zaehler]:not(:has(input.quick)) .row > :nth-child(4) { display: none; }
+}
 @media (max-width: 999px) {
   [data-area=zaehler] .row:not(.vrow) { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: "box name state" "box ident value"; padding: 6px 12px; row-gap: 2px; }
   [data-area=zaehler] .row > :nth-child(1) { grid-area: box; }
@@ -13,6 +19,12 @@
   [data-area=zaehler] .row > :nth-child(4) { display: none; }
   [data-area=zaehler] .row > :nth-child(5) { grid-area: value; justify-self: end; }
   [data-area=zaehler] .row > :nth-child(6) { grid-area: state; justify-self: end; }
+  /* Benennen in der Liste: Name und Ort je eine Zeile, Felder gross genug für den Finger */
+  [data-area=zaehler] .row:not(.vrow):has(input.quick) { grid-template-areas: "box name name" "box loc loc" "box ident value"; row-gap: 4px; }
+  [data-area=zaehler] .row:has(input.quick) > :nth-child(4) { display: block; grid-area: loc; }
+  [data-area=zaehler] .row:has(input.quick) > :nth-child(6) { display: none; }
+  [data-area=zaehler] .row:has(input.quick) > * { overflow: visible; }
+  [data-area=zaehler] input.quick { height: 36px; }
   /* schmal ohne Spalten: die Köpfe bleiben als Leiste zum Sortieren */
   [data-area=zaehler] .row.head { display: flex; flex-wrap: wrap; gap: 4px 14px; min-height: 30px; padding: 0 12px; }
 }
@@ -20,7 +32,7 @@
 /* Detail: Tausch, Verlauf, Liste importieren, Namen nach Muster */
 [data-area=zaehler] .inset { padding: 8px; margin: 0 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--sunken); }
 [data-area=zaehler] .detail textarea { width: 100%; font: 12px var(--mono); padding: 6px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: inherit; }
-[data-area=zaehler] .filebtn { display: inline-flex; align-items: center; height: 28px; margin: 6px 0; padding: 0 10px; border-radius: 6px; color: var(--accent); font-weight: 600; cursor: pointer; }
+[data-area=zaehler] .filebtn { display: inline-flex; align-items: center; height: 28px; margin: 6px 0; padding: 0 10px; border: 1px solid var(--accent); border-radius: 6px; background: var(--surface); color: var(--accent); font-weight: 600; cursor: pointer; }
 [data-area=zaehler] .filebtn:hover { background: var(--accent-soft); }
 [data-area=zaehler] .fields label.check { grid-template-columns: 90px auto; justify-content: start; }
 [data-area=zaehler] .chart svg { height: 200px; }
@@ -52,7 +64,9 @@
 [data-area=zaehler] input.quick.saved { border-color: var(--ok); background: var(--ok-soft); }
 [data-area=zaehler] .row > .name:has(input.quick) { display: flex; align-items: center; gap: 6px; }
 [data-area=zaehler] .quick-loc { display: flex; align-items: center; gap: 2px; }
+/* über der ersten Zeile steht nichts; der Platz bleibt, damit die Felder bündig sind */
+[data-area=zaehler] [data-list] .row:first-child [data-q-same] { visibility: hidden; }
 
 /* Aktionen des Zählers in einer Zeile, auch „Löschen“ */
-[data-area=zaehler] .detail .actions { gap: 2px; }
+[data-area=zaehler] .detail .actions { gap: 6px; }
 [data-area=zaehler] .detail .actions button { padding: 0 8px; }

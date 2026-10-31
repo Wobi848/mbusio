@@ -277,7 +277,7 @@ Fertig:    ● Bereit …                              │ ✓ Linie in Ordnung 
 
 ## 11. Oberfläche v2: was gehört wozu (umgesetzt, 18.10.2026)
 
-Entwurf und Übergabe: [uebergabe-design-v2.md](uebergabe-design-v2.md). Umgesetzt in sechs Schritten:
+Umgesetzt in sechs Schritten:
 
 1. **Zähler-Baustein** `ui.meter` überall gleich (Medium-Symbol und Farbe, Name oder „ohne Namen“,
    ID · PA · Hersteller): Trefferliste, Zählerliste, Weitergabe, Werkzeuge.
@@ -303,7 +303,7 @@ ID steht ein Streifen nach der Gruppe statt einer Klammer über die Zeilen.
 | Primär | (keine) | Akzentfarbe gefüllt | der eine nächste Schritt eines Bereichs (Scan starten, Alle auslesen, N übernehmen) |
 | Sekundär | `tonal` | helle Akzentfläche, Text und Rand in Akzentfarbe | wichtig, aber nicht der Hauptweg (Prüfen, N beheben, Sekundärscan starten, Zähler hinzufügen, Dauerbetrieb einrichten, Setzen/Umstellen) |
 | Neutral | `ghost` | weiss mit Rand | Aktionen, die sich je Zeile wiederholen (Merken, Wählen, Werte wählen) |
-| Leise | `quiet` | nur Text | Seltenes (Bericht, Liste, Schliessen, Auslesen je Zeile) |
+| Leise | `quiet` | weiss mit Rahmen und Text in Akzentfarbe (seit 31.10.2026, §15) | Seltenes (Bericht, Liste, Schliessen, Auslesen je Zeile) |
 
 ### 11.2 Farben für Probleme (19.10.2026)
 
@@ -540,3 +540,24 @@ Nutzen, Häufigkeit, Aufwand und Risiko, getrennt in sofort machbar und grösser
 Technische Aussagen mit Code-Stellen oder Messungen belegen. Danach entscheidet der Nutzer,
 umgesetzt wird in kleinen Schritten mit Tests. Kein Wechsel des Frameworks, keine Änderung nur
 weil etwas moderner aussieht.
+
+## 15. Knöpfe erkennbar, Platz in den Leisten (31.10.2026)
+
+- **Jeder Knopf sieht aus wie ein Knopf.** Randlose Textknöpfe waren in der Praxis fast unsichtbar,
+  darum haben `quiet` und `icon` einen Rahmen in Akzentfarbe (der Ton `--line-strong` hat auf Weiss
+  nur etwa 1,5:1). Ohne Rahmen bleiben nur Menüpunkte und der Aufklapp-Pfeil im Baum.
+- **Nächster Schritt oben rechts** in der Laschenleiste (löst den Platz unten aus §10 ab). Genau ein
+  gefüllter Knopf in den Leisten (Aktionen für einen gewählten Eintrag dürfen zusätzlich gefüllt sein): Steht der eigene Hauptknopf des Schritts schon da, tritt der Schritt-Knopf
+  zurück (`tonal`); sonst tritt der Hauptknopf der Seite zurück (`next-elsewhere`).
+- **Anzeigen sehen nicht wie Aktionen aus:** „N im Dauerbetrieb“ ist `plain`, kein Rahmen, ▾ fürs Menü.
+- **Orange nur für Probleme:** Kein Ziel in den Werkzeugen ist der Ausgangszustand, also kein Orange.
+- **Dunkelmodus nach Messung:** Feldrahmen `--line-strong` mindestens 3:1 zur Fläche, Tabellenköpfe
+  sichtbar abgesetzt, auf `--err` immer `--err-ink` statt Weiss (Weiss hatte nur 2,5:1).
+- **Farben:** `--line-strong` auch hell mindestens 3:1. `--ok` hat mehr Gelbanteil, damit es sich
+  von `--accent` trennt; Teal bleibt, weil es auch im Icon und im Bericht steckt.
+- **Wort vor Symbol, Klarheit vor Dichte:** Die Ausgänge behalten „Einstellungen“ und „aus“ und
+  belegen dafür bei 1250 px zwei Zeilen. Ein Versuch mit ⚙ statt des Worts wurde verworfen.
+- **„N im Dauerbetrieb“** nur, wenn es mehr sagt als der Schalter daneben: mehrere Linien, eine
+  andere Linie oder eine Warnung (z.B. nicht als Dienst).
+- **Anlage:** Textspalten ohne Mindestbreite, die Aktionen bleiben immer ganz. Unter 1250 px stehen
+  Zähler und Datenpunkte nur noch im Detailbereich.

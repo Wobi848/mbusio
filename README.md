@@ -22,7 +22,7 @@ exactly one button (see [docs/konzept-oberflaeche-neu.md](docs/konzept-oberflaec
     history, replacement, import list, generate names), **Pass on** (MQTT and Modbus outputs with a
     switch, datapoints)
   - helpers: **Tools** (one target for reading, address, baud rate, reset, telegrams), **Simulator**
-- **Status bar:** what the bus is doing, issues, outputs and on the right the **next step**. Click
+- **Status bar:** what the bus is doing, issues, outputs. The **next step** is the button right of the tabs. Click
   the bus to open the **bus console** (live telegrams; click one to have it explained in Tools),
   click the issues to see them in Scan.
 - **Keyboard:** ↑↓ in lists, space selects, Ctrl+A all, Enter, Escape, `/` searches, `R` reads, `S`

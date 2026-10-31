@@ -167,9 +167,11 @@ $("op-switch").addEventListener("change", (ev) => switchOperation(ev.target, act
 function renderOpAll() {
   const ops = operatingLines();
   const b = $("op-all");
-  b.hidden = !ops.length;
-  if (!ops.length) return;
   const warn = !state.status?.background || ops.some(({ l }) => l.plan_info?.result?.line_down || l.plan_info?.result?.offline);
+  // nur die aktive Linie und alles in Ordnung: das sagt schon der Schalter daneben
+  const sameAsSwitch = !warn && ops.length === 1 && ops[0].l.id === state.status?.active?.line?.id;
+  b.hidden = !ops.length || sameAsSwitch;
+  if (b.hidden) return;
   html(b, `<span class="dot ${warn ? "warn" : "on"}"></span>${esc(t("n_op_count", ops.length))}`);
   html(
     $("op-all-menu"),

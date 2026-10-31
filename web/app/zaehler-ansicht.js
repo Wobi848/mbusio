@@ -35,7 +35,7 @@ export function rowHtml(m, { active, selected, busy, naming }) {
     : `<span class="sub">${esc(t("n_never_read"))}</span>`;
   return `<div class="row${m.id === active ? " active" : ""}" role="option" id="meter-${m.id}" aria-selected="${sel}">
     <span class="box" data-box aria-hidden="true">${sel ? "✓" : ""}</span>
-    <span class="name">${mediumIcon(m.medium, true)}${naming ? namingCells(m).name : m.name ? esc(m.name) : `<span class="sub">${esc(t("meter_unnamed"))}</span>`}</span>
+    <span class="name">${mediumIcon(m.medium, true)}${naming ? namingCells(m).name : m.name ? `<span class="cut" title="${esc(m.name)}">${esc(m.name)}</span>` : `<span class="sub">${esc(t("meter_unnamed"))}</span>`}</span>
     <span class="mono sub">${esc(ident)}</span>
     <span class="cut">${naming ? namingCells(m).location : esc(m.location)}</span>
     <span class="cut">${value}</span>

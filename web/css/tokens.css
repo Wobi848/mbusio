@@ -7,7 +7,8 @@
   --surface: #ffffff;
   --sunken: #f0f2f1;
   --line: #e3e6e4;
-  --line-strong: #cfd4d1;
+  /* Rahmen von Feldern: 3:1 zur Fläche, sonst sind sie kaum zu sehen */
+  --line-strong: #878f8b;
   --text: #121614;
   --muted: #59625e;
   --accent: #0f766e;
@@ -17,12 +18,14 @@
   /* Crimson: nur Struktur (Logo, aktive Lasche, Überschriften), nie Zustand; Fehler bleiben --err */
   --brand: #b3123f;
   --brand-soft: #fbe9ee;
-  --ok: #147a3a; /* 4,5:1 auch auf --ok-soft (Chips) */
-  --ok-soft: #e6f4ea;
+  /* Grün mit Gelbanteil: klar getrennt von Teal (Aktionen); 4,5:1 auch auf --ok-soft (Chips) */
+  --ok: #3f7a12;
+  --ok-soft: #eef6e2;
   --warn: #a85000;
   --warn-soft: #fbf0e3;
   --err: #b42318;
   --err-soft: #fdecea;
+  --err-ink: #ffffff;
   --code: #f3f5f4;
   --sheen: rgba(255, 255, 255, .55);
   --shadow: 0 8px 24px rgba(0, 0, 0, .16);
@@ -38,9 +41,10 @@
 :root[data-theme="dark"] {
   --bg: #0e1110;
   --surface: #151918;
-  --sunken: #1b201e;
-  --line: #242a28;
-  --line-strong: #343c39;
+  /* Ebenen und Ränder: Feldrahmen 3:1 zur Fläche, sonst verschwinden die Felder */
+  --sunken: #222926;
+  --line: #303734;
+  --line-strong: #606c67;
   --text: #e8ecea;
   --muted: #9aa5a0;
   --accent: #2fb5a7;
@@ -49,12 +53,13 @@
   --accent-soft: #12302c;
   --brand: #e8456b;
   --brand-soft: #2f1219;
-  --ok: #4cc77a;
-  --ok-soft: #11291b;
+  --ok: #86d14a;
+  --ok-soft: #1b2a10;
   --warn: #f0a548;
   --warn-soft: #2e2010;
   --err: #ff7a6e;
   --err-soft: #341613;
+  --err-ink: #2b0b08;
   --code: #0b0e0d;
   --sheen: rgba(255, 255, 255, .18);
   --shadow: 0 8px 24px rgba(0, 0, 0, .5);

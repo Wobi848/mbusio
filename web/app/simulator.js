@@ -186,7 +186,7 @@ function renderDetail() {
   box.dataset.shown = `${key}:${active}`;
   box.classList.toggle("open", !!m);
   if (!draft) {
-    html(box, m ? meterText(m) : `<p class="sub">${esc(t("sim_builtin_note"))}</p>`);
+    html(box, m ? meterText(m) : `<p class="sub">${esc(t("si_pick"))}</p>`);
     return;
   }
   if (!m)

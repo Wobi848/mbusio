@@ -156,7 +156,7 @@ function targetPa() {
 function renderTarget() {
   const box = q("[data-tstate]");
   q("[data-clear]").hidden = !view.target;
-  if (!view.target) return html(box, `<span class="chip warn">${esc(t("wz_no_target"))}</span>`);
+  if (!view.target) return html(box, `<b>${esc(t("wz_no_target"))}</b>`);
   const m = meterFor(view.target.address);
   const pa = targetPa();
   const ident = /^\d{1,3}$/.test(view.target.address) ? "" : view.target.address;
@@ -216,11 +216,12 @@ function choosePick(i) {
 function render() {
   if (!view) return;
   renderTarget();
-  const reason = !view.target ? t("wz_locked_target") : !state.status?.connected ? t("wz_locked_conn") : "";
+  // ohne Ziel sagt es der Satz oben einmal; das ist der Ausgangszustand, kein Problem
+  const reason = view.target && !state.status?.connected ? t("wz_locked_conn") : "";
   // neue Baudrate: Vorgabe die des Busses, bis man selbst eine wählt
   const newBaud = q("[data-new-baud]");
   if (!newBaud.dataset.picked) newBaud.value = String(busBaud());
-  for (const f of root.querySelectorAll("[data-tool]")) f.disabled = !!reason;
+  for (const f of root.querySelectorAll("[data-tool]")) f.disabled = !view.target || !!reason;
   const now = (key, value) => {
     const el = q(`[data-now=${key}]`);
     text(el, reason || value);

@@ -8,11 +8,22 @@
 
 /* Name, Anschluss, Zähler, Datenpunkte, Dauerbetrieb · Plan, Zustand, Aktionen */
 /* Jede Zeile ist ein eigenes Raster: alle Spalten fest oder anteilig, keine nach Inhalt (sonst
-   verschieben sich die Spalten zwischen Projekt-, Gateway- und Linienzeilen) */
+   verschieben sich die Spalten zwischen Projekt-, Gateway- und Linienzeilen). Textspalten ohne
+   Mindestbreite: lieber kürzen, als rechts die Aktionen abzuschneiden. Aktionen: „+ Linie“ ↑ ↓ */
 [data-area=anlage] .row:not(.vrow):not(.new):not(.add) {
-  grid-template-columns: minmax(140px, 1.5fr) minmax(100px, 1.2fr) 56px 104px minmax(170px, 1.4fr) minmax(140px, 1.5fr) 100px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) 56px 104px minmax(0, 2fr) minmax(0, .8fr) 140px;
+}
+/* sieben Spalten: die Liste braucht mehr Platz als in den anderen Bereichen */
+@media (min-width: 1000px) {
+  [data-area=anlage] .split { grid-template-columns: minmax(0, 1fr) clamp(320px, 27vw, 420px); }
+}
+/* mittlere Breite: Zähler und Datenpunkte nur noch im Detailbereich, sonst bleibt vom Namen nichts */
+@media (min-width: 1000px) and (max-width: 1249px) {
+  [data-area=anlage] .row:not(.vrow):not(.new):not(.add) { grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 2fr) minmax(0, .8fr) 140px; }
+  [data-area=anlage] .row > :nth-child(3), [data-area=anlage] .row > :nth-child(4) { display: none; }
 }
 [data-area=anlage] .row > * { min-width: 0; }
+[data-area=anlage] .row.head > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-area=anlage] .row .num { text-align: right; font-variant-numeric: tabular-nums; }
 [data-area=anlage] .rows { overflow-x: hidden; }
 
@@ -27,7 +38,7 @@
 @media (max-width: 1499px) { [data-area=anlage] .row .state .sub { display: none; } }
 /* „Aktiv“ bleibt ganz, gekürzt wird der Name */
 [data-area=anlage] .row .name .chip { flex: none; }
-[data-area=anlage] button.chev { width: 22px; height: 22px; font-size: 12px; }
+[data-area=anlage] button.chev { width: 22px; height: 22px; font-size: 12px; background: transparent; border-color: transparent; color: var(--muted); }
 
 /* Dauerbetrieb in der Zeile: nur Schalter und Text (nicht die Pille der Kopfzeile) */
 [data-area=anlage] .row .op { padding: 0; background: none; cursor: default; gap: 8px; display: inline-flex; align-items: center; min-width: 0; }
@@ -38,11 +49,9 @@
 [data-area=anlage] .opline { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 8px 0; }
 [data-area=anlage] .opline .ok { color: var(--ok); }
 
-/* Aktionen rechts, erst beim Überfahren deutlich */
-[data-area=anlage] .row .acts { display: inline-flex; justify-content: flex-end; gap: 2px; opacity: .55; }
-[data-area=anlage] .row:hover .acts,
-[data-area=anlage] .row.active .acts,
-[data-area=anlage] .row .acts:focus-within { opacity: 1; }
+/* Aktionen rechts, immer deutlich */
+[data-area=anlage] .row .acts { display: inline-flex; justify-content: flex-end; gap: 4px; }
+[data-area=anlage] .row .acts button { flex: none; }
 
 /* Eingabezeile „Neues …“ und Zeile „+ Gateway“ */
 [data-area=anlage] .row.new,
@@ -61,6 +70,7 @@
 }
 /* umbrechen statt abschneiden: Hinweise und Knöpfe (Uhrzeit übernehmen) bleiben sichtbar */
 [data-area=anlage] .plant .cell > .body { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+[data-area=anlage] .plant .chip { height: auto; min-height: 20px; border-radius: 10px; }
 
 /* Handy: Zeilen als zweizeilige Karten (Name und Zustand, darunter Anschluss und Dauerbetrieb) */
 @media (max-width: 999px) {

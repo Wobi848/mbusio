@@ -24,7 +24,7 @@ Schritt ist immer genau ein Knopf (siehe [docs/konzept-oberflaeche-neu.md](docs/
     MQTT und Modbus mit Schalter, Datenpunkte)
   - Hilfsmittel: **Werkzeuge** (ein Ziel für Auslesen, Adresse, Baudrate, Reset, Telegramme),
     **Simulator**
-- **Statusleiste:** was der Bus macht, Auffälligkeiten, Ausgänge und rechts der **nächste Schritt**.
+- **Statusleiste:** was der Bus macht, Auffälligkeiten, Ausgänge. Den **nächsten Schritt** zeigt der Knopf rechts neben den Laschen.
   Klick auf den Bus öffnet die **Bus-Konsole** (Telegramme live, ein Telegramm anklicken erklärt es
   in Werkzeuge), Klick auf die Auffälligkeiten zeigt sie im Scan.
 - **Tastatur:** ↑↓ in Listen, Leertaste wählt aus, Ctrl+A alle, Enter, Escape, `/` sucht, `R`

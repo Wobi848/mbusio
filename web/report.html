@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="css/meter.css">
 <style>
   /* Bericht: immer hell, für A4 gedruckt bzw. als PDF gespeichert */
-  :root { --text: #121614; --muted: #59625e; --line: #d5dad7; --accent: #0f766e; --err: #b42318; --warn: #a85000;
+  :root { --text: #121614; --muted: #59625e; --line: #d5dad7; --accent: #0f766e; --ok: #3f7a12; --err: #b42318; --warn: #a85000;
     --surface: #fff; --sunken: #f0f2f1; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color-scheme: light; }
   /* Zähler-Baustein im Druck etwas kleiner */
   td .mid { width: 26px; height: 26px; border-radius: 8px; }
@@ -51,7 +51,7 @@
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; }
   .small { display: block; color: var(--muted); font-size: 10.5px; }
-  .ok { color: var(--accent); font-weight: 600; }
+  .ok { color: var(--ok); font-weight: 600; }
   .err { color: var(--err); font-weight: 600; }
   .none { color: var(--muted); }
   .line-head { font-size: 13px; margin: 16px 0 6px; }
