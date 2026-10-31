@@ -1,58 +1,53 @@
 # node-red-contrib-mbusio
 
-Node-RED-Nodes für [mbusio](https://github.com/Wobi848/mbusio) (M-Bus-Master): Projekt, Gateway,
-Linie, Zähler und Datenpunkte aus Listen wählen und die laufenden Zählerwerte mit Qualität
-bekommen, **ohne MQTT-Broker**.
+**English** · [Deutsch](README.de.md)
 
-*English below.*
+Node-RED nodes for [mbusio](https://github.com/Wobi848/mbusio) (M-Bus master): pick project,
+gateway, line, meter and datapoints from lists and get live meter values with quality, **without an
+MQTT broker**.
 
 ## Nodes
 
-- **mbusio-server** (Konfiguration): Adresse von mbusio (`http://192.168.1.20:8080`) und
-  optionaler Zugriffsschlüssel (`--token`). Alle Nodes desselben Projekts teilen sich eine
-  Verbindung.
-- **mbusio status**: Zustand eines Projekts oder einer Linie für Meldungen: `payload` = alles in
-  Ordnung (erreichbar, nichts gestört oder ungültig), `msg.mbusio` mit Anzahl je Qualität und der
-  Liste der Datenpunkte mit Problem. Für Alarme eine Verzögerung verwenden (kurzer Neustart von
-  mbusio meldet auch `false`).
-- **mbusio in**: Auswahl im Editor nacheinander: Projekt › Gateway › Linie › Zähler ›
-  Datenpunkte, oder „alle dieses Zählers“ / „alle dieser Linie“ (auch später dazukommende).
+- **mbusio-server** (configuration): address of mbusio (`http://192.168.1.20:8080`) and optional
+  access key (`--token`). All nodes of the same project share one connection.
+- **mbusio status**: state of a project or line for notifications: `payload` = all fine (reachable,
+  nothing disturbed or invalid), `msg.mbusio` with the count per quality and the list of datapoints
+  with a problem. Use a delay for alarms (a short restart of mbusio also reports `false`).
+- **mbusio in**: in the editor pick one after the other: project › gateway › line › meter ›
+  datapoints, or "all of this meter" / "all of this line" (including ones added later).
 
-Ausgang je Wert:
+Output per value:
 
 ```js
-msg.payload = 12345.6                 // Zahl, Faktor schon angewendet
-msg.topic   = "Whg 1 · Energie"       // Name des Datenpunkts
+msg.payload = 12345.6                 // number, factor already applied
+msg.topic   = "Flat 1 · Energy"       // name of the datapoint
 msg.mbusio  = { no, unit, time, quality, meter, ident, pa, gateway, line, project }
 ```
 
-- Nach dem Deploy sofort der aktuelle Wert, danach jede neue Auslesung wie in mbusio eingestellt
-  (jede Auslesung, bei Änderung, täglich) und jede geänderte Qualität.
-- Vorgabe: nur gute Werte; mit „alle Werte“ auch `stale`, `disturbed`, `invalid`.
-- Status: grün = gut, gelb = veraltet oder Datenpunkt fehlt, rot = gestört oder Zugriff
-  verweigert, grau = mbusio nicht erreichbar (neuer Versuch alle 10 s).
-- Nur lesend: Das Auslesen des Busses bleibt beim Plan in mbusio. Werte kommen nur aus Linien im
-  Dauerbetrieb.
+- Right after deploy the current value, then every new reading as set in mbusio (every reading, on
+  change, daily) and every change of quality.
+- Default: only good values; with "all values" also `stale`, `disturbed`, `invalid`.
+- Status: green = good, yellow = stale or datapoint missing, red = disturbed or access denied,
+  grey = mbusio not reachable (new attempt every 10 s).
+- Read only: reading the bus stays with the plan in mbusio. Values only come from lines in
+  continuous operation.
 
-## Voraussetzungen
+## Requirements
 
-mbusio ab der Version mit `/api/nodered/…` (siehe CHANGELOG von mbusio), im LAN erreichbar
-(`--lan`). Node-RED ab 4.0, Node.js ab 18.5.
+mbusio 0.5 or later (with `/api/nodered/…`), reachable on the LAN (`--lan`). Node-RED 4.0 or later,
+Node.js 18.5 or later.
 
-## Aufbau
+## Structure
 
-- `lib/connection.js`: Verbindung je Projekt (Baum, Server-Sent Events, Neuversuch, letzter Wert
-  je Datenpunkt für später dazukommende Nodes, keine Doppelten nach Neuverbindung)
-- `nodes/`: die Nodes; die Auswahlliste im Editor holt Node-RED über `POST /mbusio/tree`,
-  damit der Schlüssel auf dem Server bleibt
-- `resources/mbusio-editor.js`: gemeinsamer Editor-Code (Baum laden, Auswahllisten)
-- Schnittstelle in mbusio: [docs/konzept-node-red.md](../docs/konzept-node-red.md)
+- `lib/connection.js`: connection per project (tree, server-sent events, retry, last value per
+  datapoint for nodes added later, no duplicates after reconnecting)
+- `nodes/`: the nodes; the editor's pick lists are fetched by Node-RED via `POST /mbusio/tree`, so
+  the key stays on the server
+- `resources/mbusio-editor.js`: shared editor code (load tree, pick lists)
+- Interface in mbusio: [docs/konzept-node-red.md](../docs/konzept-node-red.md) (German)
 
-Tests: `npm test` (gegen ein nachgebautes mbusio).
+Tests: `npm test` (against a fake mbusio).
 
-## English
+## License
 
-Node-RED nodes for mbusio: pick project, gateway, line, meter and datapoints from lists and get
-live meter values with quality, without an MQTT broker. `mbusio-server` holds address and
-optional access key; `mbusio status` reports whether all is fine (for notifications); `mbusio in` sends one message per value (`payload` number, `topic` name,
-`msg.mbusio` with unit, time, quality, meter, line …). Only good values by default. Read-only.
+MIT
