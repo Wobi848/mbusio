@@ -6,6 +6,9 @@ What changes for users, per version, newest first. Entries up to v0.5.0 are in G
 
 ### Added
 
+- **Overview page:** mbusio now opens on a new page that shows how the active line stands (meters,
+  continuous operation, transfer, device) and explains the next step. Bookmarks still open their
+  page; key `0` opens the overview, keys `1` to `6` are unchanged.
 - **Device backup** (concept `docs/konzept-sicherung.md`): ⚙ → Backup → "Download" saves everything
   in one file (projects, meters, readings, settings including passwords). "Restore …" checks the
   file, shows projects, meters and time range, then restarts mbusio; if a device fails, the new one

@@ -11,8 +11,8 @@ import { startStatusleiste } from "./app-statusleiste.js";
 import { startMeldungen } from "./app-meldungen.js";
 
 const $ = (id) => document.getElementById(id);
-const AREAS = ["anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
-const AREA_TAB = { scan: "tab_scan", zaehler: "tab_meters", weitergabe: "tab_transfer", anlage: "tab_project", werkzeuge: "tab_tools", simulator: "tab_sim" };
+const AREAS = ["uebersicht", "anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
+const AREA_TAB = { uebersicht: "tab_overview", scan: "tab_scan", zaehler: "tab_meters", weitergabe: "tab_transfer", anlage: "tab_project", werkzeuge: "tab_tools", simulator: "tab_sim" };
 const STATUS_EVERY = 5000;
 const TREE_EVERY = 15000;
 
@@ -157,13 +157,13 @@ function readHash() {
   const hash = OLD_URLS.reduce((h, [old, now]) => h.replace(old, now), location.hash);
   if (hash !== location.hash) history.replaceState(null, "", hash);
   const url = hash.replace(/^#\/?/, "").split(/[/?]/)[0];
-  set({ area: AREAS.find((a) => AREA_URL[a] === url) || "zaehler" });
+  set({ area: AREAS.find((a) => AREA_URL[a] === url) || "uebersicht" });
 }
 addEventListener("hashchange", readHash);
 
 function renderTabs() {
   for (const a of document.querySelectorAll(".tabs [data-area]")) {
-    a.title = `${t(AREA_TAB[a.dataset.area])} (${AREAS.indexOf(a.dataset.area) + 1})`;
+    a.title = `${t(AREA_TAB[a.dataset.area])} (${AREAS.indexOf(a.dataset.area)})`;
     if (a.dataset.area !== state.area) a.removeAttribute("aria-current");
     else if (!a.hasAttribute("aria-current")) {
       a.setAttribute("aria-current", "page");
@@ -201,8 +201,9 @@ function renderWork() {
   }
 }
 
+// Übersicht auf 0: die Tasten 1 bis 6 behalten ihre Bereiche
 AREAS.forEach((a, i) =>
-  bind(String(i + 1), () => (location.hash = `#/${AREA_URL[a]}`), t("n_key_area", t(AREA_TAB[a])))
+  bind(String(i), () => (location.hash = `#/${AREA_URL[a]}`), t("n_key_area", t(AREA_TAB[a])))
 );
 // das erste sichtbare Suchfeld (im Protokoll der Weitergabe ist die Liste darunter versteckt)
 bind("/", () => [...document.querySelectorAll("#work .pane:not([hidden]) [data-search]")].find((el) => el.offsetParent)?.focus(), t("n_key_search"));
@@ -224,8 +225,7 @@ async function start() {
   const fromAddress = location.hash.length > 2;
   readHash();
   await reload().catch(report);
-  // ohne Adresse dort anfangen, wo es weitergeht: noch keine Zähler → Scan, sonst Zähler (§3.4)
-  if (!fromAddress) location.hash = activeLine()?.meters ? "#/meters" : "#/scan";
+  if (!fromAddress) location.hash = `#/${AREA_URL.uebersicht}`;
   setInterval(pollStatus, STATUS_EVERY);
   setInterval(() => loadTree().catch(() => {}), TREE_EVERY);
 }

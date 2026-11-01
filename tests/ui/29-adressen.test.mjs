@@ -10,7 +10,7 @@ export default {
     await simLine(api);
   },
   async run({ page, base }) {
-    for (const [now, area] of [["site", "anlage"], ["scan", "scan"], ["meters", "zaehler"], ["transfer", "weitergabe"], ["tools", "werkzeuge"], ["simulator", "simulator"]]) {
+    for (const [now, area] of [["overview", "uebersicht"], ["site", "anlage"], ["scan", "scan"], ["meters", "zaehler"], ["transfer", "weitergabe"], ["tools", "werkzeuge"], ["simulator", "simulator"]]) {
       await page.goto(`${base}/#/${now}`);
       await page.waitForSelector(`section[data-area=${area}]:not([hidden])`);
       assert.equal(await page.getAttribute(`.tabs a[data-area=${area}]`, "href"), `#/${now}`);

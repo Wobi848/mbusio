@@ -3,7 +3,7 @@ import { assert } from "./helpers.mjs";
 // Jede geladene Sprache hat dieselben Texte wie Englisch, Funktionen mit denselben Argumenten; eine
 // unbekannte Sprache wird Englisch
 
-const AREAS = ["anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
+const AREAS = ["uebersicht", "anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
 
 export default {
   name: "Texte (alle Sprachen vollständig, unbekannte Sprache wird Englisch)",

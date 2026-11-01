@@ -9,7 +9,7 @@ import { allLines, sum, plantHtml } from "./anlage-zustand.js";
 import { rowHtml } from "./anlage-baum.js";
 import { detailHtml, TIMED } from "./anlage-details.js";
 import { bind } from "./keys.js";
-import { loadTree, loadMeters, loadStatus, reload, useLine, report, switchOperation } from "./data.js";
+import { loadTree, loadMeters, reload, useLine, report, switchOperation, takeTime } from "./data.js";
 
 
 const open = () => state.area === "anlage";
@@ -319,15 +319,6 @@ async function importProject(file) {
   }
 }
 
-async function takeTime() {
-  try {
-    const r = await request("time", { method: "POST", body: { epoch_ms: Date.now() } });
-    toast(t("time_taken", Math.round(r.offset_s)));
-    await loadStatus();
-  } catch (e) {
-    report(e);
-  }
-}
 
 function toggleGateway(id, show = view.closed.has(id)) {
   if (show) view.closed.delete(id);

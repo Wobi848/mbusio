@@ -163,7 +163,10 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .content { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .content > .work { flex: 1; }
 .nextbar { padding: 6px 12px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; justify-content: flex-end; }
-.nextbar:has(#next[hidden]) { display: none; }
+.nextbar:has(#next[hidden]):has(#next-why[hidden]) { display: none; }
+/* Übersicht: derselbe Schritt, gross und mit Erklärung */
+.nextbar #next-why { flex: 1 1 280px; min-width: 0; margin: 0; }
+.next-big .nextbar { flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 16px; font-size: 14px; }
 /* der nächste Schritt liegt anderswo: der Hauptknopf der Seite tritt zurück */
 .next-elsewhere .work .toolbar > button:is(:not([class]), [class=""]), .next-elsewhere .work .toolbar > span > button:is(:not([class]), [class=""]) { background: var(--accent-soft); color: var(--accent); }
 .tabs a {

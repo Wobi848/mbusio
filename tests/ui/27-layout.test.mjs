@@ -3,7 +3,7 @@ import { assert, simLine } from "./helpers.mjs";
 // In jeder Sprache und Breite: nichts läuft aus dem Fenster, Kopfzeile und Laschen überlappen nicht,
 // auch mit langen Namen und auf einer Linie ohne Anschluss
 
-const AREAS = ["anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
+const AREAS = ["uebersicht", "anlage", "scan", "zaehler", "weitergabe", "werkzeuge", "simulator"];
 const WIDTHS = [390, 1000, 1250];
 
 const problems = (page) =>

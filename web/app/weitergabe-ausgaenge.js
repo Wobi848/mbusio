@@ -32,7 +32,7 @@ function emailState(m) {
 const backupTarget = (c) => (c.target === "ftp" ? c.host : c.folder);
 
 /// Zustand der automatischen Sicherung aus /api/backup/auto: [farbe, wort, satz]
-function backupState(b) {
+export function backupState(b) {
   const c = b.config;
   if (!c.enabled) return ["", t("wg_m_off"), ""];
   if (!backupTarget(c)) return ["warn", t("wg_m_unset"), ""];

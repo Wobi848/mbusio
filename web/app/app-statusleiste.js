@@ -2,7 +2,7 @@
 // Ausgänge und der nächste Schritt. Event-Handler hängen beim Laden des Moduls an.
 
 import { state, set, watch, activeLine, faulty, AREA_URL } from "./store.js";
-import { html, outputWord } from "./view.js";
+import { html, text, outputChips } from "./view.js";
 import { onEscape } from "./keys.js";
 import { follow, poll, logRow } from "./buslog.js";
 
@@ -43,16 +43,7 @@ function renderStatus() {
         : `<span class="chip ok">${esc(t("issues_none"))}</span>`
       : ""
   );
-  const outs = (s.outputs || []).filter((o) => o.on);
-  html(
-    $("outputs"),
-    outs
-      .map((o) => {
-        const [cls, word] = outputWord(s[o.key]?.state);
-        return `<span class="chip ${cls}" title="${esc(s[o.key]?.error || "")}">${esc(o.label)} · ${esc(word)}</span>`;
-      })
-      .join(" ")
-  );
+  html($("outputs"), outputChips(s));
 }
 
 // ------------------------------------------------------------ Nächster Schritt
@@ -100,15 +91,20 @@ let nextAction = null;
 function renderNext() {
   const step = nextStep();
   const b = $("next");
+  const overview = state.area === "uebersicht";
   b.hidden = !step;
   document.body.classList.toggle("next-elsewhere", !!step && step[3] !== state.area);
-  if (!step) return;
+  document.body.classList.toggle("next-big", overview);
+  // „alles eingerichtet“ nur, wenn der Zustand bekannt ist: offline gibt es einfach keinen Schritt
+  $("next-why").hidden = !overview || (!step && (state.offline || !activeLine()));
+  if (!step) return text($("next-why"), t("ov_all_set"));
   const [key, run, arg, home] = step;
   // auf jeder Seite genau ein gefüllter Knopf: steht der eigene Hauptknopf des Schritts schon da,
   // tritt dieser zurück; sonst tritt der Hauptknopf der Seite zurück (Klasse next-elsewhere)
   b.className = home === state.area || home === "kopf" ? "tonal" : "";
   html(b, `<span class="next-label">${esc(t("n_next"))}: </span>${esc(t(key))} →`);
   b.title = t(key.replace(/_btn$/, "") + "_body", arg);
+  text($("next-why"), b.title);
   nextAction = run;
 }
 $("next").addEventListener("click", () => nextAction?.());

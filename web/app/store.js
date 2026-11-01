@@ -2,7 +2,7 @@
 // und werden nur benachrichtigt, wenn sich genau diese geändert haben (Konzept neue Oberfläche §5.2).
 
 /// Bereich → Teil der Adresse. Bereiche heissen im Code wie ihre Dateien, Adressen sind englisch.
-export const AREA_URL = { anlage: "site", scan: "scan", zaehler: "meters", weitergabe: "transfer", werkzeuge: "tools", simulator: "simulator" };
+export const AREA_URL = { uebersicht: "overview", anlage: "site", scan: "scan", zaehler: "meters", weitergabe: "transfer", werkzeuge: "tools", simulator: "simulator" };
 
 export const state = {
   status: null, // /api/status
@@ -11,7 +11,7 @@ export const state = {
   meters: null, // /api/meters der aktiven Linie
   job: null, // /api/job, solange ein Auftrag läuft
   scanNew: null, // { line, n }: im Scan gefunden, aber noch nicht in der Zählerliste
-  area: "zaehler", // Bereich aus der Adresse, siehe AREA_URL
+  area: "uebersicht", // Bereich aus der Adresse, siehe AREA_URL
   offline: false, // mbusio antwortet nicht (letzte Statusabfrage gescheitert)
 };
 

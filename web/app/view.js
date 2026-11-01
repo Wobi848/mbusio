@@ -22,6 +22,17 @@ export function outputWord(st) {
   return ["err", t("n_out_bad")];
 }
 
+/// Eingeschaltete Ausgänge mit Zustand als Chips (Statusleiste, Übersicht)
+export function outputChips(s) {
+  return (s.outputs || [])
+    .filter((o) => o.on)
+    .map((o) => {
+      const [cls, word] = outputWord(s[o.key]?.state);
+      return `<span class="chip ${cls}" title="${esc(s[o.key]?.error || "")}">${esc(o.label)} · ${esc(word)}</span>`;
+    })
+    .join(" ");
+}
+
 /// Dauerbetrieb einer Linie ist möglich: Anschluss da und mindestens ein Zähler mit Plan
 export const opPossible = (l) => !!(l.connection && l.plan_info?.meters);
 

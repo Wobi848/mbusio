@@ -31,6 +31,17 @@ export async function switchOperation(sw, l) {
   }
 }
 
+/// Uhrzeit des Browsers übernehmen, wenn mbusio seiner eigenen nicht trauen kann
+export async function takeTime() {
+  try {
+    const r = await request("time", { method: "POST", body: { epoch_ms: Date.now() } });
+    toast(t("time_taken", Math.round(r.offset_s)));
+    await loadStatus();
+  } catch (e) {
+    report(e);
+  }
+}
+
 export async function loadTree() {
   set({ tree: await request("projects") });
 }

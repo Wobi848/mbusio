@@ -569,3 +569,17 @@ Dauerbetrieb, Bereiche, unten Einstellungen. Die Funktionen sind dieselben, nur 
 darunter bleibt die Anordnung wie bisher. Menüs gehen neben der Leiste auf. Der Inhalt ist dadurch
 232 px schmaler, darum greifen die Regeln für mittlere Breiten entsprechend früher. Erster Schritt
 zum Entwurf „mbusio Design-Entwurf“; Übersicht und feste Orte pro Thema folgen erst nach Prüfung.
+
+## 17. Übersicht als Startseite (1.11.2026)
+
+Eine neue Seite zeigt auf einen Blick, wie die aktive Linie steht und was als Nächstes zu tun ist.
+Sie ersetzt nichts: Alle Funktionen bleiben, wo sie sind, die Übersicht führt nur dorthin.
+
+- **Start:** Ohne Adresse beginnt mbusio immer hier. Bisher ging es zum Scan oder zu den Zählern; das
+  übernimmt jetzt der Knopf „Nächster Schritt“. Lesezeichen wirken wie bisher.
+- **Nächster Schritt:** Dasselbe Element wie auf den anderen Seiten, hier gross und mit dem Erklärtext,
+  der sonst nur im Tooltip steht. So gibt es die Logik und den Knopf weiterhin nur einmal.
+- **Vier Karten:** Zähler, Dauerbetrieb, Weitergabe, Gerät. Sie verwenden dieselben Regeln wie der Rest
+  (`faulty`, `lineState`, `outputChips`, `diskHtml`, `backupState`), damit nie zwei Seiten
+  Verschiedenes sagen.
+- **Tasten:** `0` öffnet die Übersicht, `1` bis `6` bleiben, wie sie waren.

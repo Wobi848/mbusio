@@ -5,6 +5,8 @@ import { outputWord, opPossible } from "./view.js";
 
 const README = "https://github.com/Wobi848/mbusio";
 
+const chip = (cls, txt, title = "") => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(txt)}</span>`;
+
 /// Wie lange der Platz beim heutigen Plan reicht, als Satzteil in passender Einheit
 function lasts(days) {
   if (days >= 36500) return t("an_disk_century");
@@ -14,7 +16,7 @@ function lasts(days) {
 }
 
 /// Speicher: frei, wie lange er reicht (unter 90 Tagen als Hinweis); Zuwachs im Tooltip
-function diskHtml(d, chip) {
+export function diskHtml(d) {
   const pct = Math.round(d.free_pct);
   if (d.level !== "ok") return chip("warn", t(d.level === "full" ? "disk_full" : "disk_low", pct));
   const title = d.per_day ? t("an_disk_title", sizeText(d.per_day), sizeText(d.db_bytes)) : "";
@@ -65,25 +67,20 @@ export function lineState(l) {
   return chips.map(([cls, txt, title]) => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(txt)}</span>`).join(" ") + (info ? ` <span class="sub">${esc(info)}</span>` : "");
 }
 
+/// Hinweis, wenn mbusio nicht als Dienst läuft, mit dem Weg zur Anleitung
+export function serviceNotice(s) {
+  const win = s.os === "windows";
+  return `${chip("warn", t("ps_fg"), t(win ? "ps_fg_win" : "ps_fg_linux"))} <a href="${README}#${win ? "windows-als-dienst" : "raspberry-pi-als-dienst"}" target="_blank" rel="noopener">${esc(t("an_svc_how"))}</a>`;
+}
+
 /// Zustand der Anlage als Raster (leer, wenn keine Linie im Dauerbetrieb ist); jeder Teil führt zur
 /// Stelle, an der man es behebt
 export function plantHtml(p, s) {
   const lines = allLines(p).filter((l) => l.operation);
   if (!lines.length || !s) return "";
   const cell = (title, body) => `<div class="cell"><span class="eyebrow">${esc(title)}</span><span class="body">${body}</span></div>`;
-  const chip = (cls, txt, title = "") => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(txt)}</span>`;
   const cells = [];
-  if (!s.background) {
-    const win = s.os === "windows";
-    cells.push(
-      cell(
-        t("op_chip"),
-        `${chip("warn", t("ps_fg"), t(win ? "ps_fg_win" : "ps_fg_linux"))} <a href="${README}#${win ? "windows-als-dienst" : "raspberry-pi-als-dienst"}" target="_blank" rel="noopener">${esc(
-          t("an_svc_how")
-        )}</a>`
-      )
-    );
-  }
+  if (!s.background) cells.push(cell(t("op_chip"), serviceNotice(s)));
   const planLines = lines.filter(planned);
   const next = planLines.map((l) => l.plan_info.next).filter(Boolean).sort()[0];
   const disturbed = sum(planLines, (l) => l.plan_info.disturbed);
@@ -108,7 +105,7 @@ export function plantHtml(p, s) {
       )
     );
   // Speicherschutz ist eine Einstellung des Geräts: im Menü Einstellungen
-  if (s.disk) cells.push(cell(t("ps_disk"), `${diskHtml(s.disk, chip)} <button type="button" class="quiet" data-open-settings>${esc(t("st_protect"))} …</button>`));
+  if (s.disk) cells.push(cell(t("ps_disk"), `${diskHtml(s.disk)} <button type="button" class="quiet" data-open-settings>${esc(t("st_protect"))} …</button>`));
   for (const o of (s.outputs || []).filter((o) => o.on)) {
     const [cls, word] = outputWord(s[o.key]?.state);
     cells.push(cell(o.label, `${chip(cls, word, s[o.key]?.error || "")} <a href="#/transfer">${esc(t("ps_open_transfer"))}</a>`));

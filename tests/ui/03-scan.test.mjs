@@ -10,9 +10,7 @@ export default {
     await simLine(api, "SIMULATOR:praxis");
   },
   async run({ page, base, api }) {
-    // ohne Adresse und ohne Zähler beginnt die Oberfläche im Scan
-    await page.goto(base + "/");
-    await page.waitForFunction(() => location.hash === "#/scan");
+    await page.goto(base + "/#/scan");
     await page.waitForSelector("[data-to]");
     await page.fill("[data-to]", "20");
     await page.press("[data-to]", "Tab");

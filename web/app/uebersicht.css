@@ -1,0 +1,15 @@
+/* Bereich Übersicht: Karten, die sich der Breite anpassen; lange Inhalte brechen um statt zu überlaufen */
+.pane[data-area=uebersicht]:not([hidden]) { display: block; overflow-y: auto; padding: 16px; }
+[data-area=uebersicht] .cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; max-width: 1200px; }
+@media (min-width: 720px) { [data-area=uebersicht] .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+[data-area=uebersicht] .card { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+[data-area=uebersicht] h2 { margin: 0; font-size: 14px; font-weight: 650; }
+[data-area=uebersicht] .big .mono { font-size: 32px; font-weight: 650; line-height: 1; }
+[data-area=uebersicht] .word { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+[data-area=uebersicht] .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+[data-area=uebersicht] .chips:empty { display: none; }
+[data-area=uebersicht] .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 4px; }
+/* Gerät über die ganze Breite, damit keine Karte allein in einer Reihe hängt */
+[data-area=uebersicht] .device { display: grid; grid-column: 1 / -1; }
+[data-area=uebersicht] .kvs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px 20px; }
+[data-area=uebersicht] .kv { display: flex; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
