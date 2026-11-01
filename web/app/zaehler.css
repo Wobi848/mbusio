@@ -7,7 +7,7 @@
 
 /* mittlere Breite: der Ort steht nur noch im Detailbereich, damit vom Namen etwas bleibt;
    beim Benennen in der Liste bleibt die Spalte, dort steht das Eingabefeld für den Ort */
-@media (min-width: 1000px) and (max-width: 1199px) {
+@media (min-width: 1000px) and (max-width: 1431px) {
   [data-area=zaehler]:not(:has(input.quick)) .row:not(.vrow) { grid-template-columns: 18px minmax(120px, 3fr) minmax(125px, 1fr) minmax(130px, 1.4fr) minmax(0, 130px); }
   [data-area=zaehler]:not(:has(input.quick)) .row > :nth-child(4) { display: none; }
 }

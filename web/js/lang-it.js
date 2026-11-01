@@ -208,6 +208,7 @@ UI.it = {
   ln_no_conn: "Connessione non impostata",
   ln_set_conn: "Imposta connessione",
   settings: "Impostazioni: aiuto, tema, lingua",
+  settings_short: "Impostazioni",
   help_toggle: "Mostra spiegazioni",
   sim_explain: "Contatori virtuali per esercitarsi, testare e fare dimostrazioni, senza hardware. Una linea con la connessione «SIMULATOR:Nome» comunica con questa simulazione. I modelli integrati si possono copiare e poi modificare liberamente.",
   theme: "Tema",

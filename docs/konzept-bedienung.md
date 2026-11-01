@@ -561,3 +561,11 @@ weil etwas moderner aussieht.
   andere Linie oder eine Warnung (z.B. nicht als Dienst).
 - **Anlage:** Textspalten ohne Mindestbreite, die Aktionen bleiben immer ganz. Unter 1250 px stehen
   Zähler und Datenpunkte nur noch im Detailbereich.
+
+## 16. Navigation in der Seitenleiste (1.11.2026)
+
+Ab 1000 px stehen Kopfzeile und Laschen links in einer Spalte: Projekt und Linie, Anschluss,
+Dauerbetrieb, Bereiche, unten Einstellungen. Die Funktionen sind dieselben, nur der Platz ist neu;
+darunter bleibt die Anordnung wie bisher. Menüs gehen neben der Leiste auf. Der Inhalt ist dadurch
+232 px schmaler, darum greifen die Regeln für mittlere Breiten entsprechend früher. Erster Schritt
+zum Entwurf „mbusio Design-Entwurf“; Übersicht und feste Orte pro Thema folgen erst nach Prüfung.

@@ -15,6 +15,7 @@
 </head>
 <body>
 
+<aside class="side">
 <header class="bar top" aria-label="mbusio">
   <span class="brand" aria-hidden="true">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h18M3 16h18"/><circle cx="8" cy="8" r="2.2" fill="var(--surface)"/><circle cx="16" cy="16" r="2.2" fill="var(--surface)"/></svg>
@@ -39,7 +40,7 @@
     <div id="op-all-menu" class="menu end" role="menu" hidden></div>
   </div>
   <div class="menu-host">
-    <button id="settings" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" data-title="settings">⚙</button>
+    <button id="settings" type="button" class="quiet" aria-haspopup="menu" aria-expanded="false" data-title="settings">⚙ <span class="side-label" data-t="settings_short"></span></button>
     <div id="settings-menu" class="menu end form" hidden>
       <label class="row"><span data-t="language"></span><select id="lang"></select></label>
       <label class="row"><span data-t="theme"></span><select id="theme"><option value="auto" data-t="theme_auto_short"></option><option value="light" data-t="theme_light_short"></option><option value="dark" data-t="theme_dark_short"></option></select></label>
@@ -77,8 +78,11 @@
     <a href="#/simulator" data-area="simulator" id="tab-sim"><span data-t="tab_sim"></span></a>
   </span>
   </div>
-  <button id="next" type="button" hidden></button>
 </nav>
+</aside>
+
+<div class="content">
+<div class="nextbar"><button id="next" type="button" hidden></button></div>
 
 <main id="work" class="work"></main>
 
@@ -103,6 +107,7 @@
   <span id="warnings"></span>
   <span id="outputs"></span>
 </footer>
+</div>
 
 <div id="toast" class="toast" role="status" hidden></div>
 

@@ -12,7 +12,7 @@ html, body { height: 100%; }
 body {
   margin: 0;
   display: grid;
-  grid-template-rows: auto auto 1fr auto auto; /* Kopf, Laschen, Arbeitsfläche, Bus-Konsole, Statusleiste */
+  grid-template-rows: auto minmax(0, 1fr); /* schmal: Kopf und Laschen über dem Inhalt */
   grid-template-columns: minmax(0, 1fr); /* nichts darf die Seite breiter machen als das Fenster */
   font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--bg);
@@ -159,7 +159,11 @@ input.switch:disabled { cursor: default; opacity: .5; }
 .tabs { min-height: 34px; gap: 2px; background: var(--sunken); }
 /* Laschen links (schmal: laufen seitlich), der nächste Schritt rechts immer sichtbar */
 .tab-scroll { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 2px; }
-#next { flex: none; }
+/* Inhalt: nächster Schritt, Arbeitsfläche, Bus-Konsole, Statusleiste */
+.content { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.content > .work { flex: 1; }
+.nextbar { padding: 6px 12px; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; justify-content: flex-end; }
+.nextbar:has(#next[hidden]) { display: none; }
 /* der nächste Schritt liegt anderswo: der Hauptknopf der Seite tritt zurück */
 .next-elsewhere .work .toolbar > button:is(:not([class]), [class=""]), .next-elsewhere .work .toolbar > span > button:is(:not([class]), [class=""]) { background: var(--accent-soft); color: var(--accent); }
 .tabs a {
@@ -274,12 +278,12 @@ input.switch:disabled { cursor: default; opacity: .5; }
 
 /* ---------------------------------------------------------------- Arbeitsfläche */
 
-.work { min-height: 0; overflow: hidden; display: grid; }
-.pane { min-height: 0; display: grid; grid-template-rows: auto 1fr auto; }
+.work { min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); }
+.pane { min-height: 0; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: minmax(0, 1fr); }
 
 /* ---------------------------------------------------------------- Liste und Details (alle Bereiche) */
 
-.toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .toolbar input[type=search] { width: 240px; }
 /* Erklärungen (Einstellungen → „Erklärungen anzeigen“): in einer Leiste als eigene Zeile darunter */
 .explain { margin: 6px 0 0; max-width: 100ch; color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -294,7 +298,7 @@ body.show-help .toolbar:has(.explain) { flex-wrap: wrap; }
 .seg .n.err { color: var(--err); }
 
 /* schmale Fenster: Details geben Platz an die Liste ab */
-.split { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 420px); }
+.split { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 33vw, 420px); }
 .listwrap { min-height: 0; display: grid; grid-template-rows: auto 1fr; overflow: hidden; border-right: 1px solid var(--line); background: var(--surface); }
 .rows { overflow: auto; outline: none; }
 .rows:focus-visible .row.active { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -352,12 +356,6 @@ button.danger-text:hover { background: var(--err-soft); }
 
 .mid.s { width: 20px; height: 20px; border-radius: 5px; }
 
-/* Mittlere Breite: Gateway steht im Linien-Menü, der Port in der Statusleiste */
-@media (max-width: 1349px) {
-  #line .sub, #conn-state .mono { display: none; }
-  .path select { max-width: 170px; }
-  #line { max-width: 200px; }
-}
 
 /* ---------------------------------------------------------------- Schmale Fenster und Handy */
 
@@ -378,10 +376,10 @@ button.danger-text:hover { background: var(--err-soft); }
   #line { width: 100%; max-width: none; }
   .conn .mono { max-width: 150px; }
   /* schmal: eine Zeile, die seitlich läuft, statt Umbrüche; Abstand statt Strich trennt Gruppen */
-  .tabs { flex-wrap: wrap; }
   .tab-scroll { flex: 1 0 100%; overflow-x: auto; column-gap: 10px; scrollbar-width: none; }
   .tab-scroll::-webkit-scrollbar { display: none; }
-  #next { flex: 1 0 100%; justify-content: center; margin-bottom: 6px; }
+  #next { flex: 1; justify-content: center; }
+  .side-label { display: none; }
   .tabs .tab-sep { display: none; }
   .tabs a { height: 32px; padding: 0 8px; white-space: nowrap; }
   button, select, input, .field, a.button, a.quiet { height: 36px; } /* Finger */
@@ -404,4 +402,42 @@ button.danger-text:hover { background: var(--err-soft); }
   .toolbar .seg::-webkit-scrollbar { display: none; }
   .toolbar .seg button { flex: none; padding: 0 6px; }
   .selbar { flex-wrap: wrap; }
+}
+
+/* ---------------------------------------------------------------- Seitenleiste (breite Fenster) */
+
+@media (min-width: 1000px) {
+  body { grid-template-rows: minmax(0, 1fr); grid-template-columns: 232px minmax(0, 1fr); }
+  /* über dem Inhalt, weil die Menüs nach rechts aufgehen */
+  .side { position: relative; z-index: 30; display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--surface); border-right: 1px solid var(--line); }
+  /* Kopf und Laschen sind eine Spalte; Reihenfolge von oben nach unten: wer bin ich, wo bin ich, was tun */
+  .top { display: contents; }
+  .brand { order: 1; font-size: 15px; padding: 2px 4px; }
+  .path { order: 2; flex-direction: column; align-items: stretch; }
+  .path .sep { display: none; }
+  .path select, #line { width: 100%; max-width: none; }
+  .path .menu-host { width: 100%; }
+  #line .sub, #conn-state .mono { display: none; }
+  .conn { order: 3; flex-wrap: wrap; justify-content: space-between; }
+  #conn-state { white-space: normal; }
+  #conn-action { flex: none; }
+  .top > .op { order: 4; flex-wrap: wrap; padding: 8px; border-radius: 8px; background: var(--sunken); }
+  .top > .op.on { background: var(--ok-soft); }
+  #op-text { flex-basis: 100%; white-space: normal; }
+  .tabs { order: 5; flex: 1; min-height: 0; display: block; padding: 0; background: none; border: 0; overflow-y: auto; }
+  .top > .push { order: 6; margin: 0; }
+  .top > .menu-host:last-of-type { order: 7; }
+  .top > .menu-host:not(.conn) { width: 100%; }
+  .tab-scroll { flex-direction: column; align-items: stretch; }
+  .tabs .tab-group { flex-direction: column; }
+  .tabs .tab-sep { align-self: stretch; width: auto; height: 1px; margin: 8px 0; background: var(--line); }
+  .tabs a { height: 34px; padding: 0 10px; justify-content: space-between; border-bottom: 0; border-radius: 6px; color: var(--text); }
+  .tabs a:hover { background: var(--sunken); }
+  .tabs a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+  #op-all, #settings { width: 100%; justify-content: flex-start; }
+  #op-all { height: auto; min-height: 28px; white-space: normal; text-align: left; }
+  #op-all::after { margin-left: auto; }
+  /* Menüs gehen neben der Leiste auf; die unteren wachsen nach oben */
+  .side .menu { left: calc(100% + 8px); right: auto; top: 0; }
+  .top > .push .menu, .top > .menu-host:last-of-type .menu { top: auto; bottom: 0; }
 }

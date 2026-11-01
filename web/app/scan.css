@@ -7,7 +7,7 @@
 /* schmaler bricht die Zeile um, der Knopf bleibt rechts */
 [data-area=scan] .scanbar > [data-start] { margin-left: auto; }
 /* breit: Suchzeile bleibt eine Zeile, Knöpfe ganz; kürzen dürfen sich nur die Texte */
-@media (min-width: 1150px) {
+@media (min-width: 1382px) {
   body:not(.show-help) [data-area=scan] .scanbar { flex-wrap: nowrap; }
   [data-area=scan] .scanbar > * { flex: none; }
   [data-area=scan] .scanbar > .grow { flex: 1; }

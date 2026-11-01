@@ -13,14 +13,15 @@
 [data-area=anlage] .row:not(.vrow):not(.new):not(.add) {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) 88px 104px minmax(0, 2fr) minmax(0, .8fr) 140px;
 }
-/* sieben Spalten: die Liste braucht mehr Platz als in den anderen Bereichen */
-@media (min-width: 1000px) {
-  [data-area=anlage] .split { grid-template-columns: minmax(0, 1fr) clamp(320px, 27vw, 420px); }
-}
 /* mittlere Breite: Zähler und Datenpunkte nur noch im Detailbereich, sonst bleibt vom Namen nichts */
-@media (min-width: 1000px) and (max-width: 1249px) {
+@media (min-width: 1000px) and (max-width: 1481px) {
   [data-area=anlage] .row:not(.vrow):not(.new):not(.add) { grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 2fr) minmax(0, .8fr) 140px; }
   [data-area=anlage] .row > :nth-child(3), [data-area=anlage] .row > :nth-child(4) { display: none; }
+}
+/* noch schmaler: auch der Anschluss steht nur noch im Detailbereich */
+@media (min-width: 1000px) and (max-width: 1299px) {
+  [data-area=anlage] .row:not(.vrow):not(.new):not(.add) { grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, .8fr) 140px; }
+  [data-area=anlage] .row > :nth-child(2) { display: none; }
 }
 [data-area=anlage] .row > * { min-width: 0; }
 [data-area=anlage] .row.head > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
