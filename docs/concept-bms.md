@@ -389,15 +389,44 @@ Browser / Node-RED          bmsio core                    Kieback&Peter controll
 
 **BACnet priorities: who has the say**
 
-A BACnet output has 16 priority levels. The controller uses the highest one that is set. bmsio
-writes at a configurable level (default 8, *manual operator*). The local programs and schedules
-in the controller usually write at a lower priority, so the operator's command wins.
+A commandable BACnet object has 16 priority levels (1 = highest). The controller uses the
+highest one that is set; if none is set, the *Relinquish_Default*. The BACnet standard
+recommends this use:
+
+| Priority | Use |
+|---|---|
+| 1 | Manual life safety |
+| 2 | Automatic life safety (fire, smoke) |
+| 3, 4 | free |
+| 5 | Critical equipment control |
+| 6 | Minimum on / off time |
+| 7 | free |
+| **8** | **Manual operator** (an operator at a workstation) |
+| 9–16 | free, often used by programs and schedules |
+
+bmsio writes at **8 by default**, because that is exactly what an operator command from a BMS
+is. Above it (1–7) stay life safety, critical equipment protection and minimum run times: a
+command from bmsio must never override a fire control or switch a compressor off before its
+minimum run time. Below it (9–16) are usually the controller's own programs and schedules, so
+the operator's command wins over them.
+
+The default is a site setting and can be changed per point. **At the pilot site this must be
+checked:** which priorities the Kieback&Peter and LOYTEC programs and schedules really use.
+If a program writes at 8 or higher, a command at 8 has no effect or is taken back.
+
+Not every object is commandable. A setpoint is often an Analog Value without a priority array;
+there bmsio writes the value directly, and "release" does not exist. The point details show
+which kind a point is.
 
 - **Release** (`{"release":true}`) removes bmsio's value at that level, and the controller goes
   back to its own program (*automatic*). The UI shows this as **Hand / Auto**: a point overridden
   by bmsio is marked "manual" until it is released.
 - The full priority array is shown in the point details, so it is visible who holds the point
   (bmsio, a local panel, a fire control at priority 1–2).
+- **Forgotten overrides** are a classic problem: a value at priority 8 stays until someone
+  releases it, also for months. bmsio therefore keeps a list **"Manual overrides"** of every
+  point it holds, with who, when and why. An override can be given a duration ("off for
+  2 hours"); bmsio releases it on its own afterwards.
 
 **Critical commands** (plant off, pumps, boilers) can require a confirmation at the button
 and a reason, which goes into the audit log. Which points count as critical is set in the
