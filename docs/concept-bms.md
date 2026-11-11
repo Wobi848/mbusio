@@ -93,7 +93,7 @@ Linux offers directly:
 | **Container image** | Docker / Podman, also on a NAS. |
 | **Ready SD card image** for the Raspberry Pi (later) | Flash, plug in, open the browser. |
 
-Updates through the package manager or the container; the binary does not update itself.
+Installation, updates with backup and automatic rollback: section 21.
 Serial ports are `/dev/ttyUSB*` and `/dev/serial/by-id/*` (stable names for USB adapters).
 Plugins run as separate processes, so Linux tools for limiting them (separate user, systemd
 sandboxing, cgroups) are available (section 12).
@@ -594,8 +594,8 @@ Nothing is removed from mbusio for this.
 
 | Phase | Content | Done when |
 |---|---|---|
-| **0 BACnet + MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV, EDE import; **built-in broker and topic tree** (section 11) with ACLs derived from the rights; **users, built-in roles with scope, the one rights check and the audit log** (section 18); the foundations of section 19; **MQTT as driver** (devices publishing into bmsio, auto-discovery, "listen and suggest"); MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics, an MQTT device (e.g. a Shelly) becomes a point next to them, and both can be watched in the browser and in any MQTT client. |
-| **1 Viewer** | Live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters) over MQTT over WebSocket, tag binding, trends; Modbus with profiles; M-Bus | The pilot plant runs on it, read-only, with graphics. |
+| **0 BACnet + MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV, EDE import; **built-in broker and topic tree** (section 11) with ACLs derived from the rights; **users, built-in roles with scope, the one rights check and the audit log** (section 18); the foundations of section 19; language system with German and English (section 20); package, systemd service and setup page (21.1); manual backup and restore (22); **MQTT as driver** (devices publishing into bmsio, auto-discovery, "listen and suggest"); MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics, an MQTT device (e.g. a Shelly) becomes a point next to them, and both can be watched in the browser and in any MQTT client. |
+| **1 Viewer** | Live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters) over MQTT over WebSocket, tag binding, trends; Modbus with profiles; M-Bus; one-click update with backup and rollback (21.2); scheduled backups to targets (22.2); French and Italian | The pilot plant runs on it, read-only, with graphics. |
 | **2 Engineering + plugins** | Discovery for all drivers, mapping rules, point list table, apply templates, versions, HTTP driver; plugin format, data plugins (profiles, templates, symbols, rules) and driver plugins, community index | A new site is set up without editing a file by hand; someone outside the project publishes a device profile. |
 | **3 Editor** | Graphic editor, symbol library, own templates, template diff, widget plugins, scripts in the browser, "Export as plugin" and "Share" | An engineer builds a new plant type in the browser. |
 | **4 Operation** | Writing (BACnet with priority, also over `…/set`), alarms with notification by scope and role, schedules, critical points with step-up, own roles, second factor, single sign-on (OIDC), four-eyes option, time-limited remote service access; KNX with ETS import; outputs (BACnet server, Modbus server, Home Assistant discovery, Sparkplug B) | It can run a building without a second system. |
@@ -628,6 +628,10 @@ protocols fit the same driver interface.
 - **Roles:** do the built-in roles (18.4) match how sites are run in practice? To be checked
   with operators and integrators.
 - **Performance targets** (section 19): realistic for the pilot and for larger sites?
+- **Package hosting:** where the apt repository and the signed releases live (GitHub Releases
+  plus a static apt repository, or a service such as Cloudsmith's free open source plan).
+- **Controller backup** (22.4): which of the pilot's controllers support BACnet backup and
+  restore?
 
 ## 16. Existing free tools, and why another one
 
@@ -862,7 +866,174 @@ the feature that needs them comes later.
 | **Engineering as versions** | Drafts and published versions (18.7) from the first editable thing | Undo and audit for engineering cannot be added afterwards. |
 | **Audit log** | Section 18.10, from the first write | Writes without a log cannot be explained later. |
 | **Secure by default** | TLS on (own certificate, ACME or self-signed), no default password, broker without anonymous access, secrets encrypted at rest | Weak defaults stay in the field for years. |
-| **Languages** | All texts through the translation system from the first screen, as in mbusio | Retrofitting translation means touching every screen. |
-| **Backup** | One encrypted file with everything (model, versions, users, history optional), restore on a new machine; as in mbusio | A BMS without tested restore is a risk for the building. |
+| **Languages** | No visible text in code; Fluent files, codes and parameters in data (section 20) | Retrofitting translation means touching every screen. |
+| **Backup** | Encrypted, scheduled, checked; restore with writing switched off until confirmed (section 22) | A BMS without tested restore is a risk for the building. |
 | **Performance targets** | Per site at least 50 000 points and 2 000 value changes per second on a Raspberry Pi 5 class device; tested in CI with simulators | The data paths are designed for it from the start instead of being rewritten. |
 | **Simulators in CI** | BACnet device and MQTT devices simulated, every driver tested against them | Without them every change needs a real plant. |
+
+## 20. Languages
+
+bmsio is multilingual from the first line of code. **No text that a person reads is written in
+the code**, in any part: interface, server messages, alarms, e-mails, reports, logs meant for
+users, templates, plugins. mbusio shows what happens otherwise: texts written as `tr("deutsch",
+"english")` pairs in the code had to be collected afterwards to add more languages
+([concept-languages.md](concept-languages.md)).
+
+### 20.1 Rules
+
+| Rule | How |
+|---|---|
+| **Keys, not texts, in code** | Code only uses message ids: `alarm-ack-done`, `point-write-denied`. |
+| **One format for server and browser** | [Project Fluent](https://projectfluent.org/) files (`.ftl`), read by `fluent-rs` in Rust and `@fluent/bundle` in the browser. Fluent handles plurals, gender and variables in the translation, not in the code. |
+| **Neutral data, texts at the edge** | The core, the database, the API and MQTT carry **codes and parameters**, not sentences: an alarm is `{"code":"limit-high","value":31.2,"limit":30}`. The text is made when a person reads it, in *their* language. |
+| **Audit log and messages in the reader's language** | Stored as code + parameters, so the same entry reads in German for one user and French for the next. |
+| **E-mails and notifications** | In the language of each recipient, not of the sender or the server. |
+| **Formats from the locale** | Numbers, dates, times, decimal comma and units through the browser's `Intl` and CLDR data, never by hand. |
+| **Tests fail** | CI fails on a missing key in any language that is in the menu, on an unused key, and on visible text written directly in code or markup (lint). |
+
+### 20.2 What is translated, and what is not
+
+| Content | Translated? |
+|---|---|
+| Interface, server messages, alarms, reports, e-mails, setup and update pages | Always, by the project |
+| **Templates, symbols, device profiles** | Yes: they carry their own `.ftl` files, so "Supply air temperature" in a template appears in each user's language. |
+| **Plugins** | Yes, same mechanism; the plugin starter (12.3) already contains the language files. |
+| Names given by the engineer (point names, plant names) | Optional: a name can have translations; without, it is shown as entered. Names from templates are translated automatically. |
+| Tags, codes, topics, API | Never: they are the neutral language of the system (English). |
+
+### 20.3 Languages and review
+
+- Start with **German and English**; **French and Italian** early, because the pilot is in
+  Switzerland; more through the community.
+- A language enters the menu only after **review by someone from the trade**, as in mbusio.
+  A BMS has its own words (*Sollwert*, *Rückmeldung*, *Störung*, *Pikett*), and a wrong word
+  in an alarm text is a risk.
+- A **glossary** per language fixes these words, so all translators use the same terms.
+- Community translation through **Weblate** (open source, free hosting for open source
+  projects), with the glossary and the review step.
+- Layout uses CSS logical properties, so right-to-left languages are not blocked later.
+
+## 21. Installation and updates
+
+Goal: **installed in five minutes, updated with one click, and an update can never leave a
+building without its BMS.**
+
+### 21.1 Installation
+
+| Way | Steps |
+|---|---|
+| **Debian, Ubuntu, Raspberry Pi OS** (recommended) | Add the bmsio package repository (one documented command, also as a short script that does only that) and `apt install bmsio`. Starts at once as a systemd service. |
+| **Raspberry Pi image** | Flash to an SD card or SSD, plug in, open `http://bmsio.local`. |
+| **Container** | `docker run` or a ready `compose.yaml`; also on a NAS. |
+| **Other Linux** | Static binary, copy and start; a systemd unit file is included. |
+
+Then, in the browser, the **setup page** (18.8) does the rest in one flow:
+
+1. Language
+2. First administrator (with a second factor offered)
+3. Site name and time zone
+4. Network: which network interface is the BACnet network; certificate (self-signed, own, or
+   Let's Encrypt if reachable)
+5. Backup target (21.3), with "later" allowed but reminded
+6. Or instead of all this: **"Restore from backup"** (22.3)
+
+After the setup, the next step is discovery (section 10). Nobody edits a configuration file;
+for automated installs every setup answer can also be given as a file or environment variables.
+
+### 21.2 Updates
+
+- **One click in the browser.** bmsio shows that an update is available, what changes
+  (changelog, in the user's language) and whether it contains database changes. Checking for
+  updates is a setting (on by default, can be switched off); it only reads the public release
+  list, it sends nothing about the installation.
+- **Offline update:** upload the update file in the browser, for sites without internet.
+- **Signed:** releases and packages are signed; bmsio refuses an unsigned or changed file.
+- **Maintenance window:** an update can be scheduled ("tonight at 02:00") or run now.
+- **What happens on an update:**
+  1. Automatic backup (section 22) before anything is changed.
+  2. The new version is installed next to the old one.
+  3. bmsio restarts on the new version and migrates the database.
+  4. **Health check:** web interface, broker, drivers connected, values flowing.
+  5. If the check fails within a few minutes: **automatic rollback** to the old version and
+     the backup from step 1, and an alarm saying why.
+- **Short break only:** the controllers run on their own, so a restart of bmsio of a few
+  seconds does not affect the plants. Values arriving during the restart are taken from the
+  devices again (BACnet COV re-subscribe, retained MQTT values).
+- **Channels:** *stable* (default) and *beta*. Several sites can be updated together from a hub
+  later, one after another, stopping at the first failure.
+- **Plugins** are updated separately, with the same backup and rollback.
+
+Technically, bmsio runs as an unprivileged user. Installing a package needs root, so a very
+small separate service (`bmsio-updater`, root) does only one thing: install a **signed bmsio
+package** it is pointed to, and roll back. For containers, the update page shows the new image
+tag and the command, because a container should be updated from outside.
+
+### 21.3 Versions and compatibility
+
+- Semantic versioning. A minor update never breaks plugins, topics or the API (`v1`). A major
+  version keeps the old interfaces working for at least one major version, with warnings.
+- Every database migration is tested in CI against a database of each earlier release.
+- Downgrade is only through the backup taken before the update; the rollback (21.2) does this
+  automatically.
+
+## 22. Backup and restore
+
+A BMS without a tested restore is a risk for the building. Backup is therefore part of the
+setup, runs on its own, and a restore is as simple as an installation.
+
+### 22.1 What is in a backup
+
+| Part | Included |
+|---|---|
+| Model, points, tags, plants | always |
+| Engineering versions, templates, graphics, symbols | always |
+| Drivers and their settings, device profiles, mapping rules | always |
+| Users, roles, assignments, service accounts (passwords only as hashes) | always |
+| Certificates, keys, secrets (e.g. MQTT bridge passwords) | always, encrypted |
+| Alarm configuration, schedules, notification and on-call plans | always |
+| Installed plugins with their data | always |
+| Audit log | always |
+| **History** (trends) | selectable: none, last 30 days, all; large, so it can also be backed up separately |
+
+Not included, because it is rebuilt: live values, MQTT retained messages, caches.
+
+### 22.2 Backups on their own
+
+- **Scheduled:** daily by default, plus before every update (21.2) and before a restore.
+- **Targets:** local disk, USB stick, network share (SMB, NFS), SFTP, S3-compatible storage,
+  WebDAV (e.g. Nextcloud); later the hub (section 3). Several targets at once are possible.
+- **Retention:** e.g. 7 daily, 4 weekly, 12 monthly; set per target.
+- **Encrypted:** AES-256-GCM with a key from a backup password (as in mbusio). The password
+  is never stored in the backup. bmsio warns clearly that a lost password means a lost backup.
+- **Checked:** every backup is read back and its checksum checked. A failed or missing backup
+  is an **alarm in bmsio**, like a plant fault, so it is noticed.
+- **Consistent:** taken while bmsio runs, from a consistent database snapshot (SQLite online
+  backup), without stopping the drivers.
+- **Open format:** a documented archive (manifest, JSON, SQLite), so the data is readable even
+  without bmsio (section 17).
+
+### 22.3 Restore
+
+- **On new hardware** (the Raspberry Pi died): install bmsio, choose **"Restore from backup"**
+  on the setup page, pick the file or the backup target, enter the password. Done.
+- **On the same machine:** settings → backup → choose a backup → restore. A backup of the
+  current state is taken first, so a restore can itself be undone.
+- **Writing is off after a restore.** The restored bmsio reads from all devices but **does not
+  write** (no commands, no schedules sent) until an administrator confirms. A restored system
+  must not switch plants on its own based on an old state.
+- **Partial restore:** only engineering (one version, one plant, one template), only users, or
+  only history; e.g. to undo an engineering mistake without touching anything else. Within
+  engineering, versions (18.7) are usually the quicker way.
+- **Restore test:** a backup can be opened in a **read-only test mode** to see what is in it,
+  without changing the running system.
+- **Move to other hardware** is the same as a restore: backup on the old machine, restore on
+  the new one, including site name and certificates.
+
+### 22.4 Backups of the controllers (later)
+
+The BMS knows the plant, but the programs live in the controllers. Where controllers support
+the BACnet backup and restore procedure (configuration files read and written through BACnet),
+bmsio can back up their configuration on a schedule and keep it with the site backup.
+Support differs between manufacturers and models; for others bmsio at least keeps the
+discovered object list and EDE data, so a replaced controller can be checked against the old
+state. To be checked with the Kieback&Peter and LOYTEC controllers at the pilot site.
