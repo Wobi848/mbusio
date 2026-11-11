@@ -465,16 +465,18 @@ Nothing is removed from mbusio for this.
 
 | Phase | Content | Done when |
 |---|---|---|
-| **0 BACnet → MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV; **built-in broker and topic tree** (section 11) with users and ACLs; MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics and can be watched in the browser and in any MQTT client. |
-| **1 Viewer** | Live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters) over MQTT over WebSocket, tag binding, trends; MQTT as driver with auto-discovery and "listen and suggest"; Modbus with profiles; M-Bus | The pilot plant runs on it, read-only, with graphics. |
+| **0 BACnet + MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV, EDE import; **built-in broker and topic tree** (section 11) with users and ACLs; **MQTT as driver** (devices publishing into bmsio, auto-discovery, "listen and suggest"); MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics, an MQTT device (e.g. a Shelly) becomes a point next to them, and both can be watched in the browser and in any MQTT client. |
+| **1 Viewer** | Live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters) over MQTT over WebSocket, tag binding, trends; Modbus with profiles; M-Bus | The pilot plant runs on it, read-only, with graphics. |
 | **2 Engineering + plugins** | Discovery for all drivers, mapping rules, point list table, apply templates, versions, HTTP driver; plugin format, data plugins (profiles, templates, symbols, rules) and driver plugins, community index | A new site is set up without editing a file by hand; someone outside the project publishes a device profile. |
 | **3 Editor** | Graphic editor, symbol library, own templates, template diff, widget plugins | An engineer builds a new plant type in the browser. |
 | **4 Operation** | Writing (BACnet with priority, also over `…/set`), alarms, schedules, users and rights, audit log; KNX with ETS import; outputs (BACnet server, Modbus server, Home Assistant discovery, Sparkplug B) | It can run a building without a second system. |
 | **5 Hub + more** | Hub across sites; OPC UA, LoRaWAN; app plugins, WebAssembly plugins | Multi-site customer. |
 
-Phase 0 is **BACnet in, MQTT out**: the pilot site is BACnet, and a BACnet-to-MQTT gateway with
-a clean topic tree is already useful on its own, before there is a single graphic. It also
-proves the two hardest parts early: the BACnet stack and the data model behind the topics.
+Phase 0 is **BACnet and MQTT, both directions for MQTT**: the pilot site is BACnet, and MQTT is
+the backbone, so both are needed from the start. A BACnet/MQTT gateway with a clean topic tree
+is already useful on its own, before there is a single graphic. It also proves the hardest parts
+early: the BACnet stack, the data model behind the topics, and that two very different
+protocols fit the same driver interface.
 
 ## 15. Open questions
 
