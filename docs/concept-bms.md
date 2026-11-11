@@ -2,7 +2,8 @@
 
 Date: 11.11.2026 · Status: **draft, idea stage** · Working title: **bmsio**
 
-A building management system (BMS) in the spirit of Avelon: everything in the browser, plant
+A building management system (BMS; in German *Gebäudeleittechnik*, GLT; in the US often
+*building automation system*, BAS) in the spirit of Avelon: everything in the browser, plant
 graphics that look good, engineering that is fast. The difference: **free and open source (MIT)**,
 self-hosted, **open to plugins from the community**, and **simple enough that one person can set
 up a small site in an afternoon**.
@@ -192,6 +193,7 @@ library, so the community builds up the common plant types.
 |---|---|
 | **Discovery** | Same for every protocol: BACnet/IP (Who-Is, object list), Modbus (device profile), M-Bus (mbusio's scan), MQTT (auto-discovery or listen and suggest), KNX (ETS import) and more (section 10). Shows what was found and what is new. |
 | **Mapping rules** | Rules from object name or AKS to name, tags, unit, plant. Example: `*_TE*` → `temp sensor`. Applied on discovery and on demand; the result is shown before it is saved. |
+| **EDE import** | Import BACnet point lists in the EDE format (*Engineering Data Exchange*, a CSV layout many vendor tools export). Points, names, units and descriptions arrive before the first scan, and the mapping rules tag them. |
 | **Point list** | All points as a table: filter, multi-select, edit in place, fill down, find and replace. CSV/Excel import and export, layout close to a VDI 3814 function list. |
 | **Templates** | Library, editor, apply to plants, slot table, version diff (section 5). |
 | **Graphic editor** | Section 6. |
@@ -246,7 +248,7 @@ URI per driver (`bacnet://…`, `modbus://…`, `mqtt://…`), stored only in `s
 
 | Protocol | What makes it simple | Phase |
 |---|---|---|
-| **BACnet/IP** (client) | Who-Is → device list → object list with names, units, descriptions. **COV subscriptions** instead of polling. Write with priority and release. Read the controllers' schedules, trend logs and alarms (event notification). BBMD / foreign device for routed networks. | 0 (read), 4 (write, schedules, alarms) |
+| **BACnet/IP** (client) | Who-Is → device list → object list with names, units, descriptions. **COV subscriptions** instead of polling. Write with priority and release. Read the controllers' schedules, trend logs and alarms (event notification). BBMD / foreign device for routed networks. EDE file import. Later **BACnet/SC** (secure connect, TLS), which newer controllers such as LOYTEC's already offer. | 0 (read), 4 (write, schedules, alarms) |
 | **Modbus TCP / RTU** | **Device profile library** (YAML: register, type, scaling, unit, tags). Pick the device model, enter the unit ID, done. Profiles are shared like templates. Without a profile: register table to fill in, with a "read now" button per row. | 1 |
 | **MQTT** | **Built-in broker** (optional), so devices can publish straight to bmsio without a separate broker; or client to an existing broker. **Auto-discovery** for common formats: Home Assistant discovery, Sparkplug B, Zigbee2MQTT, Shelly, Tasmota. For everything else: **listen and suggest** (bmsio listens for a minute, shows topics with their JSON fields and values, click a field to make it a point). Writing by command topic. (This is MQTT *into* bmsio from other devices; the built-in broker and topic tree are section 11.) | 1 |
 | **M-Bus** (wired) | From mbusio, including scan, secondary addresses and the decoder. | 1 |
@@ -481,8 +483,11 @@ proves the two hardest parts early: the BACnet stack and the data model behind t
 - **Editor:** maxGraph or own SVG editor? Decide after a one-week prototype of both.
 - **Symbol style:** which symbol conventions do the engineers in the target market expect?
   To be reviewed by someone from the trade, like the languages.
-- **First pilot site:** BACnet (decided). Open: which controllers (make, model), how many points,
-  BACnet/IP directly or MS/TP behind a router, BBMD needed?
+- **First pilot site:** BACnet (decided), controllers from **Kieback&Peter** (DDC4000 series)
+  and **LOYTEC** (L-INX automation servers). Both are BTL-listed with BACnet/IP; LOYTEC also
+  offers BACnet/SC, OPC UA and MQTT on some models. Open: exact models and firmware, number of
+  points, BACnet/IP directly or MS/TP behind a router, BBMD needed, can the vendor tools export
+  EDE files?
 - **Broker:** embedded `rumqttd` good enough (MQTT 5, ACLs, WebSocket), or ship Mosquitto next to
   the binary? Decide with a load test of a few thousand points.
 - **Licence of templates and symbols** in a shared library (MIT as well, or CC BY?).
@@ -496,5 +501,11 @@ proves the two hardest parts early: the BACnet stack and the data model behind t
 | **Home Assistant**, **openHAB** | Huge driver choice, free | Made for homes: no plant templates, no BMS-style point lists, alarms or commissioning. |
 | **FUXA** (web SCADA, MIT) | Web-based SVG editor, Modbus/BACnet/OPC UA | General SCADA: graphics are bound to addresses, no template-to-many-plants workflow, no semantic model. Worth studying for its editor. |
 | **Node-RED** | Flexible glue | A tool for integrators, not an operator interface. |
+| **OpenRemote** (AGPL) | Open-source IoT platform aimed at buildings and real estate, protocol agents, edge gateway | Closest in spirit. Asset model and rules, but no plant templates with graphics, and AGPL limits embedding. Worth a close look. |
+| **ThingsBoard** (CE: Apache 2.0) | Mature IoT platform with dashboards and MQTT; newer versions have SCADA symbols | Device and telemetry centred, not plant centred; BACnet only through a gateway. |
+| **ScadaBR**, **Rapid SCADA** | Free SCADA, ScadaBR with BACnet | Classic SCADA engineering, dated web UI, no semantic model. |
+| **VOLTTRON** (Eclipse), **BEMServer** | Building energy research and energy management | Platforms for data and energy analysis, not an operator interface with graphics. |
+| **Haxall** (open core of SkySpark) | Project Haystack reference, tags and analytics | Shows how Haystack is done well; not a BMS with graphics and BACnet operation. |
+| Vendor systems (e.g. **Qanteon** from Kieback&Peter, **LWEB-900** from LOYTEC), **Niagara**, **Avelon** | Complete and proven | Commercial, licensed per site or point, tied to one vendor's world. |
 
 The gap bmsio fills: **semantic model + templates + engineering in the browser**, free.
