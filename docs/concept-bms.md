@@ -4,7 +4,7 @@ Date: 11.11.2026 · Status: **draft, idea stage** · Working title: **bmsio**
 
 A building management system (BMS; in German *Gebäudeleittechnik*, GLT; in the US often
 *building automation system*, BAS) in the spirit of Avelon: everything in the browser, plant
-graphics that look good, engineering that is fast. The difference: **free and open source (MIT)**,
+graphics that look good, engineering that is fast. The difference: **100% open source**,
 self-hosted, **open to plugins from the community**, and **simple enough that one person can set
 up a small site in an afternoon**.
 
