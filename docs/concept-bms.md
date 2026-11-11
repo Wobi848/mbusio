@@ -211,8 +211,8 @@ library, so the community builds up the common plant types.
   history, notification by e-mail and push; later SMS through a gateway.
 - **Schedules:** weekly program with exceptions and holidays. If the controller has a BACnet
   schedule, it is edited there; otherwise bmsio writes the values itself.
-- **Users and rights:** roles (viewer, operator, engineer, admin), per site and building;
-  every write and acknowledgement goes into an audit log.
+- **Users and rights:** roles with a scope in the tree, one rights check for UI, API, MQTT
+  and plugins, audit log, remote service access (section 18).
 
 ## 9. Stack
 
@@ -594,12 +594,12 @@ Nothing is removed from mbusio for this.
 
 | Phase | Content | Done when |
 |---|---|---|
-| **0 BACnet + MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV, EDE import; **built-in broker and topic tree** (section 11) with users and ACLs; **MQTT as driver** (devices publishing into bmsio, auto-discovery, "listen and suggest"); MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics, an MQTT device (e.g. a Shelly) becomes a point next to them, and both can be watched in the browser and in any MQTT client. |
+| **0 BACnet + MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV, EDE import; **built-in broker and topic tree** (section 11) with ACLs derived from the rights; **users, built-in roles with scope, the one rights check and the audit log** (section 18); the foundations of section 19; **MQTT as driver** (devices publishing into bmsio, auto-discovery, "listen and suggest"); MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics, an MQTT device (e.g. a Shelly) becomes a point next to them, and both can be watched in the browser and in any MQTT client. |
 | **1 Viewer** | Live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters) over MQTT over WebSocket, tag binding, trends; Modbus with profiles; M-Bus | The pilot plant runs on it, read-only, with graphics. |
 | **2 Engineering + plugins** | Discovery for all drivers, mapping rules, point list table, apply templates, versions, HTTP driver; plugin format, data plugins (profiles, templates, symbols, rules) and driver plugins, community index | A new site is set up without editing a file by hand; someone outside the project publishes a device profile. |
 | **3 Editor** | Graphic editor, symbol library, own templates, template diff, widget plugins, scripts in the browser, "Export as plugin" and "Share" | An engineer builds a new plant type in the browser. |
-| **4 Operation** | Writing (BACnet with priority, also over `…/set`), alarms, schedules, users and rights, audit log; KNX with ETS import; outputs (BACnet server, Modbus server, Home Assistant discovery, Sparkplug B) | It can run a building without a second system. |
-| **5 Hub + more** | Hub across sites; OPC UA, LoRaWAN; app plugins, WebAssembly plugins | Multi-site customer. |
+| **4 Operation** | Writing (BACnet with priority, also over `…/set`), alarms with notification by scope and role, schedules, critical points with step-up, own roles, second factor, single sign-on (OIDC), four-eyes option, time-limited remote service access; KNX with ETS import; outputs (BACnet server, Modbus server, Home Assistant discovery, Sparkplug B) | It can run a building without a second system. |
+| **5 Hub + more** | Hub across sites, organisations and integrator access across customers, on-call plans; OPC UA, LoRaWAN; app plugins, WebAssembly plugins | Multi-site customer. |
 
 Phase 0 is **BACnet and MQTT, both directions for MQTT**: the pilot site is BACnet, and MQTT is
 the backbone, so both are needed from the start. A BACnet/MQTT gateway with a clean topic tree
@@ -625,6 +625,9 @@ protocols fit the same driver interface.
 - **Licence of templates and symbols** in a shared library (MIT as well, or CC BY?).
 - **Plugin index:** who reviews pull requests to the index, and who holds the signing key?
 - **Plugin API stability:** from which version is the plugin API promised to stay compatible?
+- **Roles:** do the built-in roles (18.4) match how sites are run in practice? To be checked
+  with operators and integrators.
+- **Performance targets** (section 19): realistic for the pilot and for larger sites?
 
 ## 16. Existing free tools, and why another one
 
@@ -677,3 +680,189 @@ that is shared is open as well. Private plugins can be anything and are simply n
 
 The licence must be chosen before the first outside contribution: without a CLA it can hardly
 be changed afterwards.
+
+## 18. Users, roles and rights
+
+A BMS switches real plants. Who may see, operate, change and administer what must be clear,
+enforced everywhere and traceable. This section is part of the foundation (section 19): it is
+built in phase 0 and only extended later, never retrofitted.
+
+### 18.1 Who acts: principals
+
+Everything that can do something in bmsio is a **principal**. All of them go through the same
+rights check.
+
+| Principal | Example | Logs in with |
+|---|---|---|
+| **User** | Operator, technician, engineer | Password + optional second factor, or single sign-on |
+| **Service account** | Node-RED, Home Assistant, a Shelly, Grafana | API token or MQTT user/password, created on the connection page (11.6) |
+| **Plugin** | SNMP driver, energy report app | Own identity created on install, rights from its manifest (12.2) |
+| **Script** | Calculated point | Own identity, may only touch the points it names (12.4) |
+| **Kiosk** | Wall screen in the entrance | Device token bound to a few pages, read-only |
+
+### 18.2 Rights are permissions on a part of the tree
+
+A right is always **a permission on a scope**. The scope is a node of the model tree (section 4):
+the whole installation, a site, a building, a floor, a plant. A permission on a node applies to
+everything below it.
+
+```
+Anna   Operator       on  site "Headquarters"
+Anna   Engineer       on  building "Headquarters / Annex"
+Ben    Viewer         on  everything
+Ben    Operator       on  plant "HQ / Main / AHU 01"
+Node-RED  Reader      on  site "Headquarters"
+```
+
+A principal can have several such assignments; the rights add up. There is no "deny": rights
+are only granted, which keeps them understandable. For a point, the effective rights are shown
+in the point details ("Anna may: see, operate; why: Operator on site Headquarters").
+
+### 18.3 Permissions
+
+Permissions are fine-grained and fixed in the code; roles (18.4) bundle them.
+
+| Area | Permission | Meaning |
+|---|---|---|
+| See | `view` | Graphics, values, point lists |
+| | `history.view` | Trends and history, export |
+| | `alarm.view` | Alarms and alarm history |
+| Operate | `alarm.ack` | Acknowledge alarms |
+| | `point.write` | Write normal points (setpoints, switches) |
+| | `point.write.critical` | Write points marked critical (18.6) |
+| | `override.release` | Release manual overrides of others |
+| | `schedule.edit` | Change schedules and holidays |
+| Engineer | `model.edit` | Points, plants, tags, mapping rules, drivers |
+| | `graphic.edit` | Graphics and templates |
+| | `engineering.publish` | Put an engineering draft into operation (18.7) |
+| | `alarm.config` | Alarm limits, classes, notification |
+| Administer | `user.manage` | Users, roles, assignments in the scope |
+| | `plugin.install` | Install, update, remove plugins |
+| | `plugin.trust` | Trust unsigned plugins |
+| | `system.config` | Network, certificates, broker, backup, updates |
+| | `audit.view` | Read the audit log |
+
+New permissions only come with a new feature and are given to the built-in roles at the same
+time, so an update never takes rights away or grants them by surprise.
+
+### 18.4 Roles
+
+**Built-in roles**, cannot be deleted, cover most sites:
+
+| Role | Typical person | Permissions |
+|---|---|---|
+| **Viewer** | Caretaker, management, tenant | `view`, `history.view`, `alarm.view` |
+| **Operator** | Facility manager, caretaker on duty | Viewer + `alarm.ack`, `point.write`, `schedule.edit` |
+| **Technician** | Service technician | Operator + `point.write.critical`, `override.release`, driver diagnostics |
+| **Engineer** | System integrator, planner | Technician + `model.edit`, `graphic.edit`, `engineering.publish`, `alarm.config` |
+| **Administrator** | IT, owner of the installation | Everything, including `user.manage`, `plugin.*`, `system.config`, `audit.view` |
+| **Reader** (for integrations) | Node-RED, Grafana | `view`, `history.view` |
+
+**Own roles** can be put together from the permissions, e.g. "Operator without schedules" or
+"Energy manager" (`view`, `history.view` only). A role can be copied from a built-in one.
+
+### 18.5 One check, everywhere
+
+There is **exactly one function in the core** that decides: *may this principal do this action
+on this object?* Every way into bmsio calls it:
+
+| Way in | How the check applies |
+|---|---|
+| Browser UI | The UI hides what is not allowed, but the server checks every request again. Hiding is comfort, not security. |
+| REST API | Every request, by token. |
+| MQTT | The broker's ACLs are **derived** from the assignments: subscribe to the subtrees in scope with `view`, publish to `…/set` only with `point.write`; `…/set` on critical points is checked again in the core with `point.write.critical`. Changes to rights take effect at once, also for open connections. |
+| Plugins, scripts | Through their identity, the same as users. A plugin can never have more rights than its manifest says, and never more than the admin who installed it. |
+
+This is the most important rule of this section: **no feature may check rights on its own
+way.** Tests check every API endpoint and topic against the permission table.
+
+### 18.6 Protection for critical actions
+
+- **Critical points** are marked in the template or point (e.g. plant on/off, boiler, chiller,
+  fire dampers if read). Writing them needs `point.write.critical`, a confirmation at the
+  button and a reason.
+- **Step-up:** critical actions and all of "Administer" ask for the password or second factor
+  again if the last check is older than a few minutes.
+- **Four-eyes principle (optional, per site):** publishing engineering changes or changing
+  users can require approval by a second person with the same right.
+
+### 18.7 Engineering as drafts
+
+Engineering changes (points, templates, graphics, alarm limits) are made in a **draft**. Only
+`engineering.publish` puts the draft into operation, as a new version (section 7, Versions).
+Operators therefore never see half-finished changes, and every change in operation has an author,
+a time and a comment. A version can be rolled back.
+
+### 18.8 Logging in
+
+- **Local users** with password (Argon2id, length over complexity rules, rate limit and
+  temporary lock after failed attempts).
+- **Second factor:** TOTP (authenticator app) and passkeys (WebAuthn). An admin can require it
+  per role, recommended at least for Engineer and Administrator.
+- **Single sign-on** with OpenID Connect (Microsoft Entra ID, Google, Keycloak, Authentik, …).
+  Groups from the identity provider can be mapped to role assignments, so leaving the company
+  also removes access to bmsio.
+- **Sessions** expire after inactivity (setting per role; a kiosk never, an Administrator after
+  15 minutes).
+- **No default password.** On the first start bmsio shows a setup page that creates the first
+  administrator; until then nothing else is reachable.
+- **Emergency access:** whoever has a shell on the Linux machine can reset an administrator
+  with `bmsio admin reset` (logged). There is no hidden master password.
+
+### 18.9 Remote service access
+
+A typical case: the integrator's technician must help a customer's site. Instead of a shared
+password:
+
+- The customer's administrator grants a **time-limited access** ("Technician for company X,
+  site Headquarters, 8 hours"), or the technician requests it and the customer approves.
+- The access ends on its own. Everything the technician does is in the audit log under their
+  own name.
+- On a hub (section 3), an integrator organisation can be given access to the sites of several
+  customers, each customer deciding for themselves.
+
+### 18.10 Audit log
+
+- Logged: logins and failed logins, every write and release, alarm acknowledgements, schedule
+  changes, published engineering versions, user and rights changes, plugin installs, system
+  settings. Each entry with principal, time, object, old and new value, reason and way in (UI,
+  API, MQTT, plugin).
+- **Append-only and tamper-evident:** every entry contains a hash of the previous one, so a
+  deleted or changed entry is noticed.
+- Searchable and exportable (CSV), with a retention time per site.
+- Viewing needs `audit.view`; users can always see their own entries.
+
+### 18.11 Alarm notification follows the rights
+
+Who is notified of an alarm is set by **scope and role**, not by a list of e-mail addresses per
+alarm: "alarms of class A in building Annex go to the Operators of that building". Later
+**on-call plans** (Pikett) on top: who is on duty when, with escalation if nobody acknowledges.
+Only someone who may see a plant receives its alarms.
+
+### 18.12 Personal data
+
+User names, e-mail addresses, phone numbers and the audit log are personal data (GDPR, Swiss
+revDSG). bmsio stores only what it needs, shows a user their stored data, and can anonymise
+the entries of a deleted user in the audit log after the retention time.
+
+## 19. Foundations to get right from the start
+
+These decisions are hard or impossible to change later. They are built in phase 0, even where
+the feature that needs them comes later.
+
+| Foundation | Decision | Why now |
+|---|---|---|
+| **One rights check** | Section 18.5, from the first API endpoint | Retrofitting rights means touching every feature. |
+| **Stable ids** | Every object (point, plant, template, user, version) has a UUIDv7; names are never keys | Renaming must never break history, graphics, topics or integrations. |
+| **Multi-site in the model** | Every record carries its site id, also on a single-site box | A site can later join a hub without migration. |
+| **Time** | Stored in UTC; every site has a time zone; schedules are in local time and handle daylight saving | Mixing times is the most common source of wrong trends and switching an hour too early. |
+| **Units** | Every value has a unit (UCUM / QUDT codes); conversion only for display | Templates and plugins can rely on it; °C vs K vs °F never gets mixed up. |
+| **Quality on every value** | good / stale / fault / manual, from the driver to the UI | Added later, every driver and widget would have to be touched again. |
+| **Versioned interfaces** | `bmsio/v1/…` topics, `/api/v1/…`, plugin API version, database migrations from the first schema | Integrations and plugins of others must not break with an update. |
+| **Engineering as versions** | Drafts and published versions (18.7) from the first editable thing | Undo and audit for engineering cannot be added afterwards. |
+| **Audit log** | Section 18.10, from the first write | Writes without a log cannot be explained later. |
+| **Secure by default** | TLS on (own certificate, ACME or self-signed), no default password, broker without anonymous access, secrets encrypted at rest | Weak defaults stay in the field for years. |
+| **Languages** | All texts through the translation system from the first screen, as in mbusio | Retrofitting translation means touching every screen. |
+| **Backup** | One encrypted file with everything (model, versions, users, history optional), restore on a new machine; as in mbusio | A BMS without tested restore is a risk for the building. |
+| **Performance targets** | Per site at least 50 000 points and 2 000 value changes per second on a Raspberry Pi 5 class device; tested in CI with simulators | The data paths are designed for it from the start instead of being rewritten. |
+| **Simulators in CI** | BACnet device and MQTT devices simulated, every driver tested against them | Without them every change needs a real plant. |
