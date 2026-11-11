@@ -4,10 +4,11 @@ Date: 11.11.2026 · Status: **draft, idea stage** · Working title: **bmsio**
 
 A building management system (BMS) in the spirit of Avelon: everything in the browser, plant
 graphics that look good, engineering that is fast. The difference: **free and open source (MIT)**,
-self-hosted, and **simple enough that one person can set up a small site in an afternoon**.
+self-hosted, **open to plugins from the community**, and **simple enough that one person can set
+up a small site in an afternoon**.
 
 This would be its own project and repository. mbusio stays a standalone tool and becomes the
-first driver (see section 11).
+first driver (see section 12).
 
 ---
 
@@ -21,9 +22,12 @@ first driver (see section 11).
   once and applied to many plants. A change to the template reaches every plant.
 - **Good-looking graphics** out of the box: a symbol library and widgets, so a site looks right
   without a graphic designer.
-- **One binary**, like mbusio: Windows, Linux, Raspberry Pi. No installation, no separate
-  database server for a small site.
+- **One binary, Linux only** (x86-64 and ARM64, so also the Raspberry Pi). No separate database
+  server for a small site. The *server* runs on Linux; the *users* work with any browser on any
+  system, Windows included.
 - **Free:** MIT licence, no point counts, no per-site fees.
+- **Extensible by the community:** drivers, device profiles, templates, symbols, widgets and
+  apps as plugins (section 11).
 
 **Non-goals (for now)**
 
@@ -73,6 +77,21 @@ Measured by these rules, every design decision is checked against them:
   histories across many sites.
 
 The engineering always happens on the site's model; the hub shows and edits it remotely.
+
+**Linux only.** Supporting one operating system keeps the project small and lets it use what
+Linux offers directly:
+
+| Delivery | For |
+|---|---|
+| **Static binary** (musl) for x86-64 and ARM64 | Any distribution, copy and start. |
+| **`.deb` package** with a **systemd** service | Debian, Ubuntu, Raspberry Pi OS: `apt install`, starts on boot, restarts on failure, logs in the journal. |
+| **Container image** | Docker / Podman, also on a NAS. |
+| **Ready SD card image** for the Raspberry Pi (later) | Flash, plug in, open the browser. |
+
+Updates through the package manager or the container; the binary does not update itself.
+Serial ports are `/dev/ttyUSB*` and `/dev/serial/by-id/*` (stable names for USB adapters).
+Plugins run as separate processes, so Linux tools for limiting them (separate user, systemd
+sandboxing, cgroups) are available (section 11).
 
 ## 4. Data model
 
@@ -193,7 +212,9 @@ library, so the community builds up the common plant types.
 
 | Layer | Choice | Why |
 |---|---|---|
+| Platform | **Linux** only, x86-64 and ARM64 | One system to test and support (section 3). |
 | Core | **Rust** (tokio, axum) | Proven in mbusio: one file, small, stable in continuous operation. |
+| Plugins | Separate processes (any language), JSON over stdin/stdout; data packages as files; widgets as web components in a sandbox | Section 11. |
 | Storage | **SQLite** on a site; **PostgreSQL + TimescaleDB** on a hub | No database server for small sites; long histories across many sites on the hub. |
 | Drivers | See section 10. Building blocks: `tokio-modbus`, `rumqttc` (client), `rumqttd` (embedded broker), `opcua`, M-Bus from mbusio; BACnet own or a C stack through FFI | BACnet/IP is required for a real BMS. The Rust crates are still thin. |
 | Frontend | **TypeScript + Svelte 5** | Fine-grained updates for hundreds of live values on one graphic; built to static files and embedded in the binary. |
@@ -238,7 +259,8 @@ Not planned as own drivers: DALI, EnOcean, SNMP, Zigbee, … They come in throug
 
 ### 10.3 External drivers: anyone can add a protocol
 
-A driver can also be **a separate program in any language** (Python, Node.js, Go, …). bmsio
+A driver can also be **a separate program in any language** (Python, Node.js, Go, …), shipped
+as a plugin (section 11). bmsio
 starts it and talks to it through a small, documented JSON protocol over stdin/stdout:
 
 ```
@@ -266,7 +288,83 @@ Other systems must be able to read from bmsio just as easily. Per point a switch
 
 This makes bmsio useful from day one as a **gateway**, even before it is used as the BMS.
 
-## 11. Relation to mbusio
+## 11. Plugins
+
+The community should be able to add to bmsio without changing its core and without a release
+of bmsio. A plugin is **a folder (or `.zip`) with a `plugin.toml`** and whatever its kind needs.
+
+### 11.1 Kinds
+
+| Kind | Content | Runs code? | Example |
+|---|---|---|---|
+| **Device profile** | YAML (Modbus registers, MQTT/JSON mapping, BACnet object name rules) | no | "Modbus profile for a heat meter of make X" |
+| **Template** | `template.json`, `graphic.svg`, `defaults.json` (section 5) | no | "Air handling unit with heat recovery and humidifier" |
+| **Symbols** | SVG symbols with states | no | "Symbol set for cooling plants" |
+| **Mapping rules** | Rules from names / plant designation to tags | no | "Rules for the naming code of company Y" |
+| **Translation** | Language files | no | A new interface language |
+| **Driver** | Program, JSON over stdin/stdout (10.3) | yes, as own process | "SNMP for UPS and IT racks" |
+| **Widget** | Web component (JS + CSS) for graphics and dashboards | yes, in the browser, in a sandbox | "Wind rose", "Sankey energy flow" |
+| **App** | Program that uses the API: reads points and history, writes, adds pages | yes, as own process | "Monthly energy report", "Heating curve optimiser", "Weather forecast" |
+
+Most community work will be **data plugins** (profiles, templates, symbols, rules). They run no
+code and therefore carry no risk; they are the easiest way to contribute and should be the
+first to exist.
+
+### 11.2 Manifest
+
+```toml
+id          = "acme-snmp"
+name        = "SNMP for UPS and racks"
+version     = "1.2.0"
+kind        = "driver"
+bmsio       = ">=0.4"          # plugin API version it needs
+author      = "…"
+licence     = "MIT"
+exec        = "python3 driver.py"
+
+[permissions]                  # shown before install, enforced at run time
+network     = ["udp:161"]
+points      = "own"            # only points created by this plugin
+write       = false
+```
+
+### 11.3 Install and update, in the browser
+
+- **Plugin page** in the settings: search the community index, see description, permissions,
+  version and source, click **Install**. Updates are shown like new template versions (diff of
+  permissions, changelog).
+- **Community index:** a public Git repository with one entry per plugin (name, source URL,
+  checksum, signature). Adding a plugin is a pull request there. Nothing is hosted by us
+  except that list.
+- **Local install:** upload a `.zip` or give a Git URL, for own plugins and for sites without
+  internet.
+- **Development mode:** a plugin folder on the server is reloaded on change, with its log in
+  the browser.
+
+### 11.4 Security
+
+A plugin can switch pumps, so it is treated with care:
+
+- **Code plugins run as their own process**, under their own Linux user, with systemd /
+  namespace limits: only the network and files listed in `permissions`. A crash or hang of a
+  plugin does not stop bmsio; it is restarted with a back-off and shown as faulty.
+- **Writing** to points needs the `write` permission, and every write goes into the audit log
+  with the plugin as author, like a user's write.
+- **Widgets** run in a sandboxed `<iframe>` and get values only through a message channel, so a
+  widget cannot read the session or call the API on its own.
+- **Signed packages** from the community index; unsigned plugins need an explicit "trust"
+  click by an admin.
+- **Data plugins** are checked against their schema on install; a broken template cannot be
+  saved.
+
+### 11.5 Later: WebAssembly
+
+For small pieces of logic (a calculated point, a custom alarm rule) a process per plugin is
+heavy. Later, such plugins can be WebAssembly modules run inside bmsio (`wasmtime`), sandboxed
+by design and written in Rust, Go, C or AssemblyScript. Processes stay the default because they
+work with any language and any library.
+
+## 12. Relation to mbusio
 
 mbusio **stays** a standalone tool for M-Bus commissioning and service. bmsio reuses:
 
@@ -279,22 +377,22 @@ mbusio **stays** a standalone tool for M-Bus commissioning and service. bmsio re
 
 Nothing is removed from mbusio for this.
 
-## 12. Phases
+## 13. Phases
 
 | Phase | Content | Done when |
 |---|---|---|
 | **0 Model** | Data model, tags subset, SQLite schema, API, driver interface; Modbus (with profiles), MQTT (with broker and auto-discovery), M-Bus | Points of a test bench are read and kept with history. |
 | **1 Viewer + BACnet** | BACnet/IP read with COV; live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters), tag binding, trends | A real small plant with BACnet controllers runs on it, read-only. |
-| **2 Engineering** | Discovery for all drivers, mapping rules, point list table, apply templates, versions, HTTP driver, external drivers | A new site is set up without editing a file by hand. |
-| **3 Editor** | Graphic editor, symbol library, own templates, template diff | An engineer builds a new plant type in the browser. |
+| **2 Engineering + plugins** | Discovery for all drivers, mapping rules, point list table, apply templates, versions, HTTP driver; plugin format, data plugins (profiles, templates, symbols, rules) and driver plugins, community index | A new site is set up without editing a file by hand; someone outside the project publishes a device profile. |
+| **3 Editor** | Graphic editor, symbol library, own templates, template diff, widget plugins | An engineer builds a new plant type in the browser. |
 | **4 Operation** | Writing (BACnet with priority), alarms, schedules, users and rights, audit log; KNX with ETS import; outputs (BACnet server, Modbus server, MQTT, API) | It can run a building without a second system. |
-| **5 Hub + more** | Hub across sites; OPC UA, LoRaWAN | Multi-site customer. |
+| **5 Hub + more** | Hub across sites; OPC UA, LoRaWAN; app plugins, WebAssembly plugins | Multi-site customer. |
 
 BACnet/IP comes in phase 1 because it decides whether bmsio is usable in most commercial
 buildings. Modbus and MQTT come first because they are quick to build and let the model and
 the driver interface be tested on cheap hardware.
 
-## 13. Open questions
+## 14. Open questions
 
 - **Name** of the project and repository.
 - **BACnet stack:** own Rust implementation or a C stack through FFI?
@@ -303,8 +401,10 @@ the driver interface be tested on cheap hardware.
   To be reviewed by someone from the trade, like the languages.
 - **First pilot site:** which building, which controllers, which protocols?
 - **Licence of templates and symbols** in a shared library (MIT as well, or CC BY?).
+- **Plugin index:** who reviews pull requests to the index, and who holds the signing key?
+- **Plugin API stability:** from which version is the plugin API promised to stay compatible?
 
-## 14. Existing free tools, and why another one
+## 15. Existing free tools, and why another one
 
 | Tool | Strength | Why not enough here |
 |---|---|---|
