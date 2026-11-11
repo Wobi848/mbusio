@@ -8,7 +8,7 @@ self-hosted, **open to plugins from the community**, and **simple enough that on
 up a small site in an afternoon**.
 
 This would be its own project and repository. mbusio stays a standalone tool and becomes the
-first driver (see section 12).
+first driver (see section 13).
 
 ---
 
@@ -26,8 +26,10 @@ first driver (see section 12).
   server for a small site. The *server* runs on Linux; the *users* work with any browser on any
   system, Windows included.
 - **Free:** MIT licence, no point counts, no per-site fees.
+- **MQTT first:** every point of every protocol is in one MQTT tree, readable and writable with
+  rights; the UI itself uses it (section 11).
 - **Extensible by the community:** drivers, device profiles, templates, symbols, widgets and
-  apps as plugins (section 11).
+  apps as plugins (section 12).
 
 **Non-goals (for now)**
 
@@ -53,17 +55,18 @@ Measured by these rules, every design decision is checked against them:
 ## 3. Architecture
 
 ```
-  Browser (operate + engineer)
-        │  HTTPS + WebSocket
-  ┌─────▼──────────────────────────────┐
-  │ bmsio (one binary)                 │
-  │  web server · API · live values    │
-  │  model · templates · alarms        │
-  │  scheduler · history               │
-  │  drivers: BACnet, Modbus, MQTT,    │
-  │  M-Bus, KNX, OPC UA, HTTP, … (§10) │
-  │  built-in MQTT broker (optional)   │
-  └─────┬──────────────────────────────┘
+  Browser (operate + engineer)          Node-RED, Home Assistant,
+        │  HTTPS (REST)                  Grafana, scripts, plugins
+        │  MQTT over WebSocket (live)            │ MQTT
+  ┌─────▼────────────────────────────────────────▼──┐
+  │ bmsio (one binary)                              │
+  │  MQTT broker + topic tree (§11)                 │
+  │  web server · REST API                          │
+  │  model · templates · alarms · scheduler         │
+  │  history                                        │
+  │  drivers: BACnet, Modbus, MQTT, M-Bus, KNX,     │
+  │           OPC UA, HTTP, … (§10)                 │
+  └─────┬───────────────────────────────────────────┘
         │ field protocols
    controllers, meters, gateways
 ```
@@ -72,7 +75,7 @@ Measured by these rules, every design decision is checked against them:
 
 - **Site** (default): everything on one device in the building. SQLite for model and history.
 - **Hub** (later): several sites report to one hub. The site opens the connection *outwards*
-  (WebSocket or MQTT over TLS), so no VPN and no open port at the customer. The site keeps
+  (an MQTT bridge over TLS, section 11), so no VPN and no open port at the customer. The site keeps
   working and buffering when the link is down. The hub can use PostgreSQL + TimescaleDB for long
   histories across many sites.
 
@@ -91,7 +94,7 @@ Linux offers directly:
 Updates through the package manager or the container; the binary does not update itself.
 Serial ports are `/dev/ttyUSB*` and `/dev/serial/by-id/*` (stable names for USB adapters).
 Plugins run as separate processes, so Linux tools for limiting them (separate user, systemd
-sandboxing, cgroups) are available (section 11).
+sandboxing, cgroups) are available (section 12).
 
 ## 4. Data model
 
@@ -198,7 +201,7 @@ library, so the community builds up the common plant types.
 
 ## 8. Operation
 
-- **Live view:** graphics and lists, values over WebSocket, quality shown on every value
+- **Live view:** graphics and lists, values over MQTT over WebSocket, quality shown on every value
   (good, stale, fault).
 - **History:** trend per point, compare several points, export CSV.
 - **Alarms:** limits, state alarms, delay, classes (A/B/C), acknowledge with comment, alarm
@@ -214,12 +217,12 @@ library, so the community builds up the common plant types.
 |---|---|---|
 | Platform | **Linux** only, x86-64 and ARM64 | One system to test and support (section 3). |
 | Core | **Rust** (tokio, axum) | Proven in mbusio: one file, small, stable in continuous operation. |
-| Plugins | Separate processes (any language), JSON over stdin/stdout; data packages as files; widgets as web components in a sandbox | Section 11. |
+| Plugins | Separate processes (any language), JSON over stdin/stdout or MQTT; data packages as files; widgets as web components in a sandbox | Section 12. |
 | Storage | **SQLite** on a site; **PostgreSQL + TimescaleDB** on a hub | No database server for small sites; long histories across many sites on the hub. |
 | Drivers | See section 10. Building blocks: `tokio-modbus`, `rumqttc` (client), `rumqttd` (embedded broker), `opcua`, M-Bus from mbusio; BACnet own or a C stack through FFI | BACnet/IP is required for a real BMS. The Rust crates are still thin. |
 | Frontend | **TypeScript + Svelte 5** | Fine-grained updates for hundreds of live values on one graphic; built to static files and embedded in the binary. |
 | Graphics | **SVG**, symbols as SVG files with CSS states, editor on maxGraph or own | Section 6. |
-| Live data | WebSocket, subscription per open graphic | Only the values on screen are sent. |
+| Live data | **MQTT over WebSocket** from the built-in broker, subscription per open graphic | One live data path for UI and integrations; only the values on screen are sent (section 11). |
 | Reports | HTML → PDF in the browser (print) | No PDF library on the server, as in mbusio. |
 
 ## 10. Drivers and integrations
@@ -243,10 +246,10 @@ URI per driver (`bacnet://…`, `modbus://…`, `mqtt://…`), stored only in `s
 
 | Protocol | What makes it simple | Phase |
 |---|---|---|
-| **BACnet/IP** (client) | Who-Is → device list → object list with names, units, descriptions. **COV subscriptions** instead of polling. Write with priority and release. Read the controllers' schedules, trend logs and alarms (event notification). BBMD / foreign device for routed networks. | 1 (read), 4 (write, schedules, alarms) |
-| **Modbus TCP / RTU** | **Device profile library** (YAML: register, type, scaling, unit, tags). Pick the device model, enter the unit ID, done. Profiles are shared like templates. Without a profile: register table to fill in, with a "read now" button per row. | 0 |
-| **MQTT** | **Built-in broker** (optional), so devices can publish straight to bmsio without a separate broker; or client to an existing broker. **Auto-discovery** for common formats: Home Assistant discovery, Sparkplug B, Zigbee2MQTT, Shelly, Tasmota. For everything else: **listen and suggest** (bmsio listens for a minute, shows topics with their JSON fields and values, click a field to make it a point). Writing by command topic. | 0 |
-| **M-Bus** (wired) | From mbusio, including scan, secondary addresses and the decoder. | 0 |
+| **BACnet/IP** (client) | Who-Is → device list → object list with names, units, descriptions. **COV subscriptions** instead of polling. Write with priority and release. Read the controllers' schedules, trend logs and alarms (event notification). BBMD / foreign device for routed networks. | 0 (read), 4 (write, schedules, alarms) |
+| **Modbus TCP / RTU** | **Device profile library** (YAML: register, type, scaling, unit, tags). Pick the device model, enter the unit ID, done. Profiles are shared like templates. Without a profile: register table to fill in, with a "read now" button per row. | 1 |
+| **MQTT** | **Built-in broker** (optional), so devices can publish straight to bmsio without a separate broker; or client to an existing broker. **Auto-discovery** for common formats: Home Assistant discovery, Sparkplug B, Zigbee2MQTT, Shelly, Tasmota. For everything else: **listen and suggest** (bmsio listens for a minute, shows topics with their JSON fields and values, click a field to make it a point). Writing by command topic. (This is MQTT *into* bmsio from other devices; the built-in broker and topic tree are section 11.) | 1 |
+| **M-Bus** (wired) | From mbusio, including scan, secondary addresses and the decoder. | 1 |
 | **KNX IP** | Tunnelling and routing. **Import the ETS project** (`.knxproj`): group addresses with datapoint types become points with unit and kind, without typing a single address. | 4 |
 | **OPC UA** (client) | Browse the server tree, pick nodes, subscriptions. | 5 |
 | **HTTP / REST** | Poll a JSON URL and pick fields as with MQTT; receive webhooks. Covers inverters, chargers, weather services and many devices with a web API. | 2 |
@@ -260,7 +263,7 @@ Not planned as own drivers: DALI, EnOcean, SNMP, Zigbee, … They come in throug
 ### 10.3 External drivers: anyone can add a protocol
 
 A driver can also be **a separate program in any language** (Python, Node.js, Go, …), shipped
-as a plugin (section 11). bmsio
+as a plugin (section 12). bmsio
 starts it and talks to it through a small, documented JSON protocol over stdin/stdout:
 
 ```
@@ -283,17 +286,96 @@ Other systems must be able to read from bmsio just as easily. Per point a switch
 |---|---|
 | **BACnet/IP server** | Points appear as BACnet objects to another BMS (e.g. M-Bus meters for a Siemens or Honeywell system). |
 | **Modbus TCP server** | Register table for PLCs and older systems. |
-| **MQTT publish** | Including Home Assistant discovery. |
-| **REST API + WebSocket** | Own scripts, dashboards, Node-RED. |
+| **MQTT namespace** | Every point, alarm and device state, always on (section 11). |
+| **MQTT extras** | Home Assistant discovery, Sparkplug B (for SCADA systems such as Ignition). |
+| **REST API** | Engineering data, history, scripts. |
 
 This makes bmsio useful from day one as a **gateway**, even before it is used as the BMS.
 
-## 11. Plugins
+## 11. MQTT first
+
+MQTT is not one driver among many: it is **the way everything in and around bmsio talks**.
+Whatever a site knows (BACnet, Modbus, M-Bus, KNX, …) appears as one clean MQTT tree, in the
+spirit of a *Unified Namespace*. Anyone who can use MQTT can read and write the whole building,
+with rights.
+
+### 11.1 Built-in broker, on by default
+
+- bmsio contains an MQTT 5 broker, **switched on by default** (port 1883 locally, 8883 with TLS,
+  MQTT over WebSocket on the web port).
+- **MQTT users are bmsio users.** Roles become ACLs automatically: a viewer can subscribe, an
+  operator can also write to `…/set`, a plugin gets exactly the topics in its permissions.
+  No separate password file.
+- An **existing broker** (Mosquitto, EMQX, HiveMQ) can be used instead: bmsio then publishes its
+  tree there and does not run its own.
+
+### 11.2 Topic tree
+
+Readable paths from the model (section 4), and a stable path by id for machines:
+
+```
+bmsio/v1/{site}/{building}/{equip…}/{point}          value (retained)
+bmsio/v1/{site}/{building}/{equip…}/{point}/$meta    name, tags, unit, kind, writable (retained)
+bmsio/v1/{site}/{building}/{equip…}/{point}/set      write request
+bmsio/v1/{site}/id/{pointId}                         the same value, path never changes
+bmsio/v1/{site}/$alarms/{alarmId}                    active alarms (retained), cleared = empty
+bmsio/v1/{site}/$events                              alarm events, acknowledgements, writes
+bmsio/v1/{site}/$devices/{driver}/{device}           online / offline (retained, last will)
+```
+
+Example: `bmsio/v1/hq/main/ahu01/supply-air-temp`
+
+**Payload**, JSON, the same for every point:
+
+```json
+{ "v": 21.4, "u": "°C", "q": "good", "ts": "2026-11-11T10:00:00Z" }
+```
+
+`q` is the quality (good / stale / fault / manual). For very simple consumers a point can also
+be published as a plain value on an extra `…/raw` topic (switch per point or per subtree).
+
+**Writing:** publish `{"v": 22.0}` to `…/set`, optionally with `"prio": 8` (BACnet priority) or
+`"release": true`. bmsio checks the right, writes to the device, logs it in the audit log and
+answers through MQTT 5 request/response (`response topic`) with ok or the reason it failed.
+
+Renaming a plant changes the readable path; the old path gets an empty retained message, the
+`id` path stays. Integrations that must survive renames use the `id` path.
+
+### 11.3 Everything uses it
+
+| Who | How it uses MQTT |
+|---|---|
+| **Browser UI** | Live values come over **MQTT over WebSocket**, with a short-lived token from the login. The UI subscribes to exactly the points on screen. There is only one live data path, so the MQTT interface is always complete: whatever the UI can show, an integration can read. |
+| **Drivers in plugins** | Besides stdin/stdout (10.3), a driver plugin can simply publish to and subscribe from its own subtree `bmsio/v1/{site}/$drivers/{plugin}/…`. A driver can then also run on another machine. |
+| **Apps in plugins** | Subscribe to points, publish to `…/set`; REST only for history and engineering data. |
+| **Devices** | Shelly, Tasmota, Zigbee2MQTT, ESPHome, own ESP32 sensors publish straight to the built-in broker; auto-discovery or "listen and suggest" (10.2) turns them into points. |
+| **Hub** (later) | The site bridges its tree to the hub's broker over one outgoing TLS connection, with a queue when the link is down. The hub sees all sites under `bmsio/v1/{site}/…`. |
+| **Other systems** | Node-RED, Home Assistant, Grafana, Ignition, Python scripts: subscribe and done. |
+
+### 11.4 Where MQTT is not used
+
+The core does **not** route its internal work through the broker: drivers, history, alarms and
+the scheduler talk inside the process. A broker problem or a misbehaving client must never stop
+history or alarms. The broker is the window to the outside, fed by the core, not its heart.
+
+History queries and engineering (point lists, templates, versions) go over the REST API,
+because they are requests with large answers, not live data.
+
+### 11.5 Tools to make MQTT easy
+
+- **MQTT explorer in the browser**: tree of all topics with live values, publish a test value,
+  see who is connected. Nobody needs an extra tool to debug.
+- **"Copy as MQTT"** on every point, plant and graphic: the topic, an example payload and a
+  ready snippet for Node-RED, Home Assistant and Python.
+- **Connection page per client** in the settings: create a user for a device or integration
+  with a click, with only the topics it needs.
+
+## 12. Plugins
 
 The community should be able to add to bmsio without changing its core and without a release
 of bmsio. A plugin is **a folder (or `.zip`) with a `plugin.toml`** and whatever its kind needs.
 
-### 11.1 Kinds
+### 12.1 Kinds
 
 | Kind | Content | Runs code? | Example |
 |---|---|---|---|
@@ -302,7 +384,7 @@ of bmsio. A plugin is **a folder (or `.zip`) with a `plugin.toml`** and whatever
 | **Symbols** | SVG symbols with states | no | "Symbol set for cooling plants" |
 | **Mapping rules** | Rules from names / plant designation to tags | no | "Rules for the naming code of company Y" |
 | **Translation** | Language files | no | A new interface language |
-| **Driver** | Program, JSON over stdin/stdout (10.3) | yes, as own process | "SNMP for UPS and IT racks" |
+| **Driver** | Program, JSON over stdin/stdout (10.3) or over MQTT (11.3) | yes, as own process | "SNMP for UPS and IT racks" |
 | **Widget** | Web component (JS + CSS) for graphics and dashboards | yes, in the browser, in a sandbox | "Wind rose", "Sankey energy flow" |
 | **App** | Program that uses the API: reads points and history, writes, adds pages | yes, as own process | "Monthly energy report", "Heating curve optimiser", "Weather forecast" |
 
@@ -310,7 +392,7 @@ Most community work will be **data plugins** (profiles, templates, symbols, rule
 code and therefore carry no risk; they are the easiest way to contribute and should be the
 first to exist.
 
-### 11.2 Manifest
+### 12.2 Manifest
 
 ```toml
 id          = "acme-snmp"
@@ -328,7 +410,7 @@ points      = "own"            # only points created by this plugin
 write       = false
 ```
 
-### 11.3 Install and update, in the browser
+### 12.3 Install and update, in the browser
 
 - **Plugin page** in the settings: search the community index, see description, permissions,
   version and source, click **Install**. Updates are shown like new template versions (diff of
@@ -341,7 +423,7 @@ write       = false
 - **Development mode:** a plugin folder on the server is reloaded on change, with its log in
   the browser.
 
-### 11.4 Security
+### 12.4 Security
 
 A plugin can switch pumps, so it is treated with care:
 
@@ -357,14 +439,14 @@ A plugin can switch pumps, so it is treated with care:
 - **Data plugins** are checked against their schema on install; a broken template cannot be
   saved.
 
-### 11.5 Later: WebAssembly
+### 12.5 Later: WebAssembly
 
 For small pieces of logic (a calculated point, a custom alarm rule) a process per plugin is
 heavy. Later, such plugins can be WebAssembly modules run inside bmsio (`wasmtime`), sandboxed
 by design and written in Rust, Go, C or AssemblyScript. Processes stay the default because they
 work with any language and any library.
 
-## 12. Relation to mbusio
+## 13. Relation to mbusio
 
 mbusio **stays** a standalone tool for M-Bus commissioning and service. bmsio reuses:
 
@@ -377,34 +459,37 @@ mbusio **stays** a standalone tool for M-Bus commissioning and service. bmsio re
 
 Nothing is removed from mbusio for this.
 
-## 13. Phases
+## 14. Phases
 
 | Phase | Content | Done when |
 |---|---|---|
-| **0 Model** | Data model, tags subset, SQLite schema, API, driver interface; Modbus (with profiles), MQTT (with broker and auto-discovery), M-Bus | Points of a test bench are read and kept with history. |
-| **1 Viewer + BACnet** | BACnet/IP read with COV; live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters), tag binding, trends | A real small plant with BACnet controllers runs on it, read-only. |
+| **0 BACnet → MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV; **built-in broker and topic tree** (section 11) with users and ACLs; MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics and can be watched in the browser and in any MQTT client. |
+| **1 Viewer** | Live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters) over MQTT over WebSocket, tag binding, trends; MQTT as driver with auto-discovery and "listen and suggest"; Modbus with profiles; M-Bus | The pilot plant runs on it, read-only, with graphics. |
 | **2 Engineering + plugins** | Discovery for all drivers, mapping rules, point list table, apply templates, versions, HTTP driver; plugin format, data plugins (profiles, templates, symbols, rules) and driver plugins, community index | A new site is set up without editing a file by hand; someone outside the project publishes a device profile. |
 | **3 Editor** | Graphic editor, symbol library, own templates, template diff, widget plugins | An engineer builds a new plant type in the browser. |
-| **4 Operation** | Writing (BACnet with priority), alarms, schedules, users and rights, audit log; KNX with ETS import; outputs (BACnet server, Modbus server, MQTT, API) | It can run a building without a second system. |
+| **4 Operation** | Writing (BACnet with priority, also over `…/set`), alarms, schedules, users and rights, audit log; KNX with ETS import; outputs (BACnet server, Modbus server, Home Assistant discovery, Sparkplug B) | It can run a building without a second system. |
 | **5 Hub + more** | Hub across sites; OPC UA, LoRaWAN; app plugins, WebAssembly plugins | Multi-site customer. |
 
-BACnet/IP comes in phase 1 because it decides whether bmsio is usable in most commercial
-buildings. Modbus and MQTT come first because they are quick to build and let the model and
-the driver interface be tested on cheap hardware.
+Phase 0 is **BACnet in, MQTT out**: the pilot site is BACnet, and a BACnet-to-MQTT gateway with
+a clean topic tree is already useful on its own, before there is a single graphic. It also
+proves the two hardest parts early: the BACnet stack and the data model behind the topics.
 
-## 14. Open questions
+## 15. Open questions
 
 - **Name** of the project and repository.
 - **BACnet stack:** own Rust implementation or a C stack through FFI?
 - **Editor:** maxGraph or own SVG editor? Decide after a one-week prototype of both.
 - **Symbol style:** which symbol conventions do the engineers in the target market expect?
   To be reviewed by someone from the trade, like the languages.
-- **First pilot site:** which building, which controllers, which protocols?
+- **First pilot site:** BACnet (decided). Open: which controllers (make, model), how many points,
+  BACnet/IP directly or MS/TP behind a router, BBMD needed?
+- **Broker:** embedded `rumqttd` good enough (MQTT 5, ACLs, WebSocket), or ship Mosquitto next to
+  the binary? Decide with a load test of a few thousand points.
 - **Licence of templates and symbols** in a shared library (MIT as well, or CC BY?).
 - **Plugin index:** who reviews pull requests to the index, and who holds the signing key?
 - **Plugin API stability:** from which version is the plugin API promised to stay compatible?
 
-## 15. Existing free tools, and why another one
+## 16. Existing free tools, and why another one
 
 | Tool | Strength | Why not enough here |
 |---|---|---|
