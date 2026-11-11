@@ -340,11 +340,75 @@ be published as a plain value on an extra `…/raw` topic (switch per point or p
 **Writing:** publish `{"v": 22.0}` to `…/set`, optionally with `"prio": 8` (BACnet priority) or
 `"release": true`. bmsio checks the right, writes to the device, logs it in the audit log and
 answers through MQTT 5 request/response (`response topic`) with ok or the reason it failed.
+Section 11.3 describes commands in detail.
 
 Renaming a plant changes the readable path; the old path gets an empty retained message, the
 `id` path stays. Integrations that must survive renames use the `id` path.
 
-### 11.3 Everything uses it
+### 11.3 Commands: how switching a plant works
+
+MQTT itself only knows "publish" and "subscribe"; it has no "write" and no "answer". A command
+is therefore built from a few rules. They follow the common practice of MQTT 5 and of
+Sparkplug B (`NCMD`/`DCMD` commands, birth and death messages), adapted to building automation.
+
+**Example: an operator switches AHU 01 off from the graphic.**
+
+```
+Browser / Node-RED          bmsio core                    Kieback&Peter controller
+      │                         │                                   │
+ 1    │ PUBLISH …/ahu01/enable/set                                  │
+      │ {"v":false,"prio":8}  QoS 1, not retained, expiry 10 s      │
+      │ response topic + correlation data                           │
+      │────────────────────────►│                                   │
+ 2    │                         │ check: right? device online?      │
+      │                         │ point writable? interlock?        │
+ 3    │                         │ BACnet WriteProperty              │
+      │                         │ BV:12 Present_Value = inactive,   │
+      │                         │ priority 8                        │
+      │                         │──────────────────────────────────►│
+ 4    │                         │◄──────────────── SimpleACK ───────│
+ 5    │◄── response: {"ok":true} (to the response topic)            │
+ 6    │                         │◄── COV: fan feedback = off ───────│
+ 7    │◄── …/ahu01/enable  {"v":false,"q":"good"}  (retained)       │
+      │◄── …/ahu01/supply-fan-feedback {"v":false}                  │
+```
+
+**The rules**
+
+| Rule | Why |
+|---|---|
+| **State and command are separate topics.** `…/enable` is the state (published by bmsio only, retained); `…/enable/set` is the command (published by clients). | Nobody can fake a state; a client sees what the plant *is*, not what someone *wanted*. |
+| **Commands are never retained.** | A retained command would be delivered again to every new subscriber and after every restart, and could switch a plant on hours later. |
+| **Commands expire.** MQTT 5 *message expiry*, default 10 s. | A command stuck in a queue during a network outage is dropped instead of being executed late. |
+| **Absolute values, no toggles.** `{"v":false}`, never `"toggle"`. | QoS 1 can deliver a message twice; writing "off" twice is harmless, toggling twice is not. |
+| **QoS 1 for commands.** | Delivered at least once; together with absolute values that is safe. |
+| **Answer per command.** MQTT 5 *response topic* and *correlation data*; the answer says `ok` or why not (`no right`, `device offline`, `not writable`, `interlock`, `device rejected: write access denied`). | The sender knows at once whether the command was accepted, without guessing from the state. |
+| **The UI shows the feedback, not the wish.** After the command the switch shows "switching…", and only the real feedback (step 6–7) changes it. If command and feedback differ after a set time, an alarm "command/feedback mismatch" is raised. | That is how a professional BMS works: the operator sees the plant, not the button. |
+| **bmsio is the only writer to the controllers.** MQTT clients never talk BACnet; they ask bmsio. | One place for rights, audit log, priorities and limits. |
+| **Online state with last will.** Every driver and device has a retained `online`/`offline` topic; the broker publishes `offline` itself when the connection breaks. | A command to an offline device is refused at once instead of disappearing. |
+
+**BACnet priorities: who has the say**
+
+A BACnet output has 16 priority levels. The controller uses the highest one that is set. bmsio
+writes at a configurable level (default 8, *manual operator*). The local programs and schedules
+in the controller usually write at a lower priority, so the operator's command wins.
+
+- **Release** (`{"release":true}`) removes bmsio's value at that level, and the controller goes
+  back to its own program (*automatic*). The UI shows this as **Hand / Auto**: a point overridden
+  by bmsio is marked "manual" until it is released.
+- The full priority array is shown in the point details, so it is visible who holds the point
+  (bmsio, a local panel, a fire control at priority 1–2).
+
+**Critical commands** (plant off, pumps, boilers) can require a confirmation at the button
+and a reason, which goes into the audit log. Which points count as critical is set in the
+template.
+
+**Devices that speak MQTT themselves** (Shelly, Tasmota, ESPHome) have their own command topic.
+The device profile maps it: bmsio receives `…/light-hall/set {"v":true}`, checks it as above and
+publishes `shellies/hall/relay/0/command` → `on` to the device. For the operator and for
+integrations there is no difference to a BACnet point.
+
+### 11.4 Everything uses it
 
 | Who | How it uses MQTT |
 |---|---|
@@ -355,7 +419,7 @@ Renaming a plant changes the readable path; the old path gets an empty retained 
 | **Hub** (later) | The site bridges its tree to the hub's broker over one outgoing TLS connection, with a queue when the link is down. The hub sees all sites under `bmsio/v1/{site}/…`. |
 | **Other systems** | Node-RED, Home Assistant, Grafana, Ignition, Python scripts: subscribe and done. |
 
-### 11.4 Where MQTT is not used
+### 11.5 Where MQTT is not used
 
 The core does **not** route its internal work through the broker: drivers, history, alarms and
 the scheduler talk inside the process. A broker problem or a misbehaving client must never stop
@@ -364,7 +428,7 @@ history or alarms. The broker is the window to the outside, fed by the core, not
 History queries and engineering (point lists, templates, versions) go over the REST API,
 because they are requests with large answers, not live data.
 
-### 11.5 Tools to make MQTT easy
+### 11.6 Tools to make MQTT easy
 
 - **MQTT explorer in the browser**: tree of all topics with live values, publish a test value,
   see who is connected. Nobody needs an extra tool to debug.
@@ -387,7 +451,7 @@ of bmsio. A plugin is **a folder (or `.zip`) with a `plugin.toml`** and whatever
 | **Symbols** | SVG symbols with states | no | "Symbol set for cooling plants" |
 | **Mapping rules** | Rules from names / plant designation to tags | no | "Rules for the naming code of company Y" |
 | **Translation** | Language files | no | A new interface language |
-| **Driver** | Program, JSON over stdin/stdout (10.3) or over MQTT (11.3) | yes, as own process | "SNMP for UPS and IT racks" |
+| **Driver** | Program, JSON over stdin/stdout (10.3) or over MQTT (11.4) | yes, as own process | "SNMP for UPS and IT racks" |
 | **Widget** | Web component (JS + CSS) for graphics and dashboards | yes, in the browser, in a sandbox | "Wind rose", "Sankey energy flow" |
 | **Script** | Small JavaScript, written in the browser (12.4) | yes, inside bmsio, in a sandbox | "Mixed temperature from two sensors", "Alarm if pump runs but no flow" |
 | **App** | Program that uses the API: reads points and history, writes, adds pages | yes, as own process | "Monthly energy report", "Heating curve optimiser", "Weather forecast" |
