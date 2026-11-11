@@ -130,45 +130,169 @@ turns it into the tree and tags (`=AHU01.TE01` → equip `AHU01`, point type `TE
 
 ## 5. Templates
 
+Templates are the heart of bmsio: a plant type is engineered **once** and used for many plants,
+at many sites, by many people. Making, changing and sharing them must therefore be as easy as
+using them.
+
+### 5.1 What a template is
+
 A template is a **package**, not just a picture:
 
 ```
-templates/ahu-hr/
-  template.json     # slots, parameters, version
-  graphic.svg       # the plant graphic with placeholders
-  defaults.json     # trends, alarms, schedules for the slots
+ahu-hr/
+  template.json      # id, version, slots, options, modules, metadata
+  graphics/
+    overview.svg     # the plant graphic
+    detail-*.svg     # optional detail graphics
+  defaults.json      # trends, alarms, critical points, schedules for the slots
+  locales/*.ftl      # all texts, per language (section 20)
+  docs/
+    description.md   # what the template is for, function description, notes
+    preview.png      # picture for the library
+  test/
+    simulation.json  # simulated values, so the template can be tried without a plant
 ```
 
-**Slots** say which points the template needs, by meaning:
+**Slots** say which points the template needs, by meaning (tags), never by address:
 
 ```json
 {
   "id": "ahu-hr",
-  "version": 3,
-  "title": "Air handling unit with heat recovery",
-  "params": { "hasCooler": { "type": "bool", "default": true } },
+  "version": "3.1.0",
+  "title": "template-title",
+  "options": {
+    "hasCooler":   { "type": "bool", "default": true },
+    "recovery":    { "type": "enum", "values": ["plate", "wheel", "runaround"], "default": "wheel" }
+  },
+  "modules": {
+    "supplyFan":   { "use": "fan@2",       "prefix": "supply" },
+    "exhaustFan":  { "use": "fan@2",       "prefix": "exhaust" },
+    "cooler":      { "use": "coil-cool@1", "if": "hasCooler" }
+  },
   "slots": {
     "supplyTemp":   { "tags": "supply air temp sensor", "required": true },
     "supplyTempSp": { "tags": "supply air temp sp", "writable": true },
-    "supplyFan":    { "tags": "supply fan run cmd" },
-    "coolValve":    { "tags": "cool valve cmd", "if": "hasCooler" }
+    "enable":       { "tags": "enable cmd", "writable": true, "critical": true }
   }
 }
 ```
 
-**Applying a template to a plant:**
+The **tags are the contract** between a template and a site. They come from the documented tag
+set (section 4, Project Haystack subset). Own tags are allowed but must carry a prefix
+(`acme:`) so they never clash. Because templates only speak tags, a template made at one site
+works at any other site, whatever controllers it has.
 
-1. Pick the plant (an `equip`) and the template.
+### 5.2 Modules: templates made of templates
+
+Real plants are made of the same parts again and again: fan, pump, valve, coil, damper, filter,
+heat recovery, meter. These parts are **modules**: small templates with their own slots, symbol,
+alarms and trends. A plant template is put together from modules plus its own slots.
+
+- An improvement to the module `fan` (e.g. a better fault alarm) reaches every plant template
+  that uses it, after the usual diff and confirmation (5.6).
+- A new plant type is mostly assembled, not drawn: AHU = filter + 2 × fan + recovery + coils.
+- Modules are versioned and shared exactly like templates.
+
+### 5.3 Options and variants
+
+One template covers many real plants through **options**: with or without cooler, plate or
+wheel recovery, one or two stage fan. Options switch modules, slots and parts of the graphic
+on and off. This keeps the library small: "AHU" with options instead of twenty AHU templates
+that drift apart.
+
+When the options are not enough, a template can be **derived** from another one: it inherits
+everything and only changes or adds. Updates of the original reach the derived template.
+
+### 5.4 Making a template
+
+Four ways, all in the browser:
+
+| Way | When |
+|---|---|
+| **From an existing plant** ("Make template from this plant") | The usual way. An engineer has set up one plant well; bmsio turns its points into slots (by their tags), its graphic into the template graphic, its trends and alarms into defaults. The engineer reviews the proposed slots and names, then saves. |
+| **Assemble from modules** | A new plant type from known parts (5.2), then arrange the graphic in the editor. |
+| **Copy or derive** an existing template | Small differences to a template from the library. |
+| **From scratch** in the template editor | New modules, unusual plants. |
+
+The **template editor** shows the template with simulated values (from `test/simulation.json`
+or generated from the slots), so options, alarms and graphics can be tried at the desk. Every
+text is entered once in the user's language and can be translated in the same place.
+
+**Checks before a template can be saved or shared:**
+
+- every slot has valid tags; every symbol in the graphic is bound to a slot that exists,
+- every option combination renders (tested automatically with the simulation),
+- texts exist at least in English and the author's language,
+- description and preview exist (for sharing).
+
+### 5.5 Applying a template to a plant
+
+1. Pick the plant (an `equip`) and the template, choose the options.
 2. bmsio fills the slots automatically: it searches the plant's points for the slot's tags.
 3. The engineer sees a table: slot → point, with green (found), yellow (several candidates),
    red (missing). Missing optional slots hide their part of the graphic.
-4. Save. The plant now has its graphic, trends and alarms.
+4. Save (as a draft, 18.7). The plant now has its graphic, trends and alarms.
 
-**Changing a template:** a new template version is shown as a diff. "Apply to all 12 plants"
-updates them; plants with local changes are listed and the engineer decides per plant.
+The same works for **many plants at once**: select 12 AHUs, apply the template, check one table
+with all of them.
 
-**Sharing:** templates are plain files. They can be exported, imported and kept in a public
-library, so the community builds up the common plant types.
+**Vendor-neutral templates, vendor-specific rules.** Whether the slots fill themselves depends
+on the points having the right tags. That is the job of **mapping rules** (section 7), which
+are specific to a manufacturer or a naming code: "Kieback&Peter DDC4000, AHU program: object
+name `*_TZu` → `supply air temp sensor`". Templates and mapping rules are separate packages,
+so the same AHU template works with Kieback&Peter, LOYTEC or any other controller, and someone
+who knows one manufacturer well can share just the rules.
+
+### 5.6 Versions and updates
+
+- Templates use **semantic versions**: `3.1.0 → 3.1.1` fixes, `3.2.0` adds (new optional slot,
+  new alarm), `4.0.0` changes in a way that needs the engineer (slot removed or changed).
+- Every plant remembers **which template and which version** it uses.
+- **Local changes** on a plant (an extra trend, a moved symbol, a different alarm limit) are
+  kept as a separate layer on top of the template, not mixed into it. A template update
+  therefore does not overwrite them, and it is visible at a glance what a plant does
+  differently from its template.
+- **Update:** a new version shows a diff (graphic before/after, slots, alarms). "Apply to all
+  12 plants" updates them as a draft; plants whose local changes conflict are listed and
+  decided one by one.
+- Plants never update on their own: the engineer decides, and only `engineering.publish`
+  puts it into operation (18.7).
+
+### 5.7 Sharing
+
+Templates are shared at three levels, all with the same package:
+
+| Level | Who sees it | How |
+|---|---|---|
+| **Site** | Only this installation | Default for every new template. |
+| **Organisation** | An integrator's or owner's own library, used across all their sites | A Git repository or a folder share as a library source, or the hub (section 3). Typical: a company's standard templates. |
+| **Community** | Everyone | The community library (section 12): **Share** checks the template (5.4), packs it and leads through the pull request. |
+
+- A site can use **several library sources**: community, one or more organisation libraries,
+  local. The library page shows them together, with the source of each template.
+- **Search and filter** by plant type, tags, options, manufacturer rules available, language,
+  rating "used at N sites" (only counted from sites that agree to report it; off by default).
+- **Credit:** author, licence and the template it was derived from stay in the package and are
+  shown in the library.
+- **Improve together:** a user who changes a community template can offer the change back to
+  the author (a pull request made from the diff), instead of only keeping a private copy.
+- **Licence of shared templates:** to be decided (section 15); the default proposal is the same
+  for all shared templates, so they can be combined freely.
+
+### 5.8 What comes with bmsio
+
+bmsio ships a **starter library**, maintained by the project, so the first site works without
+building anything:
+
+- Modules: fan, pump, valve, damper, heating coil, cooling coil, heat recovery (plate, wheel,
+  runaround), filter, humidifier, sensor, meter.
+- Plants: air handling unit, heating circuit (mixed, unmixed), boiler, heat pump, district
+  heating substation, domestic hot water, chiller, room (temperature, CO₂, light, blinds),
+  meter overview.
+- Mapping rules for the pilot site's controllers (Kieback&Peter, LOYTEC) as the first examples.
+
+The starter library is a normal library source; its templates can be copied, derived and
+improved like any other.
 
 ## 6. Graphics
 
@@ -196,7 +320,7 @@ library, so the community builds up the common plant types.
 | **Mapping rules** | Rules from object name or AKS to name, tags, unit, plant. Example: `*_TE*` → `temp sensor`. Applied on discovery and on demand; the result is shown before it is saved. |
 | **EDE import** | Import BACnet point lists in the EDE format (*Engineering Data Exchange*, a CSV layout many vendor tools export). Points, names, units and descriptions arrive before the first scan, and the mapping rules tag them. |
 | **Point list** | All points as a table: filter, multi-select, edit in place, fill down, find and replace. CSV/Excel import and export, layout close to a VDI 3814 function list. |
-| **Templates** | Library, editor, apply to plants, slot table, version diff (section 5). |
+| **Templates** | Library with several sources, make from a plant, modules, options, editor with simulation, apply to many plants, version diff, share (section 5). |
 | **Graphic editor** | Section 6. |
 | **Simulator** | Every driver can run against simulated devices, so graphics, alarms and schedules can be tested at the desk (mbusio already has a simulator). |
 | **Commissioning** | Go through the points of a plant one by one: value plausible? write test done? tick it off. Ends in a commissioning report (PDF), like mbusio's report. |
@@ -597,7 +721,7 @@ Nothing is removed from mbusio for this.
 | **0 BACnet + MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV, EDE import; **built-in broker and topic tree** (section 11) with ACLs derived from the rights; **users, built-in roles with scope, the one rights check and the audit log** (section 18); the foundations of section 19; language system with German and English (section 20); package, systemd service and setup page (21.1); manual backup and restore (22); **MQTT as driver** (devices publishing into bmsio, auto-discovery, "listen and suggest"); MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics, an MQTT device (e.g. a Shelly) becomes a point next to them, and both can be watched in the browser and in any MQTT client. |
 | **1 Viewer** | Live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters) over MQTT over WebSocket, tag binding, trends; Modbus with profiles; M-Bus; one-click update with backup and rollback (21.2); scheduled backups to targets (22.2); French and Italian | The pilot plant runs on it, read-only, with graphics. |
 | **2 Engineering + plugins** | Discovery for all drivers, mapping rules, point list table, apply templates, versions, HTTP driver; plugin format, data plugins (profiles, templates, symbols, rules) and driver plugins, community index | A new site is set up without editing a file by hand; someone outside the project publishes a device profile. |
-| **3 Editor** | Graphic editor, symbol library, own templates, template diff, widget plugins, scripts in the browser, "Export as plugin" and "Share" | An engineer builds a new plant type in the browser. |
+| **3 Editor** | Graphic editor, symbol library, template editor with simulation, "make template from this plant", modules and options, template versions and diff, organisation libraries, widget plugins, scripts in the browser, "Export as plugin" and "Share" | An engineer builds a new plant type in the browser. |
 | **4 Operation** | Writing (BACnet with priority, also over `…/set`), alarms with notification by scope and role, schedules, critical points with step-up, own roles, second factor, single sign-on (OIDC), four-eyes option, time-limited remote service access; KNX with ETS import; outputs (BACnet server, Modbus server, Home Assistant discovery, Sparkplug B) | It can run a building without a second system. |
 | **5 Hub + more** | Hub across sites, organisations and integrator access across customers, on-call plans; OPC UA, LoRaWAN; app plugins, WebAssembly plugins | Multi-site customer. |
 
@@ -863,6 +987,7 @@ the feature that needs them comes later.
 | **Units** | Every value has a unit (UCUM / QUDT codes); conversion only for display | Templates and plugins can rely on it; °C vs K vs °F never gets mixed up. |
 | **Quality on every value** | good / stale / fault / manual, from the driver to the UI | Added later, every driver and widget would have to be touched again. |
 | **Versioned interfaces** | `bmsio/v1/…` topics, `/api/v1/…`, plugin API version, database migrations from the first schema | Integrations and plugins of others must not break with an update. |
+| **Template format** | Modules, options, tags as the contract, local changes as a separate layer (section 5), already for the first built-in templates | Templates shared by others cannot be migrated by us; a format change later breaks the libraries. |
 | **Engineering as versions** | Drafts and published versions (18.7) from the first editable thing | Undo and audit for engineering cannot be added afterwards. |
 | **Audit log** | Section 18.10, from the first write | Writes without a log cannot be explained later. |
 | **Secure by default** | TLS on (own certificate, ACME or self-signed), no default password, broker without anonymous access, secrets encrypted at rest | Weak defaults stay in the field for years. |
