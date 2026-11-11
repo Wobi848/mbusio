@@ -26,7 +26,8 @@ first driver (see section 13).
 - **One binary, Linux only** (x86-64 and ARM64, so also the Raspberry Pi). No separate database
   server for a small site. The *server* runs on Linux; the *users* work with any browser on any
   system, Windows included.
-- **Free:** MIT licence, no point counts, no per-site fees.
+- **100% open source:** one edition with every feature, no "enterprise" part, no point counts,
+  no per-site fees, no telemetry, no account needed (section 17).
 - **MQTT first:** every point of every protocol is in one MQTT tree, readable and writable with
   rights; the UI itself uses it (section 11).
 - **Extensible by the community:** drivers, device profiles, templates, symbols, widgets and
@@ -388,6 +389,7 @@ of bmsio. A plugin is **a folder (or `.zip`) with a `plugin.toml`** and whatever
 | **Translation** | Language files | no | A new interface language |
 | **Driver** | Program, JSON over stdin/stdout (10.3) or over MQTT (11.3) | yes, as own process | "SNMP for UPS and IT racks" |
 | **Widget** | Web component (JS + CSS) for graphics and dashboards | yes, in the browser, in a sandbox | "Wind rose", "Sankey energy flow" |
+| **Script** | Small JavaScript, written in the browser (12.4) | yes, inside bmsio, in a sandbox | "Mixed temperature from two sensors", "Alarm if pump runs but no flow" |
 | **App** | Program that uses the API: reads points and history, writes, adds pages | yes, as own process | "Monthly energy report", "Heating curve optimiser", "Weather forecast" |
 
 Most community work will be **data plugins** (profiles, templates, symbols, rules). They run no
@@ -412,7 +414,41 @@ points      = "own"            # only points created by this plugin
 write       = false
 ```
 
-### 12.3 Install and update, in the browser
+### 12.3 Write your own, share if you want
+
+Every user can write plugins, and **sharing is a choice, never a condition**:
+
+- **Built in the UI, exported as plugin:** a template, symbol set, device profile or set of
+  mapping rules made in the browser is already a plugin. The button **Export as plugin** writes
+  the folder with `plugin.toml`; nobody has to know the format.
+- **New plugin from a starter:** "New plugin" creates a working skeleton for a driver (Python
+  or Node.js), widget, script or app, with a README and tests, ready to edit.
+- **Private stays private:** a plugin installed locally never leaves the site. No upload, no
+  account, no telemetry. Companies can keep plugins for their own customers.
+- **Sharing:** the button **Share** checks the plugin (schema, manifest, licence field), packs
+  it and explains the pull request to the community index step by step. Later it can open the
+  pull request itself.
+- **Fork and improve:** every shared plugin shows its source; "Copy and change" makes a local
+  copy with a new id, and the original author is named in it.
+
+### 12.4 Scripts in the browser
+
+For small logic, a process is too much and a separate project too much work. A **script** is a
+few lines of JavaScript, written in an editor in the browser with completion for point names:
+
+```js
+// Calculated point: mixed temperature
+const t1 = point("ahu01/supply-air-temp");
+const t2 = point("ahu01/outside-air-temp");
+return 0.7 * t1 + 0.3 * t2;
+```
+
+Scripts run in an embedded JavaScript engine (QuickJS through `rquickjs`) in a sandbox, with a
+time and memory limit, without network or file access, and only with the points the script
+names. They are triggered by value changes or a timer. JavaScript because most people who write
+a few lines (Node-RED, Home Assistant, web) already know it.
+
+### 12.5 Install and update, in the browser
 
 - **Plugin page** in the settings: search the community index, see description, permissions,
   version and source, click **Install**. Updates are shown like new template versions (diff of
@@ -425,7 +461,7 @@ write       = false
 - **Development mode:** a plugin folder on the server is reloaded on change, with its log in
   the browser.
 
-### 12.4 Security
+### 12.6 Security
 
 A plugin can switch pumps, so it is treated with care:
 
@@ -441,12 +477,12 @@ A plugin can switch pumps, so it is treated with care:
 - **Data plugins** are checked against their schema on install; a broken template cannot be
   saved.
 
-### 12.5 Later: WebAssembly
+### 12.7 Later: WebAssembly
 
-For small pieces of logic (a calculated point, a custom alarm rule) a process per plugin is
-heavy. Later, such plugins can be WebAssembly modules run inside bmsio (`wasmtime`), sandboxed
-by design and written in Rust, Go, C or AssemblyScript. Processes stay the default because they
-work with any language and any library.
+Scripts (12.4) cover small logic in JavaScript. For heavier logic in other languages, plugins
+can later also be WebAssembly modules run inside bmsio (`wasmtime`), sandboxed by design and
+written in Rust, Go, C or AssemblyScript. Processes stay the default for drivers and apps
+because they work with any language and any library.
 
 ## 13. Relation to mbusio
 
@@ -468,7 +504,7 @@ Nothing is removed from mbusio for this.
 | **0 BACnet + MQTT** | Data model, tags subset, SQLite schema, driver interface; **BACnet/IP read** with COV, EDE import; **built-in broker and topic tree** (section 11) with users and ACLs; **MQTT as driver** (devices publishing into bmsio, auto-discovery, "listen and suggest"); MQTT explorer in the browser; history | The pilot site's BACnet points appear under readable topics, an MQTT device (e.g. a Shelly) becomes a point next to them, and both can be watched in the browser and in any MQTT client. |
 | **1 Viewer** | Live graphics from 3–5 built-in templates (AHU, heating circuit, boiler, meters) over MQTT over WebSocket, tag binding, trends; Modbus with profiles; M-Bus | The pilot plant runs on it, read-only, with graphics. |
 | **2 Engineering + plugins** | Discovery for all drivers, mapping rules, point list table, apply templates, versions, HTTP driver; plugin format, data plugins (profiles, templates, symbols, rules) and driver plugins, community index | A new site is set up without editing a file by hand; someone outside the project publishes a device profile. |
-| **3 Editor** | Graphic editor, symbol library, own templates, template diff, widget plugins | An engineer builds a new plant type in the browser. |
+| **3 Editor** | Graphic editor, symbol library, own templates, template diff, widget plugins, scripts in the browser, "Export as plugin" and "Share" | An engineer builds a new plant type in the browser. |
 | **4 Operation** | Writing (BACnet with priority, also over `…/set`), alarms, schedules, users and rights, audit log; KNX with ETS import; outputs (BACnet server, Modbus server, Home Assistant discovery, Sparkplug B) | It can run a building without a second system. |
 | **5 Hub + more** | Hub across sites; OPC UA, LoRaWAN; app plugins, WebAssembly plugins | Multi-site customer. |
 
@@ -492,6 +528,7 @@ protocols fit the same driver interface.
   EDE files?
 - **Broker:** embedded `rumqttd` good enough (MQTT 5, ACLs, WebSocket), or ship Mosquitto next to
   the binary? Decide with a load test of a few thousand points.
+- **Licence of the core:** see section 17.2, to be decided before the repository is public.
 - **Licence of templates and symbols** in a shared library (MIT as well, or CC BY?).
 - **Plugin index:** who reviews pull requests to the index, and who holds the signing key?
 - **Plugin API stability:** from which version is the plugin API promised to stay compatible?
@@ -511,3 +548,39 @@ protocols fit the same driver interface.
 | Vendor systems (e.g. **Qanteon** from Kieback&Peter, **LWEB-900** from LOYTEC), **Niagara**, **Avelon** | Complete and proven | Commercial, licensed per site or point, tied to one vendor's world. |
 
 The gap bmsio fills: **semantic model + templates + engineering in the browser**, free.
+
+## 17. Open source
+
+### 17.1 What "100% open source" means here
+
+- **One edition.** Every feature is in the public code. No open core, no closed "enterprise"
+  modules, no feature behind a licence key, no limit on points, sites or users.
+- **No lock-in.** Every piece of data can be exported in open formats (project file, CSV, the
+  MQTT tree, the REST API); the formats are documented.
+- **No telemetry, no account.** bmsio does not phone home. The community index is read only
+  when the user opens the plugin page.
+- **Open development.** Issues, concepts (`docs/`), roadmap and decisions are public once the
+  repository is public. Contributions under the **Developer Certificate of Origin** (sign-off
+  in the commit), **no CLA**: nobody, the project included, can later take the code closed.
+- **Documented plugin API** with a promise of compatibility from version 1.0, and examples
+  under MIT that anyone may copy into own plugins.
+
+The repository starts private, so the first structure can be built in peace; it goes public as
+soon as phase 0 runs at the pilot site.
+
+### 17.2 Licence (to decide)
+
+| Option | Effect |
+|---|---|
+| **MIT or Apache-2.0** (permissive) | Easiest for everyone to use and embed, as with mbusio. A company may build a closed product on it. Apache-2.0 adds a patent grant, useful with manufacturers. |
+| **AGPL-3.0** for the core (copyleft) | Whoever changes the core and runs it, also as a service, must publish the change. bmsio stays open, also in hosted forks. Used by Grafana and OpenRemote. Some companies avoid AGPL. |
+
+Either way, **plugins are free in their licence**: drivers, apps and widgets talk to bmsio over
+documented interfaces (stdin/stdout, MQTT, REST, message channel) as separate programs, so a
+plugin can be MIT, GPL or private. The plugin SDK and examples are MIT.
+
+The community index lists only plugins with an OSI-approved open source licence, so everything
+that is shared is open as well. Private plugins can be anything and are simply not listed.
+
+The licence must be chosen before the first outside contribution: without a CLA it can hardly
+be changed afterwards.
